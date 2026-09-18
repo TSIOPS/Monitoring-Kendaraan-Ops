@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "monitoring",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-18",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./static",
+    "binding": "ASSETS"
+  },
+  "kv_namespaces": [
+    { "binding": "SESSION_KV", "id": "PASTE_KV_NAMESPACE_ID_HERE" }
+  ],
+  "vars": {
+    "SUPABASE_URL": "https://jscpogjdquwcbglavurd.supabase.co"
+  }
+}
