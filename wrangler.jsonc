@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "monitoring",
+  "account_id": "6a10daf4221b92a15e6a4e3d232db007",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-18",
   "compatibility_flags": ["nodejs_compat"],
@@ -9,7 +10,7 @@
     "binding": "ASSETS"
   },
   "kv_namespaces": [
-    { "binding": "SESSION_KV", "id": "PASTE_KV_NAMESPACE_ID_HERE" }
+    { "binding": "SESSION_KV", "id": "4f4ecbcfe4f34e78bf5db8cfdfc1f435" }
   ],
   "vars": {
     "SUPABASE_URL": "https://jscpogjdquwcbglavurd.supabase.co"

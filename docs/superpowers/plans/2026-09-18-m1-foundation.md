@@ -591,7 +591,7 @@ on conflict (key) do nothing;
 Run: `npm test -- schema.test.ts`
 Expected: PASS (3 assertions).
 
-- [ ] **Step 5: Terapkan ke Supabase**
+- [x] **Step 5: Terapkan ke Supabase**
 
 1. Buat project Supabase baru (`https://supabase.com/dashboard`).
 2. Buka **SQL Editor** → tempel isi `db/schema.sql` → **Run**.
@@ -1659,7 +1659,7 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 - Hash password format kompatibel GAS (tidak perlu reset saat migrasi).
 ```
 
-- [ ] **Step 4: Verifikasi deploys**
+- [x] **Step 4: Verifikasi deploys**
 
 Run: `npm run typecheck`
 Run: `npm test`
