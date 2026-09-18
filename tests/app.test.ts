@@ -44,4 +44,28 @@ describe('buildApp', () => {
     expect(res.status).toBe(404);
     expect(await res.text()).toBe('static:not-found');
   });
+
+  it('menambahkan header CORS pada respon api', async () => {
+    const app = buildApp(fakeEnv(), { ...defaultDeps });
+    const res = await app.request(
+      '/api/health',
+      { method: 'GET', headers: { Origin: 'http://localhost:8787' } },
+      fakeEnv(),
+    );
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:8787');
+  });
+
+  it('OPTIONS preflight dikembalikan 204 + header CORS', async () => {
+    const app = buildApp(fakeEnv(), { ...defaultDeps });
+    const res = await app.request(
+      '/api/login',
+      {
+        method: 'OPTIONS',
+        headers: { Origin: 'http://localhost:8787', 'Access-Control-Request-Method': 'POST' },
+      },
+      fakeEnv(),
+    );
+    expect(res.status).toBe(204);
+    expect(res.headers.get('Access-Control-Allow-Methods')).toContain('POST');
+  });
 });
