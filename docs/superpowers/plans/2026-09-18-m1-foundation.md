@@ -85,7 +85,7 @@ Unit:
 **Interfaces:**
 - Produces: `Env` type (dipakai `app.ts`, `index.ts`, semua route), script npm `dev/deploy/test/typecheck`.
 
-- [ ] **Step 1: Write `package.json`**
+- [x] **Step 1: Write `package.json`**
 
 ```json
 {
@@ -114,7 +114,7 @@ Unit:
 }
 ```
 
-- [ ] **Step 2: Write `tsconfig.json`**
+- [x] **Step 2: Write `tsconfig.json`**
 
 ```json
 {
@@ -136,7 +136,7 @@ Unit:
 }
 ```
 
-- [ ] **Step 3: Write `wrangler.jsonc`**
+- [x] **Step 3: Write `wrangler.jsonc`**
 
 ```jsonc
 {
@@ -157,7 +157,7 @@ Unit:
 
 > Catatan: buat namespace KV via `npx wrangler kv namespace create SESSION_KV`, lalu ganti `id`. Untuk `wrangler dev` lokal nilai `id` palsu cukup (KV lokal dipakai otomatis).
 
-- [ ] **Step 4: Write `vitest.config.ts`**
+- [x] **Step 4: Write `vitest.config.ts`**
 
 ```ts
 import { defineConfig } from 'vitest/config';
@@ -170,7 +170,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 5: Write `.gitignore`**
+- [x] **Step 5: Write `.gitignore`**
 
 ```gitignore
 node_modules/
@@ -180,7 +180,7 @@ dist/
 *.log
 ```
 
-- [ ] **Step 6: Write `.env.example`**
+- [x] **Step 6: Write `.env.example`**
 
 ```env
 # Cloudflare Worker secrets (set via: npx wrangler secret put NAME)
@@ -190,7 +190,7 @@ SUPABASE_SERVICE_ROLE_KEY=service_role_key
 
 > Jangan commit `.dev.vars` (berisi nilai asli) — gunakan `.env.example` sebagai template.
 
-- [ ] **Step 7: Write `static/index.html`**
+- [x] **Step 7: Write `static/index.html`**
 
 ```html
 <!DOCTYPE html>
@@ -209,7 +209,7 @@ SUPABASE_SERVICE_ROLE_KEY=service_role_key
 </html>
 ```
 
-- [ ] **Step 8: Write `src/env.ts`**
+- [x] **Step 8: Write `src/env.ts`**
 
 ```ts
 export interface Env {
@@ -220,7 +220,7 @@ export interface Env {
 }
 ```
 
-- [ ] **Step 9: Write placeholder `src/index.ts`**
+- [x] **Step 9: Write placeholder `src/index.ts`**
 
 ```ts
 export default {
@@ -230,14 +230,14 @@ export default {
 };
 ```
 
-- [ ] **Step 10: Verifikasi**
+- [x] **Step 10: Verifikasi**
 
 Run: `npm install`
 Run: `npm run typecheck`
 Run: `npm run dev` lalu buka `http://localhost:8787` — harus tampil "Monitoring Kendaraan Operasional (Cloud)".
 Expected: typecheck lolos tanpa error; dev server menyajikan teks di atas.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add .
@@ -256,7 +256,7 @@ git commit -m "chore: scaffold Cloudflare Workers repo"
 - Produces: file `db/schema.sql` berisi semua tabel bernama PERSIS seperti `DATABASE_SCHEMA` (`cabang`, `supir`, `bbm`, `pengguna`, `kendaraan`, `penggunaan_bbm`, `pengisian_bbm`, `foto_evidence`, `audit_log`, `konfigurasi`, `pengaturan`, `flazz_card`, `flazz_usage`, `flazz_topup`, `flazz_tol`, `flazz_reconciliation`, `jalur_pengiriman`) + index + seed `pengaturan`.
 - Consumes: tidak ada (tabel akan dipakai M2+).
 
-- [ ] **Step 1: Write failing test `tests/schema.test.ts`**
+- [x] **Step 1: Write failing test `tests/schema.test.ts`**
 
 ```ts
 import { readFileSync } from 'node:fs';
@@ -303,12 +303,12 @@ describe('db/schema.sql', () => {
 });
 ```
 
-- [ ] **Step 2: Run test — harus FAIL**
+- [x] **Step 2: Run test — harus FAIL**
 
 Run: `npm test -- schema.test.ts`
 Expected: FAIL (file `db/schema.sql` belum ada → `ENOENT`).
 
-- [ ] **Step 3: Write `db/schema.sql`**
+- [x] **Step 3: Write `db/schema.sql`**
 
 ```sql
 -- ==========================================
@@ -586,7 +586,7 @@ values
 on conflict (key) do nothing;
 ```
 
-- [ ] **Step 4: Run test — harus PASS**
+- [x] **Step 4: Run test — harus PASS**
 
 Run: `npm test -- schema.test.ts`
 Expected: PASS (3 assertions).
@@ -598,7 +598,7 @@ Expected: PASS (3 assertions).
    Atau bila CLI terpasang: `npx supabase link --project-ref <ref>` lalu `npm run db:migrate`.
 3. Verifikasi manual: Dashboard → **Table Editor** → harus ada 17 tabel; buka tabel `pengaturan`, harus ada 4 baris seed.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add db tests/schema.test.ts
@@ -625,7 +625,7 @@ git commit -m "feat(db): add postgres schema for 17 tables + seed pengaturan"
   - Route `GET /api/health` → `{ success: true, status: 'ok' }`
 - Consumes: `Env` (Task 1), `KVStore` type.
 
-- [ ] **Step 1: Define `KVStore` dan type bersama — buat `src/deps.ts`**
+- [x] **Step 1: Define `KVStore` dan type bersama — buat `src/deps.ts`**
 
 ```ts
 export interface KVStore {
@@ -672,7 +672,7 @@ export interface AppDeps {
 }
 ```
 
-- [ ] **Step 2: Tulis `src/utils/http.ts`**
+- [x] **Step 2: Tulis `src/utils/http.ts`**
 
 ```ts
 export type OkPayload = { success: true } & Record<string, unknown>;
@@ -686,7 +686,7 @@ export function errPayload(message: string, error = 'ERROR'): { success: false; 
 }
 ```
 
-- [ ] **Step 3: Tulis `src/routes/health.ts`**
+- [x] **Step 3: Tulis `src/routes/health.ts`**
 
 ```ts
 import { Hono } from 'hono';
@@ -699,7 +699,7 @@ export function healthRoutes(): Hono {
 }
 ```
 
-- [ ] **Step 4: Tulis `src/app.ts` (minimal dulu, auth menyusul di Task 6)**
+- [x] **Step 4: Tulis `src/app.ts` (minimal dulu, auth menyusul di Task 6)**
 
 ```ts
 import { Hono } from 'hono';
@@ -733,7 +733,7 @@ export function buildApp(env: Env, _overrides: Partial<AppDeps> = {}): Hono {
 }
 ```
 
-- [ ] **Step 5: Ubah `src/index.ts`**
+- [x] **Step 5: Ubah `src/index.ts`**
 
 ```ts
 import { buildApp } from './app';
@@ -748,7 +748,7 @@ export default {
 };
 ```
 
-- [ ] **Step 6: Write failing test `tests/app.test.ts`**
+- [x] **Step 6: Write failing test `tests/app.test.ts`**
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -800,16 +800,16 @@ describe('buildApp', () => {
 });
 ```
 
-- [ ] **Step 7: Run test — harus PASS**
+- [x] **Step 7: Run test — harus PASS**
 
 Run: `npm test -- app.test.ts`
 Expected: PASS (3 assertions).
 
-- [ ] **Step 8: Verifikasi dev**
+- [x] **Step 8: Verifikasi dev**
 
 Run: `npm run dev`, buka `http://localhost:8787/` → placeholder; `http://localhost:8787/api/health` → `{"success":true,"status":"ok"}`.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src tests
@@ -832,7 +832,7 @@ git commit -m "feat: response utils, health route, CORS/error wrapper"
   - `verifyPassword(plain: string, stored: string): Promise<boolean>` — dukung format 3-bagian dan 2-bagian (legacy)
 - Consumes: Web Crypto (`crypto.subtle`, tersedia di Node 18+ dan Workers).
 
-- [ ] **Step 1: Write failing test `tests/password.test.ts`**
+- [x] **Step 1: Write failing test `tests/password.test.ts`**
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -868,12 +868,12 @@ describe('password hashing (kompatibel GAS)', () => {
 });
 ```
 
-- [ ] **Step 2: Run test — harus FAIL**
+- [x] **Step 2: Run test — harus FAIL**
 
 Run: `npm test -- password.test.ts`
 Expected: FAIL (`Cannot find module '../src/auth/password'`).
 
-- [ ] **Step 3: Write `src/auth/password.ts`**
+- [x] **Step 3: Write `src/auth/password.ts`**
 
 ```ts
 const PBKDF_ROUNDS = 10000;
@@ -911,12 +911,12 @@ export async function verifyPassword(plain: string, stored: string): Promise<boo
 }
 ```
 
-- [ ] **Step 4: Run test — harus PASS**
+- [x] **Step 4: Run test — harus PASS**
 
 Run: `npm test -- password.test.ts`
 Expected: PASS (4 it blocks; roundtrip memakai 10.000 ronde, ~0,5s).
 
-- [ ] **Step 5: Kebenaran silang dengan vektor dari GAS**
+- [x] **Step 5: Kebenaran silang dengan vektor dari GAS**
 
 Vektor statis (hitungan manual mengikuti `_sha256Hex` GAS): jalankan Node sekali, print hash format 3-bagian, tempel hasil sebagai fixture, pastikan `verifyPassword` menyetujui. Contoh cepat:
 
@@ -935,7 +935,7 @@ it('menerima vektor statis dari hashPassword run GAS-compatible', async () => {
 
 Run: `npm test -- password.test.ts` → PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/auth/password.ts tests/password.test.ts
@@ -962,7 +962,7 @@ git commit -m "feat(auth): GAS-compatible password hashing via Web Crypto"
   - `resetRate(kv: KVStore, key: string): Promise<void>`
 - Konvensi key: session `session:<token>`; rate `rl:<key>`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 `tests/sessions.test.ts`:
 
@@ -1064,12 +1064,12 @@ describe('rate limit', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests — harus FAIL**
+- [x] **Step 2: Run tests — harus FAIL**
 
 Run: `npm test -- sessions.test.ts rate-limit.test.ts`
 Expected: FAIL (module tidak ada).
 
-- [ ] **Step 3: Write `src/auth/sessions.ts`**
+- [x] **Step 3: Write `src/auth/sessions.ts`**
 
 ```ts
 import type { KVStore, SessionUser } from '../deps';
@@ -1102,7 +1102,7 @@ export async function destroySession(kv: KVStore, token: string | null): Promise
 }
 ```
 
-- [ ] **Step 4: Write `src/auth/rateLimit.ts`**
+- [x] **Step 4: Write `src/auth/rateLimit.ts`**
 
 ```ts
 import type { KVStore } from '../deps';
@@ -1142,12 +1142,12 @@ export async function resetRate(kv: KVStore, key: string): Promise<void> {
 }
 ```
 
-- [ ] **Step 5: Run tests — harus PASS**
+- [x] **Step 5: Run tests — harus PASS**
 
 Run: `npm test -- sessions.test.ts rate-limit.test.ts`
 Expected: PASS (4 sessions + 3 rate-limit assertions).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/auth tests
@@ -1179,7 +1179,7 @@ git commit -m "feat(auth): KV-backed sessions and rate limiter"
   - `findByUsernameDb(env: Env): (username: string) => Promise<UserRecord | null>`.
   - `recordAuditDb(env: Env): (entry: AuditEntry) => Promise<void>`.
 
-- [ ] **Step 1: Write failing test `tests/auth-routes.test.ts`**
+- [x] **Step 1: Write failing test `tests/auth-routes.test.ts`**
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -1328,12 +1328,12 @@ describe('auth routes', () => {
 });
 ```
 
-- [ ] **Step 2: Run test — harus FAIL**
+- [x] **Step 2: Run test — harus FAIL**
 
 Run: `npm test -- auth-routes.test.ts`
 Expected: FAIL (module `src/routes/auth.ts` tidak ada / route 404).
 
-- [ ] **Step 3: Write `src/auth/middleware.ts`**
+- [x] **Step 3: Write `src/auth/middleware.ts`**
 
 ```ts
 import type { MiddlewareHandler } from 'hono';
@@ -1360,7 +1360,7 @@ export function requireUser(deps: Pick<AppDeps, 'kv' | 'now'>): MiddlewareHandle
 }
 ```
 
-- [ ] **Step 4: Write `src/routes/auth.ts`**
+- [x] **Step 4: Write `src/routes/auth.ts`**
 
 ```ts
 import { Hono } from 'hono';
@@ -1439,7 +1439,7 @@ export function authRoutes(deps: AppDeps): Hono {
 }
 ```
 
-- [ ] **Step 5: Write `src/db/client.ts`**
+- [x] **Step 5: Write `src/db/client.ts`**
 
 ```ts
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -1459,7 +1459,7 @@ export function getSupabase(env: Env): SupabaseClient {
 }
 ```
 
-- [ ] **Step 6: Write `src/db/users.ts`**
+- [x] **Step 6: Write `src/db/users.ts`**
 
 ```ts
 import type { Env } from '../env';
@@ -1480,7 +1480,7 @@ export function findByUsernameDb(env: Env) {
 }
 ```
 
-- [ ] **Step 7: Write `src/db/audit.ts`**
+- [x] **Step 7: Write `src/db/audit.ts`**
 
 ```ts
 import type { Env } from '../env';
@@ -1505,7 +1505,7 @@ export function recordAuditDb(env: Env) {
 }
 ```
 
-- [ ] **Step 8: Update `src/app.ts` — pasang route auth + deps run-time**
+- [x] **Step 8: Update `src/app.ts` — pasang route auth + deps run-time**
 
 ```ts
 import { Hono } from 'hono';
@@ -1551,18 +1551,18 @@ export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bin
 }
 ```
 
-- [ ] **Step 9: Run tests — harus PASS**
+- [x] **Step 9: Run tests — harus PASS**
 
 Run: `npm test`
 Expected: PASS semua (schema, app, password, sessions, rate-limit, auth-routes).
 
-- [ ] **Step 10: Verifikasi dev end-to-end**
+- [x] **Step 10: Verifikasi dev end-to-end**
 
 1. Pastikan tabely `pengguna` di Supabase sudah terisi (dari migrasi M8 nanti; untuk uji manual sementara, insert satu user PIC lewat SQL Editor: `insert into pengguna (user_id, username, password, nama, role, kode_cabang, status) values ('U-TEST', 'picjkt', '<hasil npm test hashPassword>', 'PIC Jakarta', 'PIC CABANG', 'CBG-JKT', 'Aktif');`)
 2. Set secret + var lokal di `.dev.vars` dan `wrangler.jsonc` vars `SUPABASE_URL`.
 3. Run: `npm run dev`; `curl -s -X POST http://localhost:8787/api/login -H "Content-Type: application/json" -d '{\"username\":\"picjkt\",\"password\":\"<password>\"}'` → `success:true` + token; gunakan token untuk `GET /api/session` → 200.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add src tests
@@ -1581,7 +1581,7 @@ git commit -m "feat(auth): login/logout/session API + requireUser + supabase sto
 **Interfaces:**
 - Consumes: `buildApp(env)` final; memastikan `index.ts` memakai env langsung (bukan `{}`).
 
-- [ ] **Step 1: Update `src/index.ts` — hapus placeholder**
+- [x] **Step 1: Update `src/index.ts` — hapus placeholder**
 
 ```ts
 import { buildApp } from './app';
@@ -1596,7 +1596,7 @@ export default {
 
 > Catatan: `buildApp(env)` dipanggil per-request. Clustering supabase client per-env di `db/client.ts` mencegah re-create per request.
 
-- [ ] **Step 2: Tambah test CORS di `tests/app.test.ts`**
+- [x] **Step 2: Tambah test CORS di `tests/app.test.ts`**
 
 ```ts
 it('menambahkan header CORS pada respon api', async () => {
@@ -1621,7 +1621,7 @@ it('OPTIONS preflight dikembalikan 204 + header CORS', async () => {
 
 Run: `npm test` → PASS.
 
-- [ ] **Step 3: Write `README.md`**
+- [x] **Step 3: Write `README.md`**
 
 ```markdown
 # Monitoring Kendaraan Operasional — Versi Cloud
@@ -1666,7 +1666,7 @@ Run: `npm test`
 Run: `npm run deploy`
 Expected: typecheck & test PASS; deploy sukses ke worker baru; buka URL worker → halaman placeholder; `/api/health` → JSON ok.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add .
