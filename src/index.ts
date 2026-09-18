@@ -1,5 +1,12 @@
+import { buildApp } from './app';
+import type { Env } from './env';
+import type { Hono } from 'hono';
+
+let app: Hono<{ Bindings: Env }> | null = null;
+
 export default {
-  async fetch(): Promise<Response> {
-    return new Response('Monitoring Kendaraan Operasional (Cloud)', { status: 200 });
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    if (!app) app = buildApp(env);
+    return app.fetch(request, env, ctx);
   },
 };

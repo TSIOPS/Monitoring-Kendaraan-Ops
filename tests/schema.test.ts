@@ -1,7 +1,7 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import schemaSql from '../db/schema.sql?raw';
 
-const sql = readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8');
+const sql = schemaSql;
 
 const REQUIRED_TABLES = [
   'cabang',
