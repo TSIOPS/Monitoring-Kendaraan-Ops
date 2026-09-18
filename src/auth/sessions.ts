@@ -15,7 +15,7 @@ export async function resolveSession(kv: KVStore, token: string | null, now: () 
   if (!token) return null;
   const raw = await kv.get(`session:${token}`);
   if (!raw) return null;
-  const s = JSON.parse(raw) as SessionUser;
+  const s = JSON.parse(raw as string) as SessionUser;
   if (now() > s.exp) {
     await kv.delete(`session:${token}`);
     return null;

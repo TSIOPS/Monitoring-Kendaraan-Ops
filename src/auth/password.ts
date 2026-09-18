@@ -23,11 +23,11 @@ export async function verifyPassword(plain: string, stored: string): Promise<boo
   if (!stored || stored.indexOf('$') === -1) return false;
   const parts = stored.split('$');
   if (parts.length === 3) {
-    const rounds = parseInt(parts[1], 10) || PBKDF_ROUNDS;
-    return (await iteratedHash(parts[0], plain, rounds)) === parts[2];
+    const rounds = parseInt(parts[1]!, 10) || PBKDF_ROUNDS;
+    return (await iteratedHash(parts[0]!, plain, rounds)) === parts[2];
   }
   if (parts.length === 2) {
-    return (await sha256Hex(`${parts[0]}:${String(plain)}`)) === parts[1];
+    return (await sha256Hex(`${parts[0]!}:${String(plain)}`)) === parts[1];
   }
   return false;
 }

@@ -3,8 +3,19 @@ import type { Env } from './env';
 import type { AppDeps } from './deps';
 import { errPayload } from './utils/http';
 import { healthRoutes } from './routes/health';
+import { authRoutes } from './routes/auth';
+import { findByUsernameDb } from './db/users';
+import { recordAuditDb } from './db/audit';
 
-export function buildApp(env: Env, _overrides: Partial<AppDeps> = {}): Hono<{ Bindings: Env }> {
+export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bindings: Env }> {
+  const deps: AppDeps = {
+    kv: env.SESSION_KV,
+    findByUsername: findByUsernameDb(env),
+    recordAudit: recordAuditDb(env),
+    now: () => Date.now(),
+    ...overrides,
+  };
+
   const app = new Hono<{ Bindings: Env }>();
 
   app.use('/api/*', async (c, next) => {
@@ -22,6 +33,7 @@ export function buildApp(env: Env, _overrides: Partial<AppDeps> = {}): Hono<{ Bi
   });
 
   app.route('/api/health', healthRoutes());
+  app.route('/api', authRoutes(deps));
 
   app.all('/*', (c) => env.ASSETS.fetch(c.req.raw));
 

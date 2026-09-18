@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { createSession, destroySession, resolveSession } from '../src/auth/sessions';
 import type { KVStore, SessionUser } from '../src/deps';
 
-function memKV(): KVStore & Record<string, unknown> {
+function memKV(): KVStore & { _map: Map<string, string> } {
   const map = new Map<string, string>();
   return {
-    get: async (k) => map.get(k) ?? null,
+    get: async (k, type) => {
+      const v = map.get(k);
+      if (v == null) return null;
+      return type === 'json' ? JSON.parse(v) : v;
+    },
     put: async (k, v) => {
       map.set(k, v);
     },
@@ -51,6 +55,6 @@ describe('sessions', () => {
     const token = await createSession(kv, user, () => 1_000_000);
     const expired = await resolveSession(kv, token, () => 1_000_000 + 13 * 3600 * 1000);
     expect(expired).toBeNull();
-    expect((kv as KVStore & { _map: Map<string, string> })._map.has('session:' + token)).toBe(false);
+    expect(kv._map.has('session:' + token)).toBe(false);
   });
 });
