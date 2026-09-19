@@ -4,7 +4,7 @@ import { verifyPassword } from '../auth/password';
 import { checkRate, resetRate } from '../auth/rateLimit';
 import { createSession, destroySession, resolveSession } from '../auth/sessions';
 import { requireUser } from '../auth/middleware';
-import { errPayload, okPayload } from '../utils/http';
+import { errPayload, okPayload, reqIp } from '../utils/http';
 
 const LOGIN_MAX = 5;
 const LOGIN_WINDOW_MS = 5 * 60 * 1000;
@@ -14,6 +14,7 @@ export function authRoutes(deps: AppDeps): Hono {
 
   app.post('/login', async (c) => {
     const body = await c.req.json().catch(() => null);
+    const ip = reqIp(c);
     const username = String((body as any)?.username ?? '').trim().toLowerCase();
     const password = String((body as any)?.password ?? '');
     if (!username || !password) {
@@ -33,6 +34,7 @@ export function authRoutes(deps: AppDeps): Hono {
         action: 'LOGIN_GAGAL',
         modul: 'auth',
         keterangan: 'Login gagal: kredensial tidak valid',
+        ip,
       });
       return c.json(errPayload('Username atau password salah.', 'BAD_CREDENTIALS'), 401);
     }
@@ -53,6 +55,7 @@ export function authRoutes(deps: AppDeps): Hono {
       action: 'LOGIN',
       modul: 'auth',
       keterangan: `Login berhasil role=${user.role} cabang=${user.kode_cabang || '-'}`,
+      ip,
     });
 
     return c.json(
@@ -80,6 +83,7 @@ export function authRoutes(deps: AppDeps): Hono {
         action: 'LOGOUT',
         modul: 'auth',
         keterangan: 'Logout',
+        ip: reqIp(c),
       });
     }
     await destroySession(deps.kv, token);

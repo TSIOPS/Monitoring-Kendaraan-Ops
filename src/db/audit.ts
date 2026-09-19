@@ -14,7 +14,7 @@ export function recordAuditDb(env: Env) {
       keterangan: entry.keterangan,
       data_sebelum: entry.data_sebelum ?? '',
       data_sesudah: entry.data_sesudah ?? '',
-      ip: '',
+      ip: entry.ip ?? '',
     });
   };
 }

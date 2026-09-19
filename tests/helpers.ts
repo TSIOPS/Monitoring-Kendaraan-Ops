@@ -10,6 +10,14 @@ import type {
 } from '../src/db/master';
 import type { SettingsRepo } from '../src/db/settings';
 
+export const VEHICLE_ROW: MasterKendaraan = {
+  vehicle_id: 'V-1', plat_nomor: 'B 1 A', nama_kendaraan: 'Corolla', jenis_kendaraan: 'Mobil',
+  merk: 'Toyota', model: 'Altis', kapasitas_tangki: 50, jumlah_bar: 8, standar_km_l: 12,
+  kode_cabang: 'CBG-A', status: 'Aktif', jenis_indikator: 'DIGITAL_BAR',
+  tanggal_pajak: '', tanggal_pajak_5_tahunan: '', tanggal_kir: '',
+  km_terakhir_ganti_oli: 10000, interval_ganti_oli_km: 0,
+};
+
 export function memKV(): KVStore {
   const map = new Map<string, string>();
   return {

@@ -1,9 +1,10 @@
 import { Hono } from 'hono';
 import type { Env } from './env';
 import type { AppDeps } from './deps';
-import { errPayload } from './utils/http';
+import { errPayload, HttpError } from './utils/http';
 import { healthRoutes } from './routes/health';
 import { authRoutes } from './routes/auth';
+import { masterRoutes } from './routes/master';
 import { findByUsernameDb } from './db/users';
 import { recordAuditDb } from './db/audit';
 import { supabaseMasterRepo } from './db/master';
@@ -32,12 +33,16 @@ export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bin
   app.on('OPTIONS', '*', (c) => c.body(null, 204));
 
   app.onError((err, c) => {
+    if (err instanceof HttpError) {
+      return c.json(errPayload(err.message, err.error), err.status);
+    }
     console.error('unhandled:', err);
     return c.json(errPayload('Terjadi kesalahan internal.', 'INTERNAL'), 500);
   });
 
   app.route('/api/health', healthRoutes());
   app.route('/api', authRoutes(deps));
+  app.route('/api/master', masterRoutes(deps));
 
   app.all('/*', (c) => env.ASSETS.fetch(c.req.raw));
 
