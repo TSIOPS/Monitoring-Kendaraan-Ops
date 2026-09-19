@@ -28,4 +28,10 @@ describe('password hashing (kompatibel GAS)', () => {
     expect(await verifyPassword('x', 'tanpa-dollar')).toBe(false);
     expect(await verifyPassword('x', 'a$1$b$c$d')).toBe(false);
   });
+
+  it('menerima vektor statis dari hashPassword run (GAS-compatible)', async () => {
+    const stored = '2ca4c6a8cb961f06$10000$57febf9c9e736a7be66829f2dd69e355ce34f47cb6d57e93a4968a104a86f453';
+    expect(await verifyPassword('vektor-test', stored)).toBe(true);
+    expect(await verifyPassword('bukan-password', stored)).toBe(false);
+  });
 });
