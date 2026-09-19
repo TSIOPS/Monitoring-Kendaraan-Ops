@@ -88,6 +88,12 @@ Penggantian `google.script.run` → REST API, 1:1:
 | `doLogin(username, password)` | `POST /api/login` |
 | `doLogout(token)` | `POST /api/logout` |
 | `getMasterData(token)` | `GET /api/master` (cache 30 dtk di KV) |
+| `saveCabang / apiUpdate / apiDelete` | `POST/PUT/DELETE /api/master/cabang` |
+| `saveKendaraan / apiEdit / apiDelete` | `POST/PUT/DELETE /api/master/kendaraan` |
+| `apiSaveSupir / apiEditSupir / apiDeleteSupir` | `POST/PUT/DELETE /api/master/supir` |
+| `apiSaveBBM / apiEditBBM / apiDeleteBBM` | `POST/PUT/DELETE /api/master/bbm` (SUPERADMIN) |
+| `apiSavePengguna / apiEditPengguna / apiSetStatus` | `POST/PUT/DELETE /api/master/pengguna` + `/activate` (SUPERADMIN) |
+| `resetOilChange` | `POST /api/master/kendaraan/:id/reset-oli` |
 | `saveDailyTransaction` | `POST /api/laporan` |
 | `apiEditDailyTransaction` | `PUT /api/laporan/:id` |
 | `apiDeleteDailyTransaction` | `DELETE /api/laporan/:id` |
@@ -99,6 +105,7 @@ Penggantian `google.script.run` → REST API, 1:1:
 | `getDashboardWarnings / Data` | `GET /api/dashboard` |
 | `saveAppSettings / getAppSettings` | `GET/PUT /api/settings` |
 | `uploadLogo` | `POST /api/settings/logo` |
+| *(baru: UI audit tidak ada di GAS)* | `GET /api/audit?limit=…` (SUPERADMIN) |
 | `apiDetectFuelLevel` (Gemini) | `POST /api/fuel-detect` (opsi manual) |
 | `backup` / `restore_backup` | `POST /api/admin/backup` (bulanan) |
 
@@ -214,3 +221,20 @@ sebelum→sesudah), IP`. **Tindakan baca tidak dicatat.**
 - Script Properties/`SPREADSHEET_ID` → environment/production di Worker + Supabase.
 - Kunci Gemini `GEMINI_API_KEY` → secret Worker.
 - Timezone tetap Asia/Jakarta.
+
+## 13. Status Milestone
+
+### M1 — Fondasi (selesai)
+- Auth (login/logout/session KV), rate limit, schema SQL, health check, deploy.
+
+### M2 — Data Master, Audit Log & Pengaturan (selesai)
+- `src/routes/master.ts`: CRUD Cabang, Kendaraan, Supir, BBM, Pengguna + reset-oli
+  (guard peran/cabang, audit, pesan GAS).
+- `src/logic/master-cache.ts` + `GET /api/master`: cache KV 30 dtk berbasis rev.
+- `src/routes/settings.ts` + `src/db/storage.ts`: GET/PUT `/api/settings`,
+  `POST /api/settings/logo` (base64 → Supabase Storage bucket `settings`).
+- `src/routes/audit.ts` + `src/db/audit.ts::auditListDb`: `GET /api/audit?limit=…`
+  (SUPERADMIN, urut `timestamp` desc).
+
+### M3+ (berikutnya)
+- `GET /api/laporan/*`, dashboard & warnings, Flazz penuh, jalur, migrasi data, frontend.

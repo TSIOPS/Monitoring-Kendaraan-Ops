@@ -1,4 +1,4 @@
-import type { AppDeps, KVStore, SessionUser } from '../src/deps';
+import type { AppDeps, AuditRow, KVStore, SessionUser } from '../src/deps';
 import type {
   MasterBbm,
   MasterCabang,
@@ -181,6 +181,11 @@ export function memSettings(initial?: Record<string, string>) {
   return { values, repo };
 }
 
+export function memAudit(rows: AuditRow[] = []) {
+  const auditList = async (limit: number) => rows.slice(0, limit);
+  return { rows, auditList };
+}
+
 export function fakeEnv() {
   return {
     ASSETS: { fetch: async () => new Response('static:not-found', { status: 404 }) },
@@ -201,6 +206,7 @@ export function makeDeps(over: Partial<AppDeps> = {}) {
     recordAudit: async (e) => {
       audits.push({ ...e });
     },
+    auditList: async () => [],
     now: () => 1_000_000,
     master,
     settings,

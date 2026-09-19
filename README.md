@@ -31,3 +31,22 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 - Role/cabang tidak pernah dari client; dicek `requireUser`.
 - Rate limit login 5x/5mnt per username (KV).
 - Hash password format kompatibel GAS (tidak perlu reset saat migrasi).
+
+## API (status M2 — fondasi + master + settings + audit)
+| Metode | Path | Akses | Keterangan |
+|---|---|---|---|
+| POST | `/api/login` | publik | login → session token (KV, 12 jam) |
+| POST | `/api/logout` | token | hapus session |
+| GET | `/api/health` | publik | health check |
+| GET | `/api/master` | role+cabang | payload master (cache KV 30 dtk) |
+| POST/PUT/DELETE | `/api/master/cabang` | PIC (cabang sendiri), SUPERADMIN semua | CRUD cabang (soft-delete) |
+| POST/PUT/DELETE | `/api/master/kendaraan` | PIC (cabang sendiri), SUPERADMIN semua | CRUD kendaraan |
+| POST/PUT/DELETE | `/api/master/supir` | PIC (cabang sendiri), SUPERADMIN semua | CRUD supir |
+| POST/PUT/DELETE | `/api/master/bbm` | SUPERADMIN | CRUD BBM |
+| POST/PUT/DELETE/… | `/api/master/pengguna` | SUPERADMIN | kelola pengguna + `/activate` |
+| POST | `/api/master/kendaraan/:id/reset-oli` | PIC/SUPERADMIN | baseline ganti oli ke KM terbaru |
+| GET/PUT | `/api/settings` | GET publik, PUT SUPERADMIN | pengaturan aplikasi |
+| POST | `/api/settings/logo` | SUPERADMIN | upload logo (base64 → Supabase Storage) |
+| GET | `/api/audit` | SUPERADMIN | daftar audit (`?limit=` 1–500, desc) |
+
+M2 (data master + audit + pengaturan) **selesai**. Berikutnya M3: laporan/transaksi BBM.

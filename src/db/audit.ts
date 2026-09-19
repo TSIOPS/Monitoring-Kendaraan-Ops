@@ -1,5 +1,5 @@
 import type { Env } from '../env';
-import type { AuditEntry } from '../deps';
+import type { AuditEntry, AuditRow } from '../deps';
 import { getSupabase } from './client';
 
 export function recordAuditDb(env: Env) {
@@ -16,5 +16,17 @@ export function recordAuditDb(env: Env) {
       data_sesudah: entry.data_sesudah ?? '',
       ip: entry.ip ?? '',
     });
+  };
+}
+
+export function auditListDb(env: Env) {
+  return async (limit: number): Promise<AuditRow[]> => {
+    const { data, error } = await getSupabase(env)
+      .from('audit_log')
+      .select('*')
+      .order('timestamp', { ascending: false })
+      .limit(limit);
+    if (error) throw new Error(`DB auditList: ${error.message}`);
+    return (data ?? []) as unknown as AuditRow[];
   };
 }

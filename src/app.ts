@@ -6,8 +6,9 @@ import { healthRoutes } from './routes/health';
 import { authRoutes } from './routes/auth';
 import { masterRoutes } from './routes/master';
 import { settingsRoutes } from './routes/settings';
+import { auditRoutes } from './routes/audit';
 import { findByUsernameDb } from './db/users';
-import { recordAuditDb } from './db/audit';
+import { recordAuditDb, auditListDb } from './db/audit';
 import { supabaseMasterRepo } from './db/master';
 import { supabaseSettingsRepo } from './db/settings';
 
@@ -16,6 +17,7 @@ export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bin
     kv: env.SESSION_KV,
     findByUsername: findByUsernameDb(env),
     recordAudit: recordAuditDb(env),
+    auditList: auditListDb(env),
     now: () => Date.now(),
     master: supabaseMasterRepo(env),
     settings: supabaseSettingsRepo(env),
@@ -45,6 +47,7 @@ export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bin
   app.route('/api', authRoutes(deps));
   app.route('/api/master', masterRoutes(deps));
   app.route('/api/settings', settingsRoutes(deps));
+  app.route('/api/audit', auditRoutes(deps));
 
   app.all('/*', (c) => env.ASSETS.fetch(c.req.raw));
 

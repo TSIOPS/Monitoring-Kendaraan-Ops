@@ -37,10 +37,24 @@ export interface AuditEntry {
   ip?: string;
 }
 
+export interface AuditRow {
+  log_id: string;
+  timestamp: string;
+  user_id: string;
+  username: string;
+  action: string;
+  modul: string;
+  keterangan: string;
+  data_sebelum: string;
+  data_sesudah: string;
+  ip: string;
+}
+
 export interface AppDeps {
   kv: KVStore;
   findByUsername: (username: string) => Promise<UserRecord | null>;
   recordAudit: (entry: AuditEntry) => Promise<void>;
+  auditList: (limit: number) => Promise<AuditRow[]>;
   now: () => number;
   master: MasterRepo;
   settings: SettingsRepo;
