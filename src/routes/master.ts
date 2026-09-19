@@ -6,9 +6,11 @@ import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
 import { hashPassword } from '../auth/password';
 import { errPayload, HttpError, okPayload, reqIp } from '../utils/http';
-import { bumpMasterRev } from '../logic/master-cache';
-import { defaultOilIntervalKm } from '../logic/master';
+import { bumpMasterRev, getMasterRev, masterCacheKey } from '../logic/master-cache';
+import { defaultOilIntervalKm, getMasterPayload } from '../logic/master';
 import type { AppDeps } from '../deps';
+
+const MASTER_CACHE_TTL = 30;
 
 type Ctx = Context<{ Bindings: Env; Variables: AuthVars }>;
 
@@ -327,6 +329,26 @@ export function masterRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     return setStatus(c, deps, 'Aktif', audit);
   });
 
+  // ── GET / (payload lengkap sesuai role; cache KV rev-based, TTL 30 dtk) ──
+  app.get('/', async (c: Ctx) => {
+    const u = c.get('user');
+    const rev = await getMasterRev(deps.kv);
+    const ck = masterCacheKey(rev, u.role, u.cabang ?? '');
+    const hit = await deps.kv.get(ck, 'json');
+    if (hit) return c.json(okPayload(hit as Record<string, unknown>));
+
+    const [raw, lastSumber] = await Promise.all([
+      deps.master.listAll(),
+      deps.master.currentOdoPerVehicle(),
+    ]);
+    const payload = getMasterPayload(
+      raw,
+      { role: u.role, cabang: u.cabang ?? '' },
+      lastSumber as unknown as Record<string, string>,
+    ) as unknown as Record<string, unknown>;
+    await deps.kv.put(ck, JSON.stringify(payload), { expirationTtl: MASTER_CACHE_TTL });
+    return c.json(okPayload(payload));
+  });
   return app;
 }
 
