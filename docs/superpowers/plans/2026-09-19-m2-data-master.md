@@ -250,9 +250,7 @@ export function getMasterPayload(
         tanggal_kir: v.tanggal_kir,
         km_terakhir_ganti_oli: v.km_terakhir_ganti_oli,
         interval_ganti_oli_km:
-          v.interval_ganti_oli_km != null && String(v.interval_ganti_oli_km) !== ''
-            ? v.interval_ganti_oli_km
-            : defaultOilIntervalKm(jenis),
+          v.interval_ganti_oli_km > 0 ? v.interval_ganti_oli_km : defaultOilIntervalKm(jenis),
         odo_estimasi_terakhir: indikator === 'ANALOG_JARUM' && lastSumber[String(v.vehicle_id)] === 'ESTIMASI',
       };
     });
@@ -280,9 +278,15 @@ export function getMasterPayload(
           }
         }
         const merged: Record<string, Record<string, unknown>> = {};
-        Object.keys(globals).forEach((k) => (merged[k] = globals[k]));
-        Object.keys(overrides).forEach((k) => (merged[k] = overrides[k]));
-        return Object.keys(merged).map((k) => merged[k]);
+        Object.keys(globals).forEach((k) => {
+          const v = globals[k];
+          if (v) merged[k] = v;
+        });
+        Object.keys(overrides).forEach((k) => {
+          const v = overrides[k];
+          if (v) merged[k] = v;
+        });
+        return Object.keys(merged).map((k) => merged[k]!);
       })();
 
   const flazzCards = (() => {
@@ -379,6 +383,7 @@ describe('getMasterPayload', () => {
     expect(p.drivers.map((d: any) => d.id)).toEqual(['DRV-1', 'DRV-2']);
     expect(p.bbmList).toEqual([
       { id: 'BBM-P', jenis: 'Pertalite', harga: 10000 },
+      { id: 'BBM-PX', jenis: 'Pertalite A', harga: 10200 },
       { id: 'BBM-S', jenis: 'Solar', harga: 12000 },
     ]);
     expect(p.penggunaList.map((u: any) => u.username)).toEqual(['super', 'pic']);
@@ -391,10 +396,11 @@ describe('getMasterPayload', () => {
     expect(p.cabangList).toEqual([{ kode: 'CBG-A', nama: 'Cabang A' }]);
     expect(p.vehicles.map((v: any) => v.vehicle_id)).toEqual(['V-1']);
     expect(p.drivers.map((d: any) => d.id)).toEqual(['DRV-1']);
+    // Urutan = GAS getActiveBBMForCabang: global dulu (urutan sheet), lalu override.
     expect(p.bbmList).toEqual([
       { bbm_id: 'BBM-P', jenis_bbm: 'Pertalite', harga_per_liter: 10000, kode_cabang: '' },
-      { bbm_id: 'BBM-PX', jenis_bbm: 'Pertalite A', harga_per_liter: 10200, kode_cabang: 'CBG-A' },
       { bbm_id: 'BBM-S', jenis_bbm: 'Solar', harga_per_liter: 12000, kode_cabang: '' },
+      { bbm_id: 'BBM-PX', jenis_bbm: 'Pertalite A', harga_per_liter: 10200, kode_cabang: 'CBG-A' },
     ]);
     expect(p.penggunaList).toEqual([]);
     expect(p.flazzCards.map((f: any) => f.id)).toEqual(['FC-1']);

@@ -16,7 +16,8 @@ create table if not exists supir (
   supir_id text primary key,
   nama_supir text not null default '',
   kode_cabang text not null default '',
-  status text not null default 'Aktif'
+  status text not null default 'Aktif',
+  default_vehicle_id text not null default ''
 );
 
 create table if not exists bbm (
