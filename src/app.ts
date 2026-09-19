@@ -6,6 +6,8 @@ import { healthRoutes } from './routes/health';
 import { authRoutes } from './routes/auth';
 import { findByUsernameDb } from './db/users';
 import { recordAuditDb } from './db/audit';
+import { supabaseMasterRepo } from './db/master';
+import { supabaseSettingsRepo } from './db/settings';
 
 export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bindings: Env }> {
   const deps: AppDeps = {
@@ -13,6 +15,8 @@ export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bin
     findByUsername: findByUsernameDb(env),
     recordAudit: recordAuditDb(env),
     now: () => Date.now(),
+    master: supabaseMasterRepo(env),
+    settings: supabaseSettingsRepo(env),
     ...overrides,
   };
 

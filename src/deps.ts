@@ -1,3 +1,6 @@
+import type { MasterRepo } from './db/master';
+import type { SettingsRepo } from './db/settings';
+
 export interface KVStore {
   get(key: string, type?: 'text' | 'json'): Promise<string | unknown | null>;
   put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void>;
@@ -31,6 +34,7 @@ export interface AuditEntry {
   keterangan: string;
   data_sebelum?: string;
   data_sesudah?: string;
+  ip?: string;
 }
 
 export interface AppDeps {
@@ -38,4 +42,6 @@ export interface AppDeps {
   findByUsername: (username: string) => Promise<UserRecord | null>;
   recordAudit: (entry: AuditEntry) => Promise<void>;
   now: () => number;
+  master: MasterRepo;
+  settings: SettingsRepo;
 }

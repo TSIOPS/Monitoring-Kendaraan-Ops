@@ -1,34 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app';
-import type { Env } from '../src/env';
-import type { AppDeps, KVStore, UserRecord } from '../src/deps';
+import type { UserRecord } from '../src/deps';
 import { hashPassword } from '../src/auth/password';
-
-function memKV(): KVStore {
-  const map = new Map<string, string>();
-  return {
-    get: async (k, type) => {
-      const v = map.get(k);
-      if (v == null) return null;
-      return type === 'json' ? JSON.parse(v) : v;
-    },
-    put: async (k, v) => {
-      map.set(k, v);
-    },
-    delete: async (k) => {
-      map.delete(k);
-    },
-  };
-}
-
-function fakeEnv(): Env {
-  return {
-    ASSETS: { fetch: async () => new Response('static', { status: 404 }) } as unknown as Env['ASSETS'],
-    SESSION_KV: {} as Env['SESSION_KV'],
-    SUPABASE_URL: 'http://localhost',
-    SUPABASE_SERVICE_ROLE_KEY: 'test',
-  };
-}
+import { fakeEnv, makeDeps } from './helpers';
 
 const PIC_USER: UserRecord = {
   user_id: 'U-1',
@@ -39,21 +13,6 @@ const PIC_USER: UserRecord = {
   kode_cabang: 'CBG-JKT',
   status: 'Aktif',
 };
-
-function makeDeps(over: Partial<AppDeps> = {}) {
-  const kv = memKV();
-  const audits: Array<Record<string, unknown>> = [];
-  const deps: AppDeps = {
-    kv,
-    findByUsername: async () => null,
-    recordAudit: async (e) => {
-      audits.push({ ...e });
-    },
-    now: () => 1_000_000,
-    ...over,
-  };
-  return { kv, audits, deps };
-}
 
 async function login(app: ReturnType<typeof buildApp>, username: string, password: string) {
   const res = await app.request('/api/login', {
