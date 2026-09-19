@@ -5,6 +5,7 @@ import { errPayload, HttpError } from './utils/http';
 import { healthRoutes } from './routes/health';
 import { authRoutes } from './routes/auth';
 import { masterRoutes } from './routes/master';
+import { settingsRoutes } from './routes/settings';
 import { findByUsernameDb } from './db/users';
 import { recordAuditDb } from './db/audit';
 import { supabaseMasterRepo } from './db/master';
@@ -43,6 +44,7 @@ export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bin
   app.route('/api/health', healthRoutes());
   app.route('/api', authRoutes(deps));
   app.route('/api/master', masterRoutes(deps));
+  app.route('/api/settings', settingsRoutes(deps));
 
   app.all('/*', (c) => env.ASSETS.fetch(c.req.raw));
 
