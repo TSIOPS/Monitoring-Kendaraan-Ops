@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildApp } from '../../src/app';
 import { authHeaders, fakeEnv, loginAs, laporanRow, makeDeps, memLaporan, memMaster, VEHICLE_ROW } from '../helpers';
+import { periodKey } from '../../src/logic/laporan';
 import type { SessionUser } from '../../src/deps';
 import type { FlazzCardRow, JalurRow } from '../../src/db/laporan';
 
@@ -140,5 +141,85 @@ describe('POST /api/laporan/photos', () => {
     const res = await post(app, '/api/laporan/photos', tok, { foto_odo_awal: 'x', foto_odo_awal_name: 'a.jpg' });
     expect(res.status).toBe(422);
     expect((await res.json() as any).message).toContain('Upload foto KM awal gagal:');
+  });
+});
+
+const PERIODE = periodKey(new Date());
+
+function perfRows() {
+  return Array.from({ length: 7 }, (_, i) => laporanRow({
+    transaction_id: 'TRX-' + (i + 1),
+    tanggal: `2026-09-${String(i + 1).padStart(2, '0')}`,
+    timestamp: `2026-09-${String(i + 1).padStart(2, '0')}T01:00:00.000Z`,
+    km_awal_confirmed: String(1000 + i * 100), km_akhir_confirmed: String(1100 + i * 100),
+    km_tempuh: 100, liter_bbm: 10, bar_awal: '8', bar_akhir: '4',
+  }));
+}
+
+describe('GET /api/laporan/prefill', () => {
+  it('mengembalikan baris terakhir (resolusi tol & kartu)', async () => {
+    const { app, kv } = setup({ rows: [
+      { transaction_id: 'TRX-1', vehicle_id: 'V-1' },
+      { transaction_id: 'TRX-2', vehicle_id: 'V-1', metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ1', metode_toll: '', flazz_card_id_toll: '' },
+    ], flazzCard: [flazzCard({ id: 'FLZ-1' })] });
+    const tok = await loginAs(kv, PIC);
+    const res = await app.request('/api/laporan/prefill', { headers: authHeaders(tok) });
+    expect(res.status).toBe(200);
+    const pref = (await res.json() as any).pref;
+    expect(pref.vehicle_id).toBe('V-1');
+    expect(pref.metode_toll).toBe('FLAZZ');
+    expect(pref.flazz_card_id).toBe('FLZ-1');
+    expect(pref.flazz_card_id_toll).toBe('FLZ-1');
+  });
+
+  it('tanpa baris -> pref null', async () => {
+    const { app, kv } = setup({ rows: [] });
+    const tok = await loginAs(kv, PIC);
+    const res = await app.request('/api/laporan/prefill', { headers: authHeaders(tok) });
+    expect((await res.json() as any).pref).toBeNull();
+  });
+});
+
+describe('GET /api/laporan/performa', () => {
+  it('window 7-trip + cache KV (state berubah tidak mengubah hasil kedua)', async () => {
+    const { app, kv, lap } = setup({ rows: perfRows() });
+    const tok = await loginAs(kv, PIC);
+    const r1 = await app.request('/api/laporan/performa', { headers: authHeaders(tok) });
+    const b1 = await r1.json() as any;
+    expect(b1.items).toHaveLength(1);
+    expect(b1.items[0].cabang).toBe('Cabang A');
+    lap.state.rows.push(laporanRow({ transaction_id: 'TRX-X', tanggal: '2026-09-08' }));
+    const r2 = await app.request('/api/laporan/performa', { headers: authHeaders(tok) });
+    expect((await r2.json() as any).items).toHaveLength(1);
+  });
+});
+
+describe('GET /api/dashboard', () => {
+  it('transactions + monthly grouping periode berjalan', async () => {
+    const rows = [
+      laporanRow({ transaction_id: 'TRX-1', tanggal: PERIODE + '-05', liter_bbm: 10, biaya_bbm: 100000, biaya_toll: 5000 }),
+      laporanRow({ transaction_id: 'TRX-2', tanggal: PERIODE + '-06', liter_bbm: 20, biaya_bbm: 200000, biaya_toll: 0 }),
+    ];
+    const { app, kv } = setup({ rows });
+    const tok = await loginAs(kv, PIC);
+    const res = await app.request('/api/dashboard', { headers: authHeaders(tok) });
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.transactions).toHaveLength(2);
+    expect(body.monthly).toEqual([{
+      cabang: 'CBG-A', periode: PERIODE, total_transaksi: 2,
+      total_liter: 30, total_biaya_bbm: 300000, total_toll: 5000,
+    }]);
+  });
+
+  it('PIC hanya melihat transaksi cabangnya', async () => {
+    const { app, kv } = setup({ rows: [
+      laporanRow({ transaction_id: 'TRX-A', kode_cabang: 'CBG-A', vehicle_id: 'V-1' }),
+      laporanRow({ transaction_id: 'TRX-B', kode_cabang: 'CBG-B', vehicle_id: 'V-2', plat_nomor: 'B 2 B' }),
+    ] });
+    const tok = await loginAs(kv, PIC);
+    const res = await app.request('/api/dashboard', { headers: authHeaders(tok) });
+    const body = await res.json() as any;
+    expect(body.transactions.map((t: any) => t.transaction_id)).toEqual(['TRX-A']);
   });
 });

@@ -6,7 +6,7 @@ import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
 import { HttpError, okPayload } from '../utils/http';
 import { newId, jsonSnip } from './master';
-import { bumpMasterRev, invalidateLaporanCaches } from '../logic/master-cache';
+import { bumpMasterRev, invalidateLaporanCaches, performaCacheKey, monthlyCacheKey } from '../logic/master-cache';
 import { CardBalanceError } from '../db/laporan';
 import type { FlazzCardRow, LaporanInsert } from '../db/laporan';
 import * as L from '../logic/laporan';
@@ -70,6 +70,23 @@ async function loadCards(deps: AppDeps): Promise<{ cards: FlazzCardRow[]; cardMa
   const cards = await deps.laporan.findAllCards();
   const cardMap = new Map(cards.map((c) => [L.canonicalCardId(c.id), c]));
   return { cards, cardMap };
+}
+
+async function loadCardIdMap(deps: AppDeps): Promise<Map<string, string>> {
+  const cards = await deps.laporan.findAllCards();
+  return new Map(cards.map((c) => [L.canonicalCardId(c.id), c.id]));
+}
+
+function kendaraanInfoMap(all: { kendaraan: Array<{ vehicle_id: string; kapasitas_tangki: number; jumlah_bar: number; standar_km_l: number }> }): L.KendaraanMap {
+  return new Map(all.kendaraan.map((k) => [k.vehicle_id, {
+    kapasitas: L.num(k.kapasitas_tangki),
+    jumlah_bar: L.num(k.jumlah_bar),
+    standar: L.num(k.standar_km_l),
+  }]));
+}
+
+function cabangNamaMapOf(all: { cabang: Array<{ kode_cabang: string; nama_cabang: string }> }): L.CabangNamaMap {
+  return new Map(all.cabang.map((c) => [c.kode_cabang, c.nama_cabang]));
 }
 
 export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
@@ -279,13 +296,62 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     return c.json(okPayload({ transaction_id }));
   });
 
+  // ── GET /api/laporan/prefill (port getLastLaporanPrefill) ─────────────────
+  app.get('/prefill', requireUser(deps), async (c) => {
+    const u = c.get('user');
+    const cabang = isSuper(u) ? '' : u.cabang;
+    const rows = await deps.laporan.recentRows(cabang, 2000);
+    const cardIdMap = await loadCardIdMap(deps);
+    let pref: L.Prefill | null = null;
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const row = rows[i];
+      if (!row || !row.vehicle_id) continue;
+      pref = L.mapPrefillRow(row, cardIdMap);
+      break;
+    }
+    return c.json(okPayload({ pref }));
+  });
+
+  // ── GET /api/laporan/performa (port getPerformaSummary) ──────────────────
+  app.get('/performa', requireUser(deps), async (c) => {
+    const u = c.get('user');
+    const cabang = isSuper(u) ? '' : u.cabang;
+    const key = performaCacheKey(roleOf(u), cabang);
+    const cached = await deps.kv.get(key, 'json');
+    if (cached) return c.json(okPayload({ items: cached }));
+    const rows = await deps.laporan.rowsInScope(cabang, 5000);
+    const all = await deps.master.listAll();
+    const items = L.buildPerformaList(rows, kendaraanInfoMap(all), cabangNamaMapOf(all));
+    await deps.kv.put(key, JSON.stringify(items), { expirationTtl: 300 });
+    return c.json(okPayload({ items }));
+  });
+
   // Route baca (prefill/performa) ditambahkan di Task 6; edit/hapus di Task 7.
   return app;
 }
 
 export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   const app = new Hono<{ Bindings: Env }>();
-  void deps;
-  // GET / ditambahkan di Task 6.
+
+  // ── GET /api/dashboard (port getDashboardData) ───────────────────────────
+  app.get('/', requireUser(deps), async (c) => {
+    const u = c.get('user');
+    const cabang = isSuper(u) ? '' : u.cabang;
+    const all = await deps.master.listAll();
+    const cardIdMap = await loadCardIdMap(deps);
+    const rows = await deps.laporan.recentRows(cabang, 2000);
+    const transactions = L.buildRecentList(rows, kendaraanInfoMap(all), cabangNamaMapOf(all), cardIdMap);
+
+    const periode = L.periodKey(new Date());
+    const mkey = monthlyCacheKey(roleOf(u), cabang);
+    let monthly = await deps.kv.get(mkey, 'json') as L.MonthlyItem[] | null;
+    if (!monthly) {
+      const monthRows = await deps.laporan.rowsInMonth(cabang, periode);
+      monthly = L.groupMonthly(monthRows, periode);
+      await deps.kv.put(mkey, JSON.stringify(monthly), { expirationTtl: 300 });
+    }
+    return c.json(okPayload({ transactions, monthly }));
+  });
+
   return app;
 }

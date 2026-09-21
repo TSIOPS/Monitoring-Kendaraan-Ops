@@ -2420,14 +2420,14 @@ git commit -m "feat(routes): M3 save laporan + upload foto + storage/cache wirin
 
 **Produces:** `GET /api/laporan/prefill`, `GET /api/laporan/performa` (cache `perf:` TTL 300), `GET /api/dashboard` (riwayat langsung + `monthly:` cache TTL 300).
 
-- [ ] **Step 1: Perluas import di `src/routes/laporan.ts`**
+- [x] **Step 1: Perluas import di `src/routes/laporan.ts`**
 
 ```diff
 -import { bumpMasterRev, invalidateLaporanCaches } from '../logic/master-cache';
 +import { bumpMasterRev, invalidateLaporanCaches, monthlyCacheKey, performaCacheKey } from '../logic/master-cache';
 ```
 
-- [ ] **Step 2: Tambahkan helper `loadCardIdMap` (setelah `loadCards`)**
+- [x] **Step 2: Tambahkan helper `loadCardIdMap` (setelah `loadCards`)**
 
 ```ts
 async function loadCardIdMap(deps: AppDeps): Promise<Map<string, string>> {
@@ -2448,7 +2448,7 @@ function cabangNamaMapOf(all: { cabang: Array<{ kode_cabang: string; nama_cabang
 }
 ```
 
-- [ ] **Step 3: Tambahkan `GET /prefill` dan `GET /performa` (sebelum `return app;` di `laporanRoutes`)**
+- [x] **Step 3: Tambahkan `GET /prefill` dan `GET /performa` (sebelum `return app;` di `laporanRoutes`)**
 
 ```ts
   // â”€â”€ GET /api/laporan/prefill (port getLastLaporanPrefill) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -2482,7 +2482,7 @@ function cabangNamaMapOf(all: { cabang: Array<{ kode_cabang: string; nama_cabang
   });
 ```
 
-- [ ] **Step 4: Implementasikan `dashboardRoutes`**
+- [x] **Step 4: Implementasikan `dashboardRoutes`**
 
 ```ts
 export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
@@ -2512,7 +2512,7 @@ export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 }
 ```
 
-- [ ] **Step 5: Tambahkan test baca ke `tests/routes/laporan.test.ts`**
+- [x] **Step 5: Tambahkan test baca ke `tests/routes/laporan.test.ts`**
 
 ```ts
 import { periodKey } from '../../src/logic/laporan';
@@ -2598,7 +2598,7 @@ describe('GET /api/dashboard', () => {
 });
 ```
 
-- [ ] **Step 6: Jalankan + commit**
+- [x] **Step 6: Jalankan + commit**
 
 ```powershell
 npm run typecheck
