@@ -3081,7 +3081,7 @@ git commit -m "test(routes): M3 lintas-cutting cache/tol/audit/401"
 
 **Produces:** tabel API M3 di README + status spec diperbarui.
 
-- [ ] **Step 1: Perbarui tabel API di `README.md`**
+- [x] **Step 1: Perbarui tabel API di `README.md`**
 
 Tambahkan baris berikut pada tabel endpoint (setelah endpoint M2):
 
@@ -3095,7 +3095,7 @@ Tambahkan baris berikut pada tabel endpoint (setelah endpoint M2):
 | GET | `/api/dashboard` | Riwayat transaksi + ringkasan bulanan (cache 300 dtk) |
 ```
 
-- [ ] **Step 2: Perbarui status di design spec**
+- [x] **Step 2: Perbarui status di design spec**
 
 Ubah baris `**Status:** Disetujui (bagian demi bagian)` menjadi:
 
@@ -3103,7 +3103,7 @@ Ubah baris `**Status:** Disetujui (bagian demi bagian)` menjadi:
 **Status:** Selesai diimplementasikan (M3) â€” lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`
 ```
 
-- [ ] **Step 3: Gate penuh + commit**
+- [x] **Step 3: Gate penuh + commit**
 
 ```powershell
 npm run typecheck

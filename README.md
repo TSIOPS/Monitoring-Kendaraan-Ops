@@ -48,5 +48,12 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 | GET/PUT | `/api/settings` | GET publik, PUT SUPERADMIN | pengaturan aplikasi |
 | POST | `/api/settings/logo` | SUPERADMIN | upload logo (base64 → Supabase Storage) |
 | GET | `/api/audit` | SUPERADMIN | daftar audit (`?limit=` 1–500, desc) |
+| POST | `/api/laporan/photos` | PIC/SUPERADMIN | unggah 2 foto odometer (base64 → bucket `foto`) |
+| POST | `/api/laporan` | PIC/SUPERADMIN | simpan transaksi BBM (gate jalur & Flazz, potong saldo, usage, audit) |
+| PUT | `/api/laporan/:id` | PIC/SUPERADMIN | koreksi transaksi (delta Flazz, ganti foto, re-link jalur) |
+| DELETE | `/api/laporan/:id` | PIC/SUPERADMIN | hapus transaksi (refund Flazz, return usage, release jalur) |
+| GET | `/api/laporan/prefill` | PIC/SUPERADMIN | prefill dari transaksi terakhir yang memenuhi syarat |
+| GET | `/api/laporan/performa` | PIC/SUPERADMIN | performa 7-trip per kendaraan (cache 300 dtk) |
+| GET | `/api/dashboard` | PIC/SUPERADMIN | riwayat transaksi + ringkasan bulanan (cache 300 dtk) |
 
-M2 (data master + audit + pengaturan) **selesai**. Berikutnya M3: laporan/transaksi BBM.
+M3 (laporan/transaksi BBM) **selesai** — lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`.

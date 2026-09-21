@@ -1,7 +1,7 @@
 # M3 — Laporan / Transaksi BBM (Daily Transaction) Design
 
 **Tanggal:** 2026-09-21
-**Status:** Disetujui (bagian demi bagian)
+**Status:** Selesai diimplementasikan (M3) — lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`
 **Proyek:** `D:\Monitoring Kendaraan Ops Cloud` (port Cloudflare Workers + Supabase dari GAS)
 
 ## 1. Latar Belakang & Sumber
