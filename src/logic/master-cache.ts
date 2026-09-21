@@ -13,3 +13,19 @@ export async function bumpMasterRev(kv: KVStore): Promise<void> {
 export function masterCacheKey(rev: string, role: string, cabang: string): string {
   return `master:${rev}:${role}:${cabang}`;
 }
+
+export function performaCacheKey(role: string, cabang: string): string {
+  return `perf:${role || ''}:${cabang || ''}`;
+}
+
+export function monthlyCacheKey(role: string, cabang: string): string {
+  return `monthly:${role || ''}:${cabang || ''}`;
+}
+
+export async function invalidateLaporanCaches(kv: KVStore, role: string, cabang: string): Promise<void> {
+  const scopes: Array<[string, string]> = [[role || '', cabang || ''], ['SUPERADMIN', '']];
+  for (const [r, cb] of scopes) {
+    await kv.delete(performaCacheKey(r, cb));
+    await kv.delete(monthlyCacheKey(r, cb));
+  }
+}

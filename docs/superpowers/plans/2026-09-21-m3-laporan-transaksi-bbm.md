@@ -1,10 +1,10 @@
-# M3 — Laporan / Transaksi BBM Implementation Plan
+﻿# M3 â€” Laporan / Transaksi BBM Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Mem-port alur **Laporan Harian / Transaksi BBM** GAS (`saveTransactionEndOfDayUnlocked`, `editDailyTransactionUnlocked`, `deleteDailyTransactionUnlocked`, `getLastLaporanPrefill`, `getPerformaSummary`, `getRecentTransactions`, `getMonthlySummary`) ke Worker — perilaku, efek samping Flazz/Jalur, dan **pesan verbatim GAS** 1:1, agar frontend M7 bisa disambungkan tanpa mengubah bentuk data.
+**Goal:** Mem-port alur **Laporan Harian / Transaksi BBM** GAS (`saveTransactionEndOfDayUnlocked`, `editDailyTransactionUnlocked`, `deleteDailyTransactionUnlocked`, `getLastLaporanPrefill`, `getPerformaSummary`, `getRecentTransactions`, `getMonthlySummary`) ke Worker â€” perilaku, efek samping Flazz/Jalur, dan **pesan verbatim GAS** 1:1, agar frontend M7 bisa disambungkan tanpa mengubah bentuk data.
 
-**Architecture:** Tiga lapis mengikuti M2. `src/logic/laporan.ts` = fungsi murni (PaymentLogic, estimasi odo, efisiensi 7-trip, mapping baris, ringkasan bulanan, pesan). `src/db/laporan.ts` = `LaporanRepo` + `supabaseLaporanRepo(env)` (penggunaan_bbm / flazz_card / flazz_usage / jalur_pengiriman). `src/routes/laporan.ts` = orkestrasi guard → logic → repo → audit → invalidate; dashboard route di `src/routes/laporan.ts` (`dashboardRoutes`) di-mount `/api/dashboard`. Penurunan saldo Flazz memakai conditional `UPDATE ... WHERE last_balance = <old>` (satu titik atomicity ekstra).
+**Architecture:** Tiga lapis mengikuti M2. `src/logic/laporan.ts` = fungsi murni (PaymentLogic, estimasi odo, efisiensi 7-trip, mapping baris, ringkasan bulanan, pesan). `src/db/laporan.ts` = `LaporanRepo` + `supabaseLaporanRepo(env)` (penggunaan_bbm / flazz_card / flazz_usage / jalur_pengiriman). `src/routes/laporan.ts` = orkestrasi guard â†’ logic â†’ repo â†’ audit â†’ invalidate; dashboard route di `src/routes/laporan.ts` (`dashboardRoutes`) di-mount `/api/dashboard`. Penurunan saldo Flazz memakai conditional `UPDATE ... WHERE last_balance = <old>` (satu titik atomicity ekstra).
 
 **Tech Stack:** Hono, @supabase/supabase-js, Cloudflare KV, Supabase Storage (bucket `foto`), Web Crypto (`crypto.randomUUID`), vitest.
 
@@ -16,14 +16,14 @@
   - save (`assertOwnWarehouse`): `Akses ditolak: Anda hanya dapat mengelola data warehouse <cabang>.`
   - edit/hapus (`assertTransactionAccess`): `Akses ditolak: Anda hanya dapat mengelola transaksi warehouse <cabang>.`
   - kartu Flazz (`assertFlazzAccess`): `Akses ditolak: Anda hanya dapat mengelola kartu warehouse <cabang>.`
-- **Kolom DB = nama kolom GAS**, dipakai apa adanya (0–31). `km_awal_confirmed`/`km_akhir_confirmed` menyimpan **KM efektif** (setelah estimasi); `ocr_km_awal`/`ocr_km_akhir` menyimpan echo client.
+- **Kolom DB = nama kolom GAS**, dipakai apa adanya (0â€“31). `km_awal_confirmed`/`km_akhir_confirmed` menyimpan **KM efektif** (setelah estimasi); `ocr_km_awal`/`ocr_km_akhir` menyimpan echo client.
 - **Urutan baris** memakai kolom `seq bigint generated always as identity` (menggantikan urutan baris spreadsheet). Semua "baris terakhir"/"200 terakhir" memakai `seq desc`.
-- **Konkurensi**: tanpa lock global. Potong saldo Flazz selalu conditional; kegagalan potong saat save → hapus baris yang baru diinsert + balas 409 (bukan ditelan seperti GAS). Refund/kenaikan saldo tidak perlu conditional.
-- **Cache**: `performa` & `monthly` di KV TTL **300 dtk**, key `perf:<role>:<cabang>` & `monthly:<role>:<cabang>`. Save/edit/delete yang menyentuh Flazz → `bumpMasterRev`. Riwayat & prefill **selalu** hitung langsung.
-- **`adjustMonthlySummary` GAS dihilangkan** — ringkasan bulanan dihitung ulang dari tabel saat dashboard diminta.
+- **Konkurensi**: tanpa lock global. Potong saldo Flazz selalu conditional; kegagalan potong saat save â†’ hapus baris yang baru diinsert + balas 409 (bukan ditelan seperti GAS). Refund/kenaikan saldo tidak perlu conditional.
+- **Cache**: `performa` & `monthly` di KV TTL **300 dtk**, key `perf:<role>:<cabang>` & `monthly:<role>:<cabang>`. Save/edit/delete yang menyentuh Flazz â†’ `bumpMasterRev`. Riwayat & prefill **selalu** hitung langsung.
+- **`adjustMonthlySummary` GAS dihilangkan** â€” ringkasan bulanan dihitung ulang dari tabel saat dashboard diminta.
 - Response sukses `{ success: true, ... }`; gagal `{ success: false, error, message }` via `HttpError`.
 - **Id baru**: `newId(prefix)` (dari `routes/master.ts`) = `prefix${Date.now()}-${4-hex}`. `transaction_id` = `TRX-...`; usage = `USE-...`.
-- **Foto**: bucket Storage `foto`, key `<kode-cabang>/KM_Awal|<KM_Akhir>/<uuid>.<ext>`; mime whitelist `jpeg/png/webp/heic/heif`, maks 10 MB. Thumbnail = rewrite `/object/public/` → `/render/image/public/` + `?width=200`.
+- **Foto**: bucket Storage `foto`, key `<kode-cabang>/KM_Awal|<KM_Akhir>/<uuid>.<ext>`; mime whitelist `jpeg/png/webp/heic/heif`, maks 10 MB. Thumbnail = rewrite `/object/public/` â†’ `/render/image/public/` + `?width=200`.
 - **`foto_evidence` tidak dipakai** (sama GAS). `struk_bbm`/`struk_toll` hanya diisi bila klien mengirim (biasanya kosong).
 - Setiap task diakhiri `npm run typecheck` + `npx vitest run` hijau, lalu commit.
 
@@ -36,7 +36,7 @@
 | Odo: standar kosong 400 | `KM tidak terbaca tapi estimasi tidak tersedia: Standar KM/L kendaraan belum diisi di Master Kendaraan. Harap isi dulu atau input KM asli.` |
 | Odo: liter kosong 400 | `KM tidak terbaca tapi estimasi tidak tersedia: liter BBM kosong. Pastikan "Ada struk BBM?" = Ya, total biaya terisi, dan Master BBM punya harga per liter. Harap input KM asli jika ingin lanjut.` |
 | Kartu tak ditemukan 409 | `Kartu Flazz untuk <label.join(' + ')> (ID: <cid>) tidak ditemukan. Pilih ulang kartu Flazz yang valid sebelum menyimpan laporan.` |
-| Saldo kurang 409 | `Saldo kartu Flazz (<name‖cid>) tidak mencukupi untuk <label.join(' + ')> . Saldo: Rp <fmt(bal)>, Total pengeluaran: Rp <fmt(total)>. Silakan top up Flazz terlebih dahulu.` |
+| Saldo kurang 409 | `Saldo kartu Flazz (<nameâ€–cid>) tidak mencukupi untuk <label.join(' + ')> . Saldo: Rp <fmt(bal)>, Total pengeluaran: Rp <fmt(total)>. Silakan top up Flazz terlebih dahulu.` |
 | Edit saldo kurang 409 | `Saldo kartu tidak mencukupi untuk koreksi ini (sisa Rp <fmt(bal)>). Lakukan Top Up atau selesaikan Rekonsiliasi terlebih dahulu.` |
 | Edit/hapus 404 | `Transaksi tidak ditemukan.` |
 | Edit 400 | `Pilih kartu Flazz terlebih dahulu.` |
@@ -46,7 +46,7 @@
 | Hapus sukses | `Transaksi BBM dihapus.` |
 | Upload 422 | `Upload foto KM awal gagal: <err>` / `Upload foto KM akhir gagal: <err>` |
 | Odo warning | `SELISIH ODO: KM akhir terakhir <fmt(prevKmAkhir)> (<tgl>), KM awal <fmt(kmAwalBaru)>, selisih <fmt(selisih)> KM - indikasi pemakaian di luar jam kerja` |
-| Efisiensi label | `Rata-rata 7 Trip` + (` ⚠ termasuk estimasi` bila ada estimasi) |
+| Efisiensi label | `Rata-rata 7 Trip` + (` âš  termasuk estimasi` bila ada estimasi) |
 
 `fmt` = format angka id-ID deterministik: ribuan `.`, desimal `,` (fungsi `formatIdNumber`). `tgl` = `dd/MM/yyyy` (fungsi `formatDateId`).
 
@@ -54,45 +54,45 @@
 
 ```
 D:\Monitoring Kendaraan Ops Cloud\
-├── README.md                         # EDIT: tabel API + status M3
-├── db/
-│   └── schema.sql                    # EDIT: seq identity + 3 index
-├── src/
-│   ├── deps.ts                       # EDIT: AppDeps + laporan/uploadEvidence/deleteEvidence
-│   ├── app.ts                        # EDIT: repo default + mount /api/laporan & /api/dashboard
-│   ├── logic/
-│   │   ├── laporan.ts                # CREATE: semua fungsi murni M3
-│   │   └── master-cache.ts           # EDIT: performaCacheKey/monthlyCacheKey/invalidateLaporanCaches
-│   ├── db/
-│   │   ├── laporan.ts                # CREATE: tipe + LaporanRepo + supabaseLaporanRepo
-│   │   └── storage.ts                # EDIT: bucket foto + upload/delete evidence
-│   └── routes/
-│       └── laporan.ts                # CREATE: laporanRoutes + dashboardRoutes
-├── tests/
-│   ├── helpers.ts                    # EDIT: memLaporan/memStorage/laporanRow + makeDeps
-│   ├── logic/laporan.test.ts         # CREATE (Task 2 & 3)
-│   ├── db/laporan-mem.test.ts        # CREATE (Task 4)
-│   └── routes/laporan.test.ts        # CREATE (Task 5–8)
-└── scripts/
-    └── apply-schema.mjs              # (existing, dipakai untuk kolom/index baru)
+â”œâ”€â”€ README.md                         # EDIT: tabel API + status M3
+â”œâ”€â”€ db/
+â”‚   â””â”€â”€ schema.sql                    # EDIT: seq identity + 3 index
+â”œâ”€â”€ src/
+â”‚   â”œâ”€â”€ deps.ts                       # EDIT: AppDeps + laporan/uploadEvidence/deleteEvidence
+â”‚   â”œâ”€â”€ app.ts                        # EDIT: repo default + mount /api/laporan & /api/dashboard
+â”‚   â”œâ”€â”€ logic/
+â”‚   â”‚   â”œâ”€â”€ laporan.ts                # CREATE: semua fungsi murni M3
+â”‚   â”‚   â””â”€â”€ master-cache.ts           # EDIT: performaCacheKey/monthlyCacheKey/invalidateLaporanCaches
+â”‚   â”œâ”€â”€ db/
+â”‚   â”‚   â”œâ”€â”€ laporan.ts                # CREATE: tipe + LaporanRepo + supabaseLaporanRepo
+â”‚   â”‚   â””â”€â”€ storage.ts                # EDIT: bucket foto + upload/delete evidence
+â”‚   â””â”€â”€ routes/
+â”‚       â””â”€â”€ laporan.ts                # CREATE: laporanRoutes + dashboardRoutes
+â”œâ”€â”€ tests/
+â”‚   â”œâ”€â”€ helpers.ts                    # EDIT: memLaporan/memStorage/laporanRow + makeDeps
+â”‚   â”œâ”€â”€ logic/laporan.test.ts         # CREATE (Task 2 & 3)
+â”‚   â”œâ”€â”€ db/laporan-mem.test.ts        # CREATE (Task 4)
+â”‚   â””â”€â”€ routes/laporan.test.ts        # CREATE (Task 5â€“8)
+â””â”€â”€ scripts/
+    â””â”€â”€ apply-schema.mjs              # (existing, dipakai untuk kolom/index baru)
 ```
 
 Unit interfaces:
-- `logic/laporan.ts` — murni (tanpa env/DB). Port 1:1 `PaymentLogic.js`, estimasi odo, `hitungEfisiensi7Riwayat`, mapping, ringkasan bulanan, pesan.
-- `db/laporan.ts` — `LaporanRepo` (interface) + `supabaseLaporanRepo(env)`; dites via `memLaporan`.
-- `routes/laporan.ts` — `app*(deps)` DI. Bisnis-rule GAS di sini (guard, validasi, audit, invalidate, pesan).
-- `tests/helpers.ts` — `memLaporan` (in-memory 4 tabel), `memStorage` (fake upload/delete), `laporanRow()`.
+- `logic/laporan.ts` â€” murni (tanpa env/DB). Port 1:1 `PaymentLogic.js`, estimasi odo, `hitungEfisiensi7Riwayat`, mapping, ringkasan bulanan, pesan.
+- `db/laporan.ts` â€” `LaporanRepo` (interface) + `supabaseLaporanRepo(env)`; dites via `memLaporan`.
+- `routes/laporan.ts` â€” `app*(deps)` DI. Bisnis-rule GAS di sini (guard, validasi, audit, invalidate, pesan).
+- `tests/helpers.ts` â€” `memLaporan` (in-memory 4 tabel), `memStorage` (fake upload/delete), `laporanRow()`.
 
 ---
 
-## Task 1: Skema — kolom `seq` + index
+## Task 1: Skema â€” kolom `seq` + index
 
 **Files:**
 - Edit: `db/schema.sql`
 
 **Produces:** `penggunaan_bbm.seq` (identity) untuk urutan "baris terakhir", dan 3 index yang dipakai query gate/riwayat.
 
-- [ ] **Step 1: Tambah kolom `seq` di `db/schema.sql`**
+- [x] **Step 1: Tambah kolom `seq` di `db/schema.sql`**
 
 Di dalam `create table if not exists penggunaan_bbm (...)` tambahkan kolom `seq` sebagai baris **terakhir** definisi kolom (sebelum `);`):
 
@@ -111,7 +111,7 @@ Lalu tepat **setelah** blok `create table ... penggunaan_bbm (...)` selesai, tam
 alter table penggunaan_bbm add column if not exists seq bigint generated always as identity;
 ```
 
-- [ ] **Step 2: Tambah 3 index**
+- [x] **Step 2: Tambah 3 index**
 
 Di blok `-- INDEX` (dekat baris 258), tambahkan:
 
@@ -121,7 +121,7 @@ create index if not exists idx_flazz_usage_ref on flazz_usage (ref_type, ref_id)
 create index if not exists idx_jalur_gate on jalur_pengiriman (tanggal, vehicle_id, kode_cabang);
 ```
 
-- [ ] **Step 3: Terapkan + verifikasi**
+- [x] **Step 3: Terapkan + verifikasi**
 
 ```powershell
 $env:SB_DB_PASSWORD='<DB_PASSWORD>'; npm run apply-schema
@@ -132,7 +132,7 @@ $env:SB_DB_PASSWORD='<DB_PASSWORD>'; node -e "const pg=require('pg');const c=new
 
 Harapan: `seq | YES`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add db/schema.sql
@@ -141,7 +141,7 @@ git commit -m "feat(db): M3 penggunaan_bbm.seq identity + index gate/riwayat"
 
 ---
 
-## Task 2: `src/logic/laporan.ts` bagian 1 — PaymentLogic, estimasi odo, efisiensi, pesan
+## Task 2: `src/logic/laporan.ts` bagian 1 â€” PaymentLogic, estimasi odo, efisiensi, pesan
 
 **Files:**
 - Create: `src/logic/laporan.ts`
@@ -149,7 +149,7 @@ git commit -m "feat(db): M3 penggunaan_bbm.seq identity + index gate/riwayat"
 
 **Produces:** tipe `LaporanRow`/`LaporanInsert` + seluruh fungsi murni inti (payment, odo, efisiensi, formatter, pesan). Bagian mapping/riwayat menyusul di Task 3.
 
-- [ ] **Step 1: Tulis `src/logic/laporan.ts` (bagian 1)**
+- [x] **Step 1: Tulis `src/logic/laporan.ts` (bagian 1)**
 
 ```ts
 // Logika MURNI laporan/transaksi BBM. Port 1:1 PaymentLogic.js + SpreadsheetOps.js.
@@ -211,7 +211,7 @@ const numOrNull = (v: unknown): number | null => {
   return isNaN(n) ? null : n;
 };
 
-// ── PaymentLogic (port PaymentLogic.js) ─────────────────────────────────────
+// â”€â”€ PaymentLogic (port PaymentLogic.js) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function canonicalCardId(v: unknown): string {
   return String(v ?? '').trim().replace(/-/g, '');
 }
@@ -329,7 +329,7 @@ export function buildFlazzChecks(
   return [...map.values()];
 }
 
-// ── Odometer & efisiensi (port SpreadsheetOps.js) ───────────────────────────
+// â”€â”€ Odometer & efisiensi (port SpreadsheetOps.js) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export class OdoEstimateError extends Error {}
 
 export const MSG_ODO_NO_STANDAR =
@@ -455,7 +455,7 @@ export function hitungEfisiensi7Riwayat(trxs: LaporanRow[], currIdx: number, lit
   let totalKonsumsi = totalBeli + (barAwalPertama - barAkhirTerakhir) * literPerBar;
   if (totalKonsumsi <= 0) totalKonsumsi = totalBeli;
   const efisiensi = totalKonsumsi > 0 && totalKm > 0 ? (totalKm / totalKonsumsi).toFixed(2) : '';
-  const label = efisiensi ? 'Rata-rata 7 Trip' + (adaEstimasi ? ' ⚠ termasuk estimasi' : '') : '';
+  const label = efisiensi ? 'Rata-rata 7 Trip' + (adaEstimasi ? ' âš  termasuk estimasi' : '') : '';
   return {
     efisiensi, label, isDataCukup, adaEstimasi, totalKm, totalBeli, totalKonsumsi,
     tglMulai: first.tanggal, tglSelesai: last.tanggal, supir: last.nama_supir || '-',
@@ -482,7 +482,7 @@ export function shouldAutoCreateUsageOnEdit(wasFlazz: boolean, isFlazz: boolean)
   return !wasFlazz && isFlazz;
 }
 
-// ── Formatter & pesan ───────────────────────────────────────────────────────
+// â”€â”€ Formatter & pesan â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function formatIdNumber(n: number): string {
   let v = n;
   if (!isFinite(v)) v = 0;
@@ -562,7 +562,7 @@ export function msgEditInsufficient(balance: number): string {
 }
 ```
 
-- [ ] **Step 2: Tulis `tests/logic/laporan.test.ts` (bagian 1)**
+- [x] **Step 2: Tulis `tests/logic/laporan.test.ts` (bagian 1)**
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -711,7 +711,7 @@ describe('hitungEfisiensi7Riwayat', () => {
     expect(hitungEfisiensi7Riwayat([], 0, 0).isDataCukup).toBe(false);
   });
 
-  it('label ⚠ bila ada estimasi; total konsumsi memperhitungkan bar', () => {
+  it('label âš  bila ada estimasi; total konsumsi memperhitungkan bar', () => {
     const trxs = Array.from({ length: 7 }, (_, i) => mk(i + 1));
     trxs[6] = { ...trxs[6]!, km_sumber: 'ESTIMASI' };
     const r = hitungEfisiensi7Riwayat(trxs, 6, 6.25);
@@ -719,7 +719,7 @@ describe('hitungEfisiensi7Riwayat', () => {
     expect(r.totalBeli).toBe(70);
     expect(r.totalKonsumsi).toBe(95);
     expect(r.efisiensi).toBe((700 / 95).toFixed(2));
-    expect(r.label).toBe('Rata-rata 7 Trip ⚠ termasuk estimasi');
+    expect(r.label).toBe('Rata-rata 7 Trip âš  termasuk estimasi');
     expect(r.supir).toBe('Supir A');
   });
 
@@ -753,7 +753,7 @@ describe('helper usage & pesan', () => {
 });
 ```
 
-- [ ] **Step 3: Jalankan**
+- [x] **Step 3: Jalankan**
 
 ```powershell
 npm run typecheck
@@ -762,7 +762,7 @@ npx vitest run tests/logic/laporan.test.ts
 
 Harapan: hijau.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/logic/laporan.ts tests/logic/laporan.test.ts
@@ -771,7 +771,7 @@ git commit -m "feat(logic): M3 payment/odo/efisiensi murni + tests"
 
 ---
 
-## Task 3: `src/logic/laporan.ts` bagian 2 — mapping prefill/riwayat/performa/monthly
+## Task 3: `src/logic/laporan.ts` bagian 2 â€” mapping prefill/riwayat/performa/monthly
 
 **Files:**
 - Edit: `src/logic/laporan.ts`
@@ -779,10 +779,10 @@ git commit -m "feat(logic): M3 payment/odo/efisiensi murni + tests"
 
 **Produces:** `isDuplicateRow`, `supabaseThumb`, `resolveCanonicalCardId`, `mapPrefillRow`, `buildRecentList`, `buildPerformaList`, `groupMonthly` + tipe output.
 
-- [ ] **Step 1: Tambahkan ke `src/logic/laporan.ts`**
+- [x] **Step 1: Tambahkan ke `src/logic/laporan.ts`**
 
 ```ts
-// ── Mapping baris (port SpreadsheetOps.js) ──────────────────────────────────
+// â”€â”€ Mapping baris (port SpreadsheetOps.js) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export interface DuplicateKey {
   vehicle_id: string;
   tanggal: string;
@@ -1084,7 +1084,7 @@ export function groupMonthly(rows: LaporanRow[], periode: string): MonthlyItem[]
 }
 ```
 
-- [ ] **Step 2: Tambahkan test ke `tests/logic/laporan.test.ts`**
+- [x] **Step 2: Tambahkan test ke `tests/logic/laporan.test.ts`**
 
 ```ts
 import {
@@ -1184,14 +1184,14 @@ describe('groupMonthly', () => {
 });
 ```
 
-- [ ] **Step 3: Jalankan**
+- [x] **Step 3: Jalankan**
 
 ```powershell
 npm run typecheck
 npx vitest run tests/logic/laporan.test.ts
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/logic/laporan.ts tests/logic/laporan.test.ts
@@ -1209,7 +1209,7 @@ git commit -m "feat(logic): M3 mapping prefill/riwayat/performa/monthly + tests"
 
 **Produces:** `LaporanRepo` + `supabaseLaporanRepo(env)` + `CardBalanceError`; `memLaporan`/`memStorage`/`laporanRow` di helpers; `AppDeps.laporan` ter-wire.
 
-- [ ] **Step 1: Tulis `src/db/laporan.ts`**
+- [x] **Step 1: Tulis `src/db/laporan.ts`**
 
 ```ts
 import type { Env } from '../env';
@@ -1526,7 +1526,7 @@ export function supabaseLaporanRepo(env: Env): LaporanRepo {
 }
 ```
 
-- [ ] **Step 2: Tambahkan `memLaporan`, `memStorage`, `laporanRow` ke `tests/helpers.ts`**
+- [x] **Step 2: Tambahkan `memLaporan`, `memStorage`, `laporanRow` ke `tests/helpers.ts`**
 
 Tambahkan import di atas:
 
@@ -1730,7 +1730,7 @@ export function makeDeps(over: Partial<AppDeps> = {}) {
 }
 ```
 
-- [ ] **Step 3: Wire `AppDeps` di `src/deps.ts`**
+- [x] **Step 3: Wire `AppDeps` di `src/deps.ts`**
 
 ```ts
 import type { MasterRepo } from './db/master';
@@ -1760,7 +1760,7 @@ export interface UploadEvidenceOpts {
 }
 ```
 
-- [ ] **Step 4: Tulis `tests/db/laporan-mem.test.ts`**
+- [x] **Step 4: Tulis `tests/db/laporan-mem.test.ts`**
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -1833,14 +1833,14 @@ describe('memLaporan', () => {
 });
 ```
 
-- [ ] **Step 5: Jalankan**
+- [x] **Step 5: Jalankan**
 
 ```powershell
 npm run typecheck
 npx vitest run
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/db/laporan.ts src/deps.ts src/db/storage.ts tests/helpers.ts tests/db/laporan-mem.test.ts
@@ -1860,7 +1860,7 @@ git commit -m "feat(db): M3 LaporanRepo supabase + memLaporan + wiring deps"
 
 **Produces:** bucket `foto` + `uploadEvidenceStorage`/`deleteEvidenceStorage`/`extractStorageKey`; `performaCacheKey`/`monthlyCacheKey`/`invalidateLaporanCaches`; mount `/api/laporan`; `POST /photos` + `POST /` (save).
 
-- [ ] **Step 1: Tambahkan ke `src/db/storage.ts`**
+- [x] **Step 1: Tambahkan ke `src/db/storage.ts`**
 
 ```ts
 export const FOTO_BUCKET = 'foto';
@@ -1907,7 +1907,7 @@ export function extractStorageKey(url: string): string {
 }
 ```
 
-- [ ] **Step 2: Tambahkan ke `src/logic/master-cache.ts`**
+- [x] **Step 2: Tambahkan ke `src/logic/master-cache.ts`**
 
 ```ts
 export function performaCacheKey(role: string, cabang: string): string {
@@ -1927,7 +1927,7 @@ export async function invalidateLaporanCaches(kv: KVStore, role: string, cabang:
 }
 ```
 
-- [ ] **Step 3: Wire `src/app.ts`**
+- [x] **Step 3: Wire `src/app.ts`**
 
 ```diff
  import { supabaseSettingsRepo } from './db/settings';
@@ -1951,7 +1951,7 @@ export async function invalidateLaporanCaches(kv: KVStore, role: string, cabang:
 +  app.route('/api/dashboard', dashboardRoutes(deps));
 ```
 
-- [ ] **Step 4: Tulis `src/routes/laporan.ts` (save + photos)**
+- [x] **Step 4: Tulis `src/routes/laporan.ts` (save + photos)**
 
 ```ts
 import { Hono } from 'hono';
@@ -2031,7 +2031,7 @@ async function loadCards(deps: AppDeps): Promise<{ cards: FlazzCardRow[]; cardMa
 export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   const app = new Hono<{ Bindings: Env }>();
 
-  // ── POST /api/laporan/photos (port processDailyImages) ────────────────────
+  // â”€â”€ POST /api/laporan/photos (port processDailyImages) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   app.post('/photos', requireUser(deps), async (c) => {
     const u = c.get('user');
     const body = await readJson(c);
@@ -2063,7 +2063,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     }));
   });
 
-  // ── POST /api/laporan (port saveTransactionEndOfDayUnlocked) ─────────────
+  // â”€â”€ POST /api/laporan (port saveTransactionEndOfDayUnlocked) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   app.post('/', requireUser(deps), async (c) => {
     const u = c.get('user');
     const p = await readJson(c);
@@ -2247,7 +2247,7 @@ export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 }
 ```
 
-- [ ] **Step 5: Tulis `tests/routes/laporan.test.ts` (bagian save + photos)**
+- [x] **Step 5: Tulis `tests/routes/laporan.test.ts` (bagian save + photos)**
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -2319,7 +2319,7 @@ describe('POST /api/laporan (save)', () => {
   });
 
   it('duplikat 409', async () => {
-    const { app, kv } = setup({ rows: [{ km_awal_confirmed: '1000', km_akhir_confirmed: '1100', liter_bbm: 10, biaya_bbm: 120000, biaya_toll: 0 }] });
+    const { app, kv } = setup({ rows: [{ tanggal: '2026-09-21', km_awal_confirmed: '1000', km_akhir_confirmed: '1100', liter_bbm: 10, biaya_bbm: 120000, biaya_toll: 0 }] });
     const tok = await loginAs(kv, PIC);
     const res = await post(app, '/api/laporan', tok, saveBody());
     expect(res.status).toBe(409);
@@ -2396,14 +2396,14 @@ describe('POST /api/laporan/photos', () => {
 });
 ```
 
-- [ ] **Step 6: Jalankan**
+- [x] **Step 6: Jalankan**
 
 ```powershell
 npm run typecheck
 npx vitest run
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/db/storage.ts src/logic/master-cache.ts src/app.ts src/routes/laporan.ts tests/routes/laporan.test.ts
@@ -2412,7 +2412,7 @@ git commit -m "feat(routes): M3 save laporan + upload foto + storage/cache wirin
 
 ---
 
-## Task 6: Route baca — prefill, performa, dashboard
+## Task 6: Route baca â€” prefill, performa, dashboard
 
 **Files:**
 - Edit: `src/routes/laporan.ts`
@@ -2451,7 +2451,7 @@ function cabangNamaMapOf(all: { cabang: Array<{ kode_cabang: string; nama_cabang
 - [ ] **Step 3: Tambahkan `GET /prefill` dan `GET /performa` (sebelum `return app;` di `laporanRoutes`)**
 
 ```ts
-  // ── GET /api/laporan/prefill (port getLastLaporanPrefill) ─────────────────
+  // â”€â”€ GET /api/laporan/prefill (port getLastLaporanPrefill) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   app.get('/prefill', requireUser(deps), async (c) => {
     const u = c.get('user');
     const cabang = isSuper(u) ? '' : u.cabang;
@@ -2467,7 +2467,7 @@ function cabangNamaMapOf(all: { cabang: Array<{ kode_cabang: string; nama_cabang
     return c.json(okPayload({ pref }));
   });
 
-  // ── GET /api/laporan/performa (port getPerformaSummary) ───────────────────
+  // â”€â”€ GET /api/laporan/performa (port getPerformaSummary) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   app.get('/performa', requireUser(deps), async (c) => {
     const u = c.get('user');
     const cabang = isSuper(u) ? '' : u.cabang;
@@ -2488,7 +2488,7 @@ function cabangNamaMapOf(all: { cabang: Array<{ kode_cabang: string; nama_cabang
 export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   const app = new Hono<{ Bindings: Env }>();
 
-  // ── GET /api/dashboard (port getDashboardData) ────────────────────────────
+  // â”€â”€ GET /api/dashboard (port getDashboardData) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   app.get('/', requireUser(deps), async (c) => {
     const u = c.get('user');
     const cabang = isSuper(u) ? '' : u.cabang;
@@ -2632,7 +2632,7 @@ git commit -m "feat(routes): M3 prefill/performa/dashboard + cache 300s"
 - [ ] **Step 2: Tambahkan `PUT /:id` (sebelum `return app;` di `laporanRoutes`)**
 
 ```ts
-  // ── PUT /api/laporan/:id (port editDailyTransactionUnlocked) ─────────────
+  // â”€â”€ PUT /api/laporan/:id (port editDailyTransactionUnlocked) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   app.put('/:id', requireUser(deps), async (c) => {
     const u = c.get('user');
     const id = c.req.param('id');
@@ -2804,7 +2804,7 @@ git commit -m "feat(routes): M3 prefill/performa/dashboard + cache 300s"
     return c.json(okPayload({ msg: L.MSG_EDIT_SUCCESS }));
   });
 
-  // ── DELETE /api/laporan/:id (port deleteDailyTransactionUnlocked) ────────
+  // â”€â”€ DELETE /api/laporan/:id (port deleteDailyTransactionUnlocked) â”€â”€â”€â”€â”€â”€â”€â”€
   app.delete('/:id', requireUser(deps), async (c) => {
     const u = c.get('user');
     const id = c.req.param('id');
@@ -3083,7 +3083,7 @@ git commit -m "test(routes): M3 lintas-cutting cache/tol/audit/401"
 Tambahkan baris berikut pada tabel endpoint (setelah endpoint M2):
 
 ```markdown
-| POST | `/api/laporan/photos` | Unggah 2 foto odometer (base64 → bucket `foto`) |
+| POST | `/api/laporan/photos` | Unggah 2 foto odometer (base64 â†’ bucket `foto`) |
 | POST | `/api/laporan` | Simpan transaksi BBM (gate jalur & Flazz, potong saldo, usage, audit) |
 | PUT | `/api/laporan/:id` | Koreksi transaksi (delta Flazz, ganti foto, re-link jalur) |
 | DELETE | `/api/laporan/:id` | Hapus transaksi (refund Flazz, return usage, release jalur) |
@@ -3097,7 +3097,7 @@ Tambahkan baris berikut pada tabel endpoint (setelah endpoint M2):
 Ubah baris `**Status:** Disetujui (bagian demi bagian)` menjadi:
 
 ```markdown
-**Status:** Selesai diimplementasikan (M3) — lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`
+**Status:** Selesai diimplementasikan (M3) â€” lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`
 ```
 
 - [ ] **Step 3: Gate penuh + commit**
@@ -3118,6 +3118,6 @@ git commit -m "docs: M3 laporan/transaksi BBM API + status spec"
 
 - **Pesan GAS verbatim**: dipakai lewat konstanta `MSG_*` + `msg*()` di `src/logic/laporan.ts`; route tidak menulis string pesan sendiri (kecuali `'Kendaraan tidak ditemukan'` dan `'Upload foto ... gagal: '` yang memang tidak ada di GAS sebagai konstanta).
 - **Cache**: key `perf:<role>:<cabang>` & `monthly:<role>:<cabang>`, TTL **300**; `invalidateLaporanCaches` menghapus scope PIC + `SUPERADMIN`/`''`. Riwayat & prefill tidak di-cache.
-- **Flazz**: potong/refund selalu lewat `adjustBalance` (CAS `WHERE last_balance = old`); save gagal potong → refund + hapus baris + 409.
+- **Flazz**: potong/refund selalu lewat `adjustBalance` (CAS `WHERE last_balance = old`); save gagal potong â†’ refund + hapus baris + 409.
 - **Urutan**: semua "terakhir"/"200 terakhir" lewat `seq desc` (`rowsInScope`).
 - **Mount**: `/api/laporan` (`laporanRoutes`) + `/api/dashboard` (`dashboardRoutes`) di `app.ts`.

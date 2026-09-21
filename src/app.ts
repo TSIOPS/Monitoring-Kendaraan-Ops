@@ -12,6 +12,8 @@ import { recordAuditDb, auditListDb } from './db/audit';
 import { supabaseMasterRepo } from './db/master';
 import { supabaseSettingsRepo } from './db/settings';
 import { supabaseLaporanRepo } from './db/laporan';
+import { uploadEvidenceStorage, deleteEvidenceStorage } from './db/storage';
+import { laporanRoutes, dashboardRoutes } from './routes/laporan';
 
 export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bindings: Env }> {
   const deps: AppDeps = {
@@ -23,10 +25,8 @@ export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bin
     master: supabaseMasterRepo(env),
     settings: supabaseSettingsRepo(env),
     laporan: supabaseLaporanRepo(env),
-    uploadEvidence: async () => {
-      throw new Error('upload evidence belum ter-wire');
-    },
-    deleteEvidence: async () => {},
+    uploadEvidence: uploadEvidenceStorage,
+    deleteEvidence: deleteEvidenceStorage,
     ...overrides,
   };
 
@@ -54,6 +54,8 @@ export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bin
   app.route('/api/master', masterRoutes(deps));
   app.route('/api/settings', settingsRoutes(deps));
   app.route('/api/audit', auditRoutes(deps));
+  app.route('/api/laporan', laporanRoutes(deps));
+  app.route('/api/dashboard', dashboardRoutes(deps));
 
   app.all('/*', (c) => env.ASSETS.fetch(c.req.raw));
 
