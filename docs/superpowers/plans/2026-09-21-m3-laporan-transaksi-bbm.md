@@ -2983,7 +2983,7 @@ git commit -m "feat(routes): M3 edit/hapus laporan + delta Flazz + re-link jalur
 
 **Produces:** uji invalidasi cache, tol Flazz terpisah, gate status jalur, 401, audit snip, dan verifikasi gate penuh.
 
-- [ ] **Step 1: Tambahkan test lintas-cutting**
+- [x] **Step 1: Tambahkan test lintas-cutting**
 
 ```ts
 import { monthlyCacheKey, performaCacheKey } from '../../src/logic/master-cache';
@@ -3055,7 +3055,7 @@ describe('lintas-cutting', () => {
 });
 ```
 
-- [ ] **Step 2: Gate penuh**
+- [x] **Step 2: Gate penuh**
 
 ```powershell
 npm run typecheck
@@ -3064,7 +3064,7 @@ npx vitest run
 
 Harapan: seluruh suite hijau (logic + db + routes + M2 lama).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/routes/laporan.test.ts

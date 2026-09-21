@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildApp } from '../../src/app';
 import { authHeaders, fakeEnv, loginAs, laporanRow, makeDeps, memLaporan, memMaster, VEHICLE_ROW } from '../helpers';
 import { periodKey } from '../../src/logic/laporan';
+import { monthlyCacheKey, performaCacheKey } from '../../src/logic/master-cache';
 import type { SessionUser } from '../../src/deps';
 import type { FlazzCardRow, JalurRow, UsageRow } from '../../src/db/laporan';
 
@@ -321,5 +322,71 @@ describe('DELETE /api/laporan/:id', () => {
     const tok = await loginAs(kv, PIC);
     const res = await del(app, '/api/laporan/TRX-X', tok);
     expect(res.status).toBe(404);
+  });
+});
+
+describe('lintas-cutting', () => {
+  it('save menghapus cache performa & monthly (scope PIC + SUPERADMIN)', async () => {
+    const { app, kv } = setup();
+    const keys = [
+      performaCacheKey('PIC CABANG', 'CBG-A'), monthlyCacheKey('PIC CABANG', 'CBG-A'),
+      performaCacheKey('SUPERADMIN', ''), monthlyCacheKey('SUPERADMIN', ''),
+    ];
+    for (const k of keys) await kv.put(k, 'x');
+    const tok = await loginAs(kv, PIC);
+    await post(app, '/api/laporan', tok, saveBody());
+    for (const k of keys) expect(await kv.get(k)).toBeNull();
+  });
+
+  it('tol Flazz terpisah (BBM tunai): hanya kartu tol terpotong', async () => {
+    const { app, kv, lap } = setup({ flazzCard: [flazzCard()] });
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan', tok, saveBody({
+      biaya_bbm: 0, metode_pembayaran: 'TUNAI', flazz_card_id: '',
+      metode_toll: 'FLAZZ', flazz_card_id_toll: 'FLZ-1', biaya_toll: 20000,
+    }));
+    expect(res.status).toBe(200);
+    expect(lap.state.flazzCard[0]!.last_balance).toBe(480000);
+    expect(lap.state.rows[0]).toMatchObject({ metode_pembayaran: '', metode_toll: 'FLAZZ', flazz_card_id_toll: 'FLZ-1' });
+  });
+
+  it('jalur berstatus SUDAH_LAPORAN -> 409 gate', async () => {
+    const { app, kv } = setup({ jalur: [jalurRow({ status: 'SUDAH_LAPORAN', laporan_id: 'TRX-LAIN' })] });
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan', tok, saveBody());
+    expect(res.status).toBe(409);
+    expect((await res.json() as any).message).toContain('Jalur Pengiriman terlebih dahulu');
+  });
+
+  it('audit save memuat data_sesudah ringkas (<= 2000 char)', async () => {
+    const { app, kv, audits } = setup();
+    const tok = await loginAs(kv, PIC);
+    await post(app, '/api/laporan', tok, saveBody());
+    expect(String(audits[0]!.data_sesudah).length).toBeLessThanOrEqual(2000);
+    expect(String(audits[0]!.data_sesudah)).toContain('CBG-A');
+  });
+
+  it('edit ber-Flazz menaikkan master rev', async () => {
+    const { app, kv } = setup({ rows: [{ transaction_id: 'TRX-1', metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1', biaya_bbm: 120000 }], flazzCard: [flazzCard()] });
+    const tok = await loginAs(kv, PIC);
+    await put(app, '/api/laporan/TRX-1', tok, { biaya_bbm: 100000 });
+    expect(await kv.get('master-rev')).toBe('1');
+  });
+
+  it('dashboard monthly memakai cache: perubahan state tidak terlihat pada panggilan kedua', async () => {
+    const { app, kv, lap } = setup({ rows: [laporanRow({ transaction_id: 'TRX-1', tanggal: PERIODE + '-05' })] });
+    const tok = await loginAs(kv, PIC);
+    const b1 = await (await app.request('/api/dashboard', { headers: authHeaders(tok) })).json() as any;
+    expect(b1.monthly[0].total_transaksi).toBe(1);
+    lap.state.rows.push(laporanRow({ transaction_id: 'TRX-2', tanggal: PERIODE + '-06' }));
+    const b2 = await (await app.request('/api/dashboard', { headers: authHeaders(tok) })).json() as any;
+    expect(b2.monthly[0].total_transaksi).toBe(1);
+    expect(b2.transactions).toHaveLength(2);
+  });
+
+  it('tanpa token -> 401 pada /api/laporan dan /api/dashboard', async () => {
+    const { app } = setup();
+    expect((await app.request('/api/laporan/prefill')).status).toBe(401);
+    expect((await app.request('/api/dashboard')).status).toBe(401);
   });
 });
