@@ -7,6 +7,9 @@ import {
   parseEditAmount, parseEditMethod, resolveTollCard, resolveTollMethod, shouldAdjustUsageOpeningAt,
   shouldAutoCreateUsageOnEdit, storeMetodeBbm,
 } from '../../src/logic/laporan';
+import {
+  buildPerformaList, buildRecentList, groupMonthly, isDuplicateRow, mapPrefillRow, supabaseThumb,
+} from '../../src/logic/laporan';
 
 const row = (over: Partial<LaporanRow> = {}): LaporanRow => ({
   transaction_id: 'TRX-1', timestamp: '2026-09-01T01:00:00.000Z', tanggal: '2026-09-01',
@@ -182,5 +185,97 @@ describe('helper usage & pesan', () => {
       .toBe('Saldo kartu Flazz (Kartu A) tidak mencukupi untuk BBM. Saldo: Rp 10.000, Total pengeluaran: Rp 25.000. Silakan top up Flazz terlebih dahulu.');
     expect(msgEditInsufficient(5000))
       .toBe('Saldo kartu tidak mencukupi untuk koreksi ini (sisa Rp 5.000). Lakukan Top Up atau selesaikan Rekonsiliasi terlebih dahulu.');
+  });
+});
+
+describe('mapping', () => {
+  it('isDuplicateRow membandingkan string efektif', () => {
+    const r = row({ km_awal_confirmed: '100', km_akhir_confirmed: '200', liter_bbm: 10, biaya_bbm: 100000, biaya_toll: 0 });
+    expect(isDuplicateRow(r, { vehicle_id: 'V-1', tanggal: '2026-09-01', km_awal: '100', km_akhir: '200', liter: '10', biaya_bbm: '100000', biaya_toll: '0' })).toBe(true);
+    expect(isDuplicateRow(r, { vehicle_id: 'V-1', tanggal: '2026-09-01', km_awal: '100', km_akhir: '200', liter: '11', biaya_bbm: '100000', biaya_toll: '0' })).toBe(false);
+  });
+
+  it('supabaseThumb menulis ulang ke render endpoint', () => {
+    expect(supabaseThumb('https://x.supabase.co/storage/v1/object/public/foto/CBG-A/KM_Awal/a.jpg'))
+      .toBe('https://x.supabase.co/storage/v1/render/image/public/foto/CBG-A/KM_Awal/a.jpg?width=200');
+    expect(supabaseThumb('')).toBe('');
+  });
+
+  it('mapPrefillRow meresolusi tol & kartu kanonik', () => {
+    const cardMap = new Map([['FLZ1', 'FLZ-1']]);
+    const r = row({ flazz_card_id: 'FLZ1', metode_pembayaran: 'FLAZZ', metode_toll: '', flazz_card_id_toll: '' });
+    const p = mapPrefillRow(r, cardMap);
+    expect(p.flazz_card_id).toBe('FLZ-1');
+    expect(p.metode_toll).toBe('FLAZZ');
+    expect(p.flazz_card_id_toll).toBe('FLZ-1');
+    expect(p.tanggal).toBe('2026-09-01');
+  });
+});
+
+describe('buildPerformaList (window non-overlap)', () => {
+  const mk = (i: number, vid = 'V-1') => row({ transaction_id: 'TRX-' + i, vehicle_id: vid, plat_nomor: vid === 'V-1' ? 'B 1 A' : 'B 2 B', tanggal: `2026-09-${String(i).padStart(2, '0')}`, km_tempuh: 100, liter_bbm: 10, bar_awal: '8', bar_akhir: '4' });
+  const kmap = new Map([['V-1', { kapasitas: 50, jumlah_bar: 8, standar: 10 }], ['V-2', { kapasitas: 50, jumlah_bar: 8, standar: 10 }]]);
+  const cmap = new Map([['CBG-A', 'Cabang A']]);
+
+  it('hanya tiap kelipatan 7 dan butuh 7 baris', () => {
+    const rows = Array.from({ length: 14 }, (_, i) => mk(i + 1));
+    const out = buildPerformaList(rows, kmap, cmap);
+    expect(out).toHaveLength(2); // i=6 dan i=13
+    expect(out[0]!.periode).toContain(' s/d ');
+    expect(out[0]!.cabang).toBe('Cabang A');
+    expect(out[0]!.status_efisiensi).toBeDefined();
+  });
+
+  it('6 baris -> tidak ada output', () => {
+    expect(buildPerformaList(Array.from({ length: 6 }, (_, i) => mk(i + 1)), kmap, cmap)).toHaveLength(0);
+  });
+});
+
+describe('buildRecentList', () => {
+  const kmap = new Map([['V-1', { kapasitas: 50, jumlah_bar: 8, standar: 10 }]]);
+  const cmap = new Map([['CBG-A', 'Cabang A']]);
+  const cards = new Map([['FLZ1', 'FLZ-1']]);
+  const mk = (i: number, over: Partial<LaporanRow> = {}) => row({
+    transaction_id: 'TRX-' + i, tanggal: `2026-09-${String(i).padStart(2, '0')}`,
+    timestamp: `2026-09-${String(i).padStart(2, '0')}T0${i % 10}:00:00.000Z`,
+    km_awal_confirmed: String(100 * i), km_akhir_confirmed: String(100 * i + 100),
+    km_tempuh: 100, liter_bbm: 10, bar_awal: '8', bar_akhir: '4', ...over,
+  });
+
+  it('Data Belum Cukup bila < 7 riwayat; warning dinamis dari prev', () => {
+    const rows = [mk(1), mk(2, { km_awal_confirmed: '250' }), mk(3)];
+    const out = buildRecentList(rows, kmap, cmap, cards);
+    const t2 = out.find((x) => x.transaction_id === 'TRX-2')!;
+    expect(t2.status_efisiensi).toBe('Data Belum Cukup');
+    expect(t2.efisiensi).toBe('');
+    expect(t2.warning).toBe('SELISIH ODO: KM akhir terakhir 200 (01/09/2026), KM awal 250, selisih 50 KM - indikasi pemakaian di luar jam kerja');
+  });
+
+  it('sort timestamp desc lalu sub_timestamp desc; thumb diisi', () => {
+    const rows = [mk(1), mk(2), mk(3, { foto_km_awal: 'https://x/storage/v1/object/public/foto/a.jpg' })];
+    const out = buildRecentList(rows, kmap, cmap, cards);
+    expect(out[0]!.transaction_id).toBe('TRX-3');
+    expect(out[0]!.foto_odo_awal_thumb).toContain('/render/image/public/');
+    expect(out[2]!.transaction_id).toBe('TRX-1');
+  });
+
+  it('hanya memproses 200 baris terakhir', () => {
+    const rows = Array.from({ length: 205 }, (_, i) => mk((i % 28) + 1));
+    expect(buildRecentList(rows, kmap, cmap, cards).length).toBeLessThanOrEqual(201);
+  });
+});
+
+describe('groupMonthly', () => {
+  it('group per cabang, 2 desimal, urut cabang', () => {
+    const rows = [
+      row({ kode_cabang: 'CBG-B', tanggal: '2026-09-02', liter_bbm: 10.555, biaya_bbm: 100, biaya_toll: 5 }),
+      row({ kode_cabang: 'CBG-A', tanggal: '2026-09-01', liter_bbm: 5, biaya_bbm: 50, biaya_toll: 0 }),
+      row({ kode_cabang: 'CBG-A', tanggal: '2026-09-03', liter_bbm: 5, biaya_bbm: 50, biaya_toll: 0 }),
+      row({ kode_cabang: 'CBG-A', tanggal: '2026-08-31', liter_bbm: 99, biaya_bbm: 99, biaya_toll: 0 }),
+    ];
+    const out = groupMonthly(rows, '2026-09');
+    expect(out.map((m) => m.cabang)).toEqual(['CBG-A', 'CBG-B']);
+    expect(out[0]).toMatchObject({ total_transaksi: 2, total_liter: 10, total_biaya_bbm: 100, total_toll: 0 });
+    expect(out[1]).toMatchObject({ total_transaksi: 1, total_liter: 10.56, total_biaya_bbm: 100, total_toll: 5 });
   });
 });

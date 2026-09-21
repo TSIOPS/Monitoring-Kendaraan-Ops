@@ -406,3 +406,304 @@ export function msgEditInsufficient(balance: number): string {
   return 'Saldo kartu tidak mencukupi untuk koreksi ini (sisa Rp ' + formatIdNumber(balance) +
     '). Lakukan Top Up atau selesaikan Rekonsiliasi terlebih dahulu.';
 }
+
+// ── Mapping baris (port SpreadsheetOps.js) ──────────────────────────────────
+export interface DuplicateKey {
+  vehicle_id: string;
+  tanggal: string;
+  km_awal: string;
+  km_akhir: string;
+  liter: string;
+  biaya_bbm: string;
+  biaya_toll: string;
+}
+
+export function isDuplicateRow(row: LaporanRow, key: DuplicateKey): boolean {
+  return String(row.vehicle_id) === key.vehicle_id &&
+    String(row.tanggal) === key.tanggal &&
+    String(row.km_awal_confirmed) === key.km_awal &&
+    String(row.km_akhir_confirmed) === key.km_akhir &&
+    String(num(row.liter_bbm)) === key.liter &&
+    String(num(row.biaya_bbm)) === key.biaya_bbm &&
+    String(num(row.biaya_toll)) === key.biaya_toll;
+}
+
+export function resolveCanonicalCardId(rawId: unknown, cardMap?: Map<string, string>): string {
+  if (rawId == null || rawId === '') return '';
+  const raw = String(rawId);
+  if (cardMap) {
+    const found = cardMap.get(canonicalCardId(raw));
+    if (found) return found;
+  }
+  return raw;
+}
+
+export function supabaseThumb(url: string): string {
+  if (!url) return '';
+  const clean = String(url).split('?')[0] ?? '';
+  if (clean.includes('/storage/v1/object/public/')) {
+    return clean.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/') + '?width=200';
+  }
+  return clean + '?width=200';
+}
+
+export interface Prefill {
+  vehicle_id: string;
+  plat_nomor: string;
+  nama_supir: string;
+  tanggal: string;
+  bar_awal: string;
+  bar_akhir: string;
+  biaya_bbm: number;
+  liter_bbm: number;
+  metode_pembayaran: string;
+  flazz_card_id: string;
+  metode_toll: string;
+  flazz_card_id_toll: string;
+}
+
+export function mapPrefillRow(row: LaporanRow, cardMap: Map<string, string>): Prefill {
+  const metodeToll = resolveTollMethod(row.metode_toll, row.metode_pembayaran, row.flazz_card_id_toll);
+  const cardToll = resolveTollCard(row.flazz_card_id_toll, metodeToll, row.metode_pembayaran, row.flazz_card_id);
+  return {
+    vehicle_id: row.vehicle_id,
+    plat_nomor: row.plat_nomor,
+    nama_supir: row.nama_supir || '',
+    tanggal: String(row.tanggal || '').substring(0, 10),
+    bar_awal: row.bar_awal,
+    bar_akhir: row.bar_akhir,
+    biaya_bbm: num(row.biaya_bbm),
+    liter_bbm: num(row.liter_bbm),
+    metode_pembayaran: row.metode_pembayaran || 'TUNAI',
+    flazz_card_id: resolveCanonicalCardId(row.flazz_card_id, cardMap),
+    metode_toll: metodeToll,
+    flazz_card_id_toll: resolveCanonicalCardId(cardToll, cardMap),
+  };
+}
+
+export interface KendaraanInfo { kapasitas: number; jumlah_bar: number; standar: number; }
+export type KendaraanMap = Map<string, KendaraanInfo>;
+export type CabangNamaMap = Map<string, string>;
+export type CardMap = Map<string, string>;
+
+function groupByVehicleSorted(rows: LaporanRow[]): Map<string, LaporanRow[]> {
+  const groups = new Map<string, LaporanRow[]>();
+  for (const r of rows) {
+    if (!r.vehicle_id) continue;
+    const arr = groups.get(r.vehicle_id);
+    if (arr) arr.push(r);
+    else groups.set(r.vehicle_id, [r]);
+  }
+  for (const arr of groups.values()) {
+    arr.sort((a, b) => {
+      const tA = parseTanggalMs(a.tanggal);
+      const tB = parseTanggalMs(b.tanggal);
+      if (tA === tB) return (parseTimestampMs(a.timestamp) ?? 0) - (parseTimestampMs(b.timestamp) ?? 0);
+      return tA - tB;
+    });
+  }
+  return groups;
+}
+
+export interface PerformaItem {
+  periode: string;
+  timestamp: number;
+  cabang: string;
+  vehicle: string;
+  supir: string;
+  total_km: number;
+  total_beli: number;
+  total_konsumsi: number;
+  efisiensi: string;
+  status_efisiensi: string;
+}
+
+export function buildPerformaList(rows: LaporanRow[], kendaraanMap: KendaraanMap, cabangNamaMap: CabangNamaMap): PerformaItem[] {
+  const groups = groupByVehicleSorted(rows);
+  const result: PerformaItem[] = [];
+  for (const [vid, trxs] of groups) {
+    const k = kendaraanMap.get(vid) ?? { kapasitas: 0, jumlah_bar: 0, standar: 0 };
+    const literPerBar = literPerBarFor(k.kapasitas, k.jumlah_bar);
+    for (let i = 0; i < trxs.length; i++) {
+      if ((i + 1) % 7 !== 0) continue;
+      const roll = hitungEfisiensi7Riwayat(trxs, i, literPerBar);
+      if (!roll.isDataCukup) continue;
+      const r = trxs[i];
+      if (!r) continue;
+      result.push({
+        periode: formatDateId(roll.tglMulai) + ' s/d ' + formatDateId(roll.tglSelesai),
+        timestamp: parseTanggalMs(roll.tglSelesai),
+        cabang: cabangNamaMap.get(r.kode_cabang) ?? r.kode_cabang,
+        vehicle: r.plat_nomor,
+        supir: roll.supir,
+        total_km: roll.totalKm,
+        total_beli: roll.totalBeli,
+        total_konsumsi: Math.round(roll.totalKonsumsi * 100) / 100,
+        efisiensi: roll.efisiensi,
+        status_efisiensi: classifyEfisiensiStatus(roll.efisiensi, k.standar),
+      });
+    }
+  }
+  result.sort((a, b) => b.timestamp - a.timestamp);
+  return result;
+}
+
+export interface RecentItem {
+  tanggal: string;
+  timestamp: number;
+  sub_timestamp: number;
+  user: string;
+  cabang: string;
+  kode_cabang: string;
+  vehicle_id: string;
+  vehicle: string;
+  bar_awal: number;
+  bar_akhir: number;
+  km_tempuh: number;
+  isi_bbm: number;
+  liter: number;
+  toll: number;
+  efisiensi: string;
+  status_efisiensi: string;
+  efisiensi_label: string;
+  warning: string;
+  supir: string;
+  transaction_id: string;
+  biaya_bbm: number;
+  metode_pembayaran: string;
+  flazz_card_id: string;
+  metode_toll: string;
+  flazz_card_id_toll: string;
+  km_awal: number;
+  km_akhir: number;
+  km_sumber: string;
+  foto_odo_awal: string;
+  foto_odo_akhir: string;
+  foto_struk_bbm: string;
+  foto_struk_toll: string;
+  foto_odo_awal_thumb: string;
+  foto_odo_akhir_thumb: string;
+  foto_struk_bbm_thumb: string;
+  foto_struk_toll_thumb: string;
+}
+
+export function buildRecentList(rows: LaporanRow[], kendaraanMap: KendaraanMap, cabangNamaMap: CabangNamaMap, cardMap: CardMap): RecentItem[] {
+  const groups = groupByVehicleSorted(rows);
+  const rowIdx = new Map<LaporanRow, number>();
+  for (const arr of groups.values()) arr.forEach((r, i) => rowIdx.set(r, i));
+
+  const result: RecentItem[] = [];
+  const start = rows.length > 200 ? rows.length - 200 : 0;
+  for (let i = rows.length - 1; i >= start; i--) {
+    const row = rows[i];
+    if (!row) continue;
+    const k = kendaraanMap.get(row.vehicle_id) ?? { kapasitas: 0, jumlah_bar: 0, standar: 0 };
+    const literPerBar = literPerBarFor(k.kapasitas, k.jumlah_bar);
+    const literBeli = num(row.liter_bbm);
+    const barAwal = num(row.bar_awal);
+    const barAkhir = num(row.bar_akhir);
+    const literKonsumsi = computeLiterKonsumsi(literBeli, barAwal, barAkhir, literPerBar);
+    const trxs = groups.get(row.vehicle_id) ?? [];
+    const currIdx = rowIdx.get(row) ?? -1;
+    const roll = hitungEfisiensi7Riwayat(trxs, currIdx, literPerBar);
+    let efisiensi = roll.efisiensi;
+    let label = roll.label;
+    let statusEfisiensi: string;
+    if (!roll.isDataCukup) {
+      statusEfisiensi = 'Data Belum Cukup';
+      efisiensi = '';
+      label = '';
+    } else {
+      statusEfisiensi = classifyEfisiensiStatus(efisiensi, k.standar);
+    }
+
+    let dynamicWarning = '';
+    if (currIdx > 0) {
+      const prev = trxs[currIdx - 1];
+      const prevKmAkhir = prev ? numOrNull(prev.km_akhir_confirmed) : null;
+      const currKmAwal = numOrNull(row.km_awal_confirmed);
+      if (prev && prevKmAkhir !== null && currKmAwal !== null && prevKmAkhir !== currKmAwal) {
+        dynamicWarning = buildOdoWarning(currKmAwal, prevKmAkhir, prev.tanggal);
+      }
+    }
+
+    const metodeToll = resolveTollMethod(row.metode_toll, row.metode_pembayaran, row.flazz_card_id_toll);
+    result.push({
+      tanggal: formatDateId(row.tanggal),
+      timestamp: parseTanggalMs(row.tanggal),
+      sub_timestamp: parseTimestampMs(row.timestamp) ?? 0,
+      user: row.nama_pengguna,
+      cabang: cabangNamaMap.get(row.kode_cabang) ?? row.kode_cabang,
+      kode_cabang: row.kode_cabang,
+      vehicle_id: row.vehicle_id,
+      vehicle: row.plat_nomor,
+      bar_awal: barAwal,
+      bar_akhir: barAkhir,
+      km_tempuh: num(row.km_tempuh),
+      isi_bbm: literBeli,
+      liter: Math.round(literKonsumsi * 100) / 100,
+      toll: row.biaya_toll,
+      efisiensi,
+      status_efisiensi: statusEfisiensi,
+      efisiensi_label: label,
+      warning: dynamicWarning,
+      supir: row.nama_supir || '-',
+      transaction_id: row.transaction_id,
+      biaya_bbm: num(row.biaya_bbm),
+      metode_pembayaran: num(row.biaya_bbm) > 0 ? (row.metode_pembayaran || 'TUNAI') : (row.metode_pembayaran || ''),
+      flazz_card_id: resolveCanonicalCardId(row.flazz_card_id, cardMap),
+      metode_toll: metodeToll,
+      flazz_card_id_toll: resolveCanonicalCardId(resolveTollCard(row.flazz_card_id_toll, metodeToll, row.metode_pembayaran, row.flazz_card_id), cardMap),
+      km_awal: num(row.km_awal_confirmed),
+      km_akhir: num(row.km_akhir_confirmed),
+      km_sumber: row.km_sumber ? String(row.km_sumber) : 'AKTUAL',
+      foto_odo_awal: row.foto_km_awal,
+      foto_odo_akhir: row.foto_km_akhir,
+      foto_struk_bbm: row.foto_struk_bbm,
+      foto_struk_toll: row.foto_struk_toll,
+      foto_odo_awal_thumb: supabaseThumb(row.foto_km_awal),
+      foto_odo_akhir_thumb: supabaseThumb(row.foto_km_akhir),
+      foto_struk_bbm_thumb: supabaseThumb(row.foto_struk_bbm),
+      foto_struk_toll_thumb: supabaseThumb(row.foto_struk_toll),
+    });
+  }
+
+  result.sort((a, b) => {
+    if (b.timestamp === a.timestamp) return b.sub_timestamp - a.sub_timestamp;
+    return b.timestamp - a.timestamp;
+  });
+  return result;
+}
+
+export interface MonthlyItem {
+  cabang: string;
+  periode: string;
+  total_transaksi: number;
+  total_liter: number;
+  total_biaya_bbm: number;
+  total_toll: number;
+}
+
+export function groupMonthly(rows: LaporanRow[], periode: string): MonthlyItem[] {
+  const map = new Map<string, MonthlyItem>();
+  for (const r of rows) {
+    if (periodKey(r.tanggal) !== periode) continue;
+    let m = map.get(r.kode_cabang);
+    if (!m) {
+      m = { cabang: r.kode_cabang, periode, total_transaksi: 0, total_liter: 0, total_biaya_bbm: 0, total_toll: 0 };
+      map.set(r.kode_cabang, m);
+    }
+    m.total_transaksi += 1;
+    m.total_liter += num(r.liter_bbm);
+    m.total_biaya_bbm += num(r.biaya_bbm);
+    m.total_toll += num(r.biaya_toll);
+  }
+  const out = [...map.values()].map((m) => ({
+    ...m,
+    total_liter: Math.round(m.total_liter * 100) / 100,
+    total_biaya_bbm: Math.round(m.total_biaya_bbm * 100) / 100,
+    total_toll: Math.round(m.total_toll * 100) / 100,
+  }));
+  out.sort((a, b) => a.cabang.localeCompare(b.cabang));
+  return out;
+}
