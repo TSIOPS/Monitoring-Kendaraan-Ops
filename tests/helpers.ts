@@ -9,6 +9,11 @@ import type {
   MasterSupir,
 } from '../src/db/master';
 import type { SettingsRepo } from '../src/db/settings';
+import type { LaporanInsert, LaporanRepo, LaporanRow, FlazzCardRow, UsageRow, JalurRow } from '../src/db/laporan';
+import { CardBalanceError } from '../src/db/laporan';
+import { canonicalCardId } from '../src/logic/laporan';
+import type { UploadEvidenceOpts, StorageUploadResult } from '../src/db/storage';
+import type { Env } from '../src/env';
 
 export const VEHICLE_ROW: MasterKendaraan = {
   vehicle_id: 'V-1', plat_nomor: 'B 1 A', nama_kendaraan: 'Corolla', jenis_kendaraan: 'Mobil',
@@ -168,6 +173,167 @@ export function memMaster(initial?: Partial<MemMasterState>) {
   return { state, repo };
 }
 
+export interface MemLaporanState {
+  rows: LaporanRow[];
+  flazzCard: FlazzCardRow[];
+  flazzUsage: UsageRow[];
+  jalur: JalurRow[];
+  seq: number;
+}
+
+export function laporanRow(over: Partial<LaporanRow> = {}): LaporanRow {
+  return {
+    transaction_id: 'TRX-1', timestamp: '2026-09-01T01:00:00.000Z', tanggal: '2026-09-01',
+    user_id: 'U-1', nama_pengguna: 'Budi', kode_cabang: 'CBG-A', vehicle_id: 'V-1', plat_nomor: 'B 1 A',
+    foto_km_awal: '', ocr_km_awal: '', km_awal_confirmed: '100', bar_awal: '8',
+    foto_km_akhir: '', ocr_km_akhir: '', km_akhir_confirmed: '200', bar_akhir: '4',
+    km_tempuh: 100, perubahan_bar: 4, liter_bbm: 10, biaya_bbm: 100000,
+    foto_struk_bbm: '', biaya_toll: 0, foto_struk_toll: '', km_per_liter: 10,
+    status: 'COMPLETED', warning: '', nama_supir: 'Supir A', metode_pembayaran: 'TUNAI',
+    flazz_card_id: '', km_sumber: 'AKTUAL', metode_toll: 'TUNAI', flazz_card_id_toll: '',
+    ...over,
+  };
+}
+
+export function memLaporan(initial?: Partial<MemLaporanState>) {
+  const state: MemLaporanState = {
+    rows: clone(initial?.rows ?? []).map((r, i) => ({ ...r, seq: r.seq ?? i + 1 })),
+    flazzCard: clone(initial?.flazzCard ?? []),
+    flazzUsage: clone(initial?.flazzUsage ?? []),
+    jalur: clone(initial?.jalur ?? []),
+    seq: initial?.seq ?? (initial?.rows?.length ?? 0),
+  };
+  const scoped = (cabang: string, limit: number): LaporanRow[] => {
+    const filtered = (cabang ? state.rows.filter((r) => String(r.kode_cabang) === cabang) : [...state.rows])
+      .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
+    return filtered.slice(Math.max(0, filtered.length - limit));
+  };
+  const cardByCanonical = (id: string) => state.flazzCard.find((c) => canonicalCardId(c.id) === canonicalCardId(id));
+  const repo: LaporanRepo = {
+    async findById(id) { return clone(state.rows.find((r) => r.transaction_id === id) ?? null); },
+    async lastForVehicle(vehicle_id) {
+      const list = state.rows.filter((r) => r.vehicle_id === vehicle_id).sort((a, b) => (b.seq ?? 0) - (a.seq ?? 0));
+      const r = list[0];
+      if (!r) return null;
+      const km = parseFloat(String(r.km_akhir_confirmed));
+      return { km_akhir: isNaN(km) ? null : km, tanggal: r.tanggal };
+    },
+    async recentRows(cabang, limit) { return clone(scoped(cabang, limit)); },
+    async rowsInScope(cabang, limit) { return clone(scoped(cabang, limit)); },
+    async duplicateCandidates(cabang, limit) { return clone(scoped(cabang, limit)); },
+    async rowsInMonth(cabang, periode) {
+      return clone(state.rows.filter((r) => (!cabang || String(r.kode_cabang) === cabang) && String(r.tanggal).startsWith(periode + '-')));
+    },
+    async insert(row: LaporanInsert) {
+      state.seq += 1;
+      state.rows.push({ ...clone(row), seq: state.seq });
+    },
+    async update(id, patch) {
+      const r = state.rows.find((x) => x.transaction_id === id);
+      if (r) Object.assign(r, clone(patch));
+    },
+    async delete(id) {
+      const i = state.rows.findIndex((x) => x.transaction_id === id);
+      if (i > -1) state.rows.splice(i, 1);
+    },
+    async findAllCards() { return clone(state.flazzCard); },
+    async findFlazzCardById(id) { const c = cardByCanonical(id); return c ? clone(c) : null; },
+    async adjustBalance(cardId, delta) {
+      const card = cardByCanonical(cardId);
+      if (!card) throw new CardBalanceError(cardId, 0);
+      if (delta < 0 && card.last_balance < -delta) throw new CardBalanceError(card.id, card.last_balance);
+      card.last_balance = card.last_balance + delta;
+      return card.last_balance;
+    },
+    async setBalance(cardId, balance) { const c = cardByCanonical(cardId); if (c) c.last_balance = balance; },
+    async hasActiveUsage(cardId) { return state.flazzUsage.some((u) => canonicalCardId(u.card_id) === canonicalCardId(cardId) && u.status === 'DIBERIKAN'); },
+    async createUsage(opts) {
+      const card = cardByCanonical(opts.cardId);
+      state.flazzUsage.push({
+        id: 'USE-' + (state.flazzUsage.length + 1), date: opts.usedAt, card_id: card?.id ?? opts.cardId,
+        driver_id: opts.driverName, vehicle_id: opts.vehicleId, usage_type: 'PRIMARY', primary_card_id: '',
+        backup_card_id: '', reason: '', opening_balance: card?.last_balance ?? 0, used_at: opts.usedAt,
+        returned_at: '', status: 'DIBERIKAN', created_by: '', created_at: '2026-01-01T00:00:00.000Z',
+        ref_type: opts.refType, ref_id: opts.refId,
+      });
+      if (card) { card.status = 'SEDANG_DIGUNAKAN'; if (!card.driver_id) card.driver_id = opts.driverName; }
+    },
+    async adjustActiveUsageOpening(cardId, delta) {
+      const list = state.flazzUsage
+        .filter((u) => canonicalCardId(u.card_id) === canonicalCardId(cardId) && u.status === 'DIBERIKAN')
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+      const u = list[0];
+      if (u) u.opening_balance = u.opening_balance + delta;
+    },
+    async returnUsageForRef(refType, refId) {
+      const affected: string[] = [];
+      for (const u of state.flazzUsage) {
+        if (u.ref_type === refType && u.ref_id === refId && u.status === 'DIBERIKAN') {
+          u.status = 'DIKEMBALIKAN';
+          u.returned_at = '2026-01-02T00:00:00.000Z';
+          if (affected.indexOf(u.card_id) === -1) affected.push(u.card_id);
+        }
+      }
+      for (const cid of affected) {
+        if (state.flazzUsage.some((u) => canonicalCardId(u.card_id) === canonicalCardId(cid) && u.status === 'DIBERIKAN')) continue;
+        const card = cardByCanonical(cid);
+        if (card) {
+          if (card.status === 'SEDANG_DIGUNAKAN') card.status = 'TERSEDIA';
+          card.driver_id = card.default_driver_id || '';
+        }
+      }
+    },
+    async latestGivenAt(cardId) {
+      const list = state.flazzUsage
+        .filter((u) => canonicalCardId(u.card_id) === canonicalCardId(cardId) && u.status === 'DIBERIKAN')
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+      const u = list[0];
+      if (!u) return null;
+      const t = new Date(u.used_at || u.date).getTime();
+      return isNaN(t) ? null : t;
+    },
+    async findJalurByCriteria(criteria) {
+      let best: JalurRow | null = null;
+      for (const j of state.jalur) {
+        if (String(j.is_deleted) === '1') continue;
+        if (criteria.tanggal && String(j.tanggal).substring(0, 10) !== String(criteria.tanggal).substring(0, 10)) continue;
+        if (criteria.vehicle_id && String(j.vehicle_id) !== criteria.vehicle_id) continue;
+        if (criteria.nama_driver && String(j.nama_driver || '') !== criteria.nama_driver) continue;
+        if (criteria.kode_cabang && String(j.kode_cabang || '') !== criteria.kode_cabang) continue;
+        best = j;
+      }
+      return best ? { ...clone(best), status: best.status || 'BELUM_DIISI' } : null;
+    },
+    async setJalurStatus(jalurId, status, laporanId) {
+      const j = state.jalur.find((x) => x.id === jalurId);
+      if (j) { j.status = status; j.laporan_id = laporanId; }
+    },
+    async releaseJalurReport(laporanId) {
+      for (const j of state.jalur) {
+        if (String(j.laporan_id || '') !== String(laporanId)) continue;
+        j.laporan_id = '';
+        if (j.status === 'SUDAH_LAPORAN') j.status = 'BELUM_DIISI';
+      }
+    },
+  };
+  return { state, repo };
+}
+
+export function memStorage() {
+  const files = new Map<string, Uint8Array>();
+  return {
+    files,
+    uploadEvidence: async (_env: Env, opts: UploadEvidenceOpts): Promise<StorageUploadResult> => {
+      const key = `${opts.branch}/${opts.folder}/${crypto.randomUUID()}.${opts.ext}`;
+      files.set(key, opts.bytes);
+      return { url: `http://storage.local/storage/v1/object/public/foto/${key}`, key };
+    },
+    deleteEvidence: async (_env: Env, key: string): Promise<void> => {
+      files.delete(key);
+    },
+  };
+}
+
 export function memSettings(initial?: Record<string, string>) {
   const values: Record<string, string> = { ...(initial ?? {}) };
   const repo: SettingsRepo = {
@@ -200,6 +366,8 @@ export function makeDeps(over: Partial<AppDeps> = {}) {
   const audits: Array<Record<string, unknown>> = [];
   const { state: masterState, repo: master } = memMaster();
   const { values: settingsValues, repo: settings } = memSettings();
+  const { state: laporanState, repo: laporan } = memLaporan();
+  const storage = memStorage();
   const deps: AppDeps = {
     kv,
     findByUsername: async () => null,
@@ -210,9 +378,12 @@ export function makeDeps(over: Partial<AppDeps> = {}) {
     now: () => 1_000_000,
     master,
     settings,
+    laporan,
+    uploadEvidence: storage.uploadEvidence,
+    deleteEvidence: storage.deleteEvidence,
     ...over,
   };
-  return { kv, audits, deps, masterState, settingsValues };
+  return { kv, audits, deps, masterState, settingsValues, laporanState, storage };
 }
 
 export async function loginAs(kv: KVStore, user: SessionUser): Promise<string> {

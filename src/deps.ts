@@ -1,5 +1,8 @@
 import type { MasterRepo } from './db/master';
 import type { SettingsRepo } from './db/settings';
+import type { LaporanRepo } from './db/laporan';
+import type { StorageUploadResult, UploadEvidenceOpts } from './db/storage';
+import type { Env } from './env';
 
 export interface KVStore {
   get(key: string, type?: 'text' | 'json'): Promise<string | unknown | null>;
@@ -58,4 +61,7 @@ export interface AppDeps {
   now: () => number;
   master: MasterRepo;
   settings: SettingsRepo;
+  laporan: LaporanRepo;
+  uploadEvidence: (env: Env, opts: UploadEvidenceOpts) => Promise<StorageUploadResult>;
+  deleteEvidence: (env: Env, key: string) => Promise<void>;
 }

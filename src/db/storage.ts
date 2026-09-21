@@ -8,6 +8,14 @@ export interface StorageUploadResult {
   key: string;
 }
 
+export interface UploadEvidenceOpts {
+  branch: string;
+  folder: 'KM_Awal' | 'KM_Akhir';
+  bytes: Uint8Array;
+  ext: string;
+  contentType: string;
+}
+
 export async function ensureSettingsBucket(env: Env): Promise<void> {
   const sb = getSupabase(env);
   try {
