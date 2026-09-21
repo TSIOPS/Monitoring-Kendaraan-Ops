@@ -209,8 +209,9 @@ max 10 MB, nama acak, path folder). `logic/master-cache.ts` +
   Kegagalan potong saldo saat save → rollback baris (delete) + 409. Refund selalu
   aman (kenaikan saldo). Tidak ada transaksi DB multi-statement (konsisten M2).
 - **Error/status:** `errPayload`; `401` sesi invalid, `403` PIC lintas cabang /
-  peran tidak berwenang, `409` gate jalur / saldo Flazz / duplikat, `422` upload
-  foto gagal, `400` badan tak valid. Pesan GAS dipertahankan.
+  peran tidak berwenang, `404` transaksi tidak ditemukan (edit/hapus), `409`
+  gate jalur / saldo Flazz / duplikat, `422` upload foto gagal, `400` badan tak
+  valid. Pesan GAS dipertahankan.
 - **Audit:** ditulis setelah op sukses (`CREATE`/`EDIT`/`DELETE` modul `transaksi`),
   payload `data_sebelum`/`data_sesudah` ringkas (maks 2000 char, pola `jsonSnip`).
 - **Caching:** `performaCacheKey`/`invalidatePerforma` baru di
