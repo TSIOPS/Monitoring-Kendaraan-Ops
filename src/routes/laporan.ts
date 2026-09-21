@@ -9,6 +9,7 @@ import { newId, jsonSnip } from './master';
 import { bumpMasterRev, invalidateLaporanCaches, performaCacheKey, monthlyCacheKey } from '../logic/master-cache';
 import { CardBalanceError } from '../db/laporan';
 import type { FlazzCardRow, LaporanInsert } from '../db/laporan';
+import { extractStorageKey } from '../db/storage';
 import * as L from '../logic/laporan';
 
 const MAX_EVIDENCE_BYTES = 10 * 1024 * 1024;
@@ -326,7 +327,229 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     return c.json(okPayload({ items }));
   });
 
-  // Route baca (prefill/performa) ditambahkan di Task 6; edit/hapus di Task 7.
+  // ── PUT /api/laporan/:id (port editDailyTransactionUnlocked) ─────────────
+  app.put('/:id', requireUser(deps), async (c) => {
+    const u = c.get('user');
+    const id = c.req.param('id');
+    const p = await readJson(c);
+
+    const old = await deps.laporan.findById(id);
+    if (!old) throw new HttpError(404, L.MSG_TRX_NOT_FOUND, 'NOT_FOUND');
+
+    const f = L.cardFields(old);
+    const oldMetode = String(f.mBbm ?? '');
+    const oldCard = String(f.cBbm ?? '');
+    const oldBiaya = L.num(f.bBbm);
+    const oldToll = L.num(f.bTol);
+    const oldLiter = L.num(old.liter_bbm);
+    const oldNama = String(old.nama_supir ?? '');
+    const oldMetodeToll = String(old.metode_toll ?? '') !== '' ? String(old.metode_toll) : (oldMetode === 'FLAZZ' ? 'FLAZZ' : 'TUNAI');
+    const oldCardToll = (oldMetodeToll === 'FLAZZ' && !String(old.flazz_card_id_toll ?? '')) ? oldCard : String(old.flazz_card_id_toll ?? '');
+
+    const { cardMap } = await loadCards(deps);
+    const vehicleBranch = (await deps.master.findKendaraanById(old.vehicle_id))?.kode_cabang ?? old.kode_cabang;
+    let branch = vehicleBranch;
+    if (oldMetode === 'FLAZZ') branch = cardMap.get(L.canonicalCardId(oldCard))?.branch_id ?? vehicleBranch;
+    else if (oldMetodeToll === 'FLAZZ' && oldCardToll) branch = cardMap.get(L.canonicalCardId(oldCardToll))?.branch_id ?? vehicleBranch;
+    assertTransactionAccess(u, branch);
+
+    const newMetode = L.parseEditMethod(p.metode_pembayaran, oldMetode);
+    const newBiaya = L.parseEditAmount(p.biaya_bbm, oldBiaya);
+    const newToll = L.parseEditAmount(p.biaya_toll, oldToll);
+
+    const rawCard = (p.flazz_card_id !== undefined && p.flazz_card_id !== null) ? String(p.flazz_card_id).trim() : '';
+    let newCard = '';
+    if (newMetode === 'FLAZZ') {
+      newCard = rawCard || (oldMetode === 'FLAZZ' ? oldCard : '');
+      if (!newCard) throw new HttpError(400, L.MSG_PICK_FLAZZ, 'BAD_REQUEST');
+      if (newCard !== oldCard) {
+        const target = cardMap.get(L.canonicalCardId(newCard));
+        if (!target) throw new HttpError(400, L.MSG_CARD_TARGET_NOT_FOUND, 'BAD_REQUEST');
+        assertFlazzAccess(u, target.branch_id);
+      }
+    }
+
+    const newMetodeToll = L.resolveTollMethod(p.metode_toll, newMetode, p.flazz_card_id_toll);
+    const rawCardToll = (p.flazz_card_id_toll !== undefined && p.flazz_card_id_toll !== null) ? String(p.flazz_card_id_toll).trim() : '';
+    let newCardToll = '';
+    if (newMetodeToll === 'FLAZZ') {
+      newCardToll = rawCardToll || (oldMetodeToll === 'FLAZZ' ? oldCardToll : '') || (newMetode === 'FLAZZ' ? newCard : '');
+      if (!newCardToll) throw new HttpError(400, L.MSG_PICK_FLAZZ_TOLL, 'BAD_REQUEST');
+      if (newCardToll !== oldCardToll) {
+        const target = cardMap.get(L.canonicalCardId(newCardToll));
+        if (!target) throw new HttpError(400, L.MSG_CARD_TARGET_NOT_FOUND, 'BAD_REQUEST');
+        assertFlazzAccess(u, target.branch_id);
+      }
+    }
+
+    const oldPayState = { metodeBbm: oldMetode, cardBbm: oldCard, biayaBbm: oldBiaya, metodeTol: oldMetodeToll, cardTol: oldCardToll, biayaTol: oldToll };
+    const newPayState = { metodeBbm: newMetode, cardBbm: newCard, biayaBbm: newBiaya, metodeTol: newMetodeToll, cardTol: newCardToll, biayaTol: newToll };
+    const involved = L.distinctFlazzCards(oldPayState.metodeBbm, oldPayState.cardBbm, oldPayState.metodeTol, oldPayState.cardTol)
+      .concat(L.distinctFlazzCards(newPayState.metodeBbm, newPayState.cardBbm, newPayState.metodeTol, newPayState.cardTol))
+      .filter((x, i, a) => a.indexOf(x) === i);
+
+    for (const cardId of involved) {
+      const delta = L.flazzEditDelta(oldPayState, newPayState, cardId);
+      if (delta < 0) {
+        const info = cardMap.get(L.canonicalCardId(cardId));
+        const bal = info ? L.num(info.last_balance) : 0;
+        if (bal + delta < 0) throw new HttpError(409, L.msgEditInsufficient(bal), 'CONFLICT');
+      }
+    }
+
+    const newTgl = (p.tanggal !== undefined && p.tanggal !== '') ? String(p.tanggal) : String(old.tanggal);
+    const newNama = (p.nama_supir !== undefined && p.nama_supir !== null && String(p.nama_supir) !== '') ? String(p.nama_supir) : oldNama;
+    const newLiter = (p.liter_bbm !== undefined && p.liter_bbm !== null) ? L.num(p.liter_bbm) : oldLiter;
+    const newBarAwal = p.bar_awal !== undefined ? L.num(p.bar_awal) : L.num(old.bar_awal);
+    const newBarAkhir = p.bar_akhir !== undefined ? L.num(p.bar_akhir) : L.num(old.bar_akhir);
+    const newKmAwal = p.km_awal !== undefined ? L.num(p.km_awal) : L.num(old.km_awal_confirmed);
+    const newKmAkhir = p.km_akhir !== undefined ? L.num(p.km_akhir) : L.num(old.km_akhir_confirmed);
+
+    const patch: Partial<LaporanInsert> = {
+      metode_pembayaran: (newBiaya > 0 || newMetode === 'FLAZZ') ? newMetode : '',
+      flazz_card_id: newCard,
+      biaya_bbm: newBiaya,
+      biaya_toll: newToll,
+      metode_toll: newMetodeToll,
+      flazz_card_id_toll: newCardToll,
+      liter_bbm: newLiter,
+      nama_supir: newNama,
+      km_awal_confirmed: String(newKmAwal),
+      km_akhir_confirmed: String(newKmAkhir),
+      km_tempuh: newKmAkhir - newKmAwal,
+      bar_awal: String(newBarAwal),
+      bar_akhir: String(newBarAkhir),
+      tanggal: newTgl,
+    };
+    if (p.km_awal !== undefined || p.km_akhir !== undefined) patch.km_sumber = 'AKTUAL';
+
+    if (p.foto_odo_awal) {
+      try {
+        const bytes = decodeBase64(p.foto_odo_awal);
+        const { ext, contentType } = extOf(p.foto_odo_awal_name ?? 'odo_awal.jpg');
+        const up = await deps.uploadEvidence(c.env as Env, { branch: u.cabang, folder: 'KM_Awal', bytes, ext, contentType });
+        const oldKey = extractStorageKey(String(old.foto_km_awal ?? ''));
+        if (oldKey) await deps.deleteEvidence(c.env as Env, oldKey);
+        patch.foto_km_awal = up.url;
+      } catch (e) {
+        throw new HttpError(422, 'Upload foto odometer awal gagal: ' + (e as Error).message, 'UNPROCESSABLE');
+      }
+    }
+    if (p.foto_odo_akhir) {
+      try {
+        const bytes = decodeBase64(p.foto_odo_akhir);
+        const { ext, contentType } = extOf(p.foto_odo_akhir_name ?? 'odo_akhir.jpg');
+        const up = await deps.uploadEvidence(c.env as Env, { branch: u.cabang, folder: 'KM_Akhir', bytes, ext, contentType });
+        const oldKey = extractStorageKey(String(old.foto_km_akhir ?? ''));
+        if (oldKey) await deps.deleteEvidence(c.env as Env, oldKey);
+        patch.foto_km_akhir = up.url;
+      } catch (e) {
+        throw new HttpError(422, 'Upload foto odometer akhir gagal: ' + (e as Error).message, 'UNPROCESSABLE');
+      }
+    }
+
+    await deps.laporan.update(id, patch);
+
+    const txStampMs = L.parseTimestampMs(old.timestamp) ?? L.parseTanggalMs(old.tanggal);
+    for (const cardId of involved) {
+      const delta = L.flazzEditDelta(oldPayState, newPayState, cardId);
+      if (delta === 0) continue;
+      const info = cardMap.get(L.canonicalCardId(cardId));
+      const masterId = info?.id ?? cardId;
+      try {
+        await deps.laporan.adjustBalance(masterId, delta);
+      } catch (e) {
+        if (e instanceof CardBalanceError) {
+          const bal = L.num((await deps.laporan.findFlazzCardById(masterId))?.last_balance ?? e.balance);
+          throw new HttpError(409, L.msgEditInsufficient(bal), 'CONFLICT');
+        }
+        throw e;
+      }
+      if (L.shouldAdjustUsageOpeningAt(txStampMs, await deps.laporan.latestGivenAt(masterId))) {
+        await deps.laporan.adjustActiveUsageOpening(masterId, delta);
+      }
+    }
+
+    const wasBbmFlazz = oldMetode === 'FLAZZ' && !!oldCard;
+    const isBbmFlazz = newMetode === 'FLAZZ' && !!newCard;
+    const wasTolFlazz = oldMetodeToll === 'FLAZZ' && !!oldCardToll;
+    const isTolFlazz = newMetodeToll === 'FLAZZ' && !!newCardToll;
+    const newly: string[] = [];
+    if (isBbmFlazz && L.shouldAutoCreateUsageOnEdit(wasBbmFlazz, isBbmFlazz)) newly.push(newCard);
+    if (isTolFlazz && L.shouldAutoCreateUsageOnEdit(wasTolFlazz, isTolFlazz)) newly.push(newCardToll);
+    for (const cardId of newly.filter((x, i, a) => a.indexOf(x) === i)) {
+      const info = cardMap.get(L.canonicalCardId(cardId));
+      const masterId = info?.id ?? cardId;
+      if (await deps.laporan.hasActiveUsage(masterId)) continue;
+      await deps.laporan.createUsage({ cardId: masterId, driverName: newNama, vehicleId: old.vehicle_id, refType: 'TRX', refId: id, usedAt: old.timestamp });
+    }
+
+    const linkChanged = String(newTgl) !== String(old.tanggal) || String(newNama) !== String(oldNama);
+    if (linkChanged) await deps.laporan.releaseJalurReport(id);
+    const matched = await deps.laporan.findJalurByCriteria({ tanggal: newTgl, vehicle_id: old.vehicle_id, nama_driver: newNama, kode_cabang: old.kode_cabang });
+    if (matched && matched.status !== 'SELESAI') await deps.laporan.setJalurStatus(matched.id, 'SUDAH_LAPORAN', id);
+
+    await deps.recordAudit({
+      user_id: u.user_id, username: u.username, action: 'EDIT', modul: 'transaksi', keterangan: id,
+      data_sebelum: jsonSnip({ metode_pembayaran: oldMetode, flazz_card_id: oldCard, biaya_bbm: oldBiaya, biaya_toll: oldToll, metode_toll: oldMetodeToll, flazz_card_id_toll: oldCardToll }),
+      data_sesudah: jsonSnip({ metode_pembayaran: newMetode, flazz_card_id: newCard, biaya_bbm: newBiaya, biaya_toll: newToll, metode_toll: newMetodeToll, flazz_card_id_toll: newCardToll }),
+    });
+    await invalidateLaporanCaches(deps.kv, roleOf(u), u.cabang);
+    await bumpMasterRev(deps.kv);
+    return c.json(okPayload({ msg: L.MSG_EDIT_SUCCESS }));
+  });
+
+  // ── DELETE /api/laporan/:id (port deleteDailyTransactionUnlocked) ───────
+  app.delete('/:id', requireUser(deps), async (c) => {
+    const u = c.get('user');
+    const id = c.req.param('id');
+    const old = await deps.laporan.findById(id);
+    if (!old) throw new HttpError(404, L.MSG_TRX_NOT_FOUND, 'NOT_FOUND');
+
+    const f = L.cardFields(old);
+    const metodeBbm = String(f.mBbm ?? '');
+    const cardBbm = String(f.cBbm ?? '');
+    const biaya = L.num(f.bBbm);
+    const toll = L.num(f.bTol);
+    const metodeToll = String(old.metode_toll ?? '') !== '' ? String(old.metode_toll) : (metodeBbm === 'FLAZZ' ? 'FLAZZ' : 'TUNAI');
+    const cardToll = (metodeToll === 'FLAZZ' && !String(old.flazz_card_id_toll ?? '')) ? cardBbm : String(old.flazz_card_id_toll ?? '');
+
+    const { cardMap } = await loadCards(deps);
+    const vehicleBranch = (await deps.master.findKendaraanById(old.vehicle_id))?.kode_cabang ?? old.kode_cabang;
+    let branch = vehicleBranch;
+    if (metodeBbm === 'FLAZZ') branch = cardMap.get(L.canonicalCardId(cardBbm))?.branch_id ?? vehicleBranch;
+    else if (metodeToll === 'FLAZZ' && cardToll) branch = cardMap.get(L.canonicalCardId(cardToll))?.branch_id ?? vehicleBranch;
+    assertTransactionAccess(u, branch);
+
+    const payState = { metodeBbm, cardBbm, biayaBbm: biaya, metodeTol: metodeToll, cardTol: cardToll, biayaTol: toll };
+    const cards = L.distinctFlazzCards(payState.metodeBbm, payState.cardBbm, payState.metodeTol, payState.cardTol);
+    const txStampMs = L.parseTimestampMs(old.timestamp) ?? L.parseTanggalMs(old.tanggal);
+
+    await deps.laporan.delete(id);
+
+    for (const cardId of cards) {
+      const info = cardMap.get(L.canonicalCardId(cardId));
+      const masterId = info?.id ?? cardId;
+      const delta = L.flazzCardCharge(payState, cardId);
+      if (delta > 0) {
+        await deps.laporan.adjustBalance(masterId, delta);
+        if (L.shouldAdjustUsageOpeningAt(txStampMs, await deps.laporan.latestGivenAt(masterId))) {
+          await deps.laporan.adjustActiveUsageOpening(masterId, delta);
+        }
+      }
+      await deps.laporan.returnUsageForRef('TRX', id);
+    }
+
+    await deps.laporan.releaseJalurReport(id);
+    await deps.recordAudit({
+      user_id: u.user_id, username: u.username, action: 'DELETE', modul: 'transaksi', keterangan: id,
+      data_sebelum: jsonSnip({ metode_pembayaran: metodeBbm, flazz_card_id: cardBbm, biaya_bbm: biaya, biaya_toll: toll, metode_toll: metodeToll, flazz_card_id_toll: cardToll, vehicle_id: old.vehicle_id, kode_cabang: old.kode_cabang, tanggal: old.tanggal }),
+    });
+    await invalidateLaporanCaches(deps.kv, roleOf(u), u.cabang);
+    await bumpMasterRev(deps.kv);
+    return c.json(okPayload({ msg: L.MSG_DELETE_SUCCESS }));
+  });
+
   return app;
 }
 

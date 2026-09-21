@@ -2620,7 +2620,7 @@ git commit -m "feat(routes): M3 prefill/performa/dashboard + cache 300s"
 
 **Produces:** `PUT /api/laporan/:id` (delta Flazz, adjust usage, ganti foto, re-link jalur) dan `DELETE /api/laporan/:id` (refund Flazz, return usage, release jalur).
 
-- [ ] **Step 1: Tambahkan import `extractStorageKey`**
+- [x] **Step 1: Tambahkan import `extractStorageKey`**
 
 ```diff
  import { CardBalanceError } from '../db/laporan';
@@ -2629,7 +2629,7 @@ git commit -m "feat(routes): M3 prefill/performa/dashboard + cache 300s"
  import * as L from '../logic/laporan';
 ```
 
-- [ ] **Step 2: Tambahkan `PUT /:id` (sebelum `return app;` di `laporanRoutes`)**
+- [x] **Step 2: Tambahkan `PUT /:id` (sebelum `return app;` di `laporanRoutes`)**
 
 ```ts
   // â”€â”€ PUT /api/laporan/:id (port editDailyTransactionUnlocked) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -2856,7 +2856,7 @@ git commit -m "feat(routes): M3 prefill/performa/dashboard + cache 300s"
   });
 ```
 
-- [ ] **Step 3: Tambahkan test edit/hapus ke `tests/routes/laporan.test.ts`**
+- [x] **Step 3: Tambahkan test edit/hapus ke `tests/routes/laporan.test.ts`**
 
 ```ts
 import type { UsageRow } from '../../src/db/laporan';
@@ -2888,7 +2888,10 @@ describe('PUT /api/laporan/:id', () => {
   });
 
   it('PIC lintas cabang 403 (cabang dari baris)', async () => {
-    const { app, kv } = setup({ rows: [{ transaction_id: 'TRX-1', kode_cabang: 'CBG-B' }] });
+    const master = memMaster({ cabang: [{ kode_cabang: 'CBG-B', nama_cabang: 'Cabang B', lokasi: '', status: 'Aktif' }], kendaraan: [{ ...VEHICLE_ROW, vehicle_id: 'V-2', kode_cabang: 'CBG-B' }] });
+    const lap = memLaporan({ rows: [laporanRow({ transaction_id: 'TRX-1', vehicle_id: 'V-2', kode_cabang: 'CBG-B' })] });
+    const { deps, kv } = makeDeps({ master: master.repo, laporan: lap.repo });
+    const app = buildApp(fakeEnv() as any, deps);
     const tok = await loginAs(kv, PIC);
     const res = await put(app, '/api/laporan/TRX-1', tok, { biaya_bbm: 1 });
     expect(res.status).toBe(403);
@@ -2959,7 +2962,7 @@ describe('DELETE /api/laporan/:id', () => {
 });
 ```
 
-- [ ] **Step 4: Jalankan + commit**
+- [x] **Step 4: Jalankan + commit**
 
 ```powershell
 npm run typecheck
