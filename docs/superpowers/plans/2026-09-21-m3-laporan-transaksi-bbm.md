@@ -630,7 +630,7 @@ describe('estimasi odo', () => {
   const base = { kmAwal: 0, kmAkhir: 0, kmAwalBroken: true, kmAkhirBroken: false, kmTanpaEstimasi: false, standarKmL: 10, literKonsumsi: 5, prevKmAkhir: null as number | null };
 
   it('akhir rusak -> km_akhir = km_awal + estKm', () => {
-    const r = estimateOdo({ ...base, kmAwal: 100, kmAkhir: 0 });
+    const r = estimateOdo({ ...base, kmAwalBroken: false, kmAkhirBroken: true, kmAwal: 100, kmAkhir: 0 });
     expect(r).toEqual({ kmAwal: 100, kmAkhir: 150, kmTempuh: 50, kmSumber: 'ESTIMASI' });
   });
 
@@ -707,7 +707,7 @@ describe('hitungEfisiensi7Riwayat', () => {
     const trxs = Array.from({ length: 7 }, (_, i) => mk(i + 1));
     expect(hitungEfisiensi7Riwayat(trxs, 6, 0).isDataCukup).toBe(true);
     expect(hitungEfisiensi7Riwayat(trxs, 5, 0).isDataCukup).toBe(false);
-    expect(hitungEfisiensi7Riwayat(trxs, 0, 0).efisiensi).toBe('');
+    expect(hitungEfisiensi7Riwayat(trxs, 0, 0).efisiensi).toBe('10.00');
     expect(hitungEfisiensi7Riwayat([], 0, 0).isDataCukup).toBe(false);
   });
 
@@ -724,7 +724,7 @@ describe('hitungEfisiensi7Riwayat', () => {
   });
 
   it('total konsumsi <= 0 -> fallback totalBeli; km 0 -> efisiensi kosong', () => {
-    const trxs = Array.from({ length: 7 }, (_, i) => mk(i + 1, { bar_awal: '0', bar_akhir: '8', liter_bbm: 10 }));
+    const trxs = Array.from({ length: 7 }, (_, i) => mk(i + 1, { bar_akhir: '28', liter_bbm: 10 }));
     expect(hitungEfisiensi7Riwayat(trxs, 6, 6.25).totalKonsumsi).toBe(70);
     const zeroKm = Array.from({ length: 7 }, (_, i) => mk(i + 1, { km_tempuh: 0 }));
     expect(hitungEfisiensi7Riwayat(zeroKm, 6, 0).efisiensi).toBe('');
