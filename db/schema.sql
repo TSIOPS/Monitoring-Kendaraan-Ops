@@ -92,8 +92,11 @@ create table if not exists penggunaan_bbm (
   flazz_card_id text not null default '',
   km_sumber text not null default '',
   metode_toll text not null default '',
-  flazz_card_id_toll text not null default ''
+  flazz_card_id_toll text not null default '',
+  seq bigint generated always as identity
 );
+
+alter table penggunaan_bbm add column if not exists seq bigint generated always as identity;
 
 create table if not exists pengisian_bbm (
   fuel_id text primary key,
@@ -257,6 +260,9 @@ create table if not exists jalur_pengiriman (
 
 -- INDEX --------------------------------------------------------------------------
 create index if not exists idx_penggunaan_branch_tgl on penggunaan_bbm (kode_cabang, tanggal);
+create index if not exists idx_penggunaan_vehicle on penggunaan_bbm (vehicle_id);
+create index if not exists idx_flazz_usage_ref on flazz_usage (ref_type, ref_id);
+create index if not exists idx_jalur_gate on jalur_pengiriman (tanggal, vehicle_id, kode_cabang);
 create index if not exists idx_audit_ts on audit_log (timestamp);
 create index if not exists idx_flazz_usage_card on flazz_usage (card_id);
 create index if not exists idx_flazz_topup_card on flazz_topup (card_id);
