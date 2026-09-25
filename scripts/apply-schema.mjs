@@ -4,9 +4,9 @@ import pg from 'pg';
 const { Client } = pg;
 
 const ref = process.env.SB_DB_REF ?? 'jscpogjdquwcbglavurd';
-const host = process.env.SB_DB_HOST ?? `db.${ref}.supabase.co`;
+const host = process.env.SB_DB_HOST ?? `aws-0-ap-south-1.pooler.supabase.com`;
 const port = Number(process.env.SB_DB_PORT ?? 5432);
-const user = process.env.SB_DB_USER ?? 'postgres';
+const user = process.env.SB_DB_USER ?? `postgres.${ref}`;
 const database = process.env.SB_DB_NAME ?? 'postgres';
 const password = process.env.SB_DB_PASSWORD ?? '';
 
