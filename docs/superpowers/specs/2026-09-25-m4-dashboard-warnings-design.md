@@ -32,18 +32,24 @@ tests/routes/master.test.ts   # EDIT: reset-oli invalidasi dashwarn
 ```
 
 Fungsi murni `src/logic/warnings.ts`:
-- `buildOdoMap(rows)` — odo terakhir per kendaraan (`km_akhir_confirmed` dari
-  baris `seq` tertinggi; UInt > 0)
-- `daysUntil(dateStr, today)` — hari tersisa (negatif = lewat); null bila tidak
-  valid/kosong
-- `computeWarnings({ kendaraan[], odoMap, today })` — `WarningItem[]`
-  deterministik
+- `buildOdoMap(rows)` — odo terakhir per kendaraan: `parseFloat(km_akhir_confirmed)`
+  dari baris `seq` tertinggi; hanya dictatat bila `> 0`
+- `daysUntil(dateStr, today)` — hari tersisa (negatif = lewat); `null` bila
+  kosong/tidak valid
+- `computeWarnings({ kendaraan: KendaraanRow[], user, odoMap, today })` —
+  menyaring sendiri kendaraan `status = 'Aktif'` dan scope cabang (PIC: cabang
+  sendiri; SUPERADMIN: semua), lalu menghasilkan `WarningItem[]` deterministik
+  (route cukup meneruskan seluruh kendaraan dari `listAll()` + user scope)
 
 ## 3. Aturan Warning
 
 | Kategori | Sumber | Ambang warning | Skip bila |
 |---|---|---|---|
 | `OLI` | `odoSekarang`, `km_terakhir_ganti_oli`, `interval_ganti_oli_km` | sisa `≤ 50 km` dari target `km_terakhir + interval` | `km_terakhir_ganti_oli <= 0` atau odo tidak tersedia |
+
+Bila `interval_ganti_oli_km <= 0`, dipakai fallback `defaultOilIntervalKm(jenis)`
+dari `src/logic/master.ts` (motor = 3000, selain motor = 5000) — konsisten dengan
+saat insert kendaraan.
 | `PAJAK` | `tanggal_pajak` | `≤ 30 hari` dari jatuh tempo | kolom kosong / tanggal tidak valid |
 | `PAJAK_5_TAHUNAN` | `tanggal_pajak_5_tahunan` | `≤ 30 hari` | kolom kosong / tanggal tidak valid |
 | `KIR` | `tanggal_kir` | `≤ 30 hari` | kolom kosong / tanggal tidak valid |
@@ -100,7 +106,8 @@ Backward-compatible — field lama tidak berubah, `warnings` field baru. Tidak a
 endpoint baru.
 
 Warnings dihitung dari data yang sudah diambil handler:
-- `deps.master.listAll()` → kendaraan (filter Aktif + scope cabang)
+- `deps.master.listAll()` → seluruh kendaraan (filter Aktif + scope cabang
+  dilakukan oleh `computeWarnings` di logic)
 - `recentRows(cabang, 2000)` (sudah ada) → `buildOdoMap`
 - `today` = `new Date()` (UTC)
 
@@ -123,7 +130,7 @@ Warnings dihitung dari data yang sudah diambil handler:
 
 **Unit (`tests/logic/warnings.test.ts`):**
 - `buildOdoMap` (seq tertinggi menang, tanpa baris → tanpa entri)
-- OLI: `sisa<=50` → PERHATIAN; `sisa<0` → KRITIS; `sisa>50` → tidak ada; `km_terakhir<=0` → skip; tanpa odo → skip
+- OLI: `sisa<=50` → PERHATIAN; `sisa<0` → KRITIS; `sisa>50` → tidak ada; `km_terakhir<=0` → skip; tanpa odo → skip; `interval<=0` → fallback `defaultOilIntervalKm`
 - Pajak/KIR: `<=30` hari → PERHATIAN; lewat → KRITIS; kosong/tidak valid → skip
 - `daysUntil`, pesan verbatim-deterministik, sort
 
