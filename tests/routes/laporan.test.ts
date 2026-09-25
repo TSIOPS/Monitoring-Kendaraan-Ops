@@ -467,6 +467,36 @@ describe('lintas-cutting', () => {
     expect(b2.transactions).toHaveLength(2);
   });
 
+  it('save menghapus cache dashwarn (scope PIC + SUPERADMIN)', async () => {
+    const { app, kv } = setup();
+    const keys = [
+      warningsCacheKey('PIC CABANG', 'CBG-A'),
+      warningsCacheKey('SUPERADMIN', ''),
+    ];
+    for (const k of keys) await kv.put(k, 'x');
+    const tok = await loginAs(kv, PIC);
+    await post(app, '/api/laporan', tok, saveBody());
+    for (const k of keys) expect(await kv.get(k)).toBeNull();
+  });
+
+  it('edit menghapus cache dashwarn', async () => {
+    const { app, kv } = setup({ rows: [{ transaction_id: 'TRX-1' }] });
+    const key = warningsCacheKey('PIC CABANG', 'CBG-A');
+    await kv.put(key, 'x');
+    const tok = await loginAs(kv, PIC);
+    await put(app, '/api/laporan/TRX-1', tok, { biaya_bbm: 90000 });
+    expect(await kv.get(key)).toBeNull();
+  });
+
+  it('delete menghapus cache dashwarn', async () => {
+    const { app, kv } = setup({ rows: [{ transaction_id: 'TRX-1' }] });
+    const key = warningsCacheKey('PIC CABANG', 'CBG-A');
+    await kv.put(key, 'x');
+    const tok = await loginAs(kv, PIC);
+    await del(app, '/api/laporan/TRX-1', tok);
+    expect(await kv.get(key)).toBeNull();
+  });
+
   it('tanpa token -> 401 pada /api/laporan dan /api/dashboard', async () => {
     const { app } = setup();
     expect((await app.request('/api/laporan/prefill')).status).toBe(401);

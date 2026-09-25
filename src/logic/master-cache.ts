@@ -33,3 +33,10 @@ export async function invalidateLaporanCaches(kv: KVStore, role: string, cabang:
     await kv.delete(monthlyCacheKey(r, cb));
   }
 }
+
+export async function invalidateDashwarn(kv: KVStore, role: string, cabang: string): Promise<void> {
+  const scopes: Array<[string, string]> = [[role || '', cabang || ''], ['SUPERADMIN', '']];
+  for (const [r, cb] of scopes) {
+    await kv.delete(warningsCacheKey(r, cb));
+  }
+}

@@ -3,6 +3,7 @@ import { buildApp } from '../../src/app';
 import { authHeaders, fakeEnv, makeDeps, memMaster, loginAs, VEHICLE_ROW } from '../helpers';
 import type { SessionUser } from '../../src/deps';
 import type { MasterPenggunaWithPassword } from '../../src/db/master';
+import { warningsCacheKey } from '../../src/logic/master-cache';
 
 const SUPER: SessionUser = { user_id: 'U-S', username: 'super', nama: 'Super', role: 'SUPERADMIN', cabang: '', exp: 1e15 };
 const PIC: SessionUser = { user_id: 'U-P', username: 'pic', nama: 'Pic', role: 'PIC CABANG', cabang: 'CBG-A', exp: 1e15 };
@@ -111,6 +112,18 @@ describe('master routes', () => {
     expect((await res.json() as any).km).toBe(14000);
     expect(state.kendaraan[0]?.km_terakhir_ganti_oli).toBe(14000);
     expect(state.kendaraan[0]?.status).toBe('Aktif');
+  });
+
+  it('reset-oli menghapus key dashwarn', async () => {
+    const { state, repo } = memMaster({ kendaraan: [VEHICLE_ROW] });
+    const { deps, kv } = makeDeps({ master: repo });
+    const app = buildApp(fakeEnv() as any, deps);
+    const key = warningsCacheKey('SUPERADMIN', '');
+    await kv.put(key, 'x');
+    const tok = await loginAs(kv, SUPER);
+    const res = await app.request('/api/master/kendaraan/V-1/reset-oli', { method: 'POST', headers: authHeaders(tok) });
+    expect(res.status).toBe(200);
+    expect(await kv.get(key)).toBeNull();
   });
 
   it('loginAs super dapat menonaktifkan PIC; PIC tidak dapat mengelola pengguna', async () => {

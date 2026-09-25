@@ -6,7 +6,7 @@ import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
 import { hashPassword } from '../auth/password';
 import { errPayload, HttpError, okPayload, reqIp } from '../utils/http';
-import { bumpMasterRev, getMasterRev, masterCacheKey } from '../logic/master-cache';
+import { bumpMasterRev, getMasterRev, invalidateDashwarn, masterCacheKey } from '../logic/master-cache';
 import { defaultOilIntervalKm, getMasterPayload } from '../logic/master';
 import type { AppDeps } from '../deps';
 
@@ -182,6 +182,7 @@ export function masterRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       data_sebelum: jsonSnip(sebelum), data_sesudah: jsonSnip({ km_terakhir_ganti_oli: km }),
     });
     await bumpMasterRev(deps.kv);
+    await invalidateDashwarn(deps.kv, u.role, u.cabang);
     return c.json(okPayload({ msg: 'Baseline ganti oli diperbarui ke KM ' + km + '.', km }));
   });
 

@@ -6,7 +6,7 @@ import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
 import { HttpError, okPayload } from '../utils/http';
 import { newId, jsonSnip } from './master';
-import { bumpMasterRev, invalidateLaporanCaches, performaCacheKey, monthlyCacheKey, warningsCacheKey } from '../logic/master-cache';
+import { bumpMasterRev, invalidateDashwarn, invalidateLaporanCaches, performaCacheKey, monthlyCacheKey, warningsCacheKey } from '../logic/master-cache';
 import { CardBalanceError } from '../db/laporan';
 import type { FlazzCardRow, LaporanInsert } from '../db/laporan';
 import { extractStorageKey } from '../db/storage';
@@ -294,6 +294,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       data_sesudah: jsonSnip({ cabang: trxCabang, vehicle: kendaraan.plat_nomor, km_tempuh: odo.kmTempuh, liter, biaya: biayaBbm }),
     });
     await invalidateLaporanCaches(deps.kv, roleOf(u), u.cabang);
+    await invalidateDashwarn(deps.kv, roleOf(u), u.cabang);
     if (usedFlazz) await bumpMasterRev(deps.kv);
 
     return c.json(okPayload({ transaction_id }));
@@ -497,6 +498,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       data_sesudah: jsonSnip({ metode_pembayaran: newMetode, flazz_card_id: newCard, biaya_bbm: newBiaya, biaya_toll: newToll, metode_toll: newMetodeToll, flazz_card_id_toll: newCardToll }),
     });
     await invalidateLaporanCaches(deps.kv, roleOf(u), u.cabang);
+    await invalidateDashwarn(deps.kv, roleOf(u), u.cabang);
     await bumpMasterRev(deps.kv);
     return c.json(okPayload({ msg: L.MSG_EDIT_SUCCESS }));
   });
@@ -548,6 +550,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       data_sebelum: jsonSnip({ metode_pembayaran: metodeBbm, flazz_card_id: cardBbm, biaya_bbm: biaya, biaya_toll: toll, metode_toll: metodeToll, flazz_card_id_toll: cardToll, vehicle_id: old.vehicle_id, kode_cabang: old.kode_cabang, tanggal: old.tanggal }),
     });
     await invalidateLaporanCaches(deps.kv, roleOf(u), u.cabang);
+    await invalidateDashwarn(deps.kv, roleOf(u), u.cabang);
     await bumpMasterRev(deps.kv);
     return c.json(okPayload({ msg: L.MSG_DELETE_SUCCESS }));
   });
