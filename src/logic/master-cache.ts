@@ -22,6 +22,10 @@ export function monthlyCacheKey(role: string, cabang: string): string {
   return `monthly:${role || ''}:${cabang || ''}`;
 }
 
+export function warningsCacheKey(role: string, cabang: string): string {
+  return `dashwarn:${role || ''}:${cabang || ''}`;
+}
+
 export async function invalidateLaporanCaches(kv: KVStore, role: string, cabang: string): Promise<void> {
   const scopes: Array<[string, string]> = [[role || '', cabang || ''], ['SUPERADMIN', '']];
   for (const [r, cb] of scopes) {

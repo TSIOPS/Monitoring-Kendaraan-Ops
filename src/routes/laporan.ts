@@ -6,11 +6,13 @@ import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
 import { HttpError, okPayload } from '../utils/http';
 import { newId, jsonSnip } from './master';
-import { bumpMasterRev, invalidateLaporanCaches, performaCacheKey, monthlyCacheKey } from '../logic/master-cache';
+import { bumpMasterRev, invalidateLaporanCaches, performaCacheKey, monthlyCacheKey, warningsCacheKey } from '../logic/master-cache';
 import { CardBalanceError } from '../db/laporan';
 import type { FlazzCardRow, LaporanInsert } from '../db/laporan';
 import { extractStorageKey } from '../db/storage';
 import * as L from '../logic/laporan';
+import { buildOdoMap, computeWarnings } from '../logic/warnings';
+import type { WarningItem, WarningVehicle } from '../logic/warnings';
 
 const MAX_EVIDENCE_BYTES = 10 * 1024 * 1024;
 
@@ -573,7 +575,21 @@ export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       monthly = L.groupMonthly(monthRows, periode);
       await deps.kv.put(mkey, JSON.stringify(monthly), { expirationTtl: 300 });
     }
-    return c.json(okPayload({ transactions, monthly }));
+
+    const wkey = warningsCacheKey(roleOf(u), cabang);
+    let warnings = await deps.kv.get(wkey, 'json') as WarningItem[] | null;
+    if (!warnings) {
+      const kendaraan = all.kendaraan as WarningVehicle[];
+      warnings = computeWarnings({
+        kendaraan,
+        user: { role: roleOf(u), cabang: u.cabang },
+        odoMap: buildOdoMap(rows),
+        cabangNama: cabangNamaMapOf(all),
+        today: new Date(),
+      });
+      await deps.kv.put(wkey, JSON.stringify(warnings), { expirationTtl: 300 });
+    }
+    return c.json(okPayload({ transactions, monthly, warnings }));
   });
 
   return app;

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildApp } from '../../src/app';
 import { authHeaders, fakeEnv, loginAs, laporanRow, makeDeps, memLaporan, memMaster, VEHICLE_ROW } from '../helpers';
 import { periodKey } from '../../src/logic/laporan';
-import { monthlyCacheKey, performaCacheKey } from '../../src/logic/master-cache';
+import { monthlyCacheKey, performaCacheKey, warningsCacheKey } from '../../src/logic/master-cache';
 import type { SessionUser } from '../../src/deps';
 import type { FlazzCardRow, JalurRow, UsageRow } from '../../src/db/laporan';
 
@@ -39,6 +39,20 @@ function setup(init: { jalur?: JalurRow[]; flazzCard?: FlazzCardRow[]; rows?: Pa
   const { deps, kv, audits, storage } = makeDeps({ master: master.repo, laporan: lap.repo });
   const app = buildApp(fakeEnv() as any, deps);
   return { app, kv, audits, master, lap, storage };
+}
+
+function warnSetup(init: { kendaraan?: typeof VEHICLE_ROW[]; rows?: Parameters<typeof laporanRow>[0][] } = {}) {
+  const master = memMaster({
+    cabang: [
+      { kode_cabang: 'CBG-A', nama_cabang: 'Cabang A', lokasi: '', status: 'Aktif' },
+      { kode_cabang: 'CBG-B', nama_cabang: 'Cabang B', lokasi: '', status: 'Aktif' },
+    ],
+    kendaraan: init.kendaraan ?? [VEHICLE_ROW],
+  });
+  const lap = memLaporan({ rows: (init.rows ?? []).map((r) => laporanRow(r)) });
+  const { deps, kv } = makeDeps({ master: master.repo, laporan: lap.repo });
+  const app = buildApp(fakeEnv() as any, deps);
+  return { app, kv, master, lap };
 }
 
 async function post(app: ReturnType<typeof buildApp>, path: string, token: string, body: unknown) {
@@ -222,6 +236,75 @@ describe('GET /api/dashboard', () => {
     const res = await app.request('/api/dashboard', { headers: authHeaders(tok) });
     const body = await res.json() as any;
     expect(body.transactions.map((t: any) => t.transaction_id)).toEqual(['TRX-A']);
+  });
+
+  it('warnings: OLI PERHATIAN dari odo terakhir (sisa <= 50 km)', async () => {
+    const { app, kv } = warnSetup({ rows: [{ transaction_id: 'TRX-1', km_akhir_confirmed: '14980' }] });
+    const tok = await loginAs(kv, PIC);
+    const res = await app.request('/api/dashboard', { headers: authHeaders(tok) });
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.warnings).toEqual([
+      {
+        kategori: 'OLI', severity: 'PERHATIAN', vehicle_id: 'V-1', plat_nomor: 'B 1 A',
+        kode_cabang: 'CBG-A', nama_cabang: 'Cabang A',
+        pesan: 'Sebentar lagi ganti oli - sisa 20 km',
+        km_sekarang: 14980, km_target: 15000, sisa_km: 20,
+      },
+    ]);
+  });
+
+  it('warnings: OLI KRITIS saat odo melewati target', async () => {
+    const { app, kv } = warnSetup({ rows: [{ transaction_id: 'TRX-1', km_akhir_confirmed: '15020' }] });
+    const tok = await loginAs(kv, PIC);
+    const body = await (await app.request('/api/dashboard', { headers: authHeaders(tok) })).json() as any;
+    expect(body.warnings).toHaveLength(1);
+    expect(body.warnings[0]).toMatchObject({ severity: 'KRITIS', pesan: 'Wajib ganti oli - sudah lewat 20 km', sisa_km: -20 });
+  });
+
+  it('warnings: kendaraan Non-Aktif & cabang lain tidak muncul (PIC scope)', async () => {
+    const { app, kv } = warnSetup({
+      kendaraan: [
+        VEHICLE_ROW,
+        { ...VEHICLE_ROW, vehicle_id: 'V-2', plat_nomor: 'B 2 B', kode_cabang: 'CBG-B', status: 'Aktif' },
+        { ...VEHICLE_ROW, vehicle_id: 'V-3', plat_nomor: 'B 3 C', kode_cabang: 'CBG-A', status: 'Non-Aktif' },
+      ],
+      rows: [{ transaction_id: 'TRX-1', km_akhir_confirmed: '14980' }],
+    });
+    const tok = await loginAs(kv, PIC);
+    const body = await (await app.request('/api/dashboard', { headers: authHeaders(tok) })).json() as any;
+    expect(body.warnings.map((w: any) => w.vehicle_id)).toEqual(['V-1']);
+  });
+
+  it('warnings: SUPERADMIN melihat semua cabang (urut kode_cabang)', async () => {
+    const { app, kv } = warnSetup({
+      kendaraan: [
+        VEHICLE_ROW,
+        { ...VEHICLE_ROW, vehicle_id: 'V-2', plat_nomor: 'B 2 B', kode_cabang: 'CBG-B', status: 'Aktif' },
+      ],
+      rows: [
+        { transaction_id: 'TRX-1', km_akhir_confirmed: '14980' },
+        { transaction_id: 'TRX-2', kode_cabang: 'CBG-B', vehicle_id: 'V-2', km_akhir_confirmed: '14980' },
+      ],
+    });
+    const tok = await loginAs(kv, SUPER);
+    const body = await (await app.request('/api/dashboard', { headers: authHeaders(tok) })).json() as any;
+    expect(body.warnings.map((w: any) => w.vehicle_id)).toEqual(['V-1', 'V-2']);
+    expect(body.warnings[1]).toMatchObject({ kode_cabang: 'CBG-B', nama_cabang: 'Cabang B' });
+  });
+
+  it('warnings memakai cache: perubahan state tidak terlihat pada panggilan kedua', async () => {
+    const { app, kv, lap } = warnSetup({ rows: [{ transaction_id: 'TRX-1', km_akhir_confirmed: '14980' }] });
+    const tok = await loginAs(kv, PIC);
+    const b1 = await (await app.request('/api/dashboard', { headers: authHeaders(tok) })).json() as any;
+    expect(b1.warnings).toHaveLength(1);
+    expect(b1.warnings[0].severity).toBe('PERHATIAN');
+    expect(await kv.get(warningsCacheKey('PIC CABANG', 'CBG-A'), 'json')).not.toBeNull();
+    lap.state.rows.push(laporanRow({ transaction_id: 'TRX-2', km_akhir_confirmed: '15020' }));
+    const b2 = await (await app.request('/api/dashboard', { headers: authHeaders(tok) })).json() as any;
+    expect(b2.warnings).toHaveLength(1);
+    expect(b2.warnings[0].severity).toBe('PERHATIAN');
+    expect(b2.transactions).toHaveLength(2);
   });
 });
 
