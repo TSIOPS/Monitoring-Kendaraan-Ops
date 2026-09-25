@@ -1,7 +1,7 @@
 # M4 — Dashboard & Warnings Design
 
 **Tanggal:** 2026-09-25
-**Status:** Disetujui (brainstorming) — lihat `docs/superpowers/plans/2026-09-25-m4-dashboard-warnings.md`
+**Status:** Selesai diimplementasikan (M4) — lihat `docs/superpowers/plans/2026-09-25-m4-dashboard-warnings.md`
 **Proyek:** `D:\Monitoring Kendaraan Ops Cloud` (port Cloudflare Workers + Supabase dari GAS)
 
 ## 1. Latar Belakang

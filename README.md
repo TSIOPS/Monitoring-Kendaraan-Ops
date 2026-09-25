@@ -32,7 +32,7 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 - Rate limit login 5x/5mnt per username (KV).
 - Hash password format kompatibel GAS (tidak perlu reset saat migrasi).
 
-## API (status M2 — fondasi + master + settings + audit)
+## API (status M4 — fondasi + master + settings + audit + laporan + warnings)
 | Metode | Path | Akses | Keterangan |
 |---|---|---|---|
 | POST | `/api/login` | publik | login → session token (KV, 12 jam) |
@@ -54,6 +54,8 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 | DELETE | `/api/laporan/:id` | PIC/SUPERADMIN | hapus transaksi (refund Flazz, return usage, release jalur) |
 | GET | `/api/laporan/prefill` | PIC/SUPERADMIN | prefill dari transaksi terakhir yang memenuhi syarat |
 | GET | `/api/laporan/performa` | PIC/SUPERADMIN | performa 7-trip per kendaraan (cache 300 dtk) |
-| GET | `/api/dashboard` | PIC/SUPERADMIN | riwayat transaksi + ringkasan bulanan (cache 300 dtk) |
+| GET | `/api/dashboard` | PIC/SUPERADMIN | riwayat transaksi + ringkasan bulanan + warnings OLI/pajak/KIR (cache 300 dtk) |
 
-M3 (laporan/transaksi BBM) **selesai** — lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`.
+M3 (laporan/transaksi BBM) dan M4 (dashboard & warnings) **selesai** —
+lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md` dan
+`docs/superpowers/plans/2026-09-25-m4-dashboard-warnings.md`.
