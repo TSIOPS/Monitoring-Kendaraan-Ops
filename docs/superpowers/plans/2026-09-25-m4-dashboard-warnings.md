@@ -169,7 +169,7 @@ describe('computeWarnings — OLI', () => {
   });
 
   it('interval > 0 dihormati', () => {
-    const items = run([vehicle({ interval_ganti_oli_km: 2000 })], { 'V-1': 11000 });
+    const items = run([vehicle({ interval_ganti_oli_km: 2000 })], { 'V-1': 13000 });
     expect(items[0]).toMatchObject({ severity: 'KRITIS', sisa_km: -1000, km_target: 12000 });
   });
 });
@@ -438,7 +438,7 @@ export function computeWarnings(input: WarningInput): WarningItem[] {
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run tests/logic/warnings.test.ts`
-Expected: PASS — 12 it-blocks hijau.
+Expected: PASS — seluruh `it`-block hijau.
 
 - [ ] **Step 5: Gate + Commit**
 
