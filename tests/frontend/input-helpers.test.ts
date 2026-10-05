@@ -112,3 +112,27 @@ describe('tanggalWib', () => {
     expect(tanggalWib(new Date(Date.UTC(2026, 0, 3, 5, 0)))).toBe('2026-01-03');
   });
 });
+
+describe('grup-2 (kartu kedua)', () => {
+  it('buildPayload mengirim field grup-2 dengan nominal sebagai angka', () => {
+    const p = buildPayload(
+      { ...DASAR, flazz_card_id_2: 'FLZ-B', biaya_bbm_2: '500000', flazz_card_id_toll_2: '', biaya_toll_2: '' },
+      { files: {}, km_awal: '', km_akhir: '' },
+    );
+    expect(p).toMatchObject({ flazz_card_id_2: 'FLZ-B', biaya_bbm_2: 500000, flazz_card_id_toll_2: '', biaya_toll_2: 0 });
+  });
+
+  it('buildPayload tanpa grup-2 mengirim nilai kosong', () => {
+    const p = buildPayload(DASAR, { files: {}, km_awal: '', km_akhir: '' });
+    expect(p).toMatchObject({ flazz_card_id_2: '', biaya_bbm_2: 0, flazz_card_id_toll_2: '', biaya_toll_2: 0 });
+  });
+
+  it('validateForm menolak nominal grup-2 negatif atau bukan angka', () => {
+    expect(validateForm({ ...DASAR, biaya_bbm_2: '-1' })).toContain('Nominal kartu ke-2 harus angka dan tidak boleh negatif.');
+    expect(validateForm({ ...DASAR, biaya_toll_2: 'abc' })).toContain('Nominal kartu ke-2 harus angka dan tidak boleh negatif.');
+  });
+
+  it('validateForm menerima nominal grup-2 tanpa kartu (dicatat tunai)', () => {
+    expect(validateForm({ ...DASAR, biaya_toll_2: '7000' })).toEqual([]);
+  });
+});

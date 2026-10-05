@@ -91,7 +91,7 @@ function panelWarnings(warnings) {
 
 function selAksi(r) {
   const id = String(r.transaction_id || '');
-  const bisaDetach = Boolean(r.flazz_card_id);
+  const bisaDetach = Boolean(r.flazz_card_id || r.flazz_card_id_2);
   return el('td', {}, [
     el('a', {
       class: 'btn btn-sm btn-outline-primary me-1',
@@ -109,6 +109,10 @@ function selAksi(r) {
   ]);
 }
 
+function pakaiKartu2(r) {
+  return Boolean(r.flazz_card_id_2 || r.flazz_card_id_toll_2 || Number(r.biaya_bbm_2) || Number(r.biaya_toll_2));
+}
+
 function barisTabel(r) {
   return el('tr', {}, [
     selKolom(fmtDateId(r.tanggal)),
@@ -116,8 +120,12 @@ function barisTabel(r) {
     selKolom(String(r.supir || '-')),
     selKolom(fmtNum(r.km_tempuh), 'text-end'),
     selKolom(fmtNum(r.liter), 'text-end'),
-    selKolom(fmtNum(r.biaya_bbm), 'text-end'),
-    selKolom(String(r.metode_pembayaran || '-')),
+    // Total grup-1 + grup-2; data lama tanpa total_bbm memakai biaya_bbm.
+    selKolom(fmtNum(r.total_bbm ?? r.biaya_bbm), 'text-end'),
+    el('td', {}, [
+      String(r.metode_pembayaran || '-'),
+      pakaiKartu2(r) ? el('span', { class: 'badge-status ms-1', text: '2 kartu' }) : null,
+    ]),
     el('td', {}, [badgeEfisiensi(r)]),
     el('td', {}, [thumb(r.foto_odo_awal_thumb)]),
     el('td', {}, [thumb(r.foto_odo_akhir_thumb)]),

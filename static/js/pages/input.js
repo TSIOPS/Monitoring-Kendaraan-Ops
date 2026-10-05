@@ -34,6 +34,12 @@ export function validateForm(v) {
   if (v.metode_toll === 'FLAZZ' && !v.flazz_card_id_toll) {
     err.push('Pilih kartu Flazz untuk tol.');
   }
+
+  // Grup-2: kartu boleh kosong (nominal dicatat tunai); hanya nominal yang dicek.
+  const nominal2 = [v.biaya_bbm_2, v.biaya_toll_2].filter((x) => x !== undefined && x !== '');
+  if (nominal2.some((x) => !Number.isFinite(Number(x)) || Number(x) < 0)) {
+    err.push('Nominal kartu ke-2 harus angka dan tidak boleh negatif.');
+  }
   return err;
 }
 
@@ -56,6 +62,10 @@ export function buildPayload(v, serverData) {
     flazz_card_id: v.flazz_card_id,
     metode_toll: v.metode_toll,
     flazz_card_id_toll: v.flazz_card_id_toll,
+    flazz_card_id_2: v.flazz_card_id_2 || '',
+    biaya_bbm_2: Number(v.biaya_bbm_2 || 0),
+    flazz_card_id_toll_2: v.flazz_card_id_toll_2 || '',
+    biaya_toll_2: Number(v.biaya_toll_2 || 0),
     serverData,
   };
 }
@@ -159,11 +169,17 @@ export async function renderInput(view) {
       el('option', { value: 'FLAZZ', text: 'Flazz' }),
     ]),
     flazz_card_id_toll: el('select', { class: 'form-select', id: 'f-kartu-tol' }),
+    biaya_bbm_2: el('input', { class: 'form-control', type: 'number', min: '0', id: 'f-biaya-bbm-2' }),
+    flazz_card_id_2: el('select', { class: 'form-select', id: 'f-kartu-2' }),
+    biaya_toll_2: el('input', { class: 'form-control', type: 'number', min: '0', id: 'f-biaya-tol-2' }),
+    flazz_card_id_toll_2: el('select', { class: 'form-select', id: 'f-kartu-tol-2' }),
   };
 
   isiOpsi(f.vehicle_id, opsiKendaraan(vehicles), '— pilih kendaraan —');
   isiOpsi(f.flazz_card_id, opsiKartu(cards), '— tidak ada —');
   isiOpsi(f.flazz_card_id_toll, opsiKartu(cards), '— tidak ada —');
+  isiOpsi(f.flazz_card_id_2, opsiKartu(cards), 'Tanpa kartu (tunai)');
+  isiOpsi(f.flazz_card_id_toll_2, opsiKartu(cards), 'Tanpa kartu (tunai)');
 
   // Server mencocokkan nama supir dengan jalur secara persis; datalist mengurangi salah ketik.
   const supirList = el(
@@ -186,6 +202,23 @@ export async function renderInput(view) {
       kontrol,
       catatan ? el('div', { class: 'form-text', text: catatan }) : null,
     ]);
+
+  // Pengeluaran kartu ke-2 (opsional), seperti di GAS: tersembunyi sampai dibuka.
+  const grup2Wrap = el('div', { class: 'd-none' }, [
+    el('div', { class: 'form-text mb-2', text: 'Dipakai saat satu kartu tidak cukup. Bila nominal diisi tanpa kartu, biaya itu dicatat sebagai tunai.' }),
+    el('div', { class: 'row' }, [
+      el('div', { class: 'col-md-3' }, [baris('Nominal BBM (kartu 2)', f.biaya_bbm_2)]),
+      el('div', { class: 'col-md-3' }, [baris('Kartu Flazz BBM (kartu 2)', f.flazz_card_id_2)]),
+      el('div', { class: 'col-md-3' }, [baris('Nominal tol (kartu 2)', f.biaya_toll_2)]),
+      el('div', { class: 'col-md-3' }, [baris('Kartu Flazz tol (kartu 2)', f.flazz_card_id_toll_2)]),
+    ]),
+  ]);
+  const grup2Toggle = el('button', { type: 'button', class: 'btn btn-sm btn-outline-secondary mb-3', text: 'Tambah pengeluaran dengan kartu ke-2' });
+  const bukaGrup2 = () => {
+    grup2Wrap.classList.remove('d-none');
+    grup2Toggle.classList.add('d-none');
+  };
+  grup2Toggle.addEventListener('click', bukaGrup2);
 
   const form = el('form', { novalidate: 'novalidate' }, [
     alertBox,
@@ -223,6 +256,8 @@ export async function renderInput(view) {
       el('div', { class: 'col-md-4' }, [baris('Metode tol', f.metode_toll)]),
       el('div', { class: 'col-md-4' }, [baris('Kartu Flazz (tol)', f.flazz_card_id_toll)]),
     ]),
+    grup2Toggle,
+    grup2Wrap,
     el('div', { class: 'row' }, [
       el('div', { class: 'col-md-6' }, [baris('Foto odometer awal', fotoAwal)]),
       el('div', { class: 'col-md-6' }, [baris('Foto odometer akhir', fotoAkhir)]),
@@ -260,6 +295,11 @@ export async function renderInput(view) {
       f.flazz_card_id.value = pref.flazz_card_id || '';
       f.metode_toll.value = pref.metode_toll || '';
       f.flazz_card_id_toll.value = pref.flazz_card_id_toll || '';
+      f.flazz_card_id_2.value = pref.flazz_card_id_2 || '';
+      f.biaya_bbm_2.value = pref.biaya_bbm_2 ? String(pref.biaya_bbm_2) : '';
+      f.flazz_card_id_toll_2.value = pref.flazz_card_id_toll_2 || '';
+      f.biaya_toll_2.value = pref.biaya_toll_2 ? String(pref.biaya_toll_2) : '';
+      if (pref.flazz_card_id_2 || pref.biaya_bbm_2 || pref.flazz_card_id_toll_2 || pref.biaya_toll_2) bukaGrup2();
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -289,6 +329,10 @@ export async function renderInput(view) {
       flazz_card_id: f.flazz_card_id.value,
       metode_toll: f.metode_toll.value,
       flazz_card_id_toll: f.flazz_card_id_toll.value,
+      flazz_card_id_2: f.flazz_card_id_2.value,
+      biaya_bbm_2: f.biaya_bbm_2.value,
+      flazz_card_id_toll_2: f.flazz_card_id_toll_2.value,
+      biaya_toll_2: f.biaya_toll_2.value,
     };
 
     const err = validateForm(values);
