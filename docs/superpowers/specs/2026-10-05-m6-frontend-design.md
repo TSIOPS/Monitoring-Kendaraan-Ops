@@ -178,10 +178,14 @@ Alur isian:
 
 1. **Kendaraan** — dropdown dari `GET /api/master` (seluruh master sudah
    di-cache server per role). Mengubah kendaraan memanggil
-   `GET /api/laporan/prefill` untuk mengisi km awal dari transaksi terakhir.
-2. **Tanggal, supir, KM** — km awal terisi dari prefill; km akhir diisi user.
-   Field `km_awal_broken` / `km_akhir_broken` diset saat user mencentang
-   "meter mati".
+   `GET /api/laporan/prefill` untuk mengisi nilai default transaksi terakhir
+   kendaraan itu: `bar_awal`, `bar_akhir`, `liter_bbm`, `biaya_bbm`, metode
+   pembayaran, kartu, dan nama supir.
+2. **Tanggal, supir, KM** — tanggal dan nama supir terisi dari prefill. KM
+   awal dan KM akhir **tidak** ada di prefill; keduanya diisi user. Field
+   `km_awal_broken` / `km_akhir_broken` diset saat user mencentang "meter
+   mati". Saat estimasi diperlukan, server memakai `lastForVehicle` sebagai
+   anchor secara internal — klien tidak pernah mengirim anchor itu.
 3. **Bar dan liter** — jika kendaraan `jenis_indikator` = `ANALOG_JARUM`, bar
    terkunci di 100 dan tidak dapat diedit.
 4. **Pembayaran** — TUNAI atau FLAZZ. FLAZZ wajib memilih kartu; server
@@ -208,11 +212,16 @@ kembali ke login.
 
 ## 4. Error Handling
 
-`api.js` adalah satu-satunya modul yang bicara HTTP:
+`api.js` adalah satu-satunya modul yang bicara HTTP.
+
+Bentuk payload Worker adalah `{success: true, ...data}` pada sukses dan
+`{success: false, error, message}` pada gagal (`src/utils/http.ts`). Tidak
+ada pembungkus `data`; field sukses ditaburkan di level atas. `api.js`
+membaca `success` dan mengembalikan sisa payload sebagai objek data.
 
 | Kondisi | Perlakuan |
 |---|---|
-| `{ok:false, error, message}` | lempar objek dengan `error` dan `message` dari server |
+| `{success:false, error, message}` | lempar objek dengan `error` dan `message` dari server |
 | 401 | reset session di store, lempar; router mengarahkan ke login |
 | 429 | tampilkan `message` apa adanya (termasuk sisa detik dari server) |
 | jaringan mati / timeout | pesan dalam bahasa user, bukan dump error |
@@ -238,7 +247,7 @@ Prinsip sama seperti backend: logika murni diuji, I/O tidak.
 |---|---|
 | `ui.js`: `esc()`, format angka, format tanggal, pemangkasan | proteksi HTML injection dan format |
 | helper form `input.js`: validasi wajib/numerik, building payload, checkbox meter mati | murni, tanpa DOM |
-| helper `api.js`: pemetaan `{ok,data,error}`, penanganan 401 | diuji dengan stub `fetch` global |
+| helper `api.js`: pemetaan `{success,...data}` / `{success:false,error,message}`, penanganan 401 | diuji dengan stub `fetch` global |
 
 Tidak ada jsdom atau testing-library. Menambahkannya hanya untuk menguji DOM
 yang sebenarinya dilihat manusia tidak sebanding dengan bobot dependensinya.
