@@ -6,7 +6,9 @@ let params = {};
 
 export function registerRoute(pattern, loader, options = {}) {
   const names = [];
+  // matchRoute membuang '#' dari hash, jadi pola juga harus tanpa '#'.
   const regexSrc = pattern
+    .replace(/^#/, '')
     .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     .replace(/:(\w+)/g, (_, name) => {
       names.push(name);
@@ -19,7 +21,7 @@ export function getRouteParam(name) {
   return params[name] ?? '';
 }
 
-function matchRoute(hash) {
+export function matchRoute(hash) {
   const path = (hash || '#/login').replace(/^#/, '');
   return routes.find((r) => r.regex.test(path)) || null;
 }
@@ -30,6 +32,14 @@ async function run(hash) {
 
   const found = matchRoute(hash);
   if (!found) {
+    if (hash === '#/transaksi') {
+      // Hash sama tidak memicu hashchange; tanpa ini layar tetap kosong.
+      const box = document.createElement('div');
+      box.className = 'alert alert-danger';
+      box.textContent = 'Halaman tidak ditemukan.';
+      view.replaceChildren(box);
+      return;
+    }
     window.location.hash = '#/transaksi';
     return;
   }
