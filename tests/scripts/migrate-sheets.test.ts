@@ -109,7 +109,7 @@ describe('siapkan', () => {
     XLSX.utils.book_append_sheet(
       wb,
       XLSX.utils.aoa_to_sheet([
-        ['transaction_id', 'tanggal', 'biaya_bbm', 'biaya_bbm_2'],
+        ['transaction_id', 'tanggal', 'biaya_bbm', 'kolom_asing'],
         ['TRX-1', '2026-10-04', 1000, 500],
         ['TRX-2', '2026-10-04', 2000, 0],
       ]),
@@ -119,8 +119,8 @@ describe('siapkan', () => {
     const { hasil, laporan } = siapkan(wb, schema) as { hasil: Record<string, any>; laporan: Record<string, any> };
     expect(hasil.supir.rows[0].default_vehicle_id).toBe('V-1');
     expect(hasil.supir.rows[1].default_vehicle_id).toBe('');
-    expect(hasil.penggunaan_bbm.rows[0]).not.toHaveProperty('biaya_bbm_2');
-    expect(laporan.kolomDibuang.penggunaan_bbm.biaya_bbm_2).toEqual(['TRX-1']);
+    expect(hasil.penggunaan_bbm.rows[0]).not.toHaveProperty('kolom_asing');
+    expect(laporan.kolomDibuang.penggunaan_bbm.kolom_asing).toEqual(['TRX-1']);
     const kunci = hasil.penggunaan_bbm.rows.map((r: object) => Object.keys(r).join());
     expect(new Set(kunci).size).toBe(1);
   });
