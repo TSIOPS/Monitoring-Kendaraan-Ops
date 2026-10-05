@@ -7,6 +7,7 @@ import {
   nilaiSel,
   parseSchema,
   pisahkanSupirGanda,
+  pisahkanUsernameGanda,
   pulihkanNomorKartu,
   serialKeIsoUtc,
   serialKeTanggal,
@@ -14,7 +15,7 @@ import {
   terapkanRemapJalur,
 } from '../../scripts/migrate-sheets.mjs';
 
-const schema = parseSchema(readFileSync('db/schema.sql', 'utf8'));
+const schema = parseSchema(readFileSync('db/schema.sql', 'utf8')) as Record<string, { pk: string; unik: string[] }>;
 
 // 46300 = 2026-10-05 (dicek dengan XLSX.SSF.parse_date_code); 0.25 hari = 06:00.
 const SERIAL_5_OKT = 46300;
@@ -122,5 +123,34 @@ describe('siapkan', () => {
     expect(laporan.kolomDibuang.penggunaan_bbm.biaya_bbm_2).toEqual(['TRX-1']);
     const kunci = hasil.penggunaan_bbm.rows.map((r: object) => Object.keys(r).join());
     expect(new Set(kunci).size).toBe(1);
+  });
+});
+
+describe('pisahkanUsernameGanda', () => {
+  it('akun pertama tetap, kemunculan berikutnya diberi akhiran _2', () => {
+    const rows = [
+      { user_id: 'U-001', username: 'snd' },
+      { user_id: 'U-002', username: 'budi' },
+      { user_id: 'U-003', username: 'snd' },
+    ];
+    expect(pisahkanUsernameGanda(rows)).toEqual([{ user_id: 'U-003', lama: 'snd', baru: 'snd_2' }]);
+    expect(rows.map((r) => r.username)).toEqual(['snd', 'budi', 'snd_2']);
+  });
+
+  it('tidak bentrok dengan username yang sudah memakai akhiran', () => {
+    const rows = [
+      { user_id: 'U-1', username: 'snd' },
+      { user_id: 'U-2', username: 'snd_2' },
+      { user_id: 'U-3', username: 'snd' },
+    ];
+    pisahkanUsernameGanda(rows);
+    expect(rows[2]!.username).toBe('snd_3');
+  });
+});
+
+describe('parseSchema', () => {
+  it('mengenali kolom unique selain primary key', () => {
+    expect(schema.pengguna!.pk).toBe('user_id');
+    expect(schema.pengguna!.unik).toContain('username');
   });
 });

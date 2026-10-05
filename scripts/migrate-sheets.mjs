@@ -58,6 +58,7 @@ export function parseSchema(sql) {
   const tables = {};
   for (const m of sql.matchAll(/create table if not exists (\w+) \(([\s\S]*?)\n\);/gi)) {
     const cols = {};
+    const unik = [];
     let pk = '';
     for (const raw of m[2].split('\n')) {
       const line = raw.trim().replace(/,$/, '');
@@ -66,8 +67,9 @@ export function parseSchema(sql) {
       if (/generated\s+always/i.test(line)) continue;
       cols[c[1]] = /^(numeric|bigint|integer|int|real|double)$/i.test(c[2]) ? 'num' : 'text';
       if (/primary key/i.test(line)) pk = c[1];
+      else if (/\bunique\b/i.test(line)) unik.push(c[1]);
     }
-    tables[m[1]] = { cols, pk };
+    tables[m[1]] = { cols, pk, unik };
   }
   return tables;
 }
@@ -191,6 +193,26 @@ export function terapkanRemapJalur(rows, remap) {
   return n;
 }
 
+// Username ganda: kemunculan kedua dst. diberi akhiran _2, _3, ... (akun pertama tetap memakai nama aslinya).
+export function pisahkanUsernameGanda(rows) {
+  const dipakai = new Set(rows.map((r) => r.username));
+  const dilihat = new Set();
+  const ubah = [];
+  for (const row of rows) {
+    if (!dilihat.has(row.username)) {
+      dilihat.add(row.username);
+      continue;
+    }
+    let n = 2;
+    while (dipakai.has(`${row.username}_${n}`)) n++;
+    const baru = `${row.username}_${n}`;
+    ubah.push({ user_id: row.user_id, lama: row.username, baru });
+    row.username = baru;
+    dipakai.add(baru);
+  }
+  return ubah;
+}
+
 export function cariPkGanda(rows, pk) {
   const hitung = new Map();
   for (const r of rows) hitung.set(r[pk], (hitung.get(r[pk]) || 0) + 1);
@@ -219,6 +241,10 @@ export function siapkan(wb, schema) {
   const nRemap = terapkanRemapJalur(hasil.jalur_pengiriman.rows, remap);
   if (remap.length) laporan.perbaikan.push(`Rujukan supir di jalur dipetakan ulang: ${nRemap}`);
 
+  for (const u of pisahkanUsernameGanda(hasil.pengguna.rows)) {
+    laporan.perbaikan.push(`Username ganda "${u.lama}": akun ${u.user_id} menjadi "${u.baru}"`);
+  }
+
   let nKartu = 0;
   for (const row of hasil.flazz_card.rows) {
     const pulih = pulihkanNomorKartu(row.card_number);
@@ -229,6 +255,10 @@ export function siapkan(wb, schema) {
   for (const [tabel, { rows, pk }] of Object.entries(hasil)) {
     const ganda = cariPkGanda(rows, pk);
     if (ganda.length) masalah.push({ tabel, jenis: 'pk-ganda', jumlah: ganda.length, contoh: ganda.slice(0, 5) });
+    for (const kol of schema[tabel].unik) {
+      const unikGanda = cariPkGanda(rows, kol);
+      if (unikGanda.length) masalah.push({ tabel, kolom: kol, jenis: 'unik-ganda', jumlah: unikGanda.length });
+    }
     const kosong = rows.filter((r) => r[pk] === '' || r[pk] === undefined).length;
     if (kosong) masalah.push({ tabel, jenis: 'pk-kosong', jumlah: kosong });
     const tahunAneh = rows.filter((r) => Object.values(r).some((v) => typeof v === 'string' && /^(1[0-8]\d\d|19[0-8]\d)-\d\d-\d\d/.test(v))).length;
@@ -296,7 +326,7 @@ async function main() {
   for (const p of laporan.perbaikan) console.log('  - ' + p);
   console.log('\nKolom dibuang (tidak ada di schema), baris yang berisi nilai:');
   for (const [t, cols] of Object.entries(laporan.kolomDibuang)) for (const [c, ids] of Object.entries(cols)) console.log(`  - ${t}.${c}: ${ids.length} baris -> ${ids.slice(0, 5).join(', ')}`);
-  const blokir = laporan.masalah.filter((m) => m.jenis === 'pk-ganda' || m.jenis === 'pk-kosong');
+  const blokir = laporan.masalah.filter((m) => m.jenis === 'pk-ganda' || m.jenis === 'pk-kosong' || m.jenis === 'unik-ganda');
   console.log(`\nMasalah: ${laporan.masalah.length ? '' : 'tidak ada'}`);
   for (const m of laporan.masalah) console.log('  - ' + JSON.stringify(m));
 
@@ -305,7 +335,7 @@ async function main() {
 
   if (blokir.length) {
     writeFileSync(lapPath, JSON.stringify(laporan, null, 2));
-    console.error('\nDihentikan: ada primary key ganda/kosong. Lihat migrasi/laporan-migrasi.json.');
+    console.error('\nDihentikan: ada primary key atau kolom unik yang ganda/kosong. Lihat migrasi/laporan-migrasi.json.');
     process.exit(1);
   }
 
