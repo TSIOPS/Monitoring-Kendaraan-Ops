@@ -50,7 +50,11 @@ export function memKV(): KVStore {
       if (v == null) return null;
       return type === 'json' ? JSON.parse(v) : v;
     },
-    put: async (k, v) => {
+    put: async (k, v, opts) => {
+      // Cloudflare KV menolak expirationTtl < 60 detik; tiru agar bug TTL tertangkap di test.
+      if (opts?.expirationTtl !== undefined && opts.expirationTtl < 60) {
+        throw new Error(`KV PUT failed: 400 Invalid expiration_ttl of ${opts.expirationTtl}. Expiration TTL must be at least 60.`);
+      }
       map.set(k, v);
     },
     delete: async (k) => {

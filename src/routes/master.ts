@@ -10,7 +10,9 @@ import { bumpMasterRev, getMasterRev, invalidateDashwarn, masterCacheKey } from 
 import { defaultOilIntervalKm, getMasterPayload } from '../logic/master';
 import type { AppDeps } from '../deps';
 
-const MASTER_CACHE_TTL = 30;
+// Minimal 60: Cloudflare KV menolak expirationTtl di bawahnya. Cache tetap
+// segar karena kuncinya memuat master-rev yang naik pada setiap write.
+const MASTER_CACHE_TTL = 60;
 
 type Ctx = Context<{ Bindings: Env; Variables: AuthVars }>;
 
