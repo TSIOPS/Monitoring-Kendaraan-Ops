@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPayload, tanggalLokal, validateForm } from '../../static/js/pages/input.js';
+import { buildPayload, tanggalWib, validateForm } from '../../static/js/pages/input.js';
 
 const DASAR = {
   vehicle_id: 'V-1',
@@ -97,13 +97,18 @@ describe('buildPayload', () => {
   });
 });
 
-describe('tanggalLokal', () => {
-  it('memakai tanggal lokal, bukan UTC', () => {
-    // 5 Okt 2026 pukul 06:00 waktu lokal: toISOString() di zona UTC+7 masih 4 Okt.
-    expect(tanggalLokal(new Date(2026, 9, 5, 6, 0))).toBe('2026-10-05');
+describe('tanggalWib', () => {
+  it('memakai tanggal WIB walau UTC masih hari sebelumnya', () => {
+    // 4 Okt 2026 23:00 UTC = 5 Okt 2026 06:00 WIB.
+    expect(tanggalWib(new Date(Date.UTC(2026, 9, 4, 23, 0)))).toBe('2026-10-05');
+  });
+
+  it('tetap WIB saat perangkat di zona lebih timur', () => {
+    // 5 Okt 2026 16:30 UTC = 6 Okt 00:30 WITA, tetapi masih 5 Okt 23:30 WIB.
+    expect(tanggalWib(new Date(Date.UTC(2026, 9, 5, 16, 30)))).toBe('2026-10-05');
   });
 
   it('menambah nol di depan bulan dan hari', () => {
-    expect(tanggalLokal(new Date(2026, 0, 3))).toBe('2026-01-03');
+    expect(tanggalWib(new Date(Date.UTC(2026, 0, 3, 5, 0)))).toBe('2026-01-03');
   });
 });

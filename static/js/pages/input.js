@@ -60,10 +60,16 @@ export function buildPayload(v, serverData) {
   };
 }
 
-export function tanggalLokal(d = new Date()) {
-  const bulan = String(d.getMonth() + 1).padStart(2, '0');
-  const hari = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${bulan}-${hari}`;
+// Locale en-CA memformat tanggal sebagai YYYY-MM-DD, sesuai nilai <input type="date">.
+const FORMAT_WIB = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Jakarta',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+export function tanggalWib(d = new Date()) {
+  return FORMAT_WIB.format(d);
 }
 
 function kompresGambar(file) {
@@ -172,7 +178,7 @@ export async function renderInput(view) {
   const fotoAkhir = el('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'form-control' });
   const submit = el('button', { class: 'btn btn-primary', type: 'submit', text: 'Simpan Laporan' });
 
-  f.tanggal.value = tanggalLokal();
+  f.tanggal.value = tanggalWib();
 
   const baris = (label, kontrol, catatan = '') =>
     el('div', { class: 'mb-3' }, [
