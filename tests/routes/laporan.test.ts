@@ -743,3 +743,15 @@ describe('grup-2 (kartu kedua)', () => {
     expect(pre.pref).toMatchObject({ flazz_card_id_2: 'FLZ-B', biaya_bbm_2: 500000 });
   });
 });
+
+describe('GET /api/laporan/:id', () => {
+  it('mengembalikan satu transaksi bentuk daftar; cabang lain 403; tidak ada 404', async () => {
+    const { app, kv } = setup({ rows: [{ transaction_id: 'TRX-LAMA', tanggal: '2026-01-02', km_awal_confirmed: '500', km_akhir_confirmed: '600' }, { transaction_id: 'TRX-B', kode_cabang: 'CBG-B' }] });
+    const tok = await loginAs(kv, PIC);
+    const res = await app.request('/api/laporan/TRX-LAMA', { headers: authHeaders(tok) });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as any).transaksi).toMatchObject({ transaction_id: 'TRX-LAMA', tanggal: '02/01/2026', km_awal: 500, km_akhir: 600, supir: 'Supir A' });
+    expect((await app.request('/api/laporan/TRX-B', { headers: authHeaders(tok) })).status).toBe(403);
+    expect((await app.request('/api/laporan/TRX-X', { headers: authHeaders(tok) })).status).toBe(404);
+  });
+});

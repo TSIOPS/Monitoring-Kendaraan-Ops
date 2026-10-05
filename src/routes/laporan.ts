@@ -343,6 +343,17 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     return c.json(okPayload({ items }));
   });
 
+  // ── GET /api/laporan/:id (halaman edit; tidak terbatas 200 transaksi terbaru) ──
+  app.get('/:id', requireUser(deps), async (c) => {
+    const u = c.get('user');
+    const row = await deps.laporan.findById(c.req.param('id') ?? '');
+    if (!row) throw new HttpError(404, L.MSG_TRX_NOT_FOUND, 'NOT_FOUND');
+    assertTransactionAccess(u, row.kode_cabang);
+    const all = await deps.master.listAll();
+    const [transaksi] = L.buildRecentList([row], kendaraanInfoMap(all), cabangNamaMapOf(all), await loadCardIdMap(deps));
+    return c.json(okPayload({ transaksi }));
+  });
+
   // ── PUT /api/laporan/:id (port editDailyTransactionUnlocked) ─────────────
   app.put('/:id', requireUser(deps), async (c) => {
     const u = c.get('user');
