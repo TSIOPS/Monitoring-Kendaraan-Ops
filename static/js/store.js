@@ -31,6 +31,8 @@ export function isLoggedIn() {
 export function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  // Reset tanpa notifikasi: listener tidak boleh menggambar topbar untuk session yang baru dihapus.
+  jumlahPeringatan = 0;
 }
 
 export function logout() {
@@ -38,4 +40,21 @@ export function logout() {
   if (window.location.hash !== '#/login') {
     window.location.hash = '#/login';
   }
+}
+
+let jumlahPeringatan = 0;
+const peringatanListeners = new Set();
+
+export function setJumlahPeringatan(n) {
+  jumlahPeringatan = Math.max(0, Number(n || 0));
+  peringatanListeners.forEach((fn) => fn(jumlahPeringatan));
+}
+
+export function getJumlahPeringatan() {
+  return jumlahPeringatan;
+}
+
+export function onPeringatanChange(fn) {
+  peringatanListeners.add(fn);
+  return () => peringatanListeners.delete(fn);
 }

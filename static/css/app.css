@@ -163,4 +163,7 @@ body {
 @media (max-width: 640px) {
   .view { padding: 0.5rem; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .topbar { gap: 0.5rem; padding: 0.5rem 0.75rem; }
+  .topbar .brand { flex-basis: 100%; }
+  .topbar .user-info { order: 10; flex-basis: 100%; font-size: 0.8rem; }
 }

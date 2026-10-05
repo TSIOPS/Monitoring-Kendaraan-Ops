@@ -70,6 +70,12 @@ lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`,
 `docs/superpowers/plans/2026-09-25-m4-dashboard-warnings.md`, dan
 `docs/superpowers/plans/2026-09-25-m5-flazz-crud.md`. Regresi M3/M4 tetap hijau.
 
+- **M6** — Frontend vanilla JS + Bootstrap 5 (login, transaksi + dashboard,
+  input laporan dengan upload foto, edit transaksi) **selesai** - 2026-10-05.
+  Native ES modules di `static/` tanpa build step; lihat
+  `docs/superpowers/plans/2026-10-05-m6-frontend.md`. Tanggal default form
+  input selalu WIB (`Asia/Jakarta`).
+
 Catatan M5: tidak ada perubahan schema dan tidak ada upload evidence. Field
 bukti hanya `evidence_url` (URL http/https), sedangkan upload foto tetap hanya
 untuk odometer melalui `/api/laporan/photos`.

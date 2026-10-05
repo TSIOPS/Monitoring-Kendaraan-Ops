@@ -1,4 +1,5 @@
 import { get, del } from '../api.js';
+import { setJumlahPeringatan } from '../store.js';
 import { el, fmtNum, fmtDateId, toast, spinner, confirmDialog } from '../ui.js';
 
 const EFISIENSI_KELAS = {
@@ -192,6 +193,7 @@ export async function renderTransaksi(view) {
   const transactions = Array.isArray(data.transactions) ? data.transactions : [];
   const monthly = Array.isArray(data.monthly) ? data.monthly : [];
   const warnings = Array.isArray(data.warnings) ? data.warnings : [];
+  setJumlahPeringatan(warnings.length);
 
   view.replaceChildren(
     el('div', {}, [

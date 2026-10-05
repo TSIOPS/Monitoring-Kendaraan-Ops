@@ -1,11 +1,11 @@
-import { getUser, logout } from './store.js';
+import { getJumlahPeringatan, getUser, logout, onPeringatanChange } from './store.js';
 import { post } from './api.js';
 import { ensureSession, registerRoute, startRouter } from './router.js';
 import { el } from './ui.js';
 import { renderLogin } from './pages/login.js';
 
 const NAV = [
-  { hash: '#/transaksi', label: 'Transaksi' },
+  { hash: '#/transaksi', label: 'Transaksi', badge: true },
   { hash: '#/input', label: 'Input Laporan' },
 ];
 
@@ -16,13 +16,15 @@ function renderTopbar(activeHash) {
     slot.replaceChildren();
     return;
   }
-  const links = NAV.map((item) =>
-    el('a', {
+  const warn = getJumlahPeringatan();
+  const links = NAV.map((item) => {
+    const label = item.badge && warn > 0 ? `${item.label} (${warn})` : item.label;
+    return el('a', {
       class: `nav-link ${activeHash.startsWith(item.hash) ? 'active' : ''}`,
       href: item.hash,
-      text: item.label,
-    }),
-  );
+      text: label,
+    });
+  });
   slot.replaceChildren(
     el('div', { class: 'topbar' }, [
       el('span', { class: 'brand', text: 'Monitoring Kendaraan' }),
@@ -69,6 +71,7 @@ async function boot() {
   renderTopbar(hash);
 
   window.addEventListener('hashchange', () => renderTopbar(window.location.hash || '#/login'));
+  onPeringatanChange(() => renderTopbar(window.location.hash || '#/login'));
 
   startRouter();
 
