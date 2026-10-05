@@ -58,16 +58,16 @@ describe('getMasterPayload', () => {
   it('SUPERADMIN menerima semua master (Aktif saja) + bentuk GAS super', () => {
     const p = getMasterPayload(sampleRaw(), { role: 'SUPERADMIN', cabang: '' }, {});
     expect(p.cabangList).toEqual([
-      { kode: 'CBG-A', nama: 'Cabang A' },
-      { kode: 'CBG-B', nama: 'Cabang B' },
+      { kode: 'CBG-A', nama: 'Cabang A', lokasi: 'Jkt' },
+      { kode: 'CBG-B', nama: 'Cabang B', lokasi: 'Sby' },
     ]);
     expect(p.vehicles.map((v: any) => v.vehicle_id)).toEqual(['V-1', 'V-2']);
     expect(p.vehicles[0]).toMatchObject({ plat_nomor: 'B 1 A', nama: 'Corolla', jenis: 'Mobil', cabang: 'CBG-A' });
     expect(p.drivers.map((d: any) => d.id)).toEqual(['DRV-1', 'DRV-2']);
     expect(p.bbmList).toEqual([
-      { id: 'BBM-P', jenis: 'Pertalite', harga: 10000 },
-      { id: 'BBM-PX', jenis: 'Pertalite A', harga: 10200 },
-      { id: 'BBM-S', jenis: 'Solar', harga: 12000 },
+      { id: 'BBM-P', jenis: 'Pertalite', harga: 10000, kode_cabang: '' },
+      { id: 'BBM-PX', jenis: 'Pertalite A', harga: 10200, kode_cabang: 'CBG-A' },
+      { id: 'BBM-S', jenis: 'Solar', harga: 12000, kode_cabang: '' },
     ]);
     expect(p.penggunaList.map((u: any) => u.username)).toEqual(['super', 'pic']);
     expect(p.penggunaList[0]).toHaveProperty('cabang');

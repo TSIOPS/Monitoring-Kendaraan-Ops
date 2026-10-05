@@ -27,8 +27,8 @@ describe('GET /api/master', () => {
     expect(body.vehicles[0]).toMatchObject({
       vehicle_id: 'V-1', plat_nomor: 'B 1 A', nama: 'Corolla', cabang: 'CBG-A', interval_ganti_oli_km: 5000,
     });
-    expect(body.cabangList).toEqual([{ kode: 'CBG-A', nama: 'Cabang A' }]);
-    expect(body.bbmList).toEqual([{ id: 'BBM-P', jenis: 'Pertalite', harga: 10000 }]);
+    expect(body.cabangList).toEqual([{ kode: 'CBG-A', nama: 'Cabang A', lokasi: 'Jkt' }]);
+    expect(body.bbmList).toEqual([{ id: 'BBM-P', jenis: 'Pertalite', harga: 10000, kode_cabang: '' }]);
     expect(body.penggunaList).toEqual([]);
   });
 

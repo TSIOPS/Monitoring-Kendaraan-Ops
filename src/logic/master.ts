@@ -38,7 +38,8 @@ export function getMasterPayload(
   const cabangList = isSuper
     ? raw.cabang
         .filter((c) => c.status === 'Aktif')
-        .map((c) => ({ kode: c.kode_cabang, nama: c.nama_cabang }))
+        // lokasi ikut agar form edit tidak mengosongkannya (bug GAS, spec M10 D1).
+        .map((c) => ({ kode: c.kode_cabang, nama: c.nama_cabang, lokasi: c.lokasi }))
     : (() => {
         const mine = String(user.cabang || '');
         const own = raw.cabang.find((c) => String(c.kode_cabang) === mine && c.status === 'Aktif');
@@ -81,7 +82,7 @@ export function getMasterPayload(
   const bbmList = isSuper
     ? raw.bbm
         .filter((b) => b.status === 'Aktif')
-        .map((b) => ({ id: b.bbm_id, jenis: b.jenis_bbm, harga: b.harga_per_liter }))
+        .map((b) => ({ id: b.bbm_id, jenis: b.jenis_bbm, harga: b.harga_per_liter, kode_cabang: b.kode_cabang || '' }))
     : (() => {
         const globals: Record<string, Record<string, unknown>> = {};
         const overrides: Record<string, Record<string, unknown>> = {};
