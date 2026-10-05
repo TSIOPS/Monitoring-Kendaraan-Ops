@@ -92,8 +92,10 @@ lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`,
 - **M10** — Halaman Data Master (kendaraan + reset oli, warehouse, supir, BBM,
   kartu Flazz, pengguna) **selesai** - 2026-10-06; lihat
   `docs/superpowers/specs/2026-10-06-m10-data-master-ui-design.md`.
-  Berikutnya: edit transaksi lengkap (tanggal/supir/KM/foto/liter seperti GAS),
-  migrasi foto, cutover dari GAS.
+- **M11** — Edit transaksi lengkap (tanggal, supir, KM, bar, liter, pembayaran,
+  foto) **selesai** - 2026-10-06; lihat
+  `docs/superpowers/specs/2026-10-06-m11-edit-transaksi-lengkap-design.md`.
+  Berikutnya: migrasi foto, cutover dari GAS.
 
 Catatan M5: tidak ada perubahan schema dan tidak ada upload evidence. Field
 bukti hanya `evidence_url` (URL http/https), sedangkan upload foto tetap hanya
