@@ -9,6 +9,7 @@ const NAV = [
   { hash: '#/input', label: 'Input Laporan' },
   { hash: '#/jalur', label: 'Jalur' },
   { hash: '#/flazz', label: 'Flazz' },
+  { hash: '#/master', label: 'Data Master' },
 ];
 
 function renderTopbar(activeHash) {
@@ -74,6 +75,11 @@ registerRoute('#/jalur', jalurPage('renderJalurList'));
 registerRoute('#/jalur/buat', jalurPage('renderJalurBuat'));
 registerRoute('#/jalur/ringkasan', jalurPage('renderJalurRingkasan'));
 registerRoute('#/jalur/edit/:id', jalurPage('renderJalurEdit'));
+
+registerRoute('#/master', async () => {
+  const mod = await import('./pages/master.js');
+  return { render: mod.renderMaster };
+});
 
 const flazzPage = (name) => async () => {
   const mod = await import('./pages/flazz.js');
