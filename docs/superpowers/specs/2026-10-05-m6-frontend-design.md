@@ -178,14 +178,19 @@ Alur isian:
 
 1. **Kendaraan** — dropdown dari `GET /api/master` (seluruh master sudah
    di-cache server per role). Mengubah kendaraan memanggil
-   `GET /api/laporan/prefill` untuk mengisi nilai default transaksi terakhir
-   kendaraan itu: `bar_awal`, `bar_akhir`, `liter_bbm`, `biaya_bbm`, metode
-   pembayaran, kartu, dan nama supir.
-2. **Tanggal, supir, KM** — tanggal dan nama supir terisi dari prefill. KM
-   awal dan KM akhir **tidak** ada di prefill; keduanya diisi user. Field
-   `km_awal_broken` / `km_akhir_broken` diset saat user mencentang "meter
-   mati". Saat estimasi diperlukan, server memakai `lastForVehicle` sebagai
-   anchor secara internal — klien tidak pernah mengirim anchor itu.
+   `GET /api/laporan/prefill`. Endpoint ini **tidak menerima parameter
+   kendaraan**: ia selalu mengembalikan transaksi terakhir dalam scope user,
+   atau `null` bila belum ada transaksi sama sekali. Klien wajib memeriksa
+   `pref.vehicle_id` sebelum memakai nilainya, sehingga prefill hanya
+   diterapkan bila transaksi terakhir memang milik kendaraan yang dipilih.
+   Yang terisi: `bar_awal`, `bar_akhir`, `liter_bbm`, `biaya_bbm`, metode
+   pembayaran, kartu, tanggal, dan nama supir.
+2. **Tanggal, supir, KM** — tanggal dan nama supir terisi dari prefill bila
+   prefill relevan. KM awal dan KM akhir **tidak** ada di prefill;
+   keduanya diisi user. Field `km_awal_broken` / `km_akhir_broken` diset
+   saat user mencentang "meter mati". Saat estimasi diperlukan, server
+   memakai `lastForVehicle` sebagai anchor secara internal — klien tidak
+   pernah mengirim anchor itu.
 3. **Bar dan liter** — jika kendaraan `jenis_indikator` = `ANALOG_JARUM`, bar
    terkunci di 100 dan tidak dapat diedit.
 4. **Pembayaran** — TUNAI atau FLAZZ. FLAZZ wajib memilih kartu; server
