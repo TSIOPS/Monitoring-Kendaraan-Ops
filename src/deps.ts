@@ -2,6 +2,7 @@ import type { MasterRepo } from './db/master';
 import type { SettingsRepo } from './db/settings';
 import type { LaporanRepo } from './db/laporan';
 import type { FlazzRepo } from './db/flazz';
+import type { JalurRepo } from './db/jalur';
 import type { StorageUploadResult, UploadEvidenceOpts } from './db/storage';
 import type { Env } from './env';
 
@@ -64,6 +65,7 @@ export interface AppDeps {
   settings: SettingsRepo;
   laporan: LaporanRepo;
   flazz: FlazzRepo;
+  jalur: JalurRepo;
   uploadEvidence: (env: Env, opts: UploadEvidenceOpts) => Promise<StorageUploadResult>;
   deleteEvidence: (env: Env, key: string) => Promise<void>;
 }

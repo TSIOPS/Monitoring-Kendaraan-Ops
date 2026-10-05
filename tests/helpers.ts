@@ -1,3 +1,5 @@
+import type { JalurRepo } from '../src/db/jalur';
+import type { JalurFull } from '../src/logic/jalur';
 import type { AppDeps, AuditRow, KVStore, SessionUser } from '../src/deps';
 import type {
   MasterBbm,
@@ -331,6 +333,7 @@ export function makeDeps(over: Partial<AppDeps> = {}) {
   const { values: settingsValues, repo: settings } = memSettings();
   const { state: laporanState, repo: laporan } = memLaporan();
   const { state: flazzState, repo: flazz } = memFlazz();
+  const { repo: jalur } = memJalur(laporanState.jalur);
   const storage = memStorage();
   const deps: AppDeps = {
     kv,
@@ -344,6 +347,7 @@ export function makeDeps(over: Partial<AppDeps> = {}) {
     settings,
     laporan,
     flazz,
+    jalur,
     uploadEvidence: storage.uploadEvidence,
     deleteEvidence: storage.deleteEvidence,
     ...over,
@@ -561,6 +565,14 @@ export function memFlazz(initial?: Partial<MemFlazzState>) {
       }
       for (const cardId of affected) restoreCard(cardId);
     },
+    async returnActiveUsageForCard(cardId) {
+      for (const u of state.usage) {
+        if (u.status !== 'DIBERIKAN' || canonicalCardId(u.card_id) !== canonicalCardId(cardId)) continue;
+        u.status = 'DIKEMBALIKAN';
+        u.returned_at = '2026-01-02T00:00:00.000Z';
+      }
+      restoreCard(cardId);
+    },
     async returnUsageForCardRef(refType, refId, cardId) {
       for (const u of state.usage) {
         if (u.ref_type !== refType || u.ref_id !== refId || u.status !== 'DIBERIKAN') continue;
@@ -578,4 +590,39 @@ export function memFlazz(initial?: Partial<MemFlazzState>) {
     },
   };
   return { state, repo };
+}
+
+// Repo jalur di memori; berbagi array `jalur` dengan memLaporan agar gate laporan
+// langsung melihat jalur yang dibuat lewat /api/jalur.
+const JALUR_DEFAULT: JalurFull = {
+  id: '', tanggal: '', driver_id: '', nama_driver: '', driver2_id: '', nama_driver2: '', vehicle_id: '',
+  plat_nomor: '', nama_kendaraan: '', jenis_kendaraan: '', rute_tujuan: '', kode_cabang: '',
+  flazz_card_id: '', flazz_card_name: '', flazz_card_id_2: '', flazz_card_name_2: '', created_by: '',
+  created_at: '', updated_at: '', is_deleted: '', status: 'BELUM_DIISI', laporan_id: '',
+};
+
+export function memJalur(shared: JalurRow[] = []) {
+  const all = () => shared.map((j) => ({ ...JALUR_DEFAULT, ...clone(j) }) as JalurFull);
+  const alive = () => all().filter((j) => String(j.is_deleted) !== '1');
+  const repo: JalurRepo = {
+    async listRange(from, to, cabang) {
+      return alive().filter((j) => j.tanggal.slice(0, 10) >= from && j.tanggal.slice(0, 10) <= to && (!cabang || j.kode_cabang === cabang));
+    },
+    async listForDate(tanggal, cabang) {
+      return alive().filter((j) => j.tanggal.startsWith(tanggal) && (!cabang || j.kode_cabang === cabang));
+    },
+    async listForVehicles(ids) { return alive().filter((j) => ids.includes(j.vehicle_id)); },
+    async listForCards(ids) { return all().filter((j) => ids.includes(j.flazz_card_id) || ids.includes(j.flazz_card_id_2)); },
+    async findById(id) { return all().find((j) => j.id === id) ?? null; },
+    async insertMany(rows) { for (const r of rows) shared.push(clone(r) as unknown as JalurRow); },
+    async update(id, patch) {
+      const j = shared.find((x) => x.id === id);
+      if (j) Object.assign(j, clone(patch));
+    },
+    async delete(id) {
+      const i = shared.findIndex((x) => x.id === id);
+      if (i > -1) shared.splice(i, 1);
+    },
+  };
+  return { rows: shared, repo };
 }

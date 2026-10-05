@@ -242,6 +242,8 @@ export interface FlazzRepo {
   adjustActiveUsageOpening(cardId: string, delta: number): Promise<void>;
   returnUsageForRef(refType: string, refId: string): Promise<void>;
   returnUsageForCardRef(refType: string, refId: string, cardId: string): Promise<void>;
+  // Kembalikan penyerahan kartu yang sedang aktif, apa pun asalnya (port returnFlazzUsage GAS).
+  returnActiveUsageForCard(cardId: string): Promise<void>;
   latestGivenAt(cardId: string): Promise<number | null>;
 }
 
@@ -526,6 +528,16 @@ export function supabaseFlazzRepo(env: Env): FlazzRepo {
       for (const cid of [...new Set(rows.map((r) => r.card_id))]) await releaseCard(cid);
     },
 
+    async returnActiveUsageForCard(cardId) {
+      const card = await readCard(cardId);
+      const resolved = card?.id ?? cardId;
+      if (!(await activeUsageRows(resolved)).length) return;
+      const { error } = await sb().from('flazz_usage')
+        .update({ status: 'DIKEMBALIKAN', returned_at: nowIso() })
+        .eq('card_id', resolved).eq('status', 'DIBERIKAN');
+      if (error) throw fail('returnActiveUsageForCard')(error);
+      await releaseCard(resolved);
+    },
     async returnUsageForCardRef(refType, refId, cardId) {
       const card = await readCard(cardId);
       const resolved = card?.id ?? cardId;

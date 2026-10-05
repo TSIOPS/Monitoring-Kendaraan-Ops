@@ -13,9 +13,11 @@ import { supabaseMasterRepo } from './db/master';
 import { supabaseSettingsRepo } from './db/settings';
 import { supabaseLaporanRepo } from './db/laporan';
 import { supabaseFlazzRepo } from './db/flazz';
+import { supabaseJalurRepo } from './db/jalur';
 import { uploadEvidenceStorage, deleteEvidenceStorage } from './db/storage';
 import { laporanRoutes, dashboardRoutes } from './routes/laporan';
 import { flazzRoutes } from './routes/flazz';
+import { jalurRoutes } from './routes/jalur';
 
 export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bindings: Env }> {
   const deps: AppDeps = {
@@ -28,6 +30,7 @@ export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bin
     settings: supabaseSettingsRepo(env),
     laporan: supabaseLaporanRepo(env),
     flazz: supabaseFlazzRepo(env),
+    jalur: supabaseJalurRepo(env),
     uploadEvidence: uploadEvidenceStorage,
     deleteEvidence: deleteEvidenceStorage,
     ...overrides,
@@ -58,6 +61,7 @@ export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bin
   app.route('/api/settings', settingsRoutes(deps));
   app.route('/api/audit', auditRoutes(deps));
   app.route('/api/flazz', flazzRoutes(deps));
+  app.route('/api/jalur', jalurRoutes(deps));
   app.route('/api/laporan', laporanRoutes(deps));
   app.route('/api/dashboard', dashboardRoutes(deps));
 

@@ -5,6 +5,7 @@ import type { AppDeps, SessionUser } from '../deps';
 import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
 import { HttpError, okPayload, reqIp } from '../utils/http';
+import { recomputeJalurForCard } from './jalur';
 import { jsonSnip } from './master';
 import { bumpMasterRev, invalidateDashwarn } from '../logic/master-cache';
 import { CardBalanceError } from '../db/flazz';
@@ -502,6 +503,8 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       reconciliation_status: 'UNRECONCILED', notes: str(b.notes), reconciled_by: u.username,
     });
     await audit(c, { action: 'CREATE', modul: 'flazz', keterangan: 'Rekonsiliasi kartu ' + card.card_number, data_sesudah: jsonSnip(row) });
+    // Status jalur: SELESAI hanya bila SEMUA kartu jalur sudah direkon (spec M8 §4.6).
+    await recomputeJalurForCard(deps, card.id);
     await afterWrite(u);
     return c.json(okPayload({ reconciliation: row }));
   });
@@ -535,6 +538,7 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       ...(b.notes !== undefined ? { notes: str(b.notes) } : {}),
     });
     await audit(c, { action: 'UPDATE', modul: 'flazz', keterangan: 'Rekonsiliasi ' + row.id, data_sebelum: jsonSnip(row), data_sesudah: jsonSnip(computed) });
+    if (date !== undefined) await recomputeJalurForCard(deps, card.id);
     await afterWrite(u);
     return c.json(okPayload({ msg: 'Rekonsiliasi berhasil diperbarui.' }));
   });
@@ -602,6 +606,7 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     }
     await deps.flazz.updateReconciliation(row.id, { is_deleted: '1' });
     await audit(c, { action: 'DELETE', modul: 'flazz', keterangan: 'Rekonsiliasi ' + row.id, data_sebelum: jsonSnip(row) });
+    await recomputeJalurForCard(deps, row.card_id);
     await afterWrite(u);
     return c.json(okPayload({ msg: 'Rekonsiliasi dihapus.' }));
   });

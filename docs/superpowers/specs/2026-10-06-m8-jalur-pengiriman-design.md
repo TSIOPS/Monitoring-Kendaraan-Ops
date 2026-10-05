@@ -1,7 +1,7 @@
 # M8 — Modul Jalur Pengiriman (Design)
 
 Tanggal: 2026-10-06
-Status: draft, menunggu review
+Status: disetujui 2026-10-06 (D1–D4 sesuai usulan)
 
 ## 1. Latar Belakang
 
