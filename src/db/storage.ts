@@ -10,7 +10,7 @@ export interface StorageUploadResult {
 
 export interface UploadEvidenceOpts {
   branch: string;
-  folder: 'KM_Awal' | 'KM_Akhir';
+  folder: 'KM_Awal' | 'KM_Akhir' | 'Flazz_TopUp' | 'Flazz_Recon';
   bytes: Uint8Array;
   ext: string;
   contentType: string;

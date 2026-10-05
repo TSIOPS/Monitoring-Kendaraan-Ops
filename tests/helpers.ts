@@ -269,6 +269,11 @@ export function memLaporan(initial?: Partial<MemLaporanState>) {
       }
       return best ? { ...clone(best), status: best.status || 'BELUM_DIISI' } : null;
     },
+    async rowsForCards(cardIds) {
+      const want = cardIds.map((c) => canonicalCardId(c));
+      const hit = (v: unknown) => !!String(v ?? '') && want.includes(canonicalCardId(v));
+      return clone(state.rows.filter((r) => hit(r.flazz_card_id) || hit(r.flazz_card_id_toll) || hit(r.flazz_card_id_2) || hit(r.flazz_card_id_toll_2)));
+    },
     async setJalurStatus(jalurId, status, laporanId) {
       const j = state.jalur.find((x) => x.id === jalurId);
       if (j) { j.status = status; j.laporan_id = laporanId; }
@@ -564,6 +569,14 @@ export function memFlazz(initial?: Partial<MemFlazzState>) {
         if (!affected.includes(u.card_id)) affected.push(u.card_id);
       }
       for (const cardId of affected) restoreCard(cardId);
+    },
+    async listUsages(cardIds) {
+      const want = cardIds?.map((c) => canonicalCardId(c));
+      return clone(state.usage.filter((u) => !want || want.includes(canonicalCardId(u.card_id))));
+    },
+    async updateUsage(id, patch) {
+      const u = state.usage.find((x) => x.id === id);
+      if (u) Object.assign(u, patch);
     },
     async returnActiveUsageForCard(cardId) {
       for (const u of state.usage) {

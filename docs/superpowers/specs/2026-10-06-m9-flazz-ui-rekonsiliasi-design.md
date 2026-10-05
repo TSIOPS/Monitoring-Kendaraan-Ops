@@ -1,7 +1,7 @@
 # M9 — Halaman Flazz + Rekonsiliasi Model GAS (Design)
 
 Tanggal: 2026-10-06
-Status: draft, menunggu review
+Status: disetujui 2026-10-06 (D1–D5 sesuai usulan)
 
 ## 1. Latar Belakang
 

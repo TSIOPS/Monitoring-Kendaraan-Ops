@@ -46,6 +46,8 @@ export interface LaporanRepo {
   findJalurByCriteria(criteria: JalurCriteria): Promise<JalurRow | null>;
   setJalurStatus(jalurId: string, status: string, laporanId: string): Promise<void>;
   releaseJalurReport(laporanId: string): Promise<void>;
+  // M9: laporan yang menyebut salah satu kartu di kolom kartu mana pun (grup 1 & 2).
+  rowsForCards(cardIds: string[]): Promise<LaporanRow[]>;
 }
 
 export function supabaseLaporanRepo(env: Env): LaporanRepo {
@@ -124,6 +126,24 @@ export function supabaseLaporanRepo(env: Env): LaporanRepo {
       const { error } = await sb().from('jalur_pengiriman')
         .update({ status, laporan_id: laporanId, updated_at: nowIso() }).eq('id', jalurId);
       if (error) throw fail('setJalurStatus')(error);
+    },
+
+    async rowsForCards(cardIds) {
+      // Varian id: master (FLZ-...) dan kanonik (tanpa '-') untuk baris lama.
+      const ids = [...new Set(cardIds.flatMap((c) => [String(c), String(c).replace(/-/g, '')]).filter(Boolean))];
+      if (!ids.length) return [];
+      const list = '(' + ids.map((v) => '"' + v.replace(/"/g, '') + '"').join(',') + ')';
+      const cols = ['flazz_card_id', 'flazz_card_id_toll', 'flazz_card_id_2', 'flazz_card_id_toll_2'];
+      const out: LaporanRow[] = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await sb().from('penggunaan_bbm').select('*')
+          .or(cols.map((c) => `${c}.in.${list}`).join(','))
+          .order('seq', { ascending: true }).range(from, from + 999);
+        if (error) throw fail('rowsForCards')(error);
+        const page = (data as LaporanRow[] | null) ?? [];
+        out.push(...page);
+        if (page.length < 1000) return out;
+      }
     },
 
     async releaseJalurReport(laporanId) {

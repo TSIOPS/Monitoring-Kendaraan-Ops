@@ -216,15 +216,14 @@ describe('alur penuh: jalur -> laporan -> rekon dua kartu', () => {
     expect(lap.status).toBe(200);
     expect(rows[0]!.status).toBe('SUDAH_LAPORAN');
 
-    const rekon = (card: string) => req(app, 'POST', '/api/flazz/reconciliation', tok, {
-      card_id: card, date: '2026-10-06', opening_balance: 500000, total_topup: 0, total_bbm_flazz: 0, total_tol: 0, actual_balance: 500000,
-    });
+    // Model GAS (M9): cukup saldo fisik; laporan tanpa pengeluaran kartu lolos syarat lewat jalur.
+    const rekon = (card: string) => req(app, 'POST', '/api/flazz/reconciliation', tok, { card_id: card, actual_balance: 500000, tanggal: '2026-10-06' });
     expect((await rekon('FLZ-A')).status).toBe(200);
     expect(rows[0]!.status).toBe('SUDAH_LAPORAN');
     const r2 = (await (await rekon('FLZ-B')).json()) as any;
     expect(rows[0]!.status).toBe('SELESAI');
 
-    expect((await req(app, 'DELETE', '/api/flazz/reconciliation/' + r2.reconciliation.id, tok)).status).toBe(200);
+    expect((await req(app, 'DELETE', '/api/flazz/reconciliation/' + r2.reconciliation.id, await loginAs(kv, SUPER))).status).toBe(200);
     expect(rows[0]!.status).toBe('SUDAH_LAPORAN');
   });
 });

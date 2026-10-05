@@ -51,7 +51,7 @@ async function readJson(c: Ctx): Promise<Record<string, any>> {
   }
 }
 
-function decodeBase64(dataUri: unknown): Uint8Array {
+export function decodeBase64(dataUri: unknown): Uint8Array {
   const raw = String(dataUri ?? '');
   const b64 = raw.split(',')[1] ?? raw;
   if (!b64) throw new Error('Data base64 tidak valid');
@@ -62,7 +62,7 @@ function decodeBase64(dataUri: unknown): Uint8Array {
   return bytes;
 }
 
-function extOf(fileName: unknown): { ext: string; contentType: string } {
+export function extOf(fileName: unknown): { ext: string; contentType: string } {
   const m = /\.([a-z0-9]+)$/i.exec(String(fileName || ''));
   const raw = (m?.[1] ?? 'jpg').toLowerCase();
   const ext = EVIDENCE_EXT[raw] ? raw : 'jpg';

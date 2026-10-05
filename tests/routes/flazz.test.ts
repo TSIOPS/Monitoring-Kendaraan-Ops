@@ -30,14 +30,6 @@ const tol = (over: Partial<FlazzTolRow> = {}): FlazzTolRow => ({
   created_at: '2026-01-01T00:00:00.000Z', is_deleted: '0', ...over,
 });
 
-const recon = (over: Partial<FlazzReconciliationRow> = {}): FlazzReconciliationRow => ({
-  id: 'REC-1', date: '2026-09-01', card_id: 'FLZ-1', driver_id: '', vehicle_id: '',
-  opening_balance: 500000, total_topup: 100000, total_bbm_flazz: 120000, total_tol: 20000,
-  total_expense: 140000, flazz_balance: 460000, actual_balance: 460000, difference: 0,
-  reconciliation_status: 'UNRECONCILED', notes: '', reconciled_by: 'pic',
-  reconciled_at: '2026-01-01T00:00:00.000Z', is_deleted: '0', ...over,
-});
-
 function setup(init: { cards?: FlazzCardRow[]; topups?: FlazzTopupRow[]; tols?: FlazzTolRow[]; recons?: FlazzReconciliationRow[]; fail?: string } = {}) {
   const master = memMaster({
     cabang: CABANG,
@@ -266,95 +258,5 @@ describe('/api/flazz/card/:id/adjust', () => {
     expect(res.status).toBe(200);
     expect(flz.state.cards[0]!.last_balance).toBe(525000);
     expect(flz.state.usage[0]!.opening_balance).toBe(opening + 25000);
-  });
-});
-
-describe('/api/flazz/reconciliation', () => {
-  it('create menyimpan total yang dihitung server dan status UNRECONCILED', async () => {
-    const { app, kv, flz } = setup({ cards: [card()] });
-    const tok = await loginAs(kv, PIC);
-    const res = await post(app, '/api/flazz/reconciliation', tok, {
-      card_id: 'FLZ-1', date: '2026-09-01', opening_balance: 500000,
-      total_topup: 100000, total_bbm_flazz: 120000, total_tol: 20000, actual_balance: 460000,
-    });
-    expect(res.status).toBe(200);
-    expect(flz.state.reconciliations[0]).toMatchObject({
-      total_expense: 140000, flazz_balance: 460000, difference: 0, reconciliation_status: 'UNRECONCILED',
-    });
-    expect(flz.state.cards[0]!.last_balance).toBe(500000);
-  });
-
-  it('total tidak valid -> 400', async () => {
-    const { app, kv, flz } = setup({ cards: [card()] });
-    const tok = await loginAs(kv, PIC);
-    const res = await post(app, '/api/flazz/reconciliation', tok, {
-      card_id: 'FLZ-1', date: '2026-09-01', total_topup: 'abc', actual_balance: 1,
-    });
-    expect(res.status).toBe(400);
-    expect(flz.state.reconciliations).toHaveLength(0);
-  });
-
-  it('update ditolak untuk baris APPLIED, diterima untuk UNRECONCILED', async () => {
-    const { app, kv, flz } = setup({ cards: [card()], recons: [
-      recon({ id: 'REC-APPLIED', reconciliation_status: 'APPLIED' }),
-      recon({ id: 'REC-1' }),
-    ] });
-    const tok = await loginAs(kv, PIC);
-    expect((await put(app, '/api/flazz/reconciliation/REC-APPLIED', tok, { total_topup: 1, actual_balance: 1 })).status).toBe(409);
-    expect((await put(app, '/api/flazz/reconciliation/REC-1', tok, { total_topup: 200000, actual_balance: 560000 })).status).toBe(200);
-    expect(flz.state.reconciliations[1]).toMatchObject({ total_topup: 200000, flazz_balance: 560000 });
-  });
-
-  it('ignore hanya mengubah status, saldo kartu tidak berubah', async () => {
-    const { app, kv, flz } = setup({ cards: [card()], recons: [recon()] });
-    const tok = await loginAs(kv, PIC);
-    expect((await post(app, '/api/flazz/reconciliation/REC-1/ignore', tok, {})).status).toBe(200);
-    expect(flz.state.reconciliations[0]!.reconciliation_status).toBe('IGNORED');
-    expect(flz.state.cards[0]!.last_balance).toBe(500000);
-  });
-
-  it('apply men-set saldo ke actual_balance dan menandai APPLIED', async () => {
-    const { app, kv, flz } = setup({ cards: [card({ last_balance: 300000 })], recons: [recon({ actual_balance: 460000 })] });
-    const tok = await loginAs(kv, PIC);
-    const res = await post(app, '/api/flazz/reconciliation/REC-1/apply', tok, {});
-    expect(res.status).toBe(200);
-    expect(flz.state.cards[0]!.last_balance).toBe(460000);
-    expect(flz.state.reconciliations[0]!.reconciliation_status).toBe('APPLIED');
-    expect((await post(app, '/api/flazz/reconciliation/REC-1/apply', tok, {})).status).toBe(409);
-  });
-
-  it('apply baris IGNORED -> 409', async () => {
-    const { app, kv } = setup({ cards: [card()], recons: [recon({ reconciliation_status: 'IGNORED' })] });
-    const tok = await loginAs(kv, PIC);
-    expect((await post(app, '/api/flazz/reconciliation/REC-1/apply', tok, {})).status).toBe(409);
-  });
-
-  it('delete baris APPLIED -> 409; baris lain soft-delete', async () => {
-    const { app, kv, flz } = setup({ cards: [card()], recons: [
-      recon({ id: 'REC-1', reconciliation_status: 'APPLIED' }),
-      recon({ id: 'REC-2' }),
-    ] });
-    const tok = await loginAs(kv, PIC);
-    expect((await del(app, '/api/flazz/reconciliation/REC-1', tok)).status).toBe(409);
-    expect((await del(app, '/api/flazz/reconciliation/REC-2', tok)).status).toBe(200);
-    expect(flz.state.reconciliations[1]!.is_deleted).toBe('1');
-    expect(flz.state.cards[0]!.last_balance).toBe(500000);
-  });
-
-  it('apply gagal update status -> saldo dikembalikan', async () => {
-    const { app, kv, flz } = setup({
-      cards: [card({ last_balance: 300000 })],
-      recons: [recon({ actual_balance: 460000 })],
-      fail: 'updateReconciliation',
-    });
-    const tok = await loginAs(kv, PIC);
-    expect((await post(app, '/api/flazz/reconciliation/REC-1/apply', tok, {})).status).toBe(500);
-    expect(flz.state.cards[0]!.last_balance).toBe(300000);
-  });
-
-  it('PIC tidak bisa akses rekonsiliasi cabang lain -> 403', async () => {
-    const { app, kv } = setup({ cards: [card({ branch_id: 'CBG-B' })], recons: [recon()] });
-    const tok = await loginAs(kv, PIC);
-    expect((await del(app, '/api/flazz/reconciliation/REC-1', tok)).status).toBe(403);
   });
 });

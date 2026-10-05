@@ -6,12 +6,14 @@ import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
 import { HttpError, okPayload, reqIp } from '../utils/http';
 import { recomputeJalurForCard } from './jalur';
+import { decodeBase64, extOf } from './laporan';
+import * as R from '../logic/flazz-recon';
+import { todayWib } from '../logic/jalur';
 import { jsonSnip } from './master';
 import { bumpMasterRev, invalidateDashwarn } from '../logic/master-cache';
 import { CardBalanceError } from '../db/flazz';
 import type { CardPatch, FlazzCardRow } from '../db/flazz';
 import {
-  computeReconciliation,
   isCardUsable,
   isValidFlazzDate,
   ledgerBalanceDelta,
@@ -271,13 +273,24 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     return c.json(okPayload({ topups }));
   });
 
+  const uploadBukti = async (c: Ctx, u: SessionUser, b: Record<string, any>, folder: 'Flazz_TopUp' | 'Flazz_Recon'): Promise<string> => {
+    if (!b.foto_bukti) return '';
+    try {
+      const bytes = decodeBase64(b.foto_bukti);
+      const { ext, contentType } = extOf(b.foto_bukti_name);
+      return (await deps.uploadEvidence(c.env as Env, { branch: u.cabang, folder, bytes, ext, contentType })).url;
+    } catch (e) {
+      throw new HttpError(422, 'Upload foto bukti gagal: ' + (e as Error).message, 'UNPROCESSABLE');
+    }
+  };
+
   app.post('/topup', async (c: Ctx) => {
     const u = c.get('user');
     const b = await readJson(c);
     const card = await usableCard(str(b.card_id), u);
     const date = validateDate(b.date, 'Tanggal top up');
     const amount = validateAmount(b.amount, false, 'Nominal top up');
-    const evidenceUrl = validateEvidence(b.evidence_url);
+    const evidenceUrl = (await uploadBukti(c, u, b, 'Flazz_TopUp')) || validateEvidence(b.evidence_url);
     await deps.flazz.adjustBalance(card.id, amount);
     let row;
     try {
@@ -453,23 +466,6 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
   // ── Reconciliation ───────────────────────────────────────────────────────
 
-  const recTotals = (b: Record<string, any>) => {
-    const num0 = (v: unknown, field: string): number => {
-      if (v === undefined || v === null || v === '') return 0;
-      const n = Number(v);
-      if (!isFinite(n)) throw new HttpError(400, field + ' harus berupa angka.', 'BAD_REQUEST');
-      return n;
-    };
-    return {
-      opening_balance: num0(b.opening_balance, 'opening_balance'),
-      total_topup: num0(b.total_topup, 'total_topup'),
-      total_bbm_flazz: num0(b.total_bbm_flazz, 'total_bbm_flazz'),
-      total_tol: num0(b.total_tol, 'total_tol'),
-      flazz_balance: num0(b.flazz_balance, 'flazz_balance'),
-      actual_balance: num0(b.actual_balance, 'actual_balance'),
-    };
-  };
-
   app.get('/reconciliation', async (c: Ctx) => {
     const u = c.get('user');
     const rows = await deps.flazz.listReconciliations({
@@ -481,134 +477,131 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     return c.json(okPayload({ reconciliations: rows }));
   });
 
+  // ── Rekonsiliasi model GAS (spec M9 §3–§5) ───────────────────────────────
+  // Konteks satu kartu: penyerahan aktif, ledger periode, angka rekon, dan syarat.
+  const reconContext = async (card: FlazzCardRow) => {
+    const [usages, topups, tols, laporan, all] = await Promise.all([
+      deps.flazz.listUsages([card.id]), deps.flazz.listTopups({ cardId: card.id }), deps.flazz.listTols({ cardId: card.id }),
+      deps.laporan.rowsForCards([card.id]), deps.master.listAll(),
+    ]);
+    const usage = R.latestActiveUsage(usages, card.id);
+    const since = R.usageSince(usage);
+    const nums = R.reconNumbers(Number(usage?.opening_balance) || 0, Number(card.last_balance) || 0,
+      R.computeLedger(card.id, since, topups, tols, laporan));
+    const jenis = new Map(all.kendaraan.map((k) => [k.vehicle_id, k.jenis_indikator]));
+    const jalurStatus = new Map<string, string>();
+    for (const x of usages) {
+      if (x.ref_type !== 'JALUR' || x.status !== 'DIBERIKAN' || jalurStatus.has(x.ref_id)) continue;
+      jalurStatus.set(x.ref_id, (await deps.jalur.findById(x.ref_id))?.status ?? '');
+    }
+    const gate = R.reconGate(R.hasCompliantLaporan(card.id, since, laporan, jenis), R.jalurSudahDilaporkan(card.id, usages, jalurStatus));
+    return { usage, nums, gate };
+  };
+
+  app.get('/reconciliation/preview', async (c: Ctx) => {
+    const u = c.get('user');
+    const card = await requireCard(str(c.req.query('card_id')), u);
+    const { usage, nums, gate } = await reconContext(card);
+    return c.json(okPayload({
+      ...gate, ...nums,
+      usage: usage ? { driver_id: usage.driver_id, vehicle_id: usage.vehicle_id, used_at: usage.used_at, opening_balance: Number(usage.opening_balance) || 0 } : null,
+    }));
+  });
+
   app.post('/reconciliation', async (c: Ctx) => {
     const u = c.get('user');
     const b = await readJson(c);
     const card = await requireCard(str(b.card_id), u);
-    const date = validateDate(b.date, 'Tanggal rekonsiliasi');
-    const t = recTotals(b);
-    const driverId = await validateDriver(b.driver_id);
-    const vehicleId = await validateVehicle(b.vehicle_id);
-    const computed = computeReconciliation({
-      openingBalance: t.opening_balance, totalTopup: t.total_topup,
-      totalBbmFlazz: t.total_bbm_flazz, totalTol: t.total_tol,
-      actualBalance: t.actual_balance,
-    });
+    const { usage, nums, gate } = await reconContext(card);
+    if (!gate.eligible) throw new HttpError(409, R.MSG_RECON_DIBLOKIR, 'CONFLICT');
+    const actual = Number(b.actual_balance);
+    if (str(b.actual_balance) === '' || !Number.isFinite(actual) || actual < 0) {
+      throw new HttpError(400, 'Saldo aktual wajib berupa angka yang valid.', 'BAD_REQUEST');
+    }
+    const { difference, status } = R.reconStatus(nums.flazz_balance, actual);
+    const action = b.action === 'ADJUST' || b.action === 'IGNORE' ? b.action : (status === R.STATUS_SESUAI ? 'ADJUST' : 'IGNORE');
+    const date = str(b.tanggal) ? validateDate(b.tanggal, 'Tanggal rekonsiliasi') : todayWib();
+    const bukti = await uploadBukti(c, u, b, 'Flazz_Recon');
+    const nowIso = new Date().toISOString();
+
     const row = await deps.flazz.insertReconciliation({
-      date, card_id: card.id, driver_id: driverId, vehicle_id: vehicleId,
-      opening_balance: t.opening_balance, total_topup: t.total_topup,
-      total_bbm_flazz: t.total_bbm_flazz, total_tol: t.total_tol,
-      total_expense: computed.totalExpense, flazz_balance: computed.flazzBalance,
-      actual_balance: t.actual_balance, difference: computed.difference,
-      reconciliation_status: 'UNRECONCILED', notes: str(b.notes), reconciled_by: u.username,
+      date, card_id: card.id, driver_id: usage?.driver_id ?? '', vehicle_id: usage?.vehicle_id ?? '',
+      opening_balance: nums.opening_balance, total_topup: nums.total_topup, total_bbm_flazz: nums.total_bbm_flazz,
+      total_tol: nums.total_tol, total_expense: nums.total_bbm_flazz + nums.total_tol,
+      flazz_balance: nums.flazz_balance, actual_balance: actual, difference, reconciliation_status: status,
+      notes: [str(b.notes), bukti ? 'Bukti: ' + bukti : ''].filter(Boolean).join(' | '),
+      reconciled_by: u.nama || u.username, reconciled_at: nowIso,
     });
-    await audit(c, { action: 'CREATE', modul: 'flazz', keterangan: 'Rekonsiliasi kartu ' + card.card_number, data_sesudah: jsonSnip(row) });
-    // Status jalur: SELESAI hanya bila SEMUA kartu jalur sudah direkon (spec M8 §4.6).
+    // Carry-forward: saldo fisik bila SESUAI/ADJUST, selain itu saldo sistem.
+    await deps.flazz.setBalance(card.id, status === R.STATUS_SESUAI || action === 'ADJUST' ? actual : nums.flazz_balance);
+    await deps.flazz.updateCard(card.id, { status: 'TERSEDIA', driver_id: card.default_driver_id || '' });
+    if (usage) await deps.flazz.updateUsage(usage.id, { status: 'DIKEMBALIKAN', returned_at: nowIso });
     await recomputeJalurForCard(deps, card.id);
-    await afterWrite(u);
-    return c.json(okPayload({ reconciliation: row }));
-  });
 
-  app.put('/reconciliation/:id', async (c: Ctx) => {
-    const u = c.get('user');
-    const row = await deps.flazz.findReconciliationById(c.req.param('id') as string);
-    if (!row || row.is_deleted === '1') throw new HttpError(404, 'Data rekonsiliasi tidak ditemukan.', 'NOT_FOUND');
-    const card = await requireCard(row.card_id, u);
-    if (row.reconciliation_status === 'APPLIED') {
-      throw new HttpError(409, 'Rekonsiliasi yang sudah diterapkan tidak dapat diubah.', 'CONFLICT');
-    }
-    const b = await readJson(c);
-    const date = b.date !== undefined ? validateDate(b.date, 'Tanggal rekonsiliasi') : undefined;
-    const t = recTotals({ ...row, ...b });
-    const driverId = b.driver_id !== undefined ? await validateDriver(b.driver_id) : undefined;
-    const vehicleId = b.vehicle_id !== undefined ? await validateVehicle(b.vehicle_id) : undefined;
-    const computed = computeReconciliation({
-      openingBalance: t.opening_balance, totalTopup: t.total_topup,
-      totalBbmFlazz: t.total_bbm_flazz, totalTol: t.total_tol,
-      actualBalance: t.actual_balance,
-    });
-    await deps.flazz.updateReconciliation(row.id, {
-      ...(date !== undefined ? { date } : {}),
-      ...(driverId !== undefined ? { driver_id: driverId } : {}),
-      ...(vehicleId !== undefined ? { vehicle_id: vehicleId } : {}),
-      opening_balance: t.opening_balance, total_topup: t.total_topup,
-      total_bbm_flazz: t.total_bbm_flazz, total_tol: t.total_tol,
-      total_expense: computed.totalExpense, flazz_balance: computed.flazzBalance,
-      actual_balance: t.actual_balance, difference: computed.difference,
-      ...(b.notes !== undefined ? { notes: str(b.notes) } : {}),
-    });
-    await audit(c, { action: 'UPDATE', modul: 'flazz', keterangan: 'Rekonsiliasi ' + row.id, data_sebelum: jsonSnip(row), data_sesudah: jsonSnip(computed) });
-    if (date !== undefined) await recomputeJalurForCard(deps, card.id);
+    await audit(c, { action: 'CREATE', modul: 'flazz', keterangan: 'Recon ' + row.id, data_sesudah: jsonSnip({ id: row.id, card_id: card.id, reconciliation_status: status, difference, action }) });
     await afterWrite(u);
-    return c.json(okPayload({ msg: 'Rekonsiliasi berhasil diperbarui.' }));
-  });
-
-  app.post('/reconciliation/:id/ignore', async (c: Ctx) => {
-    const u = c.get('user');
-    const row = await deps.flazz.findReconciliationById(c.req.param('id') as string);
-    if (!row || row.is_deleted === '1') throw new HttpError(404, 'Data rekonsiliasi tidak ditemukan.', 'NOT_FOUND');
-    await requireCard(row.card_id, u);
-    if (row.reconciliation_status === 'APPLIED') {
-      throw new HttpError(409, 'Rekonsiliasi yang sudah diterapkan tidak dapat diabaikan.', 'CONFLICT');
-    }
-    await deps.flazz.updateReconciliation(row.id, { reconciliation_status: 'IGNORED', reconciled_by: u.username });
-    await audit(c, { action: 'UPDATE', modul: 'flazz', keterangan: 'Rekonsiliasi diabaikan ' + row.id, data_sebelum: jsonSnip(row) });
-    await afterWrite(u);
-    return c.json(okPayload({ msg: 'Rekonsiliasi ditandai diabaikan.' }));
-  });
-
-  app.post('/reconciliation/:id/apply', async (c: Ctx) => {
-    const u = c.get('user');
-    const row = await deps.flazz.findReconciliationById(c.req.param('id') as string);
-    if (!row || row.is_deleted === '1') throw new HttpError(404, 'Data rekonsiliasi tidak ditemukan.', 'NOT_FOUND');
-    const card = await usableCard(row.card_id, u);
-    if (row.reconciliation_status !== 'UNRECONCILED') {
-      throw new HttpError(409, 'Hanya rekonsiliasi berstatus UNRECONCILED yang dapat diterapkan.', 'CONFLICT');
-    }
-    const current = Number(card.last_balance) || 0;
-    const target = Number(row.actual_balance) || 0;
-    const delta = target - current;
-    let balance = current;
-    if (delta) {
-      try {
-        balance = await deps.flazz.adjustBalance(card.id, delta);
-      } catch (e) {
-        if (e instanceof CardBalanceError) insufficient(card, Math.abs(delta), 'penerapan rekonsiliasi');
-        throw e;
-      }
-      try {
-        await deps.flazz.adjustActiveUsageOpening(card.id, delta);
-      } catch (e) {
-        try { await deps.flazz.adjustBalance(card.id, -delta); } catch { /* rollback best-effort */ }
-        throw e;
-      }
-    }
-    try {
-      await deps.flazz.updateReconciliation(row.id, { reconciliation_status: 'APPLIED', reconciled_by: u.username });
-    } catch (e) {
-      if (delta) {
-        try { await deps.flazz.adjustBalance(card.id, -delta); } catch { /* rollback best-effort */ }
-      }
-      throw e;
-    }
-    await audit(c, { action: 'UPDATE', modul: 'flazz', keterangan: 'Rekonsiliasi diterapkan ' + row.id, data_sebelum: jsonSnip(row), data_sesudah: jsonSnip({ delta, last_balance: balance }) });
-    await afterWrite(u);
-    return c.json(okPayload({ msg: 'Rekonsiliasi berhasil diterapkan.', last_balance: balance }));
+    return c.json(okPayload({ msg: 'Rekonsiliasi disimpan. Status: ' + status + '. Kartu tersedia kembali.', reconciliation: row }));
   });
 
   app.delete('/reconciliation/:id', async (c: Ctx) => {
     const u = c.get('user');
+    if (!isSuper(u)) throw new HttpError(403, 'Akses ditolak: hanya SUPERADMIN yang dapat menghapus rekonsiliasi.', 'FORBIDDEN');
     const row = await deps.flazz.findReconciliationById(c.req.param('id') as string);
-    if (!row || row.is_deleted === '1') throw new HttpError(404, 'Data rekonsiliasi tidak ditemukan.', 'NOT_FOUND');
-    await requireCard(row.card_id, u);
-    if (row.reconciliation_status === 'APPLIED') {
-      throw new HttpError(409, 'Rekonsiliasi yang sudah diterapkan tidak dapat dihapus.', 'CONFLICT');
-    }
+    if (!row || row.is_deleted === '1') throw new HttpError(404, 'Rekonsiliasi tidak ditemukan.', 'NOT_FOUND');
+    const card = await requireCard(row.card_id, u);
+    const [recons, laporan, topups, usages] = await Promise.all([
+      deps.flazz.listReconciliations({ cardId: card.id }), deps.laporan.rowsForCards([card.id]),
+      deps.flazz.listTopups({ cardId: card.id }), deps.flazz.listUsages([card.id]),
+    ]);
+    const tolak = R.deleteRecon409(row, recons, laporan, topups, usages);
+    if (tolak) throw new HttpError(409, tolak, 'CONFLICT');
+
+    // Balikkan semua efek rekon: penyerahan dibuka lagi, saldo ke saldo awal rekon.
+    const closed = R.usageClosedBy(row, usages);
+    if (closed) await deps.flazz.updateUsage(closed.id, { status: 'DIBERIKAN', returned_at: '' });
     await deps.flazz.updateReconciliation(row.id, { is_deleted: '1' });
-    await audit(c, { action: 'DELETE', modul: 'flazz', keterangan: 'Rekonsiliasi ' + row.id, data_sebelum: jsonSnip(row) });
-    await recomputeJalurForCard(deps, row.card_id);
+    await deps.flazz.setBalance(card.id, Number(row.opening_balance) || 0);
+    await deps.flazz.updateCard(card.id, { status: 'SEDANG_DIGUNAKAN', driver_id: closed?.driver_id ?? '' });
+    await recomputeJalurForCard(deps, card.id);
+
+    await audit(c, { action: 'DELETE', modul: 'flazz', keterangan: 'Recon ' + row.id, data_sebelum: jsonSnip({ id: row.id, card_id: card.id, reconciliation_status: row.reconciliation_status }) });
     await afterWrite(u);
-    return c.json(okPayload({ msg: 'Rekonsiliasi dihapus.' }));
+    return c.json(okPayload({ msg: 'Rekonsiliasi dihapus. Saldo kartu dikembalikan ke saldo awal dan status kartu jadi SEDANG_DIGUNAKAN.' }));
+  });
+
+  // ── GET /api/flazz/dashboard (port getFlazzDashboardData) ─────────────────
+  app.get('/dashboard', async (c: Ctx) => {
+    const u = c.get('user');
+    const cards = isSuper(u) ? await deps.flazz.listCards() : (u.cabang ? await deps.flazz.listCards({ branchId: u.cabang }) : []);
+    const master = new Map(cards.map((k) => [canonicalCardId(k.id), k.id]));
+    const resolve = (raw: unknown) => master.get(canonicalCardId(raw)) ?? null;
+    const norm = <T extends { card_id: string }>(list: T[]) =>
+      list.filter((x) => resolve(x.card_id)).map((x) => ({ ...x, card_id: resolve(x.card_id) as string }));
+    const ids = cards.map((k) => k.id);
+    const [topups, tols, usages, recons, laporan] = ids.length
+      ? await Promise.all([deps.flazz.listTopups(), deps.flazz.listTols(), deps.flazz.listUsages(ids), deps.flazz.listReconciliations(), deps.laporan.rowsForCards(ids)])
+      : [[], [], [], [], []];
+    const bbmFlazz = R.buildBbmFlazz(laporan, resolve);
+    const waktu = (x: Record<string, any>) => R.ms(x.created_at || x.used_at || x.reconciled_at || x.timestamp || x.date) ?? 0;
+    const terbaru = (a: Record<string, any>, b: Record<string, any>) => waktu(b) - waktu(a);
+    const tolsN = norm(tols);
+    const tolHistory = [
+      ...tolsN.map((t) => ({ ...t, source: 'MANUAL' })),
+      ...bbmFlazz.filter((x) => x.toll_amount > 0).map((x) => ({
+        id: x.transaction_id, date: x.tanggal, card_id: x.card_id, driver_id: x.driver || '', vehicle_id: x.vehicle || '',
+        amount: x.toll_amount, evidence_url: x.toll_evidence || '', notes: 'Dari laporan harian', created_at: x.timestamp || '',
+        source: 'DAILY', transaction_id: x.transaction_id,
+      })),
+    ].sort((a, b) => (R.ms(b.date) ?? 0) - (R.ms(a.date) ?? 0));
+    return c.json(okPayload({
+      cards,
+      topups: norm(topups).sort(terbaru),
+      tols: tolsN.sort(terbaru),
+      tolHistory,
+      usages: norm(usages).sort(terbaru),
+      recons: norm(recons).sort(terbaru),
+      bbmFlazz: bbmFlazz.sort(terbaru),
+    }));
   });
 
   return app;

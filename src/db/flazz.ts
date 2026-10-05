@@ -244,6 +244,9 @@ export interface FlazzRepo {
   returnUsageForCardRef(refType: string, refId: string, cardId: string): Promise<void>;
   // Kembalikan penyerahan kartu yang sedang aktif, apa pun asalnya (port returnFlazzUsage GAS).
   returnActiveUsageForCard(cardId: string): Promise<void>;
+  // M9: daftar penyerahan (opsional per kartu) dan ubah status penyerahan (rekonsiliasi model GAS).
+  listUsages(cardIds?: string[]): Promise<FlazzUsageRow[]>;
+  updateUsage(id: string, patch: { status?: string; returned_at?: string }): Promise<void>;
   latestGivenAt(cardId: string): Promise<number | null>;
 }
 
@@ -528,6 +531,24 @@ export function supabaseFlazzRepo(env: Env): FlazzRepo {
       for (const cid of [...new Set(rows.map((r) => r.card_id))]) await releaseCard(cid);
     },
 
+    async listUsages(cardIds) {
+      const out: FlazzUsageRow[] = [];
+      const ids = cardIds ? [...new Set(cardIds.filter(Boolean))] : null;
+      if (ids && !ids.length) return out;
+      for (let from = 0; ; from += 1000) {
+        let q = sb().from('flazz_usage').select('*').range(from, from + 999);
+        if (ids) q = q.in('card_id', ids);
+        const { data, error } = await q;
+        if (error) throw fail('listUsages')(error);
+        const page = (data as FlazzUsageRow[] | null) ?? [];
+        out.push(...page);
+        if (page.length < 1000) return out;
+      }
+    },
+    async updateUsage(id, patch) {
+      const { error } = await sb().from('flazz_usage').update(patch).eq('id', id);
+      if (error) throw fail('updateUsage')(error);
+    },
     async returnActiveUsageForCard(cardId) {
       const card = await readCard(cardId);
       const resolved = card?.id ?? cardId;
