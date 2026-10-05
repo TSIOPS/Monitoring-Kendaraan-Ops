@@ -208,6 +208,7 @@ export function laporanRow(over: Partial<LaporanRow> = {}): LaporanRow {
     foto_struk_bbm: '', biaya_toll: 0, foto_struk_toll: '', km_per_liter: 10,
     status: 'COMPLETED', warning: '', nama_supir: 'Supir A', metode_pembayaran: 'TUNAI',
     flazz_card_id: '', km_sumber: 'AKTUAL', metode_toll: 'TUNAI', flazz_card_id_toll: '',
+    flazz_card_id_2: '', biaya_bbm_2: 0, flazz_card_id_toll_2: '', biaya_toll_2: 0,
     ...over,
   };
 }

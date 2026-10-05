@@ -188,9 +188,16 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const biayaTol = L.num(p.biaya_toll);
     const effMetodeToll = L.resolveTollMethod(p.metode_toll, metodeBbm, p.flazz_card_id_toll);
     const effCardToll = L.resolveTollCard(p.flazz_card_id_toll, effMetodeToll, metodeBbm, cardBbm);
+    // Grup-2 (kartu kedua): kartu terisi -> FLAZZ, nominal tanpa kartu -> tunai.
+    const group2 = {
+      cardBbm2: String(p.flazz_card_id_2 ?? '').trim(),
+      biayaBbm2: L.num(p.biaya_bbm_2),
+      cardTol2: String(p.flazz_card_id_toll_2 ?? '').trim(),
+      biayaTol2: L.num(p.biaya_toll_2),
+    };
 
     const { cardMap } = await loadCards(deps);
-    const checks = L.buildFlazzChecks(metodeBbm, cardBbm, biayaBbm, effMetodeToll, effCardToll, biayaTol)
+    const checks = L.buildFlazzChecks(metodeBbm, cardBbm, biayaBbm, effMetodeToll, effCardToll, biayaTol, group2)
       .map((chk) => ({ ...chk, cardId: cardMap.get(L.canonicalCardId(chk.cardId))?.id ?? chk.cardId }));
     for (const chk of checks) {
       const info = cardMap.get(L.canonicalCardId(chk.cardId));
@@ -212,6 +219,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       liter: String(liter),
       biaya_bbm: String(biayaBbm),
       biaya_toll: String(biayaTol),
+      biaya_bbm_2: String(group2.biayaBbm2),
+      biaya_toll_2: String(group2.biayaTol2),
     };
     const candidates = await deps.laporan.duplicateCandidates(trxCabang, 200);
     if (candidates.some((r) => L.isDuplicateRow(r, dupKey))) {
@@ -253,10 +262,14 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       km_sumber: odo.kmSumber,
       metode_toll: effMetodeToll,
       flazz_card_id_toll: effCardToll,
+      flazz_card_id_2: group2.cardBbm2,
+      biaya_bbm_2: group2.biayaBbm2,
+      flazz_card_id_toll_2: group2.cardTol2,
+      biaya_toll_2: group2.biayaTol2,
     };
     await deps.laporan.insert(row);
 
-    const usedFlazz = storeMetodeBbm === 'FLAZZ' || effMetodeToll === 'FLAZZ';
+    const usedFlazz = storeMetodeBbm === 'FLAZZ' || effMetodeToll === 'FLAZZ' || !!group2.cardBbm2 || !!group2.cardTol2;
     if (checks.length) {
       const charged: Array<{ cardId: string; amount: number }> = [];
       try {
@@ -291,7 +304,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     await deps.recordAudit({
       user_id: u.user_id, username: u.username, action: 'CREATE', modul: 'transaksi',
       keterangan: 'TRX ' + transaction_id,
-      data_sesudah: jsonSnip({ cabang: trxCabang, vehicle: kendaraan.plat_nomor, km_tempuh: odo.kmTempuh, liter, biaya: biayaBbm }),
+      data_sesudah: jsonSnip({ cabang: trxCabang, vehicle: kendaraan.plat_nomor, km_tempuh: odo.kmTempuh, liter, biaya: L.rowBbmTotal(row) }),
     });
     await invalidateLaporanCaches(deps.kv, roleOf(u), u.cabang);
     await invalidateDashwarn(deps.kv, roleOf(u), u.cabang);
@@ -350,7 +363,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const oldCardToll = (oldMetodeToll === 'FLAZZ' && !String(old.flazz_card_id_toll ?? '')) ? oldCard : String(old.flazz_card_id_toll ?? '');
 
     const { cardMap } = await loadCards(deps);
-    const vehicleBranch = (await deps.master.findKendaraanById(old.vehicle_id))?.kode_cabang ?? old.kode_cabang;
+    const kendaraan = await deps.master.findKendaraanById(old.vehicle_id);
+    const vehicleBranch = kendaraan?.kode_cabang ?? old.kode_cabang;
     let branch = vehicleBranch;
     if (oldMetode === 'FLAZZ') branch = cardMap.get(L.canonicalCardId(oldCard))?.branch_id ?? vehicleBranch;
     else if (oldMetodeToll === 'FLAZZ' && oldCardToll) branch = cardMap.get(L.canonicalCardId(oldCardToll))?.branch_id ?? vehicleBranch;
@@ -385,10 +399,33 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       }
     }
 
-    const oldPayState = { metodeBbm: oldMetode, cardBbm: oldCard, biayaBbm: oldBiaya, metodeTol: oldMetodeToll, cardTol: oldCardToll, biayaTol: oldToll };
-    const newPayState = { metodeBbm: newMetode, cardBbm: newCard, biayaBbm: newBiaya, metodeTol: newMetodeToll, cardTol: newCardToll, biayaTol: newToll };
-    const involved = L.distinctFlazzCards(oldPayState.metodeBbm, oldPayState.cardBbm, oldPayState.metodeTol, oldPayState.cardTol)
-      .concat(L.distinctFlazzCards(newPayState.metodeBbm, newPayState.cardBbm, newPayState.metodeTol, newPayState.cardTol))
+    // Grup-2 (kartu kedua): tidak ada metode, jadi tidak ada "wajib pilih kartu";
+    // field yang tidak dikirim mempertahankan nilai lama.
+    const oldCard2 = String(old.flazz_card_id_2 ?? '');
+    const oldCardToll2 = String(old.flazz_card_id_toll_2 ?? '');
+    const oldBbm2 = L.num(old.biaya_bbm_2);
+    const oldTol2 = L.num(old.biaya_toll_2);
+    const newCard2 = (p.flazz_card_id_2 !== undefined && p.flazz_card_id_2 !== null) ? String(p.flazz_card_id_2).trim() : oldCard2;
+    const newCardToll2 = (p.flazz_card_id_toll_2 !== undefined && p.flazz_card_id_toll_2 !== null) ? String(p.flazz_card_id_toll_2).trim() : oldCardToll2;
+    const newBbm2 = L.parseEditAmount(p.biaya_bbm_2, oldBbm2);
+    const newTol2 = L.parseEditAmount(p.biaya_toll_2, oldTol2);
+    for (const [baru, lama] of [[newCard2, oldCard2], [newCardToll2, oldCardToll2]] as const) {
+      if (!baru || baru === lama) continue;
+      const target = cardMap.get(L.canonicalCardId(baru));
+      if (!target) throw new HttpError(400, L.MSG_CARD2_TARGET_NOT_FOUND, 'BAD_REQUEST');
+      assertFlazzAccess(u, target.branch_id);
+    }
+
+    const oldPayState = {
+      metodeBbm: oldMetode, cardBbm: oldCard, biayaBbm: oldBiaya, metodeTol: oldMetodeToll, cardTol: oldCardToll, biayaTol: oldToll,
+      cardBbm2: oldCard2, biayaBbm2: oldBbm2, cardTol2: oldCardToll2, biayaTol2: oldTol2,
+    };
+    const newPayState = {
+      metodeBbm: newMetode, cardBbm: newCard, biayaBbm: newBiaya, metodeTol: newMetodeToll, cardTol: newCardToll, biayaTol: newToll,
+      cardBbm2: newCard2, biayaBbm2: newBbm2, cardTol2: newCardToll2, biayaTol2: newTol2,
+    };
+    const involved = L.distinctFlazzCardsOf(oldPayState)
+      .concat(L.distinctFlazzCardsOf(newPayState))
       .filter((x, i, a) => a.indexOf(x) === i);
 
     for (const cardId of involved) {
@@ -423,8 +460,20 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       bar_awal: String(newBarAwal),
       bar_akhir: String(newBarAkhir),
       tanggal: newTgl,
+      flazz_card_id_2: newCard2,
+      biaya_bbm_2: newBbm2,
+      flazz_card_id_toll_2: newCardToll2,
+      biaya_toll_2: newTol2,
     };
     if (p.km_awal !== undefined || p.km_akhir !== undefined) patch.km_sumber = 'AKTUAL';
+
+    // Kolom turunan dihitung ulang dengan rumus yang sama seperti saat simpan
+    // (port recalcTripEfficiencyRow GAS), supaya tidak basi setelah KM/bar/liter dikoreksi.
+    const jumlahBar = String(kendaraan?.jenis_indikator) === 'ANALOG_JARUM' ? 100 : L.num(kendaraan?.jumlah_bar);
+    const literPerBar = L.literPerBarFor(L.num(kendaraan?.kapasitas_tangki), jumlahBar);
+    const literKonsumsi = L.computeLiterKonsumsi(newLiter, newBarAwal, newBarAkhir, literPerBar);
+    patch.perubahan_bar = newBarAwal - newBarAkhir;
+    patch.km_per_liter = L.num(L.computeEfisiensi(newKmAkhir - newKmAwal, literKonsumsi));
 
     if (p.foto_odo_awal) {
       try {
@@ -480,6 +529,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const newly: string[] = [];
     if (isBbmFlazz && L.shouldAutoCreateUsageOnEdit(wasBbmFlazz, isBbmFlazz)) newly.push(newCard);
     if (isTolFlazz && L.shouldAutoCreateUsageOnEdit(wasTolFlazz, isTolFlazz)) newly.push(newCardToll);
+    if (newCard2 && L.shouldAutoCreateUsageOnEdit(!!oldCard2, true)) newly.push(newCard2);
+    if (newCardToll2 && L.shouldAutoCreateUsageOnEdit(!!oldCardToll2, true)) newly.push(newCardToll2);
     for (const cardId of newly.filter((x, i, a) => a.indexOf(x) === i)) {
       const info = cardMap.get(L.canonicalCardId(cardId));
       const masterId = info?.id ?? cardId;
@@ -494,8 +545,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
     await deps.recordAudit({
       user_id: u.user_id, username: u.username, action: 'EDIT', modul: 'transaksi', keterangan: id,
-      data_sebelum: jsonSnip({ metode_pembayaran: oldMetode, flazz_card_id: oldCard, biaya_bbm: oldBiaya, biaya_toll: oldToll, metode_toll: oldMetodeToll, flazz_card_id_toll: oldCardToll }),
-      data_sesudah: jsonSnip({ metode_pembayaran: newMetode, flazz_card_id: newCard, biaya_bbm: newBiaya, biaya_toll: newToll, metode_toll: newMetodeToll, flazz_card_id_toll: newCardToll }),
+      data_sebelum: jsonSnip({ metode_pembayaran: oldMetode, flazz_card_id: oldCard, biaya_bbm: oldBiaya, biaya_toll: oldToll, metode_toll: oldMetodeToll, flazz_card_id_toll: oldCardToll, flazz_card_id_2: oldCard2, biaya_bbm_2: oldBbm2, flazz_card_id_toll_2: oldCardToll2, biaya_toll_2: oldTol2 }),
+      data_sesudah: jsonSnip({ metode_pembayaran: newMetode, flazz_card_id: newCard, biaya_bbm: newBiaya, biaya_toll: newToll, metode_toll: newMetodeToll, flazz_card_id_toll: newCardToll, flazz_card_id_2: newCard2, biaya_bbm_2: newBbm2, flazz_card_id_toll_2: newCardToll2, biaya_toll_2: newTol2 }),
     });
     await invalidateLaporanCaches(deps.kv, roleOf(u), u.cabang);
     await invalidateDashwarn(deps.kv, roleOf(u), u.cabang);
@@ -510,47 +561,71 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const old = await deps.laporan.findById(id);
     if (!old) throw new HttpError(404, L.MSG_TRX_NOT_FOUND, 'NOT_FOUND');
 
+    // Lepas Flazz hanya untuk BBM (keputusan M5): tol tidak diubah, nominal BBM tetap
+    // tercatat sebagai tunai. Berlaku untuk grup-1 dan grup-2 (spec M7 §4.5).
     const f = L.cardFields(old);
     const metodeBbm = String(f.mBbm ?? '');
     const cardBbm = String(f.cBbm ?? '');
     const biaya = L.num(f.bBbm);
-    if (metodeBbm !== 'FLAZZ' || !cardBbm) {
+    const cardBbm2 = String(old.flazz_card_id_2 ?? '').trim();
+    const biaya2 = L.num(old.biaya_bbm_2);
+    const lepas1 = metodeBbm === 'FLAZZ' && !!cardBbm;
+    const lepas2 = !!cardBbm2;
+    if (!lepas1 && !lepas2) {
       throw new HttpError(409, 'Transaksi ini tidak menggunakan pembayaran BBM lewat kartu Flazz sehingga tidak bisa dilepas.', 'CONFLICT');
     }
 
     const { cardMap } = await loadCards(deps);
-    const info = cardMap.get(L.canonicalCardId(cardBbm));
-    const masterId = info?.id ?? cardBbm;
+    const masterOf = (cid: string) => cardMap.get(L.canonicalCardId(cid))?.id ?? cid;
     const vehicleBranch = (await deps.master.findKendaraanById(old.vehicle_id))?.kode_cabang ?? old.kode_cabang;
-    assertTransactionAccess(u, info?.branch_id ?? vehicleBranch);
+    const kartuAkses = lepas1 ? cardBbm : cardBbm2;
+    assertTransactionAccess(u, cardMap.get(L.canonicalCardId(kartuAkses))?.branch_id ?? vehicleBranch);
 
+    // Kartu yang masih dipakai untuk tol (grup mana pun) tetap dipegang supir.
     const metodeToll = String(old.metode_toll ?? '') !== '' ? String(old.metode_toll) : (metodeBbm === 'FLAZZ' ? 'FLAZZ' : 'TUNAI');
     const cardToll = (metodeToll === 'FLAZZ' && !String(old.flazz_card_id_toll ?? '')) ? cardBbm : String(old.flazz_card_id_toll ?? '');
-    const stillUsedForTol = metodeToll === 'FLAZZ' && L.canonicalCardId(cardToll) === L.canonicalCardId(masterId);
+    const kartuTol = [metodeToll === 'FLAZZ' ? cardToll : '', String(old.flazz_card_id_toll_2 ?? '')]
+      .filter((c) => c).map((c) => L.canonicalCardId(masterOf(c)));
 
-    const newMetode = biaya > 0 ? 'TUNAI' : '';
-    const patch = { metode_pembayaran: newMetode, flazz_card_id: '' };
+    const patch: Partial<LaporanInsert> = {};
+    const kembalikan: Array<{ cardId: string; amount: number }> = [];
+    if (lepas1) {
+      patch.metode_pembayaran = biaya > 0 ? 'TUNAI' : '';
+      patch.flazz_card_id = '';
+      kembalikan.push({ cardId: masterOf(cardBbm), amount: biaya });
+    }
+    if (lepas2) {
+      patch.flazz_card_id_2 = '';
+      kembalikan.push({ cardId: masterOf(cardBbm2), amount: biaya2 });
+    }
     await deps.laporan.update(id, patch);
 
-    if (biaya > 0) {
-      try {
-        await deps.flazz.adjustBalance(masterId, biaya);
-      } catch (e) {
-        try {
-          await deps.laporan.update(id, { metode_pembayaran: metodeBbm, flazz_card_id: cardBbm });
-        } catch { /* rollback best-effort */ }
-        throw e;
+    const sudah: Array<{ cardId: string; amount: number }> = [];
+    try {
+      for (const k of kembalikan) {
+        if (k.amount <= 0) continue;
+        await deps.flazz.adjustBalance(k.cardId, k.amount);
+        sudah.push(k);
       }
+    } catch (e) {
+      for (const k of sudah) {
+        try { await deps.flazz.adjustBalance(k.cardId, -k.amount); } catch { /* rollback best-effort */ }
+      }
+      try {
+        await deps.laporan.update(id, { metode_pembayaran: old.metode_pembayaran, flazz_card_id: old.flazz_card_id, flazz_card_id_2: old.flazz_card_id_2 });
+      } catch { /* rollback best-effort */ }
+      throw e;
     }
 
-    if (!stillUsedForTol) {
-      await deps.flazz.returnUsageForCardRef('TRX', id, masterId);
+    for (const k of kembalikan) {
+      if (kartuTol.includes(L.canonicalCardId(k.cardId))) continue;
+      await deps.flazz.returnUsageForCardRef('TRX', id, k.cardId);
     }
 
     await deps.recordAudit({
       user_id: u.user_id, username: u.username, action: 'DETACH', modul: 'transaksi', keterangan: id,
-      data_sebelum: jsonSnip({ metode_pembayaran: metodeBbm, flazz_card_id: cardBbm, biaya_bbm: biaya }),
-      data_sesudah: jsonSnip({ metode_pembayaran: newMetode, flazz_card_id: '', biaya_bbm: biaya, metode_toll: old.metode_toll, flazz_card_id_toll: old.flazz_card_id_toll }),
+      data_sebelum: jsonSnip({ metode_pembayaran: metodeBbm, flazz_card_id: cardBbm, biaya_bbm: biaya, flazz_card_id_2: cardBbm2, biaya_bbm_2: biaya2 }),
+      data_sesudah: jsonSnip({ metode_pembayaran: lepas1 ? patch.metode_pembayaran : metodeBbm, flazz_card_id: lepas1 ? '' : cardBbm, biaya_bbm: biaya, flazz_card_id_2: '', biaya_bbm_2: biaya2, metode_toll: old.metode_toll, flazz_card_id_toll: old.flazz_card_id_toll }),
     });
     await invalidateLaporanCaches(deps.kv, roleOf(u), u.cabang);
     await invalidateDashwarn(deps.kv, roleOf(u), u.cabang);
@@ -580,8 +655,13 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     else if (metodeToll === 'FLAZZ' && cardToll) branch = cardMap.get(L.canonicalCardId(cardToll))?.branch_id ?? vehicleBranch;
     assertTransactionAccess(u, branch);
 
-    const payState = { metodeBbm, cardBbm, biayaBbm: biaya, metodeTol: metodeToll, cardTol: cardToll, biayaTol: toll };
-    const cards = L.distinctFlazzCards(payState.metodeBbm, payState.cardBbm, payState.metodeTol, payState.cardTol);
+    const payState = {
+      metodeBbm, cardBbm, biayaBbm: biaya, metodeTol: metodeToll, cardTol: cardToll, biayaTol: toll,
+      cardBbm2: String(old.flazz_card_id_2 ?? ''), biayaBbm2: L.num(old.biaya_bbm_2),
+      cardTol2: String(old.flazz_card_id_toll_2 ?? ''), biayaTol2: L.num(old.biaya_toll_2),
+    };
+    // Semua kartu terlibat, termasuk kartu kedua.
+    const cards = L.distinctFlazzCardsOf(payState);
     const txStampMs = L.parseTimestampMs(old.timestamp) ?? L.parseTanggalMs(old.tanggal);
 
     await deps.laporan.delete(id);
@@ -602,7 +682,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     await deps.laporan.releaseJalurReport(id);
     await deps.recordAudit({
       user_id: u.user_id, username: u.username, action: 'DELETE', modul: 'transaksi', keterangan: id,
-      data_sebelum: jsonSnip({ metode_pembayaran: metodeBbm, flazz_card_id: cardBbm, biaya_bbm: biaya, biaya_toll: toll, metode_toll: metodeToll, flazz_card_id_toll: cardToll, vehicle_id: old.vehicle_id, kode_cabang: old.kode_cabang, tanggal: old.tanggal }),
+      data_sebelum: jsonSnip({ metode_pembayaran: metodeBbm, flazz_card_id: cardBbm, biaya_bbm: biaya, biaya_toll: toll, metode_toll: metodeToll, flazz_card_id_toll: cardToll, flazz_card_id_2: payState.cardBbm2, biaya_bbm_2: payState.biayaBbm2, flazz_card_id_toll_2: payState.cardTol2, biaya_toll_2: payState.biayaTol2, vehicle_id: old.vehicle_id, kode_cabang: old.kode_cabang, tanggal: old.tanggal }),
     });
     await invalidateLaporanCaches(deps.kv, roleOf(u), u.cabang);
     await invalidateDashwarn(deps.kv, roleOf(u), u.cabang);

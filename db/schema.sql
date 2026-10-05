@@ -93,10 +93,19 @@ create table if not exists penggunaan_bbm (
   km_sumber text not null default '',
   metode_toll text not null default '',
   flazz_card_id_toll text not null default '',
+  flazz_card_id_2 text not null default '',
+  biaya_bbm_2 numeric not null default 0,
+  flazz_card_id_toll_2 text not null default '',
+  biaya_toll_2 numeric not null default 0,
   seq bigint generated always as identity
 );
 
 alter table penggunaan_bbm add column if not exists seq bigint generated always as identity;
+-- M7: grup pembayaran ke-2 (kartu kedua). Metode diturunkan dari isi, tidak disimpan.
+alter table penggunaan_bbm add column if not exists flazz_card_id_2 text not null default '';
+alter table penggunaan_bbm add column if not exists biaya_bbm_2 numeric not null default 0;
+alter table penggunaan_bbm add column if not exists flazz_card_id_toll_2 text not null default '';
+alter table penggunaan_bbm add column if not exists biaya_toll_2 numeric not null default 0;
 
 create table if not exists pengisian_bbm (
   fuel_id text primary key,
@@ -255,8 +264,14 @@ create table if not exists jalur_pengiriman (
   updated_at text not null default '',
   is_deleted text not null default '',
   status text not null default '',
-  laporan_id text not null default ''
+  laporan_id text not null default '',
+  flazz_card_id_2 text not null default '',
+  flazz_card_name_2 text not null default ''
 );
+
+-- M7: slot kartu etoll ke-2 pada jalur (data saja; logika di modul jalur).
+alter table jalur_pengiriman add column if not exists flazz_card_id_2 text not null default '';
+alter table jalur_pengiriman add column if not exists flazz_card_name_2 text not null default '';
 
 -- INDEX --------------------------------------------------------------------------
 create index if not exists idx_penggunaan_branch_tgl on penggunaan_bbm (kode_cabang, tanggal);

@@ -35,6 +35,11 @@ export interface LaporanRow {
   km_sumber: string;
   metode_toll: string;
   flazz_card_id_toll: string;
+  // Grup pembayaran ke-2 (kartu kedua). Metode diturunkan dari isinya, lihat group2FromRow.
+  flazz_card_id_2: string;
+  biaya_bbm_2: number;
+  flazz_card_id_toll_2: string;
+  biaya_toll_2: number;
 }
 export type LaporanInsert = Omit<LaporanRow, 'seq'>;
 
@@ -45,8 +50,22 @@ export interface PaymentState {
   metodeTol: string;
   cardTol: string;
   biayaTol: number;
+  // Grup-2 (kartu kedua); metode tidak disimpan, diturunkan oleh group2FromRow.
+  cardBbm2?: string;
+  biayaBbm2?: number;
+  cardTol2?: string;
+  biayaTol2?: number;
 }
 type AnyPayment = Partial<PaymentState> & Partial<LaporanRow>;
+
+export interface PaymentGroup {
+  mBbm: string;
+  cBbm: string;
+  bBbm: number;
+  mTol: string;
+  cTol: string;
+  bTol: number;
+}
 
 export const num = (v: unknown): number => {
   const n = parseFloat(String(v ?? ''));
@@ -74,20 +93,69 @@ export function cardFields(row: AnyPayment | null | undefined) {
   };
 }
 
+// Nilai pertama yang terdefinisi dari kunci kolom (baris DB) atau kunci state.
+function pickField(row: AnyPayment, longKey: keyof LaporanRow, shortKey: keyof PaymentState): unknown {
+  const r = row as Record<string, unknown>;
+  if (r[longKey] !== undefined && r[longKey] !== null) return r[longKey];
+  if (r[shortKey] !== undefined && r[shortKey] !== null) return r[shortKey];
+  return '';
+}
+const strOf = (v: unknown): string => String(v ?? '').trim();
+
+// Grup-2 dari kolom *_2. Metode DITURUNKAN: kartu terisi -> FLAZZ, nominal > 0
+// tanpa kartu -> TUNAI. null bila keempat kolom kosong/0 (port group2FromRow GAS).
+export function group2FromRow(row: AnyPayment | null | undefined): PaymentGroup | null {
+  if (!row) return null;
+  const cBbm = strOf(pickField(row, 'flazz_card_id_2', 'cardBbm2'));
+  const cTol = strOf(pickField(row, 'flazz_card_id_toll_2', 'cardTol2'));
+  const bBbm = num(pickField(row, 'biaya_bbm_2', 'biayaBbm2'));
+  const bTol = num(pickField(row, 'biaya_toll_2', 'biayaTol2'));
+  const hasBbm = cBbm !== '' || bBbm > 0;
+  const hasTol = cTol !== '' || bTol > 0;
+  if (!hasBbm && !hasTol) return null;
+  return {
+    mBbm: hasBbm ? (cBbm !== '' ? 'FLAZZ' : 'TUNAI') : '',
+    cBbm,
+    bBbm,
+    mTol: hasTol ? (cTol !== '' ? 'FLAZZ' : 'TUNAI') : '',
+    cTol,
+    bTol,
+  };
+}
+
+// Grup-1 selalu ada (semantik kompatibilitas tol lama tetap); grup-2 hanya bila terisi.
+export function cardGroups(row: AnyPayment | null | undefined): PaymentGroup[] {
+  const f = cardFields(row);
+  const tollMethod = resolveTollMethod(f.mTol, f.mBbm, f.cTol);
+  const groups: PaymentGroup[] = [{
+    mBbm: String(f.mBbm ?? ''),
+    cBbm: String(f.cBbm ?? ''),
+    bBbm: num(f.bBbm),
+    mTol: tollMethod,
+    cTol: resolveTollCard(f.cTol, tollMethod, f.mBbm, f.cBbm),
+    bTol: num(f.bTol),
+  }];
+  const g2 = group2FromRow(row);
+  if (g2) groups.push(g2);
+  return groups;
+}
+
 export function flazzBbmShare(row: AnyPayment | null | undefined, cardId: string | null | undefined): number {
   if (!row || cardId == null) return 0;
-  const f = cardFields(row);
-  if (String(f.mBbm) !== 'FLAZZ') return 0;
-  if (canonicalCardId(f.cBbm) !== canonicalCardId(cardId)) return 0;
-  return num(f.bBbm);
+  let total = 0;
+  for (const g of cardGroups(row)) {
+    if (g.mBbm === 'FLAZZ' && canonicalCardId(g.cBbm) === canonicalCardId(cardId)) total += g.bBbm;
+  }
+  return total;
 }
 
 export function flazzTolShare(row: AnyPayment | null | undefined, cardId: string | null | undefined): number {
   if (!row || cardId == null) return 0;
-  const f = cardFields(row);
-  if (String(f.mTol) !== 'FLAZZ') return 0;
-  if (canonicalCardId(f.cTol) !== canonicalCardId(cardId)) return 0;
-  return num(f.bTol);
+  let total = 0;
+  for (const g of cardGroups(row)) {
+    if (g.mTol === 'FLAZZ' && canonicalCardId(g.cTol) === canonicalCardId(cardId)) total += g.bTol;
+  }
+  return total;
 }
 
 export function flazzShareForCard(row: AnyPayment | null | undefined, cardId: string | null | undefined): number {
@@ -96,12 +164,27 @@ export function flazzShareForCard(row: AnyPayment | null | undefined, cardId: st
 
 export function isFlazzRowForCard(row: AnyPayment | null | undefined, cardId: string | null | undefined): boolean {
   if (!row || cardId == null) return false;
-  const f = cardFields(row);
-  const bbm = String(f.mBbm) === 'FLAZZ' && canonicalCardId(f.cBbm) === canonicalCardId(cardId);
-  const tol = String(f.mTol) === 'FLAZZ' && canonicalCardId(f.cTol) === canonicalCardId(cardId);
-  return bbm || tol;
+  return cardGroups(row).some((g) =>
+    (g.mBbm === 'FLAZZ' && canonicalCardId(g.cBbm) === canonicalCardId(cardId)) ||
+    (g.mTol === 'FLAZZ' && canonicalCardId(g.cTol) === canonicalCardId(cardId)));
 }
 
+// Kartu unik yang terpakai pada satu keadaan pembayaran, dari semua grup.
+export function distinctFlazzCardsOf(state: AnyPayment | null | undefined): string[] {
+  const out: string[] = [];
+  const push = (card: unknown) => {
+    const c = strOf(card);
+    if (c && out.indexOf(c) === -1) out.push(c);
+  };
+  if (!state) return out;
+  for (const g of cardGroups(state)) {
+    if (g.mBbm === 'FLAZZ') push(g.cBbm);
+    if (g.mTol === 'FLAZZ') push(g.cTol);
+  }
+  return out;
+}
+
+// Bentuk lama (grup-1 saja); dipertahankan seperti alias di GAS.
 export function distinctFlazzCards(metodeBbm: unknown, cardBbm: unknown, metodeTol: unknown, cardTol: unknown): string[] {
   const out: string[] = [];
   const push = (card: unknown) => {
@@ -114,12 +197,17 @@ export function distinctFlazzCards(metodeBbm: unknown, cardBbm: unknown, metodeT
 }
 
 export function flazzCardCharge(state: AnyPayment | null | undefined, cardId: string | null | undefined): number {
-  if (!state || cardId == null) return 0;
-  const f = cardFields(state);
-  let total = 0;
-  if (String(f.mBbm) === 'FLAZZ' && canonicalCardId(f.cBbm) === canonicalCardId(cardId)) total += num(f.bBbm);
-  if (String(f.mTol) === 'FLAZZ' && canonicalCardId(f.cTol) === canonicalCardId(cardId)) total += num(f.bTol);
-  return total;
+  return flazzShareForCard(state, cardId);
+}
+
+export function rowBbmTotal(row: AnyPayment | null | undefined): number {
+  if (!row) return 0;
+  return num(cardFields(row).bBbm) + num(pickField(row, 'biaya_bbm_2', 'biayaBbm2'));
+}
+
+export function rowTolTotal(row: AnyPayment | null | undefined): number {
+  if (!row) return 0;
+  return num(cardFields(row).bTol) + num(pickField(row, 'biaya_toll_2', 'biayaTol2'));
 }
 
 export function flazzEditDelta(oldState: AnyPayment, nextState: AnyPayment, cardId: string | null | undefined): number {
@@ -161,6 +249,7 @@ export interface FlazzCheck {
 export function buildFlazzChecks(
   bbmMethod: string, bbmCard: string, biayaBbm: number,
   tolMethod: string, tolCard: string, biayaTol: number,
+  group2?: Pick<PaymentState, 'cardBbm2' | 'biayaBbm2' | 'cardTol2' | 'biayaTol2'>,
 ): FlazzCheck[] {
   const map = new Map<string, FlazzCheck>();
   const add = (cardId: string, label: string, amount: number) => {
@@ -172,6 +261,11 @@ export function buildFlazzChecks(
   };
   if (bbmMethod === 'FLAZZ') add(bbmCard, 'BBM', biayaBbm);
   if (tolMethod === 'FLAZZ') add(tolCard, 'tol', biayaTol);
+  // Grup-2: kartu terisi -> FLAZZ; nominal tanpa kartu (tunai) tidak dicek.
+  if (group2) {
+    add(strOf(group2.cardBbm2), 'BBM kartu 2', num(group2.biayaBbm2));
+    add(strOf(group2.cardTol2), 'tol kartu 2', num(group2.biayaTol2));
+  }
   return [...map.values()];
 }
 
@@ -387,6 +481,7 @@ export const MSG_DUPLICATE =
 export const MSG_TRX_NOT_FOUND = 'Transaksi tidak ditemukan.';
 export const MSG_PICK_FLAZZ = 'Pilih kartu Flazz terlebih dahulu.';
 export const MSG_CARD_TARGET_NOT_FOUND = 'Kartu tujuan tidak ditemukan.';
+export const MSG_CARD2_TARGET_NOT_FOUND = 'Kartu tujuan grup-2 tidak ditemukan.';
 export const MSG_PICK_FLAZZ_TOLL = 'Pilih kartu Flazz untuk pembayaran tol.';
 export const MSG_EDIT_SUCCESS = 'Transaksi BBM berhasil diperbarui.';
 export const MSG_DELETE_SUCCESS = 'Transaksi BBM dihapus.';
@@ -416,6 +511,8 @@ export interface DuplicateKey {
   liter: string;
   biaya_bbm: string;
   biaya_toll: string;
+  biaya_bbm_2?: string;
+  biaya_toll_2?: string;
 }
 
 export function isDuplicateRow(row: LaporanRow, key: DuplicateKey): boolean {
@@ -425,7 +522,9 @@ export function isDuplicateRow(row: LaporanRow, key: DuplicateKey): boolean {
     String(row.km_akhir_confirmed) === key.km_akhir &&
     String(num(row.liter_bbm)) === key.liter &&
     String(num(row.biaya_bbm)) === key.biaya_bbm &&
-    String(num(row.biaya_toll)) === key.biaya_toll;
+    String(num(row.biaya_toll)) === key.biaya_toll &&
+    String(num(row.biaya_bbm_2)) === (key.biaya_bbm_2 ?? '0') &&
+    String(num(row.biaya_toll_2)) === (key.biaya_toll_2 ?? '0');
 }
 
 export function resolveCanonicalCardId(rawId: unknown, cardMap?: Map<string, string>): string {
@@ -460,6 +559,15 @@ export interface Prefill {
   flazz_card_id: string;
   metode_toll: string;
   flazz_card_id_toll: string;
+  flazz_card_id_2: string;
+  biaya_bbm_2: number;
+  flazz_card_id_toll_2: string;
+  biaya_toll_2: number;
+}
+
+// Kartu grup-2 dikanonikkan seperti grup-1; kosong tetap kosong.
+function canonicalOrEmpty(rawId: unknown, cardMap: Map<string, string>): string {
+  return strOf(rawId) ? resolveCanonicalCardId(rawId, cardMap) : '';
 }
 
 export function mapPrefillRow(row: LaporanRow, cardMap: Map<string, string>): Prefill {
@@ -478,6 +586,10 @@ export function mapPrefillRow(row: LaporanRow, cardMap: Map<string, string>): Pr
     flazz_card_id: resolveCanonicalCardId(row.flazz_card_id, cardMap),
     metode_toll: metodeToll,
     flazz_card_id_toll: resolveCanonicalCardId(cardToll, cardMap),
+    flazz_card_id_2: canonicalOrEmpty(row.flazz_card_id_2, cardMap),
+    biaya_bbm_2: num(row.biaya_bbm_2),
+    flazz_card_id_toll_2: canonicalOrEmpty(row.flazz_card_id_toll_2, cardMap),
+    biaya_toll_2: num(row.biaya_toll_2),
   };
 }
 
@@ -574,6 +686,12 @@ export interface RecentItem {
   flazz_card_id: string;
   metode_toll: string;
   flazz_card_id_toll: string;
+  flazz_card_id_2: string;
+  biaya_bbm_2: number;
+  flazz_card_id_toll_2: string;
+  biaya_toll_2: number;
+  total_bbm: number;
+  total_toll: number;
   km_awal: number;
   km_akhir: number;
   km_sumber: string;
@@ -654,6 +772,12 @@ export function buildRecentList(rows: LaporanRow[], kendaraanMap: KendaraanMap, 
       flazz_card_id: resolveCanonicalCardId(row.flazz_card_id, cardMap),
       metode_toll: metodeToll,
       flazz_card_id_toll: resolveCanonicalCardId(resolveTollCard(row.flazz_card_id_toll, metodeToll, row.metode_pembayaran, row.flazz_card_id), cardMap),
+      flazz_card_id_2: canonicalOrEmpty(row.flazz_card_id_2, cardMap),
+      biaya_bbm_2: num(row.biaya_bbm_2),
+      flazz_card_id_toll_2: canonicalOrEmpty(row.flazz_card_id_toll_2, cardMap),
+      biaya_toll_2: num(row.biaya_toll_2),
+      total_bbm: rowBbmTotal(row),
+      total_toll: rowTolTotal(row),
       km_awal: num(row.km_awal_confirmed),
       km_akhir: num(row.km_akhir_confirmed),
       km_sumber: row.km_sumber ? String(row.km_sumber) : 'AKTUAL',
@@ -695,8 +819,8 @@ export function groupMonthly(rows: LaporanRow[], periode: string): MonthlyItem[]
     }
     m.total_transaksi += 1;
     m.total_liter += num(r.liter_bbm);
-    m.total_biaya_bbm += num(r.biaya_bbm);
-    m.total_toll += num(r.biaya_toll);
+    m.total_biaya_bbm += rowBbmTotal(r);
+    m.total_toll += rowTolTotal(r);
   }
   const out = [...map.values()].map((m) => ({
     ...m,

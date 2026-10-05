@@ -1,7 +1,7 @@
 # M7 — Pembayaran Dua Kartu pada Transaksi BBM (Design)
 
 Tanggal: 2026-10-05
-Status: draft, menunggu review
+Status: disetujui 2026-10-05 (D1 dan D2 sesuai usulan)
 
 ## 1. Latar Belakang
 

@@ -591,3 +591,155 @@ describe('lintas-cutting', () => {
     expect((await app.request('/api/dashboard')).status).toBe(401);
   });
 });
+
+describe('grup-2 (kartu kedua)', () => {
+  const A = () => flazzCard({ id: 'FLZ-A', card_name: 'Kartu A', last_balance: 500000 });
+  const B = () => flazzCard({ id: 'FLZ-B', card_name: 'Kartu B', last_balance: 600000 });
+  const saldo = (flz: ReturnType<typeof setup>['flz'], id: string) => flz.state.cards.find((c) => c.id === id)!.last_balance;
+  const getJson = async (app: ReturnType<typeof buildApp>, path: string, tok: string) =>
+    (await app.request(path, { headers: authHeaders(tok) })).json() as Promise<any>;
+
+  it('simpan: dua kartu terpotong, kolom grup-2 tersimpan, usage untuk kedua kartu', async () => {
+    const { app, kv, lap, flz } = setup({ flazzCard: [A(), B()] });
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan', tok, saveBody({
+      metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-A', biaya_bbm: 150000,
+      flazz_card_id_2: 'FLZ-B', biaya_bbm_2: 500000,
+    }));
+    expect(res.status).toBe(200);
+    expect(saldo(flz, 'FLZ-A')).toBe(350000);
+    expect(saldo(flz, 'FLZ-B')).toBe(100000);
+    expect(lap.state.rows[0]).toMatchObject({ flazz_card_id_2: 'FLZ-B', biaya_bbm_2: 500000, flazz_card_id_toll_2: '', biaya_toll_2: 0 });
+    expect(flz.state.usage.map((u) => u.card_id).sort()).toEqual(['FLZ-A', 'FLZ-B']);
+  });
+
+  it('simpan: saldo kartu 2 kurang -> 409, tidak ada yang terpotong atau tersimpan', async () => {
+    const { app, kv, lap, flz } = setup({ flazzCard: [A(), flazzCard({ id: 'FLZ-B', card_name: 'Kartu B', last_balance: 1000 })] });
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan', tok, saveBody({
+      metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-A', biaya_bbm: 150000,
+      flazz_card_id_2: 'FLZ-B', biaya_bbm_2: 500000,
+    }));
+    expect(res.status).toBe(409);
+    expect((await res.json() as any).message).toContain('tidak mencukupi');
+    expect(saldo(flz, 'FLZ-A')).toBe(500000);
+    expect(lap.state.rows).toHaveLength(0);
+  });
+
+  it('simpan: kartu 2 tidak ada -> 409 dengan label kartu 2', async () => {
+    const { app, kv } = setup({ flazzCard: [A()] });
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan', tok, saveBody({ flazz_card_id_toll_2: 'FLZ-X', biaya_toll_2: 5000 }));
+    expect(res.status).toBe(409);
+    expect((await res.json() as any).message).toContain('tol kartu 2');
+  });
+
+  it('simpan: nominal grup-2 tanpa kartu dicatat tunai, saldo tidak tersentuh', async () => {
+    const { app, kv, lap, flz } = setup({ flazzCard: [A()] });
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan', tok, saveBody({ biaya_toll_2: 7000 }));
+    expect(res.status).toBe(200);
+    expect(lap.state.rows[0]).toMatchObject({ biaya_toll_2: 7000, flazz_card_id_toll_2: '' });
+    expect(saldo(flz, 'FLZ-A')).toBe(500000);
+  });
+
+  it('simpan: nominal grup-2 berbeda bukan duplikat', async () => {
+    const { app, kv } = setup({ rows: [{ tanggal: '2026-09-21', km_awal_confirmed: '1000', km_akhir_confirmed: '1100', liter_bbm: 10, biaya_bbm: 120000, biaya_toll: 0 }] });
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan', tok, saveBody({ biaya_bbm_2: 1000 }));
+    expect(res.status).toBe(200);
+  });
+
+  it('edit: field grup-2 dipertahankan bila tidak dikirim', async () => {
+    const { app, kv, lap, flz } = setup({
+      rows: [{ transaction_id: 'TRX-1', flazz_card_id_2: 'FLZ-B', biaya_bbm_2: 40000 }],
+      flazzCard: [B()],
+    });
+    const tok = await loginAs(kv, PIC);
+    const res = await put(app, '/api/laporan/TRX-1', tok, { biaya_bbm: 90000 });
+    expect(res.status).toBe(200);
+    expect(lap.state.rows[0]).toMatchObject({ flazz_card_id_2: 'FLZ-B', biaya_bbm_2: 40000 });
+    expect(saldo(flz, 'FLZ-B')).toBe(600000);
+  });
+
+  it('edit: pindah kartu grup-2 -> kartu lama dikembalikan, kartu baru dipotong', async () => {
+    const { app, kv, lap, flz } = setup({
+      rows: [{ transaction_id: 'TRX-1', flazz_card_id_2: 'FLZ-A', biaya_bbm_2: 40000 }],
+      flazzCard: [A(), B()],
+    });
+    const tok = await loginAs(kv, PIC);
+    const res = await put(app, '/api/laporan/TRX-1', tok, { flazz_card_id_2: 'FLZ-B' });
+    expect(res.status).toBe(200);
+    expect(saldo(flz, 'FLZ-A')).toBe(540000);
+    expect(saldo(flz, 'FLZ-B')).toBe(560000);
+    expect(lap.state.rows[0]!.flazz_card_id_2).toBe('FLZ-B');
+  });
+
+  it('edit: kartu grup-2 tujuan tidak ada -> 400', async () => {
+    const { app, kv } = setup({ rows: [{ transaction_id: 'TRX-1' }], flazzCard: [A()] });
+    const tok = await loginAs(kv, PIC);
+    const res = await put(app, '/api/laporan/TRX-1', tok, { flazz_card_id_2: 'FLZ-X', biaya_bbm_2: 1000 });
+    expect(res.status).toBe(400);
+    expect((await res.json() as any).message).toBe('Kartu tujuan grup-2 tidak ditemukan.');
+  });
+
+  it('edit: KM/bar/liter diubah -> perubahan_bar dan km_per_liter dihitung ulang', async () => {
+    const { app, kv, lap } = setup({ rows: [{ transaction_id: 'TRX-1', perubahan_bar: 4, km_per_liter: 99 }] });
+    const tok = await loginAs(kv, PIC);
+    const res = await put(app, '/api/laporan/TRX-1', tok, { km_awal: 100, km_akhir: 300, bar_awal: 8, bar_akhir: 8, liter_bbm: 20 });
+    expect(res.status).toBe(200);
+    // Bar tidak berubah -> liter konsumsi = liter beli = 20; 200 km / 20 L = 10.
+    expect(lap.state.rows[0]).toMatchObject({ perubahan_bar: 0, km_per_liter: 10, km_tempuh: 200 });
+  });
+
+  it('hapus: saldo kedua kartu kembali', async () => {
+    const { app, kv, flz } = setup({
+      rows: [{ transaction_id: 'TRX-1', metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-A', biaya_bbm: 150000, flazz_card_id_2: 'FLZ-B', biaya_bbm_2: 500000 }],
+      flazzCard: [flazzCard({ id: 'FLZ-A', last_balance: 350000 }), flazzCard({ id: 'FLZ-B', last_balance: 100000 })],
+    });
+    const tok = await loginAs(kv, PIC);
+    const res = await del(app, '/api/laporan/TRX-1', tok);
+    expect(res.status).toBe(200);
+    expect(saldo(flz, 'FLZ-A')).toBe(500000);
+    expect(saldo(flz, 'FLZ-B')).toBe(600000);
+  });
+
+  it('lepas Flazz hanya grup-2: kartu 2 kosong, nominal tetap, saldo kembali, tol utuh', async () => {
+    const { app, kv, lap, flz } = setup({
+      rows: [{ transaction_id: 'TRX-1', biaya_bbm: 0, metode_pembayaran: '', flazz_card_id_2: 'FLZ-B', biaya_bbm_2: 500000, biaya_toll_2: 3000 }],
+      flazzCard: [flazzCard({ id: 'FLZ-B', last_balance: 100000 })],
+    });
+    const tok = await loginAs(kv, PIC);
+    const res = await del(app, '/api/laporan/TRX-1/flazz', tok);
+    expect(res.status).toBe(200);
+    expect(lap.state.rows[0]).toMatchObject({ flazz_card_id_2: '', biaya_bbm_2: 500000, biaya_toll_2: 3000 });
+    expect(saldo(flz, 'FLZ-B')).toBe(600000);
+  });
+
+  it('lepas Flazz kedua grup sekaligus', async () => {
+    const { app, kv, lap, flz } = setup({
+      rows: [{ transaction_id: 'TRX-1', metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-A', biaya_bbm: 150000, flazz_card_id_2: 'FLZ-B', biaya_bbm_2: 500000 }],
+      flazzCard: [flazzCard({ id: 'FLZ-A', last_balance: 350000 }), flazzCard({ id: 'FLZ-B', last_balance: 100000 })],
+    });
+    const tok = await loginAs(kv, PIC);
+    const res = await del(app, '/api/laporan/TRX-1/flazz', tok);
+    expect(res.status).toBe(200);
+    expect(lap.state.rows[0]).toMatchObject({ metode_pembayaran: 'TUNAI', flazz_card_id: '', flazz_card_id_2: '', biaya_bbm: 150000, biaya_bbm_2: 500000 });
+    expect(saldo(flz, 'FLZ-A')).toBe(500000);
+    expect(saldo(flz, 'FLZ-B')).toBe(600000);
+  });
+
+  it('dashboard dan prefill membawa grup-2; ringkasan bulanan memakai total', async () => {
+    const tgl = new Date().toISOString().slice(0, 10);
+    const { app, kv } = setup({
+      rows: [{ transaction_id: 'TRX-1', tanggal: tgl, biaya_bbm: 150000, flazz_card_id_2: 'FLZ-B', biaya_bbm_2: 500000, biaya_toll: 1000, biaya_toll_2: 2000 }],
+      flazzCard: [B()],
+    });
+    const tok = await loginAs(kv, PIC);
+    const dash = await getJson(app, '/api/dashboard', tok);
+    expect(dash.transactions[0]).toMatchObject({ flazz_card_id_2: 'FLZ-B', biaya_bbm_2: 500000, total_bbm: 650000, total_toll: 3000 });
+    expect(dash.monthly[0]).toMatchObject({ total_biaya_bbm: 650000, total_toll: 3000 });
+    const pre = await getJson(app, '/api/laporan/prefill', tok);
+    expect(pre.pref).toMatchObject({ flazz_card_id_2: 'FLZ-B', biaya_bbm_2: 500000 });
+  });
+});
