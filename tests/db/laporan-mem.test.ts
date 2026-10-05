@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CardBalanceError } from '../../src/db/laporan';
 import { memLaporan, laporanRow } from '../helpers';
-
-const card = (over = {}) => ({
-  id: 'FLZ-1', card_number: '123', card_name: 'Kartu A', branch_id: 'CBG-A', driver_id: '',
-  default_driver_id: 'D-1', last_balance: 100000, status: 'TERSEDIA', ...over,
-});
 
 describe('memLaporan', () => {
   it('insert memberi seq naik; rowsInScope urut naik & dibatasi', async () => {
@@ -27,25 +21,6 @@ describe('memLaporan', () => {
   it('rowsInMonth filter prefix tanggal', async () => {
     const { repo } = memLaporan({ rows: [laporanRow({ transaction_id: 'A', tanggal: '2026-09-30' }), laporanRow({ transaction_id: 'B', tanggal: '2026-10-01' })] });
     expect((await repo.rowsInMonth('', '2026-09')).map((r) => r.transaction_id)).toEqual(['A']);
-  });
-
-  it('adjustBalance menurun dengan guard, menaik bebas', async () => {
-    const { repo } = memLaporan({ flazzCard: [card()] });
-    expect(await repo.adjustBalance('FLZ-1', -40000)).toBe(60000);
-    await expect(repo.adjustBalance('FLZ-1', -70000)).rejects.toBeInstanceOf(CardBalanceError);
-    expect(await repo.adjustBalance('FLZ-1', 10000)).toBe(70000);
-  });
-
-  it('createUsage/returnUsageForRef mengubah status kartu', async () => {
-    const { state, repo } = memLaporan({ flazzCard: [card()] });
-    await repo.createUsage({ cardId: 'FLZ-1', driverName: 'Supir A', vehicleId: 'V-1', refType: 'TRX', refId: 'TRX-1', usedAt: '2026-09-01T00:00:00.000Z' });
-    expect(state.flazzCard[0]!.status).toBe('SEDANG_DIGUNAKAN');
-    expect(state.flazzCard[0]!.driver_id).toBe('Supir A');
-    expect(await repo.hasActiveUsage('FLZ-1')).toBe(true);
-    await repo.returnUsageForRef('TRX', 'TRX-1');
-    expect(await repo.hasActiveUsage('FLZ-1')).toBe(false);
-    expect(state.flazzCard[0]!.status).toBe('TERSEDIA');
-    expect(state.flazzCard[0]!.driver_id).toBe('D-1');
   });
 
   it('findJalurByCriteria mengabaikan is_deleted dan mengembalikan match terakhir', async () => {

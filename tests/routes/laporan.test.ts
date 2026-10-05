@@ -1,17 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { buildApp } from '../../src/app';
-import { authHeaders, fakeEnv, loginAs, laporanRow, makeDeps, memLaporan, memMaster, VEHICLE_ROW } from '../helpers';
+import { authHeaders, fakeEnv, loginAs, laporanRow, makeDeps, memFlazz, memLaporan, memMaster, VEHICLE_ROW } from '../helpers';
 import { periodKey } from '../../src/logic/laporan';
 import { monthlyCacheKey, performaCacheKey, warningsCacheKey } from '../../src/logic/master-cache';
 import type { SessionUser } from '../../src/deps';
-import type { FlazzCardRow, JalurRow, UsageRow } from '../../src/db/laporan';
+import type { JalurRow } from '../../src/db/laporan';
+import type { FlazzCardRow, FlazzUsageRow } from '../../src/db/flazz';
 
 const SUPER: SessionUser = { user_id: 'U-S', username: 'super', nama: 'Super', role: 'SUPERADMIN', cabang: '', exp: 1e15 };
 const PIC: SessionUser = { user_id: 'U-P', username: 'pic', nama: 'Pic', role: 'PIC CABANG', cabang: 'CBG-A', exp: 1e15 };
 
 const flazzCard = (over: Partial<FlazzCardRow> = {}): FlazzCardRow => ({
-  id: 'FLZ-1', card_number: '123', card_name: 'Kartu A', branch_id: 'CBG-A',
-  driver_id: '', default_driver_id: 'D-1', last_balance: 500000, status: 'TERSEDIA', ...over,
+  id: 'FLZ-1', card_number: '123', card_name: 'Kartu A', card_type: 'FLAZZ', card_role: 'UTAMA',
+  branch_id: 'CBG-A', driver_id: '', default_driver_id: 'D-1', last_balance: 500000,
+  status: 'TERSEDIA', notes: '', created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z',
+  ...over,
 });
 
 const jalurRow = (over: Partial<JalurRow> = {}): JalurRow => ({
@@ -33,12 +36,12 @@ function setup(init: { jalur?: JalurRow[]; flazzCard?: FlazzCardRow[]; rows?: Pa
   const master = memMaster({ cabang: [{ kode_cabang: 'CBG-A', nama_cabang: 'Cabang A', lokasi: '', status: 'Aktif' }], kendaraan: [VEHICLE_ROW] });
   const lap = memLaporan({
     jalur: init.jalur ?? [jalurRow()],
-    flazzCard: init.flazzCard ?? [],
     rows: (init.rows ?? []).map((r) => laporanRow(r)),
   });
-  const { deps, kv, audits, storage } = makeDeps({ master: master.repo, laporan: lap.repo });
+  const flz = memFlazz({ cards: init.flazzCard ?? [] });
+  const { deps, kv, audits, storage } = makeDeps({ master: master.repo, laporan: lap.repo, flazz: flz.repo });
   const app = buildApp(fakeEnv() as any, deps);
-  return { app, kv, audits, master, lap, storage };
+  return { app, kv, audits, master, lap, flz, storage };
 }
 
 function warnSetup(init: { kendaraan?: typeof VEHICLE_ROW[]; rows?: Parameters<typeof laporanRow>[0][] } = {}) {
@@ -111,17 +114,17 @@ describe('POST /api/laporan (save)', () => {
   });
 
   it('Flazz: potong saldo, create usage, bump master rev', async () => {
-    const { app, kv, lap } = setup({ flazzCard: [flazzCard()] });
+    const { app, kv, flz } = setup({ flazzCard: [flazzCard()] });
     const tok = await loginAs(kv, PIC);
     const res = await post(app, '/api/laporan', tok, saveBody({ metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1', biaya_bbm: 120000 }));
     expect(res.status).toBe(200);
-    expect(lap.state.flazzCard[0]!.last_balance).toBe(380000);
-    expect(lap.state.flazzUsage).toHaveLength(1);
+    expect(flz.state.cards[0]!.last_balance).toBe(380000);
+    expect(flz.state.usage).toHaveLength(1);
     expect(await kv.get('master-rev')).toBe('1');
   });
 
   it('Flazz saldo kurang -> 409, tidak ada baris tersimpan', async () => {
-    const { app, kv, lap } = setup({ flazzCard: [flazzCard({ last_balance: 1000 })] });
+    const { app, kv, lap, flz } = setup({ flazzCard: [flazzCard({ last_balance: 1000 })] });
     const tok = await loginAs(kv, PIC);
     const res = await post(app, '/api/laporan', tok, saveBody({ metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1', biaya_bbm: 120000 }));
     expect(res.status).toBe(409);
@@ -346,12 +349,12 @@ describe('PUT /api/laporan/:id', () => {
   });
 
   it('TUNAI -> FLAZZ: potong saldo + create usage', async () => {
-    const { app, kv, lap } = setup({ rows: [{ transaction_id: 'TRX-1', biaya_bbm: 120000 }], flazzCard: [flazzCard()] });
+    const { app, kv, flz } = setup({ rows: [{ transaction_id: 'TRX-1', biaya_bbm: 120000 }], flazzCard: [flazzCard()] });
     const tok = await loginAs(kv, PIC);
     const res = await put(app, '/api/laporan/TRX-1', tok, { metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1' });
     expect(res.status).toBe(200);
-    expect(lap.state.flazzCard[0]!.last_balance).toBe(380000);
-    expect(lap.state.flazzUsage).toHaveLength(1);
+    expect(flz.state.cards[0]!.last_balance).toBe(380000);
+    expect(flz.state.usage).toHaveLength(1);
   });
 
   it('saldo kurang -> 409 pesan koreksi', async () => {
@@ -374,7 +377,7 @@ describe('PUT /api/laporan/:id', () => {
 });
 
 describe('DELETE /api/laporan/:id', () => {
-  const usage = (over: Partial<UsageRow> = {}): UsageRow => ({
+  const usage = (over: Partial<FlazzUsageRow> = {}): FlazzUsageRow => ({
     id: 'USE-1', date: '2026-09-01', card_id: 'FLZ-1', driver_id: 'Supir A', vehicle_id: 'V-1',
     usage_type: 'PRIMARY', primary_card_id: '', backup_card_id: '', reason: '', opening_balance: 380000,
     used_at: '2026-09-01T01:00:00.000Z', returned_at: '', status: 'DIBERIKAN', created_by: '',
@@ -382,20 +385,20 @@ describe('DELETE /api/laporan/:id', () => {
   });
 
   it('refund saldo, return usage, release jalur, audit DELETE', async () => {
-    const { app, kv, audits, lap } = setup({
+    const { app, kv, audits, lap, flz } = setup({
       rows: [{ transaction_id: 'TRX-1', metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1', biaya_bbm: 120000 }],
       flazzCard: [flazzCard({ last_balance: 380000, status: 'SEDANG_DIGUNAKAN', driver_id: 'Supir A' })],
       jalur: [jalurRow({ status: 'SUDAH_LAPORAN', laporan_id: 'TRX-1' })],
     });
-    lap.state.flazzUsage.push(usage());
+    flz.state.usage.push(usage());
     const tok = await loginAs(kv, PIC);
     const res = await del(app, '/api/laporan/TRX-1', tok);
     expect(res.status).toBe(200);
     expect((await res.json() as any).msg).toBe('Transaksi BBM dihapus.');
     expect(lap.state.rows).toHaveLength(0);
-    expect(lap.state.flazzCard[0]!.last_balance).toBe(500000);
-    expect(lap.state.flazzCard[0]!.status).toBe('TERSEDIA');
-    expect(lap.state.flazzUsage[0]!.status).toBe('DIKEMBALIKAN');
+    expect(flz.state.cards[0]!.last_balance).toBe(500000);
+    expect(flz.state.cards[0]!.status).toBe('TERSEDIA');
+    expect(flz.state.usage[0]!.status).toBe('DIKEMBALIKAN');
     expect(lap.state.jalur[0]).toMatchObject({ status: 'BELUM_DIISI', laporan_id: '' });
     expect(audits[0]).toMatchObject({ action: 'DELETE', modul: 'transaksi' });
   });
@@ -405,6 +408,91 @@ describe('DELETE /api/laporan/:id', () => {
     const tok = await loginAs(kv, PIC);
     const res = await del(app, '/api/laporan/TRX-X', tok);
     expect(res.status).toBe(404);
+  });
+});
+
+describe('DELETE /api/laporan/:id/flazz (detach)', () => {
+  const usage = (over: Partial<FlazzUsageRow> = {}): FlazzUsageRow => ({
+    id: 'USE-1', date: '2026-09-21', card_id: 'FLZ-1', driver_id: 'Supir A', vehicle_id: 'V-1',
+    usage_type: 'PRIMARY', primary_card_id: '', backup_card_id: '', reason: '', opening_balance: 380000,
+    used_at: '2026-09-21T01:00:00.000Z', returned_at: '', status: 'DIBERIKAN', created_by: '',
+    created_at: '2026-09-21T01:00:00.000Z', ref_type: 'TRX', ref_id: 'TRX-1', ...over,
+  });
+
+  const flazzRow = (over: Record<string, unknown> = {}) => laporanRow({
+    transaction_id: 'TRX-1', metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1', biaya_bbm: 120000, ...over,
+  });
+
+  it('refund biaya_bbm, metode jadi TUNAI, kartu dikosongkan, field tol utuh', async () => {
+    const { app, kv, audits, lap, flz } = setup({
+      rows: [flazzRow({ metode_toll: 'FLAZZ', flazz_card_id_toll: 'FLZ-2', biaya_toll: 20000 })],
+      flazzCard: [flazzCard({ last_balance: 380000 }), flazzCard({ id: 'FLZ-2', last_balance: 480000 })],
+    });
+    const tok = await loginAs(kv, PIC);
+    const res = await del(app, '/api/laporan/TRX-1/flazz', tok);
+    expect(res.status).toBe(200);
+    expect(flz.state.cards[0]!.last_balance).toBe(500000);
+    expect(lap.state.rows[0]).toMatchObject({ metode_pembayaran: 'TUNAI', flazz_card_id: '', metode_toll: 'FLAZZ', flazz_card_id_toll: 'FLZ-2' });
+    expect(audits[0]).toMatchObject({ action: 'DETACH', modul: 'transaksi' });
+    expect(await kv.get('master-rev')).toBe('1');
+  });
+
+  it('biaya nol -&gt; metode dikosongkan, bukan TUNAI', async () => {
+    const { app, kv, lap, flz } = setup({ rows: [flazzRow({ biaya_bbm: 0 })], flazzCard: [flazzCard({ last_balance: 380000 })] });
+    const tok = await loginAs(kv, PIC);
+    expect((await del(app, '/api/laporan/TRX-1/flazz', tok)).status).toBe(200);
+    expect(lap.state.rows[0]!.metode_pembayaran).toBe('');
+    expect(flz.state.cards[0]!.last_balance).toBe(380000);
+  });
+
+  it('kartu sama untuk BBM dan tol -&gt; usage tetap DIBERIKAN', async () => {
+    const { app, kv, flz } = setup({
+      rows: [flazzRow({ metode_toll: 'FLAZZ', flazz_card_id_toll: 'FLZ-1', biaya_toll: 20000 })],
+      flazzCard: [flazzCard({ last_balance: 260000, status: 'SEDANG_DIGUNAKAN', driver_id: 'Supir A' })],
+    });
+    flz.state.usage.push(usage({ opening_balance: 260000 }));
+    const tok = await loginAs(kv, PIC);
+    expect((await del(app, '/api/laporan/TRX-1/flazz', tok)).status).toBe(200);
+    expect(flz.state.usage[0]!.status).toBe('DIBERIKAN');
+    expect(flz.state.cards[0]!.status).toBe('SEDANG_DIGUNAKAN');
+  });
+
+  it('kartu tol berbeda -&gt; hanya usage kartu BBM yang dikembalikan', async () => {
+    const { app, kv, flz } = setup({
+      rows: [flazzRow({ metode_toll: 'FLAZZ', flazz_card_id_toll: 'FLZ-2', biaya_toll: 20000 })],
+      flazzCard: [flazzCard({ last_balance: 380000, status: 'SEDANG_DIGUNAKAN' }), flazzCard({ id: 'FLZ-2', status: 'SEDANG_DIGUNAKAN' })],
+    });
+    flz.state.usage.push(usage());
+    flz.state.usage.push(usage({ id: 'USE-2', card_id: 'FLZ-2' }));
+    const tok = await loginAs(kv, PIC);
+    expect((await del(app, '/api/laporan/TRX-1/flazz', tok)).status).toBe(200);
+    expect(flz.state.usage[0]!.status).toBe('DIKEMBALIKAN');
+    expect(flz.state.usage[1]!.status).toBe('DIBERIKAN');
+    expect(flz.state.cards[1]!.status).toBe('SEDANG_DIGUNAKAN');
+  });
+
+  it('bukan Flazz -&gt; 409; laporan hilang -&gt; 404', async () => {
+    const { app, kv } = setup({ rows: [laporanRow({ transaction_id: 'TRX-T', metode_pembayaran: 'TUNAI' })] });
+    const tok = await loginAs(kv, PIC);
+    expect((await del(app, '/api/laporan/TRX-T/flazz', tok)).status).toBe(409);
+    expect((await del(app, '/api/laporan/TRX-X/flazz', tok)).status).toBe(404);
+  });
+
+  it('PIC cabang lain -&gt; 403', async () => {
+    const { app, kv } = setup({
+      rows: [flazzRow()],
+      flazzCard: [flazzCard({ branch_id: 'CBG-B' })],
+    });
+    const tok = await loginAs(kv, PIC);
+    expect((await del(app, '/api/laporan/TRX-1/flazz', tok)).status).toBe(403);
+  });
+
+  it('refund gagal -&gt; patch laporan dikembalikan', async () => {
+    const { app, kv, lap, flz } = setup({ rows: [flazzRow()], flazzCard: [flazzCard({ last_balance: 380000 })] });
+    flz.repo.adjustBalance = async () => { throw new Error('DB Injected refund failure'); };
+    const tok = await loginAs(kv, PIC);
+    expect((await del(app, '/api/laporan/TRX-1/flazz', tok)).status).toBe(500);
+    expect(lap.state.rows[0]).toMatchObject({ metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1' });
   });
 });
 
@@ -422,14 +510,14 @@ describe('lintas-cutting', () => {
   });
 
   it('tol Flazz terpisah (BBM tunai): hanya kartu tol terpotong', async () => {
-    const { app, kv, lap } = setup({ flazzCard: [flazzCard()] });
+    const { app, kv, lap, flz } = setup({ flazzCard: [flazzCard()] });
     const tok = await loginAs(kv, PIC);
     const res = await post(app, '/api/laporan', tok, saveBody({
       biaya_bbm: 0, metode_pembayaran: 'TUNAI', flazz_card_id: '',
       metode_toll: 'FLAZZ', flazz_card_id_toll: 'FLZ-1', biaya_toll: 20000,
     }));
     expect(res.status).toBe(200);
-    expect(lap.state.flazzCard[0]!.last_balance).toBe(480000);
+    expect(flz.state.cards[0]!.last_balance).toBe(480000);
     expect(lap.state.rows[0]).toMatchObject({ metode_pembayaran: '', metode_toll: 'FLAZZ', flazz_card_id_toll: 'FLZ-1' });
   });
 

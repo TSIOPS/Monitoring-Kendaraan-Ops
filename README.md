@@ -32,7 +32,7 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 - Rate limit login 5x/5mnt per username (KV).
 - Hash password format kompatibel GAS (tidak perlu reset saat migrasi).
 
-## API (status M4 — fondasi + master + settings + audit + laporan + warnings)
+## API (status M5 — fondasi + master + settings + audit + laporan + warnings + Flazz CRUD)
 | Metode | Path | Akses | Keterangan |
 |---|---|---|---|
 | POST | `/api/login` | publik | login → session token (KV, 12 jam) |
@@ -52,10 +52,24 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 | POST | `/api/laporan` | PIC/SUPERADMIN | simpan transaksi BBM (gate jalur & Flazz, potong saldo, usage, audit) |
 | PUT | `/api/laporan/:id` | PIC/SUPERADMIN | koreksi transaksi (delta Flazz, ganti foto, re-link jalur) |
 | DELETE | `/api/laporan/:id` | PIC/SUPERADMIN | hapus transaksi (refund Flazz, return usage, release jalur) |
+| DELETE | `/api/laporan/:id/flazz` | PIC/SUPERADMIN | detach payment BBM Flazz (refund `biaya_bbm`, field tol tidak berubah) |
+| GET/POST/PUT/DELETE | `/api/flazz/card[/:id]` | PIC (cabang sendiri), SUPERADMIN semua | CRUD kartu Flazz (saldo hanya lewat operasi Flazz) |
+| GET/POST/PUT/DELETE | `/api/flazz/topup[/:id]` | PIC (cabang sendiri), SUPERADMIN semua | top up (soft-delete; saldo mengikuti delta) |
+| GET/POST/PUT/DELETE | `/api/flazz/tol[/:id]` | PIC (cabang sendiri), SUPERADMIN semua | tol via Flazz (soft-delete; saldo mengikuti delta) |
+| GET/POST/PUT/DELETE | `/api/flazz/reconciliation[/:id]` | PIC (cabang sendiri), SUPERADMIN semua | rekonsiliasi kartu (total dihitung server) |
+| POST | `/api/flazz/card/:id/adjust` | PIC (cabang sendiri), SUPERADMIN semua | penyesuaian saldo (butuh `delta` + `reason`) |
+| POST | `/api/flazz/reconciliation/:id/apply` | PIC (cabang sendiri), SUPERADMIN semua | terapkan rekonsiliasi (set saldo ke `actual_balance`) |
+| POST | `/api/flazz/reconciliation/:id/ignore` | PIC (cabang sendiri), SUPERADMIN semua | tandai rekonsiliasi diabaikan (tanpa ubah saldo) |
 | GET | `/api/laporan/prefill` | PIC/SUPERADMIN | prefill dari transaksi terakhir yang memenuhi syarat |
 | GET | `/api/laporan/performa` | PIC/SUPERADMIN | performa 7-trip per kendaraan (cache 300 dtk) |
 | GET | `/api/dashboard` | PIC/SUPERADMIN | riwayat transaksi + ringkasan bulanan + warnings OLI/pajak/KIR (cache 300 dtk) |
 
-M3 (laporan/transaksi BBM) dan M4 (dashboard & warnings) **selesai** —
-lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md` dan
-`docs/superpowers/plans/2026-09-25-m4-dashboard-warnings.md`.
+M3 (laporan/transaksi BBM), M4 (dashboard & warnings), dan M5 (Flazz CRUD: kartu,
+top-up, tol, rekonsiliasi, adjust saldo, detach payment BBM) **selesai** —
+lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`,
+`docs/superpowers/plans/2026-09-25-m4-dashboard-warnings.md`, dan
+`docs/superpowers/plans/2026-09-25-m5-flazz-crud.md`. Regresi M3/M4 tetap hijau.
+
+Catatan M5: tidak ada perubahan schema dan tidak ada upload evidence. Field
+bukti hanya `evidence_url` (URL http/https), sedangkan upload foto tetap hanya
+untuk odometer melalui `/api/laporan/photos`.

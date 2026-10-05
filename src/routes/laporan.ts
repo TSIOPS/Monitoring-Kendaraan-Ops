@@ -70,13 +70,13 @@ function extOf(fileName: unknown): { ext: string; contentType: string } {
 }
 
 async function loadCards(deps: AppDeps): Promise<{ cards: FlazzCardRow[]; cardMap: Map<string, FlazzCardRow> }> {
-  const cards = await deps.laporan.findAllCards();
+  const cards = await deps.flazz.listCards();
   const cardMap = new Map(cards.map((c) => [L.canonicalCardId(c.id), c]));
   return { cards, cardMap };
 }
 
 async function loadCardIdMap(deps: AppDeps): Promise<Map<string, string>> {
-  const cards = await deps.laporan.findAllCards();
+  const cards = await deps.flazz.listCards();
   return new Map(cards.map((c) => [L.canonicalCardId(c.id), c.id]));
 }
 
@@ -261,12 +261,12 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       const charged: Array<{ cardId: string; amount: number }> = [];
       try {
         for (const chk of checks) {
-          await deps.laporan.adjustBalance(chk.cardId, -chk.total);
+          await deps.flazz.adjustBalance(chk.cardId, -chk.total);
           charged.push({ cardId: chk.cardId, amount: chk.total });
         }
       } catch (e) {
         for (const cc of charged) {
-          try { await deps.laporan.adjustBalance(cc.cardId, cc.amount); } catch { /* refund best-effort */ }
+          try { await deps.flazz.adjustBalance(cc.cardId, cc.amount); } catch { /* refund best-effort */ }
         }
         try { await deps.laporan.delete(transaction_id); } catch { /* rollback best-effort */ }
         if (e instanceof CardBalanceError) {
@@ -279,8 +279,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       for (const chk of checks) {
         const info = cardMap.get(L.canonicalCardId(chk.cardId));
         if (info && String(info.status) === 'NONAKTIF') continue;
-        if (await deps.laporan.hasActiveUsage(chk.cardId)) continue;
-        await deps.laporan.createUsage({
+        if (await deps.flazz.hasActiveUsage(chk.cardId)) continue;
+        await deps.flazz.createUsage({
           cardId: chk.cardId, driverName: String(p.nama_supir ?? ''), vehicleId,
           refType: 'TRX', refId: transaction_id, usedAt: trxTs.toISOString(),
         });
@@ -460,16 +460,16 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       const info = cardMap.get(L.canonicalCardId(cardId));
       const masterId = info?.id ?? cardId;
       try {
-        await deps.laporan.adjustBalance(masterId, delta);
+        await deps.flazz.adjustBalance(masterId, delta);
       } catch (e) {
         if (e instanceof CardBalanceError) {
-          const bal = L.num((await deps.laporan.findFlazzCardById(masterId))?.last_balance ?? e.balance);
+          const bal = L.num((await deps.flazz.findCardById(masterId))?.last_balance ?? e.balance);
           throw new HttpError(409, L.msgEditInsufficient(bal), 'CONFLICT');
         }
         throw e;
       }
-      if (L.shouldAdjustUsageOpeningAt(txStampMs, await deps.laporan.latestGivenAt(masterId))) {
-        await deps.laporan.adjustActiveUsageOpening(masterId, delta);
+      if (L.shouldAdjustUsageOpeningAt(txStampMs, await deps.flazz.latestGivenAt(masterId))) {
+        await deps.flazz.adjustActiveUsageOpening(masterId, delta);
       }
     }
 
@@ -483,8 +483,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     for (const cardId of newly.filter((x, i, a) => a.indexOf(x) === i)) {
       const info = cardMap.get(L.canonicalCardId(cardId));
       const masterId = info?.id ?? cardId;
-      if (await deps.laporan.hasActiveUsage(masterId)) continue;
-      await deps.laporan.createUsage({ cardId: masterId, driverName: newNama, vehicleId: old.vehicle_id, refType: 'TRX', refId: id, usedAt: old.timestamp });
+      if (await deps.flazz.hasActiveUsage(masterId)) continue;
+      await deps.flazz.createUsage({ cardId: masterId, driverName: newNama, vehicleId: old.vehicle_id, refType: 'TRX', refId: id, usedAt: old.timestamp });
     }
 
     const linkChanged = String(newTgl) !== String(old.tanggal) || String(newNama) !== String(oldNama);
@@ -501,6 +501,61 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     await invalidateDashwarn(deps.kv, roleOf(u), u.cabang);
     await bumpMasterRev(deps.kv);
     return c.json(okPayload({ msg: L.MSG_EDIT_SUCCESS }));
+  });
+
+  // ── DELETE /api/laporan/:id/flazz (port deleteFlazzBbmPayment) ─────────
+  app.delete('/:id/flazz', requireUser(deps), async (c) => {
+    const u = c.get('user');
+    const id = c.req.param('id');
+    const old = await deps.laporan.findById(id);
+    if (!old) throw new HttpError(404, L.MSG_TRX_NOT_FOUND, 'NOT_FOUND');
+
+    const f = L.cardFields(old);
+    const metodeBbm = String(f.mBbm ?? '');
+    const cardBbm = String(f.cBbm ?? '');
+    const biaya = L.num(f.bBbm);
+    if (metodeBbm !== 'FLAZZ' || !cardBbm) {
+      throw new HttpError(409, 'Transaksi ini tidak menggunakan pembayaran BBM lewat kartu Flazz sehingga tidak bisa dilepas.', 'CONFLICT');
+    }
+
+    const { cardMap } = await loadCards(deps);
+    const info = cardMap.get(L.canonicalCardId(cardBbm));
+    const masterId = info?.id ?? cardBbm;
+    const vehicleBranch = (await deps.master.findKendaraanById(old.vehicle_id))?.kode_cabang ?? old.kode_cabang;
+    assertTransactionAccess(u, info?.branch_id ?? vehicleBranch);
+
+    const metodeToll = String(old.metode_toll ?? '') !== '' ? String(old.metode_toll) : (metodeBbm === 'FLAZZ' ? 'FLAZZ' : 'TUNAI');
+    const cardToll = (metodeToll === 'FLAZZ' && !String(old.flazz_card_id_toll ?? '')) ? cardBbm : String(old.flazz_card_id_toll ?? '');
+    const stillUsedForTol = metodeToll === 'FLAZZ' && L.canonicalCardId(cardToll) === L.canonicalCardId(masterId);
+
+    const newMetode = biaya > 0 ? 'TUNAI' : '';
+    const patch = { metode_pembayaran: newMetode, flazz_card_id: '' };
+    await deps.laporan.update(id, patch);
+
+    if (biaya > 0) {
+      try {
+        await deps.flazz.adjustBalance(masterId, biaya);
+      } catch (e) {
+        try {
+          await deps.laporan.update(id, { metode_pembayaran: metodeBbm, flazz_card_id: cardBbm });
+        } catch { /* rollback best-effort */ }
+        throw e;
+      }
+    }
+
+    if (!stillUsedForTol) {
+      await deps.flazz.returnUsageForCardRef('TRX', id, masterId);
+    }
+
+    await deps.recordAudit({
+      user_id: u.user_id, username: u.username, action: 'DETACH', modul: 'transaksi', keterangan: id,
+      data_sebelum: jsonSnip({ metode_pembayaran: metodeBbm, flazz_card_id: cardBbm, biaya_bbm: biaya }),
+      data_sesudah: jsonSnip({ metode_pembayaran: newMetode, flazz_card_id: '', biaya_bbm: biaya, metode_toll: old.metode_toll, flazz_card_id_toll: old.flazz_card_id_toll }),
+    });
+    await invalidateLaporanCaches(deps.kv, roleOf(u), u.cabang);
+    await invalidateDashwarn(deps.kv, roleOf(u), u.cabang);
+    await bumpMasterRev(deps.kv);
+    return c.json(okPayload({ msg: 'Pembayaran BBM Flazz berhasil dilepas.' }));
   });
 
   // ── DELETE /api/laporan/:id (port deleteDailyTransactionUnlocked) ───────
@@ -536,12 +591,12 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       const masterId = info?.id ?? cardId;
       const delta = L.flazzCardCharge(payState, cardId);
       if (delta > 0) {
-        await deps.laporan.adjustBalance(masterId, delta);
-        if (L.shouldAdjustUsageOpeningAt(txStampMs, await deps.laporan.latestGivenAt(masterId))) {
-          await deps.laporan.adjustActiveUsageOpening(masterId, delta);
+        await deps.flazz.adjustBalance(masterId, delta);
+        if (L.shouldAdjustUsageOpeningAt(txStampMs, await deps.flazz.latestGivenAt(masterId))) {
+          await deps.flazz.adjustActiveUsageOpening(masterId, delta);
         }
       }
-      await deps.laporan.returnUsageForRef('TRX', id);
+      await deps.flazz.returnUsageForRef('TRX', id);
     }
 
     await deps.laporan.releaseJalurReport(id);

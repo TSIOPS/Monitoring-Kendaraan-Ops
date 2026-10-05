@@ -9,8 +9,27 @@ import type {
   MasterSupir,
 } from '../src/db/master';
 import type { SettingsRepo } from '../src/db/settings';
-import type { LaporanInsert, LaporanRepo, LaporanRow, FlazzCardRow, UsageRow, JalurRow } from '../src/db/laporan';
-import { CardBalanceError } from '../src/db/laporan';
+import type {
+  CardPatch,
+  CreateUsageOpts,
+  FlazzCardRow,
+  FlazzListFilter,
+  FlazzLedgerFilter,
+  FlazzReconciliationRow,
+  FlazzRepo,
+  FlazzTolRow,
+  FlazzTopupRow,
+  FlazzUsageRow,
+  NewFlazzCard,
+  NewFlazzReconciliation,
+  NewFlazzTol,
+  NewFlazzTopup,
+  ReconciliationPatch,
+  TolPatch,
+  TopupPatch,
+} from '../src/db/flazz';
+import { CardBalanceError } from '../src/db/flazz';
+import type { LaporanInsert, LaporanRepo, LaporanRow, JalurRow } from '../src/db/laporan';
 import { canonicalCardId } from '../src/logic/laporan';
 import type { UploadEvidenceOpts, StorageUploadResult } from '../src/db/storage';
 import type { Env } from '../src/env';
@@ -175,8 +194,6 @@ export function memMaster(initial?: Partial<MemMasterState>) {
 
 export interface MemLaporanState {
   rows: LaporanRow[];
-  flazzCard: FlazzCardRow[];
-  flazzUsage: UsageRow[];
   jalur: JalurRow[];
   seq: number;
 }
@@ -198,8 +215,6 @@ export function laporanRow(over: Partial<LaporanRow> = {}): LaporanRow {
 export function memLaporan(initial?: Partial<MemLaporanState>) {
   const state: MemLaporanState = {
     rows: clone(initial?.rows ?? []).map((r, i) => ({ ...r, seq: r.seq ?? i + 1 })),
-    flazzCard: clone(initial?.flazzCard ?? []),
-    flazzUsage: clone(initial?.flazzUsage ?? []),
     jalur: clone(initial?.jalur ?? []),
     seq: initial?.seq ?? (initial?.rows?.length ?? 0),
   };
@@ -208,7 +223,6 @@ export function memLaporan(initial?: Partial<MemLaporanState>) {
       .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
     return filtered.slice(Math.max(0, filtered.length - limit));
   };
-  const cardByCanonical = (id: string) => state.flazzCard.find((c) => canonicalCardId(c.id) === canonicalCardId(id));
   const repo: LaporanRepo = {
     async findById(id) { return clone(state.rows.find((r) => r.transaction_id === id) ?? null); },
     async lastForVehicle(vehicle_id) {
@@ -235,62 +249,6 @@ export function memLaporan(initial?: Partial<MemLaporanState>) {
     async delete(id) {
       const i = state.rows.findIndex((x) => x.transaction_id === id);
       if (i > -1) state.rows.splice(i, 1);
-    },
-    async findAllCards() { return clone(state.flazzCard); },
-    async findFlazzCardById(id) { const c = cardByCanonical(id); return c ? clone(c) : null; },
-    async adjustBalance(cardId, delta) {
-      const card = cardByCanonical(cardId);
-      if (!card) throw new CardBalanceError(cardId, 0);
-      if (delta < 0 && card.last_balance < -delta) throw new CardBalanceError(card.id, card.last_balance);
-      card.last_balance = card.last_balance + delta;
-      return card.last_balance;
-    },
-    async setBalance(cardId, balance) { const c = cardByCanonical(cardId); if (c) c.last_balance = balance; },
-    async hasActiveUsage(cardId) { return state.flazzUsage.some((u) => canonicalCardId(u.card_id) === canonicalCardId(cardId) && u.status === 'DIBERIKAN'); },
-    async createUsage(opts) {
-      const card = cardByCanonical(opts.cardId);
-      state.flazzUsage.push({
-        id: 'USE-' + (state.flazzUsage.length + 1), date: opts.usedAt, card_id: card?.id ?? opts.cardId,
-        driver_id: opts.driverName, vehicle_id: opts.vehicleId, usage_type: 'PRIMARY', primary_card_id: '',
-        backup_card_id: '', reason: '', opening_balance: card?.last_balance ?? 0, used_at: opts.usedAt,
-        returned_at: '', status: 'DIBERIKAN', created_by: '', created_at: '2026-01-01T00:00:00.000Z',
-        ref_type: opts.refType, ref_id: opts.refId,
-      });
-      if (card) { card.status = 'SEDANG_DIGUNAKAN'; if (!card.driver_id) card.driver_id = opts.driverName; }
-    },
-    async adjustActiveUsageOpening(cardId, delta) {
-      const list = state.flazzUsage
-        .filter((u) => canonicalCardId(u.card_id) === canonicalCardId(cardId) && u.status === 'DIBERIKAN')
-        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
-      const u = list[0];
-      if (u) u.opening_balance = u.opening_balance + delta;
-    },
-    async returnUsageForRef(refType, refId) {
-      const affected: string[] = [];
-      for (const u of state.flazzUsage) {
-        if (u.ref_type === refType && u.ref_id === refId && u.status === 'DIBERIKAN') {
-          u.status = 'DIKEMBALIKAN';
-          u.returned_at = '2026-01-02T00:00:00.000Z';
-          if (affected.indexOf(u.card_id) === -1) affected.push(u.card_id);
-        }
-      }
-      for (const cid of affected) {
-        if (state.flazzUsage.some((u) => canonicalCardId(u.card_id) === canonicalCardId(cid) && u.status === 'DIBERIKAN')) continue;
-        const card = cardByCanonical(cid);
-        if (card) {
-          if (card.status === 'SEDANG_DIGUNAKAN') card.status = 'TERSEDIA';
-          card.driver_id = card.default_driver_id || '';
-        }
-      }
-    },
-    async latestGivenAt(cardId) {
-      const list = state.flazzUsage
-        .filter((u) => canonicalCardId(u.card_id) === canonicalCardId(cardId) && u.status === 'DIBERIKAN')
-        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
-      const u = list[0];
-      if (!u) return null;
-      const t = new Date(u.used_at || u.date).getTime();
-      return isNaN(t) ? null : t;
     },
     async findJalurByCriteria(criteria) {
       let best: JalurRow | null = null;
@@ -367,6 +325,7 @@ export function makeDeps(over: Partial<AppDeps> = {}) {
   const { state: masterState, repo: master } = memMaster();
   const { values: settingsValues, repo: settings } = memSettings();
   const { state: laporanState, repo: laporan } = memLaporan();
+  const { state: flazzState, repo: flazz } = memFlazz();
   const storage = memStorage();
   const deps: AppDeps = {
     kv,
@@ -379,11 +338,12 @@ export function makeDeps(over: Partial<AppDeps> = {}) {
     master,
     settings,
     laporan,
+    flazz,
     uploadEvidence: storage.uploadEvidence,
     deleteEvidence: storage.deleteEvidence,
     ...over,
   };
-  return { kv, audits, deps, masterState, settingsValues, laporanState, storage };
+  return { kv, audits, deps, masterState, settingsValues, laporanState, flazzState, storage };
 }
 
 export async function loginAs(kv: KVStore, user: SessionUser): Promise<string> {
@@ -394,4 +354,223 @@ export async function loginAs(kv: KVStore, user: SessionUser): Promise<string> {
 
 export function authHeaders(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
+}
+
+
+export interface MemFlazzState {
+  cards: FlazzCardRow[];
+  usage: FlazzUsageRow[];
+  topups: FlazzTopupRow[];
+  tols: FlazzTolRow[];
+  reconciliations: FlazzReconciliationRow[];
+}
+
+export function memFlazz(initial?: Partial<MemFlazzState>) {
+  const state: MemFlazzState = {
+    cards: clone(initial?.cards ?? []),
+    usage: clone(initial?.usage ?? []),
+    topups: clone(initial?.topups ?? []),
+    tols: clone(initial?.tols ?? []),
+    reconciliations: clone(initial?.reconciliations ?? []),
+  };
+  let seq = 0;
+  const genId = (prefix: string): string => `${prefix}-${(seq += 1)}`;
+  const cardByCanonical = (id: string) => state.cards.find((c) => canonicalCardId(c.id) === canonicalCardId(id));
+  const activeUsage = (cardId: string) =>
+    state.usage.filter((u) => canonicalCardId(u.card_id) === canonicalCardId(cardId) && u.status === 'DIBERIKAN');
+  const latestUsage = (cardId: string) =>
+    [...activeUsage(cardId)].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
+  const restoreCard = (cardId: string) => {
+    if (activeUsage(cardId).length > 0) return;
+    const card = cardByCanonical(cardId);
+    if (!card) return;
+    if (card.status === 'SEDANG_DIGUNAKAN') card.status = 'TERSEDIA';
+    card.driver_id = card.default_driver_id || '';
+  };
+  const repo: FlazzRepo = {
+    async listCards(filter) {
+      let out = [...state.cards];
+      if (filter?.branchId) out = out.filter((c) => c.branch_id === filter.branchId);
+      if (filter?.status) out = out.filter((c) => c.status === filter.status);
+      if (filter?.q) {
+        const q = filter.q.toLowerCase();
+        out = out.filter((c) => String(c.card_number).toLowerCase().includes(q) || String(c.card_name).toLowerCase().includes(q));
+      }
+      return clone(out);
+    },
+    async findCardById(id) {
+      const card = cardByCanonical(id);
+      return card ? clone(card) : null;
+    },
+    async findCardByNumber(branchId, cardNumber) {
+      const card = state.cards.find((c) => c.branch_id === branchId && c.card_number === cardNumber);
+      return card ? clone(card) : null;
+    },
+    async insertCard(data) {
+      const now = '2026-01-01T00:00:00.000Z';
+      const row: FlazzCardRow = {
+        id: genId('FLZ'), card_number: data.card_number, card_name: data.card_name,
+        card_type: data.card_type ?? '', card_role: data.card_role ?? '', branch_id: data.branch_id,
+        driver_id: data.driver_id ?? '', default_driver_id: data.default_driver_id ?? '',
+        last_balance: data.last_balance ?? 0, status: data.status ?? 'TERSEDIA', notes: data.notes ?? '',
+        created_at: now, updated_at: now,
+      };
+      state.cards.push(row);
+      return clone(row);
+    },
+    async updateCard(id, patch) {
+      const card = cardByCanonical(id);
+      if (card) Object.assign(card, patch, { updated_at: '2026-01-01T00:00:00.000Z' });
+    },
+    async setCardStatus(id, status) {
+      const card = cardByCanonical(id);
+      if (card) card.status = status;
+    },
+    async listTopups(filter) {
+      let out = state.topups.filter((t) => (filter?.isDeleted === true ? t.is_deleted === '1' : t.is_deleted !== '1'));
+      if (filter?.cardId) out = out.filter((t) => canonicalCardId(t.card_id) === canonicalCardId(filter.cardId as string));
+      if (filter?.date) out = out.filter((t) => t.date === filter.date);
+      if (filter?.branchId) {
+        const ids = new Set(state.cards.filter((c) => c.branch_id === filter.branchId).map((c) => canonicalCardId(c.id)));
+        out = out.filter((t) => ids.has(canonicalCardId(t.card_id)));
+      }
+      return clone(out);
+    },
+    async findTopupById(id) {
+      const row = state.topups.find((t) => t.id === id);
+      return row ? clone(row) : null;
+    },
+    async insertTopup(data) {
+      const now = '2026-01-01T00:00:00.000Z';
+      const row: FlazzTopupRow = {
+        id: genId('TOP'), date: data.date, card_id: data.card_id, amount: data.amount,
+        evidence_url: data.evidence_url ?? '', notes: data.notes ?? '', created_by: data.created_by,
+        created_at: now, is_deleted: '0',
+      };
+      state.topups.push(row);
+      return clone(row);
+    },
+    async updateTopup(id, patch) {
+      const row = state.topups.find((t) => t.id === id);
+      if (row) Object.assign(row, patch);
+    },
+    async listTols(filter) {
+      let out = state.tols.filter((t) => (filter?.isDeleted === true ? t.is_deleted === '1' : t.is_deleted !== '1'));
+      if (filter?.cardId) out = out.filter((t) => canonicalCardId(t.card_id) === canonicalCardId(filter.cardId as string));
+      if (filter?.date) out = out.filter((t) => t.date === filter.date);
+      if (filter?.branchId) {
+        const ids = new Set(state.cards.filter((c) => c.branch_id === filter.branchId).map((c) => canonicalCardId(c.id)));
+        out = out.filter((t) => ids.has(canonicalCardId(t.card_id)));
+      }
+      return clone(out);
+    },
+    async findTolById(id) {
+      const row = state.tols.find((t) => t.id === id);
+      return row ? clone(row) : null;
+    },
+    async insertTol(data) {
+      const now = '2026-01-01T00:00:00.000Z';
+      const row: FlazzTolRow = {
+        id: genId('TOL'), date: data.date, card_id: data.card_id, driver_id: data.driver_id ?? '',
+        vehicle_id: data.vehicle_id ?? '', amount: data.amount, evidence_url: data.evidence_url ?? '',
+        notes: data.notes ?? '', created_by: data.created_by, created_at: now, is_deleted: '0',
+      };
+      state.tols.push(row);
+      return clone(row);
+    },
+    async updateTol(id, patch) {
+      const row = state.tols.find((t) => t.id === id);
+      if (row) Object.assign(row, patch);
+    },
+    async listReconciliations(filter) {
+      let out = state.reconciliations.filter((r) => (filter?.isDeleted === true ? r.is_deleted === '1' : r.is_deleted !== '1'));
+      if (filter?.cardId) out = out.filter((r) => canonicalCardId(r.card_id) === canonicalCardId(filter.cardId as string));
+      if (filter?.date) out = out.filter((r) => r.date === filter.date);
+      if (filter?.branchId) {
+        const ids = new Set(state.cards.filter((c) => c.branch_id === filter.branchId).map((c) => canonicalCardId(c.id)));
+        out = out.filter((r) => ids.has(canonicalCardId(r.card_id)));
+      }
+      return clone(out);
+    },
+    async findReconciliationById(id) {
+      const row = state.reconciliations.find((r) => r.id === id);
+      return row ? clone(row) : null;
+    },
+    async insertReconciliation(data) {
+      const now = '2026-01-01T00:00:00.000Z';
+      const row: FlazzReconciliationRow = {
+        id: genId('REC'), date: data.date, card_id: data.card_id, driver_id: data.driver_id ?? '',
+        vehicle_id: data.vehicle_id ?? '', opening_balance: data.opening_balance, total_topup: data.total_topup,
+        total_bbm_flazz: data.total_bbm_flazz, total_tol: data.total_tol, total_expense: data.total_expense,
+        flazz_balance: data.flazz_balance, actual_balance: data.actual_balance, difference: data.difference,
+        reconciliation_status: data.reconciliation_status ?? 'UNRECONCILED', notes: data.notes ?? '',
+        reconciled_by: data.reconciled_by, reconciled_at: data.reconciled_at ?? now, is_deleted: '0',
+      };
+      state.reconciliations.push(row);
+      return clone(row);
+    },
+    async updateReconciliation(id, patch) {
+      const row = state.reconciliations.find((r) => r.id === id);
+      if (row) Object.assign(row, patch);
+    },
+    async adjustBalance(cardId, delta) {
+      const card = cardByCanonical(cardId);
+      if (!card) throw new CardBalanceError(cardId, 0);
+      const next = card.last_balance + delta;
+      if (next < 0) throw new CardBalanceError(card.id, card.last_balance);
+      card.last_balance = next;
+      return next;
+    },
+    async setBalance(cardId, balance) {
+      const card = cardByCanonical(cardId);
+      if (card) card.last_balance = balance;
+    },
+    async hasActiveUsage(cardId) {
+      return activeUsage(cardId).length > 0;
+    },
+    async createUsage(opts) {
+      const card = cardByCanonical(opts.cardId);
+      state.usage.push({
+        id: genId('USE'), date: opts.usedAt, card_id: card?.id ?? opts.cardId,
+        driver_id: opts.driverName, vehicle_id: opts.vehicleId, usage_type: 'PRIMARY',
+        primary_card_id: '', backup_card_id: '', reason: '', opening_balance: card?.last_balance ?? 0,
+        used_at: opts.usedAt, returned_at: '', status: 'DIBERIKAN', created_by: '',
+        created_at: '2026-01-01T00:00:00.000Z', ref_type: opts.refType, ref_id: opts.refId,
+      });
+      if (card) {
+        card.status = 'SEDANG_DIGUNAKAN';
+        if (!card.driver_id) card.driver_id = opts.driverName;
+      }
+    },
+    async adjustActiveUsageOpening(cardId, delta) {
+      const usage = latestUsage(cardId);
+      if (usage) usage.opening_balance += delta;
+    },
+    async returnUsageForRef(refType, refId) {
+      const affected: string[] = [];
+      for (const u of state.usage) {
+        if (u.ref_type !== refType || u.ref_id !== refId || u.status !== 'DIBERIKAN') continue;
+        u.status = 'DIKEMBALIKAN';
+        u.returned_at = '2026-01-02T00:00:00.000Z';
+        if (!affected.includes(u.card_id)) affected.push(u.card_id);
+      }
+      for (const cardId of affected) restoreCard(cardId);
+    },
+    async returnUsageForCardRef(refType, refId, cardId) {
+      for (const u of state.usage) {
+        if (u.ref_type !== refType || u.ref_id !== refId || u.status !== 'DIBERIKAN') continue;
+        if (canonicalCardId(u.card_id) !== canonicalCardId(cardId)) continue;
+        u.status = 'DIKEMBALIKAN';
+        u.returned_at = '2026-01-02T00:00:00.000Z';
+      }
+      restoreCard(cardId);
+    },
+    async latestGivenAt(cardId) {
+      const usage = latestUsage(cardId);
+      if (!usage) return null;
+      const t = new Date(usage.used_at || usage.date).getTime();
+      return isNaN(t) ? null : t;
+    },
+  };
+  return { state, repo };
 }
