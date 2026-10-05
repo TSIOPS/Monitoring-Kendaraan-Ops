@@ -85,7 +85,11 @@ lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`,
   dua kartu etoll, gate jalur belum tuntas, status SELESAI dari rekonsiliasi;
   Input Laporan memilih supir dari jalur) **selesai** - 2026-10-06; lihat
   `docs/superpowers/specs/2026-10-06-m8-jalur-pengiriman-design.md`.
-  Berikutnya: halaman Flazz, halaman Data Master, migrasi foto.
+- **M9** — Halaman Flazz (List, Top Up, Pengembalian & Rekonsiliasi, Riwayat) dan
+  rekonsiliasi diganti ke model GAS 1:1 (saldo sistem dihitung server, kartu
+  kembali TERSEDIA, hapus hanya SUPERADMIN) **selesai** - 2026-10-06; lihat
+  `docs/superpowers/specs/2026-10-06-m9-flazz-ui-rekonsiliasi-design.md`.
+  Berikutnya: halaman Data Master (termasuk kartu Flazz), migrasi foto.
 
 Catatan M5: tidak ada perubahan schema dan tidak ada upload evidence. Field
 bukti hanya `evidence_url` (URL http/https), sedangkan upload foto tetap hanya
