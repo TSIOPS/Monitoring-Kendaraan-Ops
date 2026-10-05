@@ -339,7 +339,7 @@ export function supabaseFlazzRepo(env: Env): FlazzRepo {
     },
 
     async listTopups(filter) {
-      let q = sb().from('flazz_topup').select('*').eq('is_deleted', filter?.isDeleted === true ? '1' : '0');
+      let q = sb().from('flazz_topup').select('*').filter('is_deleted', filter?.isDeleted === true ? 'eq' : 'neq', '1');
       if (filter?.cardId) q = q.eq('card_id', filter.cardId);
       if (filter?.date) q = q.eq('date', filter.date);
       if (filter?.branchId) {
@@ -375,7 +375,7 @@ export function supabaseFlazzRepo(env: Env): FlazzRepo {
     },
 
     async listTols(filter) {
-      let q = sb().from('flazz_tol').select('*').eq('is_deleted', filter?.isDeleted === true ? '1' : '0');
+      let q = sb().from('flazz_tol').select('*').filter('is_deleted', filter?.isDeleted === true ? 'eq' : 'neq', '1');
       if (filter?.cardId) q = q.eq('card_id', filter.cardId);
       if (filter?.date) q = q.eq('date', filter.date);
       if (filter?.branchId) {
@@ -411,7 +411,7 @@ export function supabaseFlazzRepo(env: Env): FlazzRepo {
     },
 
     async listReconciliations(filter) {
-      let q = sb().from('flazz_reconciliation').select('*').eq('is_deleted', filter?.isDeleted === true ? '1' : '0');
+      let q = sb().from('flazz_reconciliation').select('*').filter('is_deleted', filter?.isDeleted === true ? 'eq' : 'neq', '1');
       if (filter?.cardId) q = q.eq('card_id', filter.cardId);
       if (filter?.date) q = q.eq('date', filter.date);
       if (filter?.branchId) {
