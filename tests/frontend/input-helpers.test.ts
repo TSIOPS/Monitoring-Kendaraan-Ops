@@ -1,0 +1,109 @@
+import { describe, expect, it } from 'vitest';
+import { buildPayload, tanggalLokal, validateForm } from '../../static/js/pages/input.js';
+
+const DASAR = {
+  vehicle_id: 'V-1',
+  tanggal: '2026-09-21',
+  nama_supir: 'Supir A',
+  km_awal: '1000',
+  km_akhir: '1100',
+  bar_awal: '8',
+  bar_akhir: '4',
+  liter_bbm: '10',
+  biaya_bbm: '120000',
+  biaya_toll: '0',
+  metode_pembayaran: 'TUNAI',
+  flazz_card_id: '',
+  metode_toll: '',
+  flazz_card_id_toll: '',
+  km_awal_broken: false,
+  km_akhir_broken: false,
+  km_tanpa_estimasi: false,
+};
+
+describe('validateForm', () => {
+  it('menerima form lengkap yang valid', () => {
+    expect(validateForm(DASAR)).toEqual([]);
+  });
+
+  it('menolak kendaraan kosong', () => {
+    const err = validateForm({ ...DASAR, vehicle_id: '' });
+    expect(err).toContain('Kendaraan wajib dipilih.');
+  });
+
+  it('menolak tanggal kosong', () => {
+    expect(validateForm({ ...DASAR, tanggal: '' })).toContain('Tanggal wajib diisi.');
+  });
+
+  it('menolak nama supir kosong', () => {
+    expect(validateForm({ ...DASAR, nama_supir: '' })).toContain('Nama supir wajib diisi.');
+  });
+
+  it('menolak KM kosong', () => {
+    expect(validateForm({ ...DASAR, km_akhir: '' })).toContain('KM awal dan akhir wajib diisi.');
+  });
+
+  it('menolak KM bukan angka', () => {
+    const err = validateForm({ ...DASAR, km_akhir: 'seratus' });
+    expect(err.some((e) => e.includes('KM'))).toBe(true);
+  });
+
+  it('menolak liter negatif', () => {
+    const err = validateForm({ ...DASAR, liter_bbm: '-3' });
+    expect(err.some((e) => e.includes('Liter'))).toBe(true);
+  });
+
+  it('menolak FLAZZ tanpa kartu', () => {
+    const err = validateForm({ ...DASAR, metode_pembayaran: 'FLAZZ', flazz_card_id: '' });
+    expect(err).toContain('Pilih kartu Flazz untuk pembayaran.');
+  });
+
+  it('menerima FLAZZ dengan kartu', () => {
+    expect(validateForm({ ...DASAR, metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1' })).toEqual([]);
+  });
+
+  it('menolak tol FLAZZ tanpa kartu tol', () => {
+    const err = validateForm({ ...DASAR, biaya_toll: '5000', metode_toll: 'FLAZZ', flazz_card_id_toll: '' });
+    expect(err).toContain('Pilih kartu Flazz untuk tol.');
+  });
+});
+
+describe('buildPayload', () => {
+  it('mengubah semua angka menjadi string untuk field confirmed', () => {
+    const p = buildPayload(DASAR, { files: { odo_awal: 'u1', odo_akhir: '' }, km_awal: '1000', km_akhir: '1100' });
+    expect(p.km_awal_confirmed).toBe('1000');
+    expect(p.km_akhir_confirmed).toBe('1100');
+  });
+
+  it('memasukkan serverData apa adanya', () => {
+    const sd = { files: { odo_awal: 'u1', odo_akhir: 'u2' }, km_awal: '1000', km_akhir: '1100' };
+    expect(buildPayload(DASAR, sd).serverData).toEqual(sd);
+  });
+
+  it('menyalin boolean meter mati apa adanya', () => {
+    const p = buildPayload({ ...DASAR, km_akhir_broken: true }, { files: {}, km_awal: '', km_akhir: '' });
+    expect(p.km_akhir_broken).toBe(true);
+  });
+
+  it('mengirim liter sebagai angka', () => {
+    const p = buildPayload(DASAR, { files: {}, km_awal: '', km_akhir: '' });
+    expect(p.liter_bbm).toBe(10);
+    expect(p.biaya_bbm).toBe(120000);
+  });
+
+  it('mengubah bar menjadi string', () => {
+    const p = buildPayload(DASAR, { files: {}, km_awal: '', km_akhir: '' });
+    expect(p.bar_awal).toBe('8');
+  });
+});
+
+describe('tanggalLokal', () => {
+  it('memakai tanggal lokal, bukan UTC', () => {
+    // 5 Okt 2026 pukul 06:00 waktu lokal: toISOString() di zona UTC+7 masih 4 Okt.
+    expect(tanggalLokal(new Date(2026, 9, 5, 6, 0))).toBe('2026-10-05');
+  });
+
+  it('menambah nol di depan bulan dan hari', () => {
+    expect(tanggalLokal(new Date(2026, 0, 3))).toBe('2026-01-03');
+  });
+});
