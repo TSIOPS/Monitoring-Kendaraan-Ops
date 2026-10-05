@@ -184,7 +184,7 @@ export async function renderTransaksi(view) {
   spinner(view, 'Memuat transaksi');
   let data;
   try {
-    data = await get('/api/laporan');
+    data = await get('/api/dashboard');
   } catch (err) {
     view.replaceChildren(el('div', { class: 'alert alert-danger', text: err.message }));
     return { ok: false };

@@ -41,7 +41,7 @@ export async function renderEdit(view) {
   let data;
   let master;
   try {
-    [data, master] = await Promise.all([get('/api/laporan'), get('/api/master')]);
+    [data, master] = await Promise.all([get('/api/dashboard'), get('/api/master')]);
   } catch (err) {
     view.replaceChildren(el('div', { class: 'alert alert-danger', text: err.message }));
     return { ok: false };
