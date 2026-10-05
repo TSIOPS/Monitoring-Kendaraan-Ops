@@ -125,6 +125,15 @@ export function jalurRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     return c.json(okPayload({ list: J.driversForDate(rows, tanggal, cabang) }));
   });
 
+  // ── GET /api/jalur/:id (untuk halaman edit) ───────────────────────────────
+  app.get('/:id', async (c: Ctx) => {
+    const u = c.get('user');
+    const j = await deps.jalur.findById(c.req.param('id') ?? '');
+    if (!j || str(j.is_deleted) === '1') throw new HttpError(404, 'Jadwal tidak ditemukan.', 'NOT_FOUND');
+    assertOwnWarehouse(u, j.kode_cabang, 'Jadwal pengiriman');
+    return c.json(okPayload({ jalur: { ...j, tanggal: J.tgl10(j.tanggal), status: j.status || J.STATUS_BELUM } }));
+  });
+
   // ── POST /api/jalur (port saveJalur) ──────────────────────────────────────
   app.post('/', async (c: Ctx) => {
     const u = c.get('user');

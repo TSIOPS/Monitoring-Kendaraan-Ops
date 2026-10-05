@@ -119,6 +119,13 @@ function isiOpsi(select, items, placeholder) {
   }
 }
 
+export function opsiSupirJalur(list) {
+  return list.map((d, i) => ({
+    value: String(i),
+    label: d.plat_nomor ? `${d.nama_driver} — ${d.plat_nomor}` : d.nama_driver,
+  }));
+}
+
 function opsiKendaraan(vehicles) {
   return vehicles.map((v) => ({ value: v.vehicle_id, label: `${v.plat_nomor} — ${v.nama}` }));
 }
@@ -143,12 +150,11 @@ export async function renderInput(view) {
 
   const vehicles = Array.isArray(master.vehicles) ? master.vehicles : [];
   const cards = Array.isArray(master.flazzCards) ? master.flazzCards : [];
-  const drivers = Array.isArray(master.drivers) ? master.drivers : [];
 
   const f = {
     vehicle_id: el('select', { class: 'form-select', id: 'f-vehicle' }),
     tanggal: el('input', { class: 'form-control', type: 'date', id: 'f-tanggal' }),
-    nama_supir: el('input', { class: 'form-control', id: 'f-supir', list: 'f-supir-list', autocomplete: 'off' }),
+    nama_supir: el('select', { class: 'form-select', id: 'f-supir' }),
     km_awal: el('input', { class: 'form-control', type: 'number', inputmode: 'numeric', id: 'f-km-awal' }),
     km_akhir: el('input', { class: 'form-control', type: 'number', inputmode: 'numeric', id: 'f-km-akhir' }),
     km_awal_broken: el('input', { class: 'form-check-input', type: 'checkbox', id: 'f-km-awal-broken' }),
@@ -181,12 +187,9 @@ export async function renderInput(view) {
   isiOpsi(f.flazz_card_id_2, opsiKartu(cards), 'Tanpa kartu (tunai)');
   isiOpsi(f.flazz_card_id_toll_2, opsiKartu(cards), 'Tanpa kartu (tunai)');
 
-  // Server mencocokkan nama supir dengan jalur secara persis; datalist mengurangi salah ketik.
-  const supirList = el(
-    'datalist',
-    { id: 'f-supir-list' },
-    drivers.map((d) => el('option', { value: String(d.nama ?? '') })),
-  );
+  // Supir hanya dari jalur BELUM_DIISI pada tanggal terpilih (seperti GAS, spec M8 D4).
+  let jalurDrivers = [];
+  const infoJalur = el('div', { class: 'form-text' });
 
   const serverData = { files: { odo_awal: '', odo_akhir: '' }, km_awal: '', km_akhir: '' };
   const alertBox = el('div', { class: 'alert alert-danger d-none' });
@@ -225,7 +228,7 @@ export async function renderInput(view) {
     el('div', { class: 'row' }, [
       el('div', { class: 'col-md-6' }, [baris('Kendaraan', f.vehicle_id)]),
       el('div', { class: 'col-md-3' }, [baris('Tanggal', f.tanggal)]),
-      el('div', { class: 'col-md-3' }, [baris('Supir', f.nama_supir), supirList]),
+      el('div', { class: 'col-md-3' }, [baris('Supir', f.nama_supir), infoJalur]),
     ]),
     el('div', { class: 'row' }, [
       el('div', { class: 'col-md-4' }, [
@@ -265,7 +268,7 @@ export async function renderInput(view) {
     submit,
   ]);
 
-  f.vehicle_id.addEventListener('change', async () => {
+  async function onVehicleChange() {
     if (!f.vehicle_id.value) return;
 
     const terpilih = vehicles.find((v) => String(v.vehicle_id) === f.vehicle_id.value);
@@ -283,8 +286,6 @@ export async function renderInput(view) {
       const data = await get('/api/laporan/prefill');
       const pref = data.pref;
       if (!pref || String(pref.vehicle_id) !== f.vehicle_id.value) return;
-      f.tanggal.value = pref.tanggal || f.tanggal.value;
-      f.nama_supir.value = pref.nama_supir || '';
       if (!f.bar_awal.disabled) {
         f.bar_awal.value = pref.bar_awal || '';
         f.bar_akhir.value = pref.bar_akhir || '';
@@ -303,7 +304,60 @@ export async function renderInput(view) {
     } catch (err) {
       toast(err.message, 'error');
     }
+  }
+  f.vehicle_id.addEventListener('change', onVehicleChange);
+
+  function pilihKartu(select, cardId) {
+    if (cardId && Array.from(select.options).some((o) => o.value === cardId)) select.value = cardId;
+  }
+
+  async function muatSupirJalur() {
+    const sebelumnya = f.nama_supir.value === '' ? null : jalurDrivers[Number(f.nama_supir.value)];
+    jalurDrivers = [];
+    isiOpsi(f.nama_supir, [], '— memuat jalur —');
+    try {
+      const data = await get(`/api/jalur/drivers?tanggal=${encodeURIComponent(f.tanggal.value)}`);
+      jalurDrivers = Array.isArray(data.list) ? data.list : [];
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+    isiOpsi(f.nama_supir, opsiSupirJalur(jalurDrivers), jalurDrivers.length ? '— pilih supir dari jalur —' : '— tidak ada jalur —');
+    infoJalur.replaceChildren(
+      jalurDrivers.length
+        ? 'Hanya supir dengan jalur BELUM DIISI pada tanggal ini.'
+        : el('span', {}, ['Belum ada jalur BELUM DIISI pada tanggal ini. ', el('a', { href: '#/jalur/buat', text: 'Buat jalur' })]),
+    );
+    // Pertahankan supir yang sama bila masih punya jalur pada tanggal baru.
+    const idx = sebelumnya ? jalurDrivers.findIndex((d) => d.nama_driver === sebelumnya.nama_driver && d.vehicle_id === sebelumnya.vehicle_id) : -1;
+    if (idx > -1) f.nama_supir.value = String(idx);
+  }
+
+  async function onSupirChange() {
+    const jalur = jalurDrivers[Number(f.nama_supir.value)];
+    if (!jalur || f.nama_supir.value === '') return;
+    if (jalur.vehicle_id && Array.from(f.vehicle_id.options).some((o) => o.value === jalur.vehicle_id)) {
+      f.vehicle_id.value = jalur.vehicle_id;
+      await onVehicleChange();
+    }
+    // Diterapkan SETELAH prefill agar kartu dari jalur tidak tertimpa transaksi terakhir.
+    if (jalur.flazz_card_id) {
+      f.metode_toll.value = 'FLAZZ';
+      pilihKartu(f.flazz_card_id_toll, jalur.flazz_card_id);
+    }
+    // Kartu ke-2 jalur hanya menyiapkan slot grup-2; nominal tetap diisi manual.
+    if (jalur.flazz_card_id_2 && !f.flazz_card_id_2.value) {
+      pilihKartu(f.flazz_card_id_2, jalur.flazz_card_id_2);
+      if (!f.flazz_card_id_toll_2.value) pilihKartu(f.flazz_card_id_toll_2, jalur.flazz_card_id_2);
+      bukaGrup2();
+    }
+  }
+
+  f.tanggal.addEventListener('change', async () => {
+    await muatSupirJalur();
+    await onSupirChange();
   });
+  f.nama_supir.addEventListener('change', onSupirChange);
+  muatSupirJalur();
 
   let fotoSudahTerunggah = false;
 
@@ -314,7 +368,7 @@ export async function renderInput(view) {
     const values = {
       vehicle_id: f.vehicle_id.value,
       tanggal: f.tanggal.value,
-      nama_supir: f.nama_supir.value.trim(),
+      nama_supir: jalurDrivers[Number(f.nama_supir.value)]?.nama_driver ?? '',
       km_awal: f.km_awal.value,
       km_akhir: f.km_akhir.value,
       km_awal_broken: f.km_awal_broken.checked,

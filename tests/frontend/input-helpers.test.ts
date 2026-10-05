@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPayload, tanggalWib, validateForm } from '../../static/js/pages/input.js';
+import { buildPayload, opsiSupirJalur, tanggalWib, validateForm } from '../../static/js/pages/input.js';
 
 const DASAR = {
   vehicle_id: 'V-1',
@@ -134,5 +134,19 @@ describe('grup-2 (kartu kedua)', () => {
 
   it('validateForm menerima nominal grup-2 tanpa kartu (dicatat tunai)', () => {
     expect(validateForm({ ...DASAR, biaya_toll_2: '7000' })).toEqual([]);
+  });
+});
+
+describe('opsiSupirJalur', () => {
+  it('nilai = indeks (nama bisa sama di kendaraan berbeda), label memuat plat', () => {
+    expect(opsiSupirJalur([
+      { nama_driver: 'Andi', plat_nomor: 'B 1 A' },
+      { nama_driver: 'Andi', plat_nomor: 'B 2 B' },
+      { nama_driver: 'Budi', plat_nomor: '' },
+    ])).toEqual([
+      { value: '0', label: 'Andi — B 1 A' },
+      { value: '1', label: 'Andi — B 2 B' },
+      { value: '2', label: 'Budi' },
+    ]);
   });
 });

@@ -167,3 +167,11 @@ body {
   .topbar .brand { flex-basis: 100%; }
   .topbar .user-info { order: 10; flex-basis: 100%; font-size: 0.8rem; }
 }
+
+/* Ringkasan jalur dicetak tanpa navigasi dan filter. */
+@media print {
+  #topbar-slot, .no-print, .toast-host { display: none !important; }
+  body { background: #fff; }
+  .panel { border: 0; padding: 0; }
+  .view { max-width: none; padding: 0; }
+}

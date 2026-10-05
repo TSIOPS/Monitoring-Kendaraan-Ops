@@ -188,6 +188,15 @@ describe('GET /api/jalur dan /api/jalur/drivers', () => {
     expect(body.list).toEqual([expect.objectContaining({ nama_driver: 'Supir A', vehicle_id: 'V-1', flazz_card_id_2: 'FLZ-B' })]);
   });
 
+  it('GET /:id mengembalikan satu jalur; cabang lain -> 403; tidak ada -> 404', async () => {
+    const { app, kv } = setup({ jalur: [jalurRow(), jalurRow({ id: 'J-B', kode_cabang: 'CBG-B' })] });
+    const tok = await loginAs(kv, PIC);
+    const ok = (await (await req(app, 'GET', '/api/jalur/J-1', tok)).json()) as any;
+    expect(ok.jalur).toMatchObject({ id: 'J-1', nama_driver: 'Supir A' });
+    expect((await req(app, 'GET', '/api/jalur/J-B', tok)).status).toBe(403);
+    expect((await req(app, 'GET', '/api/jalur/J-X', tok)).status).toBe(404);
+  });
+
   it('tanpa token -> 401', async () => {
     const { app } = setup();
     expect((await app.request('/api/jalur?tanggal=2026-10-01')).status).toBe(401);
