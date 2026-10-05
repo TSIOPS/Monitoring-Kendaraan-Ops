@@ -75,6 +75,13 @@ lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`,
   Native ES modules di `static/` tanpa build step; lihat
   `docs/superpowers/plans/2026-10-05-m6-frontend.md`. Tanggal default form
   input selalu WIB (`Asia/Jakarta`).
+- **Migrasi data** dari export Google Sheets: `node scripts/migrate-sheets.mjs <file.xlsx>`
+  (dry-run) lalu `--apply` (upsert, aman diulang; verifikasi jumlah baris + hash
+  password). Taruh file export di `migrasi/` (di-gitignore).
+- **M7** — Pembayaran dua kartu (grup-2: `flazz_card_id_2`, `biaya_bbm_2`,
+  `flazz_card_id_toll_2`, `biaya_toll_2`) port dari GAS terbaru **selesai** -
+  2026-10-05; lihat `docs/superpowers/specs/2026-10-05-m7-dua-kartu-design.md`.
+  Berikutnya: modul Jalur Pengiriman (dua slot kartu) dan migrasi foto.
 
 Catatan M5: tidak ada perubahan schema dan tidak ada upload evidence. Field
 bukti hanya `evidence_url` (URL http/https), sedangkan upload foto tetap hanya
