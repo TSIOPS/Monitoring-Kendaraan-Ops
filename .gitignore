@@ -4,3 +4,6 @@ node_modules/
 dist/
 *.log
 .superpowers/sdd/
+# export data GAS untuk migrasi (berisi hash password & data pribadi)
+migrasi/
+*.xlsx
