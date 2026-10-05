@@ -39,7 +39,11 @@ Tabel `jalur_pengiriman` sudah ada (termasuk `flazz_card_id_2`,
 `flazz_card_name_2` dari M7). **Tidak ada perubahan schema.**
 
 Status: `BELUM_DIISI` → `SUDAH_LAPORAN` (laporan tersimpan) → `SELESAI`
-(semua kartu direkon pada/ setelah tanggal jalur). Hapus jalur = hapus baris
+(semua kartu direkon pada/ setelah tanggal jalur).
+
+**Aturan status final (ditegaskan pengguna 2026-10-06):** jalur **tanpa** kartu
+Flazz tuntas di `SUDAH_LAPORAN`; jalur **dengan** kartu Flazz (slot 1 dan/atau
+slot 2) baru tuntas di `SELESAI`, yaitu setelah semua kartunya direkonsiliasi. Hapus jalur = hapus baris
 (hard delete, sama seperti GAS).
 
 ## 4. API
@@ -71,7 +75,8 @@ minimal satu baris wajib ada.
    Bila statusnya belum final, tolak seluruh simpan:
    `Jalur baru diblokir: Kendaraan <plat> (jalur <tgl>, status <st>) masih belum
    selesai. Harap <rekonsiliasi saldo flazz | input laporan> terlebih dahulu.`
-   Status final = `SELESAI` bila jalur itu punya kartu, selain itu `SUDAH_LAPORAN` (lihat D1).
+   Status final = `SELESAI` bila jalur itu punya kartu di slot 1 **atau** slot 2,
+   selain itu `SUDAH_LAPORAN` (D1, disetujui).
 2. Validasi per baris: supir/kendaraan/kartu wajib ada dan (untuk PIC) milik
    cabangnya; kartu 2 harus berbeda dari kartu 1
    (`Kartu etoll ke-2 harus berbeda dari kartu etoll ke-1.`).
@@ -135,10 +140,10 @@ Menu baru **Jalur** (Daftar, Buat, Ringkasan).
 
 ## 6. Keputusan yang Perlu Disetujui
 
-**D1 — Status final pada gate jalur baru.** GAS menilai "punya kartu" hanya dari
-slot 1. Jalur yang kartunya hanya di slot 2 (ada 1 di data) dianggap tuntas di
-`SUDAH_LAPORAN` oleh gate, padahal status sebenarnya baru `SELESAI` setelah rekon.
-Usulan: pakai slot 1 **atau** slot 2, konsisten dengan `jalurFinalStatus`.
+**D1 — Status final pada gate jalur baru. DISETUJUI.** GAS menilai "punya kartu"
+hanya dari slot 1. Diputuskan: slot 1 **atau** slot 2, konsisten dengan
+`jalurFinalStatus` dan aturan pengguna (tanpa Flazz → `SUDAH_LAPORAN`,
+dengan Flazz → `SELESAI`).
 
 **D2 — Nama kartu.** GAS menyimpan nama kartu yang dikirim browser. Usulan: ambil
 dari master kartu di server agar tidak bisa salah/ dipalsukan.
