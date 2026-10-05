@@ -82,7 +82,7 @@ export function tanggalWib(d = new Date()) {
   return FORMAT_WIB.format(d);
 }
 
-function kompresGambar(file) {
+export function kompresGambar(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('File tidak dapat dibaca.'));
@@ -108,7 +108,7 @@ function kompresGambar(file) {
   });
 }
 
-function namaAman(name) {
+export function namaAman(name) {
   return String(name || 'foto.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
 }
 

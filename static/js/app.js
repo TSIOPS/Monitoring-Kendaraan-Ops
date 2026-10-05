@@ -8,6 +8,7 @@ const NAV = [
   { hash: '#/transaksi', label: 'Transaksi', badge: true },
   { hash: '#/input', label: 'Input Laporan' },
   { hash: '#/jalur', label: 'Jalur' },
+  { hash: '#/flazz', label: 'Flazz' },
 ];
 
 function renderTopbar(activeHash) {
@@ -73,6 +74,15 @@ registerRoute('#/jalur', jalurPage('renderJalurList'));
 registerRoute('#/jalur/buat', jalurPage('renderJalurBuat'));
 registerRoute('#/jalur/ringkasan', jalurPage('renderJalurRingkasan'));
 registerRoute('#/jalur/edit/:id', jalurPage('renderJalurEdit'));
+
+const flazzPage = (name) => async () => {
+  const mod = await import('./pages/flazz.js');
+  return { render: mod[name] };
+};
+registerRoute('#/flazz', flazzPage('renderFlazzList'));
+registerRoute('#/flazz/topup', flazzPage('renderFlazzTopup'));
+registerRoute('#/flazz/rekon', flazzPage('renderFlazzRekon'));
+registerRoute('#/flazz/riwayat', flazzPage('renderFlazzRiwayat'));
 
 async function boot() {
   const user = await ensureSession();
