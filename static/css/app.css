@@ -355,3 +355,22 @@ body {
 @media print {
   #footer-slot { display: none !important; }
 }
+
+/* History Laporan: header satu baris, aksi berupa ikon */
+.table-history th {
+  white-space: nowrap;
+}
+
+.aksi-ikon {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.aksi-ikon .btn {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

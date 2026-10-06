@@ -97,23 +97,20 @@ function panelStatistik(monthly) {
   ]);
 }
 
+// Tombol ikon; label lengkap di title (tooltip) dan aria-label untuk pembaca layar.
+const ikon = (nama) => el('i', { class: `bi ${nama}`, 'aria-hidden': 'true' });
+
 function selAksi(r) {
   const id = String(r.transaction_id || '');
   const bisaDetach = Boolean(r.flazz_card_id || r.flazz_card_id_2);
-  return el('td', {}, [
-    el('a', {
-      class: 'btn btn-sm btn-outline-primary me-1',
-      href: `#/edit/${encodeURIComponent(id)}`,
-      text: 'Edit',
-    }),
-    el('button', {
-      class: 'btn btn-sm btn-outline-danger me-1',
-      'data-hapus': id,
-      text: 'Hapus',
-    }),
-    bisaDetach
-      ? el('button', { class: 'btn btn-sm btn-outline-warning', 'data-detach': id, text: 'Detach Flazz' })
-      : null,
+  return el('td', { class: 'text-nowrap' }, [
+    el('div', { class: 'aksi-ikon' }, [
+      el('a', { class: 'btn btn-sm btn-outline-primary', href: `#/edit/${encodeURIComponent(id)}`, title: 'Edit', 'aria-label': 'Edit transaksi' }, [ikon('bi-pencil')]),
+      el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', 'data-hapus': id, title: 'Hapus', 'aria-label': 'Hapus transaksi' }, [ikon('bi-trash')]),
+      bisaDetach
+        ? el('button', { class: 'btn btn-sm btn-outline-warning', type: 'button', 'data-detach': id, title: 'Lepas pembayaran Flazz', 'aria-label': 'Lepas pembayaran Flazz' }, [ikon('bi-credit-card-2-back')])
+        : null,
+    ]),
   ]);
 }
 
@@ -123,18 +120,22 @@ function pakaiKartu2(r) {
 
 function barisTabel(r) {
   return el('tr', {}, [
-    selKolom(fmtDateId(r.tanggal)),
-    selKolom(String(r.vehicle || '-')),
-    selKolom(r.supir_2 ? `${r.supir || '-'} & ${r.supir_2}` : String(r.supir || '-')),
+    selKolom(fmtDateId(r.tanggal), 'text-nowrap'),
+    selKolom(String(r.vehicle || '-'), 'text-nowrap'),
+    // Driver 2 di baris kedua (kecil) agar kolom tidak melebar.
+    el('td', {}, [
+      el('div', { text: String(r.supir || '-') }),
+      r.supir_2 ? el('div', { class: 'small text-muted', text: `& ${r.supir_2}` }) : null,
+    ]),
     selKolom(fmtNum(r.km_tempuh), 'text-end'),
     selKolom(fmtNum(r.liter), 'text-end'),
     // Total grup-1 + grup-2; data lama tanpa total_bbm memakai biaya_bbm.
-    selKolom(fmtNum(r.total_bbm ?? r.biaya_bbm), 'text-end'),
+    selKolom(fmtNum(r.total_bbm ?? r.biaya_bbm), 'text-end text-nowrap'),
     el('td', {}, [
       String(r.metode_pembayaran || '-'),
       pakaiKartu2(r) ? el('span', { class: 'badge-status ms-1', text: '2 kartu' }) : null,
     ]),
-    el('td', {}, [badgeEfisiensi(r)]),
+    el('td', { class: 'text-nowrap' }, [badgeEfisiensi(r)]),
     el('td', {}, [thumb(r.foto_odo_awal_thumb)]),
     el('td', {}, [thumb(r.foto_odo_akhir_thumb)]),
     selAksi(r),
@@ -148,7 +149,7 @@ function panelTransaksi(rows, view, adaFilter = false) {
     halamanAktif = h.aktif;
     const isi = rows.length
       ? el('div', { class: 'table-wrap' }, [
-          el('table', { class: 'table table-sm align-middle' }, [
+          el('table', { class: 'table table-sm align-middle table-history' }, [
             el('thead', {}, [el('tr', {}, KOLOM.map((t) => el('th', { text: t })))]),
             el('tbody', {}, h.isi.map(barisTabel)),
           ]),
