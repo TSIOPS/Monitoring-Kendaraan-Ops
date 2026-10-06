@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { awalBulan, csvRekap, kelompokRekap, ringkasRekap } from '../../static/js/pages/rekap.js';
+import * as XLSX from 'xlsx';
+import { awalBulan, bukuExcel, kelompokRekap, lebarKolom, ringkasRekap, susunExcel } from '../../static/js/pages/rekap.js';
 
 const L = (o: Record<string, unknown>) => ({ tanggal: '2026-10-01', kode_cabang: 'BDG', plat_nomor: 'D 1 A', supir: 'Agus', jenis: 'BBM', metode: 'TUNAI', card_id: '', kartu: '', amount: 0, sumber: 'LAPORAN', ref: 'TRX-1', ...o });
 const lines = [
@@ -20,9 +21,27 @@ describe('rekap pengeluaran', () => {
     expect(kelompokRekap(lines, 'kartu').map((g) => [g.label, g.bbmEtoll, g.tolEtoll, g.total, g.cabang])).toEqual([['E toll 1', 200000, 15000, 215000, 'BDG']]);
     expect(kelompokRekap(lines, 'kendaraan').map((g) => [g.label, g.total])).toEqual([['D 1 A', 222000], ['D 2 B', 100000]]);
   });
-  it('CSV memakai titik koma dan meng-escape sel', () => {
-    const csv = csvRekap([L({ supir: 'Agus; "A"', amount: 5 })]).split('\r\n');
-    expect(csv[0]).toBe('Tanggal;Warehouse;Kendaraan;Supir;Jenis;Metode;Kartu Etoll;Nominal;Sumber;Referensi');
-    expect(csv[1]).toBe('2026-10-01;BDG;D 1 A;"Agus; ""A""";BBM;TUNAI;;5;Laporan harian;TRX-1');
+  it('Excel: 4 sheet, nominal berformat ribuan, total, nama warehouse, autofilter', () => {
+    const sheets = susunExcel(lines, { dari: '2026-10-01', sampai: '2026-10-06', warehouse: 'WHO BANDUNG', namaCabang: { BDG: 'WHO BANDUNG' } });
+    const wb = XLSX.read(XLSX.write(bukuExcel(XLSX, sheets), { type: 'array', bookType: 'xlsx' }), { type: 'array', cellNF: true });
+    expect(wb.SheetNames).toEqual(['Ringkasan', 'Detail', 'Per Kartu Etoll', 'Per Kendaraan']);
+    const det = wb.Sheets.Detail!;
+    expect(XLSX.utils.sheet_to_json(det, { header: 1 })[1]).toEqual([1, '01/10/2026', 'WHO BANDUNG (BDG)', 'D 1 A', 'Agus', 'BBM', 'Etoll', 'E toll 1', 200000, 'Laporan harian', 'TRX-1']);
+    expect(det.I2!.z).toBe('#,##0');
+    expect(det.I6!.v).toBe(322000);
+    expect(det['!autofilter']!.ref).toBe('A1:K5');
+    const rk = XLSX.utils.sheet_to_json(wb.Sheets.Ringkasan!, { header: 1 }) as unknown[][];
+    expect(rk[1]).toEqual(['Periode', '01/10/2026 s.d. 06/10/2026']);
+    expect(rk[7]).toEqual(['Total', 215000, 107000, 322000]);
+  });
+  it('lebar kolom mengikuti isi terpanjang', () => {
+    expect(lebarKolom([['No', 'Kendaraan'], [1, 'D 1234 ABC']])).toEqual([{ wch: 6 }, { wch: 12 }]);
+  });
+});
+
+describe('rekap: plat berspasi', () => {
+  it('plat dengan spasi tepi digabung ke kendaraan yang sama', () => {
+    const g = kelompokRekap([L({ plat_nomor: ' D 8854 FD ', amount: 1 }), L({ plat_nomor: 'D 8854 FD', amount: 2 })], 'kendaraan');
+    expect(g.map((x) => [x.label, x.total])).toEqual([['D 8854 FD', 3]]);
   });
 });

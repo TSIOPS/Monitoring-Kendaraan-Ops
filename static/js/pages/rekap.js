@@ -31,8 +31,9 @@ export function kelompokRekap(lines, per) {
   const map = new Map();
   for (const l of lines || []) {
     if (per === 'kartu' && l.metode !== 'ETOLL') continue;
-    const key = per === 'kartu' ? l.card_id || l.kartu || '-' : l.plat_nomor || l.vehicle_id || '-';
-    const label = per === 'kartu' ? l.kartu || l.card_id || '-' : l.plat_nomor || l.vehicle_id || '-';
+    const plat = String(l.plat_nomor ?? '').trim();
+    const key = per === 'kartu' ? l.card_id || l.kartu || '-' : plat || l.vehicle_id || '-';
+    const label = per === 'kartu' ? String(l.kartu || l.card_id || '-').trim() : plat || l.vehicle_id || '-';
     if (!map.has(key)) map.set(key, { key, label, cabang: new Set(), ...kosongTotal() });
     const g = map.get(key);
     if (l.kode_cabang) g.cabang.add(l.kode_cabang);
@@ -43,15 +44,117 @@ export function kelompokRekap(lines, per) {
     .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label));
 }
 
-const csvSel = (v) => {
-  const s = String(v ?? '');
-  return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+// ── Ekspor Excel ──────────────────────────────────────────────────────────
+// Spesifikasi sheet (array-of-arrays) dipisah dari SheetJS agar bisa diuji.
+const FORMAT_RUPIAH = '#,##0';
+const tglId = (t) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(t || ''));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : String(t || '');
 };
 
-export function csvRekap(lines) {
-  const kepala = ['Tanggal', 'Warehouse', 'Kendaraan', 'Supir', 'Jenis', 'Metode', 'Kartu Etoll', 'Nominal', 'Sumber', 'Referensi'];
-  const isi = (lines || []).map((l) => [l.tanggal, l.kode_cabang, l.plat_nomor, l.supir, l.jenis, l.metode, l.kartu, l.amount, l.sumber === 'TOL_MANUAL' ? 'Tol manual Flazz' : 'Laporan harian', l.ref]);
-  return [kepala, ...isi].map((r) => r.map(csvSel).join(';')).join('\r\n');
+/** @param {any[]} lines @param {{ dari?: string, sampai?: string, warehouse?: string, namaCabang?: Record<string, string> }} [opsi] */
+export function susunExcel(lines, { dari = '', sampai = '', warehouse = 'Semua Warehouse', namaCabang = {} } = {}) {
+  const wh = (kode) => (kode ? (namaCabang[kode] ? `${namaCabang[kode]} (${kode})` : kode) : '-');
+  // Teks dari data lama kadang berspasi di tepi; Detail diurutkan dari tanggal terlama.
+  const t = (v) => String(v ?? '').trim();
+  const urut = [...lines].sort((x, y) => t(x.tanggal).localeCompare(t(y.tanggal)) || t(x.plat_nomor).localeCompare(t(y.plat_nomor)));
+  const r = ringkasRekap(lines);
+  const ringkasan = {
+    nama: 'Ringkasan',
+    aoa: [
+      ['Rekap Pengeluaran BBM & Tol'],
+      ['Periode', `${tglId(dari)} s.d. ${tglId(sampai)}`],
+      ['Warehouse', warehouse],
+      [],
+      ['Keterangan', 'Etoll (Rp)', 'Tunai (Rp)', 'Total (Rp)'],
+      ['BBM', r.bbmEtoll, r.bbmTunai, r.bbmEtoll + r.bbmTunai],
+      ['Tol', r.tolEtoll, r.tolTunai, r.tolEtoll + r.tolTunai],
+      ['Total', r.totalEtoll, r.totalTunai, r.total],
+      [],
+      ['Jumlah pembayaran', r.jumlah],
+    ],
+    angka: { baris: [5, 6, 7], kolom: [1, 2, 3] },
+  };
+  const detail = {
+    nama: 'Detail',
+    aoa: [
+      ['No', 'Tanggal', 'Warehouse', 'Kendaraan', 'Supir', 'Jenis', 'Metode', 'Kartu Etoll', 'Nominal (Rp)', 'Sumber', 'Referensi'],
+      ...urut.map((l, i) => [i + 1, tglId(l.tanggal), wh(l.kode_cabang), t(l.plat_nomor) || '-', t(l.supir) || '-', l.jenis === 'TOL' ? 'Tol' : 'BBM',
+        l.metode === 'ETOLL' ? 'Etoll' : 'Tunai', t(l.kartu) || '-', Number(l.amount) || 0, l.sumber === 'TOL_MANUAL' ? 'Tol manual Flazz' : 'Laporan harian', l.ref]),
+      ['', '', '', '', '', '', '', 'TOTAL', r.total, '', ''],
+    ],
+    angka: { kolom: [8] },
+    filter: true,
+  };
+  const kartu = kelompokRekap(lines, 'kartu');
+  const perKartu = {
+    nama: 'Per Kartu Etoll',
+    aoa: [
+      ['No', 'Kartu Etoll', 'Warehouse', 'BBM (Rp)', 'Tol (Rp)', 'Total (Rp)', 'Jumlah Pembayaran'],
+      ...kartu.map((g, i) => [i + 1, t(g.label), g.cabang.split(', ').map(wh).join(', '), g.bbmEtoll, g.tolEtoll, g.total, g.jumlah]),
+      ['', 'TOTAL', '', r.bbmEtoll, r.tolEtoll, r.totalEtoll, kartu.reduce((n, g) => n + g.jumlah, 0)],
+    ],
+    angka: { kolom: [3, 4, 5] },
+    filter: true,
+  };
+  const kendaraan = kelompokRekap(lines, 'kendaraan');
+  const perKendaraan = {
+    nama: 'Per Kendaraan',
+    aoa: [
+      ['No', 'Kendaraan', 'Warehouse', 'BBM Etoll (Rp)', 'Tol Etoll (Rp)', 'BBM Tunai (Rp)', 'Tol Tunai (Rp)', 'Total (Rp)', 'Jumlah Pembayaran'],
+      ...kendaraan.map((g, i) => [i + 1, t(g.label), g.cabang.split(', ').map(wh).join(', '), g.bbmEtoll, g.tolEtoll, g.bbmTunai, g.tolTunai, g.total, g.jumlah]),
+      ['', 'TOTAL', '', r.bbmEtoll, r.tolEtoll, r.bbmTunai, r.tolTunai, r.total, r.jumlah],
+    ],
+    angka: { kolom: [3, 4, 5, 6, 7] },
+    filter: true,
+  };
+  return [ringkasan, detail, perKartu, perKendaraan];
+}
+
+// Lebar kolom mengikuti isi terpanjang (karakter), dibatasi 6..45.
+export function lebarKolom(aoa) {
+  const lebar = [];
+  for (const baris of aoa) {
+    baris.forEach((v, i) => {
+      const n = typeof v === 'number' ? v.toLocaleString('id-ID').length + 2 : String(v ?? '').length + 2;
+      lebar[i] = Math.max(lebar[i] || 6, Math.min(n, 45));
+    });
+  }
+  return lebar.map((wch) => ({ wch }));
+}
+
+export function bukuExcel(XLSX, sheets) {
+  const wb = XLSX.utils.book_new();
+  for (const sh of sheets) {
+    const ws = XLSX.utils.aoa_to_sheet(sh.aoa);
+    ws['!cols'] = lebarKolom(sh.nama === 'Ringkasan' ? sh.aoa.slice(1) : sh.aoa);
+    sh.aoa.forEach((baris, r) => {
+      if (sh.angka.baris && !sh.angka.baris.includes(r)) return;
+      for (const c of sh.angka.kolom) {
+        const cell = ws[XLSX.utils.encode_cell({ r, c })];
+        if (cell && typeof cell.v === 'number') cell.z = FORMAT_RUPIAH;
+      }
+    });
+    if (sh.filter && sh.aoa.length > 2) {
+      ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: sh.aoa.length - 2, c: sh.aoa[0].length - 1 } }) };
+    }
+    XLSX.utils.book_append_sheet(wb, ws, sh.nama);
+  }
+  return wb;
+}
+
+const SHEETJS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+let sheetjsSiap = null;
+function muatSheetJS() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  sheetjsSiap ??= new Promise((resolve, reject) => {
+    const sc = document.createElement('script');
+    sc.src = SHEETJS_URL;
+    sc.onload = () => (window.XLSX ? resolve(window.XLSX) : reject(new Error('Library Excel tidak tersedia.')));
+    sc.onerror = () => { sheetjsSiap = null; reject(new Error('Gagal memuat library Excel. Periksa koneksi.')); };
+    document.head.appendChild(sc);
+  });
+  return sheetjsSiap;
 }
 
 // ── Tampilan ────────────────────────────────────────────────────────────────
@@ -62,21 +165,21 @@ const PER_HALAMAN = 20;
 export async function renderRekap(view) {
   const isSuper = getUser()?.role === 'SUPERADMIN';
   let cabangList = [];
-  if (isSuper) {
-    try {
-      const master = await get('/api/master');
-      cabangList = Array.isArray(master.cabangList) ? master.cabangList : [];
-    } catch (err) {
-      toast(err.message, 'error');
-    }
+  try {
+    // Nama warehouse dipakai di filter (SUPERADMIN) dan di file Excel (semua role).
+    const master = await get('/api/master');
+    cabangList = Array.isArray(master.cabangList) ? master.cabangList : [];
+  } catch (err) {
+    toast(err.message, 'error');
   }
+  const namaCabang = Object.fromEntries(cabangList.map((c) => [c.kode, c.nama || c.kode]));
 
   const hariIni = tanggalWib();
   const wh = el('select', { class: 'form-select' }, [el('option', { value: '', text: 'Semua Warehouse' }), ...cabangList.map((c) => el('option', { value: c.kode, text: c.nama || c.kode }))]);
   const dari = el('input', { type: 'date', class: 'form-control', value: awalBulan(hariIni) });
   const sampai = el('input', { type: 'date', class: 'form-control', value: hariIni });
   const tombol = el('button', { class: 'btn btn-primary flex-fill', type: 'button', text: 'Tampilkan' });
-  const unduh = el('button', { class: 'btn btn-outline-primary', type: 'button', text: 'Unduh CSV' });
+  const unduh = el('button', { class: 'btn btn-outline-primary', type: 'button', text: 'Unduh Excel' });
   const ringkasan = el('div', { class: 'row g-3 mb-3' });
   const isi = el('div', {});
   const tab = { aktif: 'kartu' };
@@ -188,13 +291,19 @@ export async function renderRekap(view) {
     }
   }
   tombol.addEventListener('click', muat);
-  unduh.addEventListener('click', () => {
+  unduh.addEventListener('click', async () => {
     if (!lines.length) { toast('Tidak ada data untuk diunduh.', 'error'); return; }
-    // BOM agar Excel membaca UTF-8; pemisah ';' sesuai pengaturan regional Indonesia.
-    const blob = new Blob(['﻿' + csvRekap(lines)], { type: 'text/csv;charset=utf-8' });
-    const a = el('a', { href: URL.createObjectURL(blob), download: `rekap-pengeluaran-${dari.value}_${sampai.value}${isSuper && wh.value ? '-' + wh.value : ''}.csv` });
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    unduh.disabled = true;
+    try {
+      const XLSX = await muatSheetJS();
+      const kodeWh = isSuper ? wh.value : String(getUser()?.cabang || '');
+      const sheets = susunExcel(lines, { dari: dari.value, sampai: sampai.value, warehouse: kodeWh ? namaCabang[kodeWh] || kodeWh : 'Semua Warehouse', namaCabang });
+      XLSX.writeFile(bukuExcel(XLSX, sheets), `rekap-pengeluaran-${dari.value}_${sampai.value}${kodeWh ? '-' + kodeWh : ''}.xlsx`);
+    } catch (err) {
+      toast(err.message || 'Gagal membuat file Excel.', 'error');
+    } finally {
+      unduh.disabled = false;
+    }
   });
 
   const kolom = (lebar, label, kontrol) => el('div', { class: lebar }, [el('label', { class: 'form-label small fw-bold text-muted text-uppercase', text: label }), kontrol]);
