@@ -278,30 +278,30 @@ export async function renderInput(view) {
     alertBox,
     seksi('Kendaraan & Supir', [
       el('div', { class: 'row' }, [
-        el('div', { class: 'col-md-6' }, [baris('Kendaraan', f.vehicle_id)]),
-        el('div', { class: 'col-md-3' }, [baris('Tanggal', f.tanggal)]),
-        el('div', { class: 'col-md-3' }, [baris('Supir', f.nama_supir), infoJalur]),
+        el('div', { class: 'col-md-8' }, [baris('Kendaraan', f.vehicle_id)]),
+        el('div', { class: 'col-md-4' }, [baris('Tanggal', f.tanggal)]),
       ]),
       el('div', { class: 'row' }, [
-        el('div', { class: 'col-md-6 offset-md-6' }, [baris('Driver 2', f.nama_supir_2, 'Otomatis dari jalur pengiriman.')]),
+        el('div', { class: 'col-md-6' }, [baris('Supir (Driver 1)', f.nama_supir), infoJalur]),
+        el('div', { class: 'col-md-6' }, [baris('Driver 2', f.nama_supir_2, 'Otomatis dari jalur pengiriman.')]),
       ]),
     ]),
+    // Kolom kiri = awal perjalanan, kanan = akhir: foto, KM, lalu bar bensin.
     seksi('Odometer & Bensin', [
-      el('div', { class: 'row' }, [
-        el('div', { class: 'col-md-4' }, [
+      el('div', { class: 'row g-4' }, [
+        el('div', { class: 'col-md-6' }, [
+          el('div', { class: 'form-subtitle', text: 'Awal perjalanan' }),
           baris('Foto odometer awal', el('div', {}, [fotoAwal, pratinjauFoto(fotoAwal)])),
           baris('KM awal', satuan(f.km_awal, '', 'KM')),
           meterRusak(f.km_awal_broken, 'f-km-awal-broken', 'Meter awal mati/rusak'),
+          baris('Bar bensin awal', f.bar_awal),
         ]),
-        el('div', { class: 'col-md-4' }, [
+        el('div', { class: 'col-md-6' }, [
+          el('div', { class: 'form-subtitle', text: 'Akhir perjalanan' }),
           baris('Foto odometer akhir', el('div', {}, [fotoAkhir, pratinjauFoto(fotoAkhir)])),
           baris('KM akhir', satuan(f.km_akhir, '', 'KM')),
           meterRusak(f.km_akhir_broken, 'f-km-akhir-broken', 'Meter akhir mati/rusak'),
-        ]),
-        el('div', { class: 'col-md-4' }, [
-          el('div', { class: 'form-subtitle', text: 'Indikator bensin' }),
-          baris('Bar awal', f.bar_awal),
-          baris('Bar akhir', f.bar_akhir),
+          baris('Bar bensin akhir', f.bar_akhir),
         ]),
       ]),
     ]),
