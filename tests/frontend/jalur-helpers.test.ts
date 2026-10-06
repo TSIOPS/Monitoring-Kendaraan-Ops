@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { kumpulkanBaris, teksDokumen } from '../../static/js/pages/jalur.js';
+import { badgeDokumenRingkasan, kumpulkanBaris, teksDokumen } from '../../static/js/pages/jalur.js';
 
 describe('kumpulkanBaris', () => {
   const lengkap = { driver_id: 'S-1', driver2_id: '', vehicle_id: 'V-1', rute_tujuan: 'Gudang - Toko', etoll_card_id: '', etoll_card_id_2: '' };
@@ -27,5 +27,15 @@ describe('teksDokumen', () => {
     expect(teksDokumen('AMAN', 86)).toBe('86 hari');
     expect(teksDokumen('LEWAT', -5)).toBe('Lewat 5 hari');
     expect(teksDokumen('TIDAK_ADA', null)).toBe('-');
+  });
+});
+
+describe('badgeDokumenRingkasan (seperti jalurPajakBadge GAS)', () => {
+  it('teks dan warna per status', () => {
+    expect(badgeDokumenRingkasan('AMAN', 71, 'Pajak')).toEqual({ text: 'Pajak habis dalam 71 hari', kelas: 'bg-success' });
+    expect(badgeDokumenRingkasan('WASPADA', 40, 'KIR')).toEqual({ text: 'KIR habis dalam 40 hari', kelas: 'bg-warning text-dark' });
+    expect(badgeDokumenRingkasan('KRITIS', 29, 'KIR')).toEqual({ text: 'KIR habis dalam 29 hari', kelas: 'bg-danger' });
+    expect(badgeDokumenRingkasan('LEWAT', -5, 'Pajak 5 Tahun')).toEqual({ text: 'Pajak 5 Tahun lewat 5 hari', kelas: 'bg-dark' });
+    expect(badgeDokumenRingkasan('TIDAK_ADA', null, 'Pajak')).toEqual({ text: 'Pajak -', kelas: 'bg-secondary' });
   });
 });

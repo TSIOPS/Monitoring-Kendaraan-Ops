@@ -16,6 +16,14 @@ export function teksDokumen(status, sisaHari) {
   return `${sisaHari} hari`;
 }
 
+// Badge dokumen pada ringkasan jalur, sama seperti jalurPajakBadge GAS.
+export function badgeDokumenRingkasan(status, sisaHari, label) {
+  if (status === 'TIDAK_ADA' || sisaHari === null || sisaHari === undefined) return { text: `${label} -`, kelas: 'bg-secondary' };
+  if (status === 'LEWAT') return { text: `${label} lewat ${Math.abs(Number(sisaHari))} hari`, kelas: 'bg-dark' };
+  const kelas = status === 'KRITIS' ? 'bg-danger' : status === 'WASPADA' ? 'bg-warning text-dark' : 'bg-success';
+  return { text: `${label} habis dalam ${sisaHari} hari`, kelas };
+}
+
 // Baris form buat jalur yang lengkap (driver, kendaraan, rute) beserta pesan untuk yang tidak lengkap.
 export function kumpulkanBaris(rows) {
   const valid = [];
@@ -42,6 +50,18 @@ const isSuper = () => String(getUser()?.role || '').toUpperCase() === 'SUPERADMI
 function isiOpsi(select, items, placeholder) {
   select.replaceChildren(el('option', { value: '', text: placeholder }));
   for (const it of items) select.appendChild(el('option', { value: String(it.value), text: String(it.label) }));
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const PATH_TRUK = 'M0 3.5A1.5 1.5 0 0 1 1.5 2h9A1.5 1.5 0 0 1 12 3.5V5h1.02a1.5 1.5 0 0 1 1.17.563l1.481 1.85a1.5 1.5 0 0 1 .329.938V10.5a1.5 1.5 0 0 1-1.5 1.5H14a2 2 0 1 1-4 0H5a2 2 0 1 1-3.998-.085A1.5 1.5 0 0 1 0 10.5zm1.294 7.456A2 2 0 0 1 4.732 11h5.536a2 2 0 0 1 .732-.732V3.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .294.456M12 10a2 2 0 0 1 1.732 1h.768a.5.5 0 0 0 .5-.5V8.35a.5.5 0 0 0-.11-.312l-1.48-1.85A.5.5 0 0 0 13.02 6H12zm-9 1a1 1 0 1 0 0 2 1 1 0 0 0 0-2m9 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2';
+const PATH_MOTOR = 'M4 4.5a.5.5 0 0 1 .5-.5H6a.5.5 0 0 1 0 1v.5h4.14l.386-1.158A.5.5 0 0 1 11 4h1a.5.5 0 0 1 0 1h-.64l-.311.935.807 1.29a3 3 0 1 1-.848.53l-.508-.812-2.076 3.322A.5.5 0 0 1 8 10.5H5.959a3 3 0 1 1-1.815-3.274L5 5.856V5h-.5a.5.5 0 0 1-.5-.5m1.5 2.443-.508.814c.5.444.85 1.054.967 1.743h1.139zM8 9.057 9.598 6.5H6.402zM4.937 9.5a2 2 0 0 0-.487-.877l-.548.877zM3.603 8.092A2 2 0 1 0 4.937 10.5H3a.5.5 0 0 1-.424-.765zm7.947.53a2 2 0 1 0 .848-.53l1.026 1.643a.5.5 0 1 1-.848.53z';
+function ikonKendaraan(jenis) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  for (const [k, v] of Object.entries({ width: '16', height: '16', viewBox: '0 0 16 16', fill: 'currentColor', class: 'text-success me-1' })) svg.setAttribute(k, v);
+  const pathEl = document.createElementNS(SVG_NS, 'path');
+  pathEl.setAttribute('d', jenis === 'Motor' ? PATH_MOTOR : PATH_TRUK);
+  svg.appendChild(pathEl);
+  return svg;
 }
 
 function badge(text, kelas) {
@@ -390,12 +410,22 @@ export async function renderJalurRingkasan(view) {
   }
   const tanggal = el('input', { type: 'date', class: 'form-control', value: tanggalWib() });
   const wh = pilihWarehouse(master.cabang);
-  const judul = el('h2', { class: 'h6 mb-3' });
+  const infoTanggal = el('span', { class: 'fw-semibold' });
+  const infoPembuat = el('span', { class: 'fw-semibold', text: '-' });
+  const infoWh = el('span', { class: 'fw-semibold' });
+  const barisWh = el('div', { class: 'text-muted fw-bold mb-1 d-none' }, ['Warehouse : ', infoWh]);
   const hasil = el('div', {});
-  const shot = el('div', { class: 'bg-white p-2' }, [judul, hasil]);
+  const kepala = el('div', { class: 'px-3 pt-3' }, [
+    el('div', { class: 'fw-bold text-success mb-2 d-flex align-items-center gap-1', style: 'font-size:1.1rem' }, [ikonKendaraan('Mobil'), 'Jalur Pengiriman']),
+    el('div', { class: 'text-muted fw-bold mb-1' }, ['Tanggal Pengiriman : ', infoTanggal]),
+    barisWh,
+    el('div', { class: 'text-muted fw-bold mb-3' }, ['Dibuat Oleh : ', infoPembuat]),
+  ]);
+  const shot = el('div', { class: 'bg-white p-2 d-none' }, [el('div', { class: 'card border-0 shadow-sm' }, [kepala, hasil])]);
+  const kosong = el('div', { class: 'd-none' });
   const tombolWa = el('button', { class: 'btn btn-success', type: 'button', text: 'Screenshot WA' });
   tombolWa.addEventListener('click', async () => {
-    if (!hasil.querySelector('table')) { toast('Tampilkan dulu jalur pada tanggal yang dipilih.', 'error'); return; }
+    if (shot.classList.contains('d-none')) { toast('Tampilkan dulu jalur pada tanggal yang dipilih.', 'error'); return; }
     tombolWa.disabled = true;
     try {
       await bagikanGambar(shot, `jalur-${tanggal.value}.png`);
@@ -405,35 +435,53 @@ export async function renderJalurRingkasan(view) {
       tombolWa.disabled = false;
     }
   });
-  const dok = (status, sisa) => badge(teksDokumen(status, sisa), KELAS_DOKUMEN[status]);
+  const dok = (status, sisa, label) => {
+    const b = badgeDokumenRingkasan(status, sisa, label);
+    return el('span', { class: `badge ${b.kelas}`, text: b.text });
+  };
 
   async function tampilkan() {
     const namaWh = isSuper() && wh.value ? wh.options[wh.selectedIndex]?.text : '';
-    judul.textContent = `Ringkasan Jalur Pengiriman${namaWh ? ' ' + namaWh : ''} — ${fmtDateId(tanggal.value)}`;
-    hasil.replaceChildren(el('div', { class: 'text-muted', text: 'Memuat' }));
+    infoTanggal.textContent = tanggal.value;
+    infoWh.textContent = namaWh || '';
+    barisWh.classList.toggle('d-none', !namaWh);
+    shot.classList.add('d-none');
+    kosong.className = 'text-muted';
+    kosong.textContent = 'Memuat';
     const q = new URLSearchParams({ tanggal: tanggal.value });
     if (isSuper() && wh.value) q.set('cabang', wh.value);
     try {
-      const { list = [] } = await get(`/api/jalur?${q}`);
-      hasil.replaceChildren(list.length
-        ? el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm table-bordered align-middle' }, [
-          el('thead', {}, [el('tr', {}, ['Kendaraan', 'Driver 1', 'Driver 2', 'Rute', 'Etoll', 'Pajak tahunan', 'Pajak 5 tahunan', 'KIR'].map((t) => el('th', { text: t })))]),
-          el('tbody', {}, list.map((j) => el('tr', {}, [
-            el('td', { text: `${j.plat_nomor || '-'} ${j.nama_kendaraan ? '(' + j.nama_kendaraan + ')' : ''}` }),
-            el('td', { text: j.nama_driver || '-' }),
-            el('td', { text: j.nama_driver2 || '-' }),
-            el('td', { text: j.rute_tujuan || '-' }),
-            el('td', { text: [j.flazz_card_name, j.flazz_card_name_2].filter(Boolean).join(', ') || '-' }),
-            el('td', {}, [dok(j.status_pajak, j.sisa_hari_pajak)]),
-            el('td', {}, [dok(j.status_pajak_5, j.sisa_hari_pajak_5)]),
-            el('td', {}, [dok(j.status_kir, j.sisa_hari_kir)]),
-          ]))),
-        ])])
-        : el('div', { class: 'text-muted', text: 'Tidak ada jalur pada tanggal ini.' }));
+      const { list = [], created_by: pembuat = '' } = await get(`/api/jalur?${q}`);
+      if (!list.length) {
+        kosong.textContent = `Belum ada jadwal pengiriman pada ${tanggal.value}.`;
+        return;
+      }
+      kosong.className = 'd-none';
+      infoPembuat.textContent = pembuat || '-';
+      hasil.replaceChildren(el('div', { class: 'table-responsive' }, [el('table', { class: 'table table-hover align-middle mb-0' }, [
+        el('thead', { class: 'table-light' }, [el('tr', {}, ['Kendaraan', 'Driver 1', 'Driver 2', 'Rute Tujuan', 'Etoll', 'Pajak Tahunan', 'Pajak 5 Tahunan', 'KIR'].map((h) => el('th', { text: h })))]),
+        el('tbody', {}, list.map((j) => el('tr', {}, [
+          el('td', { class: 'text-nowrap' }, [ikonKendaraan(j.jenis_kendaraan), `${j.plat_nomor || '-'} `, el('span', { class: 'text-muted small', text: j.nama_kendaraan || '' })]),
+          el('td', { text: j.nama_driver || '-' }),
+          el('td', { text: j.nama_driver2 || '-' }),
+          el('td', { text: j.rute_tujuan || '-' }),
+          el('td', {}, j.flazz_card_name && j.flazz_card_name_2
+            ? [j.flazz_card_name, el('br'), el('span', { class: 'text-muted small', text: j.flazz_card_name_2 })]
+            : [j.flazz_card_name || j.flazz_card_name_2 || '-']),
+          el('td', {}, [dok(j.status_pajak, j.sisa_hari_pajak, 'Pajak')]),
+          el('td', {}, [dok(j.status_pajak_5, j.sisa_hari_pajak_5, 'Pajak 5 Tahun')]),
+          el('td', {}, [j.jenis_kendaraan === 'Mobil'
+            ? dok(j.status_kir, j.sisa_hari_kir, 'KIR')
+            : el('span', { class: 'badge bg-light text-muted fw-normal border', text: 'N/A' })]),
+        ]))),
+      ])]));
+      shot.classList.remove('d-none');
     } catch (err) {
-      hasil.replaceChildren(el('div', { class: 'alert alert-danger', text: err.message }));
+      kosong.className = 'alert alert-danger';
+      kosong.textContent = err.message;
     }
   }
+
 
   view.replaceChildren(el('div', { class: 'panel' }, [
     el('div', { class: 'row g-2 no-print' }, [
@@ -446,6 +494,7 @@ export async function renderJalurRingkasan(view) {
         el('a', { class: 'btn btn-outline-secondary', href: '#/jalur', text: 'Kembali' }),
       ]),
     ]),
+    kosong,
     shot,
   ]));
   await tampilkan();
