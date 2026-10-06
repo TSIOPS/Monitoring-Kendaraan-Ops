@@ -338,6 +338,47 @@ export async function renderJalurEdit(view) {
 }
 
 // ── Ringkasan (cetak) ─────────────────────────────────────────────────────
+const HTML2CANVAS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+let html2canvasSiap = null;
+function muatHtml2canvas() {
+  if (window.html2canvas) return Promise.resolve(window.html2canvas);
+  html2canvasSiap ??= new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = HTML2CANVAS_URL;
+    s.onload = () => (window.html2canvas ? resolve(window.html2canvas) : reject(new Error('Library screenshot tidak tersedia.')));
+    s.onerror = () => { html2canvasSiap = null; reject(new Error('Gagal memuat library screenshot. Periksa koneksi.')); };
+    document.head.appendChild(s);
+  });
+  return html2canvasSiap;
+}
+
+// Gambar ringkasan untuk WhatsApp: di HP lewat menu bagikan (pilih WhatsApp); di laptop
+// disalin ke clipboard untuk ditempel di WhatsApp Web, atau diunduh bila clipboard ditolak.
+async function bagikanGambar(node, namaFile) {
+  const html2canvas = await muatHtml2canvas();
+  const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#ffffff' });
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) throw new Error('Gagal membuat gambar.');
+  const file = new File([blob], namaFile, { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'Ringkasan Jalur Pengiriman' });
+    } catch (err) {
+      if (err && err.name !== 'AbortError') throw err;
+    }
+    return;
+  }
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    toast('Gambar disalin. Buka WhatsApp lalu tempel (Ctrl+V).', 'success');
+  } catch {
+    const a = el('a', { href: URL.createObjectURL(blob), download: namaFile });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    toast('Gambar diunduh. Lampirkan file itu di WhatsApp.', 'success');
+  }
+}
+
 export async function renderJalurRingkasan(view) {
   view.replaceChildren(el('div', { class: 'text-muted', text: 'Memuat' }));
   let master;
@@ -351,10 +392,24 @@ export async function renderJalurRingkasan(view) {
   const wh = pilihWarehouse(master.cabang);
   const judul = el('h2', { class: 'h6 mb-3' });
   const hasil = el('div', {});
+  const shot = el('div', { class: 'bg-white p-2' }, [judul, hasil]);
+  const tombolWa = el('button', { class: 'btn btn-success', type: 'button', text: 'Screenshot WA' });
+  tombolWa.addEventListener('click', async () => {
+    if (!hasil.querySelector('table')) { toast('Tampilkan dulu jalur pada tanggal yang dipilih.', 'error'); return; }
+    tombolWa.disabled = true;
+    try {
+      await bagikanGambar(shot, `jalur-${tanggal.value}.png`);
+    } catch (err) {
+      toast(err.message || 'Gagal membuat screenshot.', 'error');
+    } finally {
+      tombolWa.disabled = false;
+    }
+  });
   const dok = (status, sisa) => badge(teksDokumen(status, sisa), KELAS_DOKUMEN[status]);
 
   async function tampilkan() {
-    judul.textContent = `Ringkasan Jalur Pengiriman — ${fmtDateId(tanggal.value)}`;
+    const namaWh = isSuper() && wh.value ? wh.options[wh.selectedIndex]?.text : '';
+    judul.textContent = `Ringkasan Jalur Pengiriman${namaWh ? ' ' + namaWh : ''} — ${fmtDateId(tanggal.value)}`;
     hasil.replaceChildren(el('div', { class: 'text-muted', text: 'Memuat' }));
     const q = new URLSearchParams({ tanggal: tanggal.value });
     if (isSuper() && wh.value) q.set('cabang', wh.value);
@@ -387,11 +442,11 @@ export async function renderJalurRingkasan(view) {
       el('div', { class: 'col-md-6 d-flex gap-2 align-items-end mb-3' }, [
         el('button', { class: 'btn btn-primary', type: 'button', text: 'Tampilkan', onclick: tampilkan }),
         el('button', { class: 'btn btn-outline-primary', type: 'button', text: 'Cetak', onclick: () => window.print() }),
+        tombolWa,
         el('a', { class: 'btn btn-outline-secondary', href: '#/jalur', text: 'Kembali' }),
       ]),
     ]),
-    judul,
-    hasil,
+    shot,
   ]));
   await tampilkan();
   return { ok: true };
