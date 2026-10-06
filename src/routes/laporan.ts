@@ -705,6 +705,9 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   return app;
 }
 
+const HISTORY_SCAN_LIMIT = 5000;
+const HISTORY_MAX_ITEMS = 1000;
+
 export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   const app = new Hono<{ Bindings: Env }>();
 
@@ -715,7 +718,27 @@ export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const all = await deps.master.listAll();
     const cardIdMap = await loadCardIdMap(deps);
     const rows = await deps.laporan.recentRows(cabang, 2000);
-    const transactions = L.buildRecentList(rows, kendaraanInfoMap(all), cabangNamaMapOf(all), cardIdMap);
+
+    // Filter History Laporan. Warehouse hanya untuk SUPERADMIN (PIC terkunci ke cabangnya).
+    // Efisiensi 7-trip dihitung dari riwayat lengkap kendaraan, baru dipotong rentang tanggal.
+    const fCabang = isSuper(u) ? String(c.req.query('cabang') ?? '') : '';
+    const fVehicle = String(c.req.query('vehicle_id') ?? '');
+    const fDari = String(c.req.query('dari') ?? '');
+    const fSampai = String(c.req.query('sampai') ?? '');
+    let transactions: L.RecentItem[];
+    if (fCabang || fVehicle || fDari || fSampai) {
+      let scoped = await deps.laporan.rowsInScope(fCabang || cabang, HISTORY_SCAN_LIMIT);
+      if (fVehicle) scoped = scoped.filter((r) => String(r.vehicle_id) === fVehicle);
+      const tglById = new Map(scoped.map((r) => [String(r.transaction_id), String(r.tanggal || '').substring(0, 10)]));
+      transactions = L.buildRecentList(scoped, kendaraanInfoMap(all), cabangNamaMapOf(all), cardIdMap, scoped.length)
+        .filter((t) => {
+          const tgl = tglById.get(String(t.transaction_id)) ?? '';
+          return (!fDari || tgl >= fDari) && (!fSampai || tgl <= fSampai);
+        })
+        .slice(0, HISTORY_MAX_ITEMS);
+    } else {
+      transactions = L.buildRecentList(rows, kendaraanInfoMap(all), cabangNamaMapOf(all), cardIdMap);
+    }
 
     const periode = L.periodKey(new Date());
     const mkey = monthlyCacheKey(roleOf(u), cabang);

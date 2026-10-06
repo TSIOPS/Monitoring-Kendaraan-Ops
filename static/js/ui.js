@@ -90,3 +90,25 @@ export function navHalaman(total, aktif, keHalaman) {
   );
   return wrap;
 }
+
+// Pratinjau besar foto odometer agar angka KM dan bar bensin terbaca sebelum disimpan.
+// urlAwal: foto yang sudah tersimpan (halaman edit); diganti saat file baru dipilih.
+export function pratinjauFoto(input, urlAwal = '') {
+  const kotak = el('div', { class: 'foto-preview mt-2' });
+  let objekUrl = '';
+  const tampil = (src, judul) => {
+    if (!src) {
+      kotak.replaceChildren(el('div', { class: 'foto-preview-kosong', text: 'Belum ada foto' }));
+      return;
+    }
+    kotak.replaceChildren(el('a', { href: src, target: '_blank', rel: 'noopener', title: 'Buka ukuran penuh' }, [el('img', { src, alt: judul })]));
+  };
+  input.addEventListener('change', () => {
+    if (objekUrl) URL.revokeObjectURL(objekUrl);
+    const file = input.files && input.files[0];
+    objekUrl = file ? URL.createObjectURL(file) : '';
+    tampil(objekUrl || urlAwal, file ? file.name : 'Foto tersimpan');
+  });
+  tampil(urlAwal, 'Foto tersimpan');
+  return kotak;
+}

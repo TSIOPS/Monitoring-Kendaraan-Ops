@@ -1,6 +1,6 @@
 import { get, put } from '../api.js';
 import { getRouteParam } from '../router.js';
-import { el, fmtNum, toast } from '../ui.js';
+import { el, fmtNum, toast, pratinjauFoto } from '../ui.js';
 import { kompresGambar, namaAman } from './input.js';
 
 // Edit transaksi lengkap (M11), setara alur edit GAS: tanggal, supir, KM, bar,
@@ -113,7 +113,6 @@ export async function renderEdit(view) {
   const liter = angka(trx.isi_bbm, { step: '0.01' });
   const fotoAwal = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
   const fotoAkhir = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
-  const pratinjau = (url) => (url ? el('img', { src: url, class: 'thumb mb-2', alt: 'Foto lama' }) : el('div', { class: 'small text-muted mb-2', text: 'Belum ada foto' }));
 
   const metode = el('select', { class: 'form-select' }, [
     el('option', { value: 'TUNAI', text: 'Tunai' }),
@@ -170,8 +169,8 @@ export async function renderEdit(view) {
       kol(2, baris('Liter BBM', liter)),
     ]),
     el('div', { class: 'row' }, [
-      kol(6, baris('Foto odometer awal', el('div', {}, [pratinjau(trx.foto_odo_awal_thumb || trx.foto_odo_awal), fotoAwal]), 'Kosongkan bila tidak diganti.')),
-      kol(6, baris('Foto odometer akhir', el('div', {}, [pratinjau(trx.foto_odo_akhir_thumb || trx.foto_odo_akhir), fotoAkhir]), 'Kosongkan bila tidak diganti.')),
+      kol(6, baris('Foto odometer awal', el('div', {}, [fotoAwal, pratinjauFoto(fotoAwal, trx.foto_odo_awal || trx.foto_odo_awal_thumb)]), 'Kosongkan bila tidak diganti.')),
+      kol(6, baris('Foto odometer akhir', el('div', {}, [fotoAkhir, pratinjauFoto(fotoAkhir, trx.foto_odo_akhir || trx.foto_odo_akhir_thumb)]), 'Kosongkan bila tidak diganti.')),
     ]),
     el('h3', { class: 'h6 mt-2', text: 'Pembayaran' }),
     el('div', { class: 'row' }, [

@@ -1,5 +1,5 @@
 import { get, post } from '../api.js';
-import { el, fmtNum, toast } from '../ui.js';
+import { el, fmtNum, pratinjauFoto, toast } from '../ui.js';
 
 const MAKS_LEBAR = 1600;
 const KUALITAS_JPEG = 0.8;
@@ -240,7 +240,8 @@ export async function renderInput(view) {
     ]);
 
   // Pengeluaran kartu ke-2 (opsional), seperti di GAS: tersembunyi sampai dibuka.
-  const grup2Wrap = el('div', { class: 'd-none' }, [
+  const grup2Wrap = el('div', { class: 'form-section d-none' }, [
+    el('div', { class: 'form-section-title', text: 'Pengeluaran kartu ke-2' }),
     el('div', { class: 'form-text mb-2', text: 'Dipakai saat satu kartu tidak cukup. Bila nominal diisi tanpa kartu, biaya itu dicatat sebagai tunai.' }),
     el('div', { class: 'row' }, [
       el('div', { class: 'col-md-3' }, [baris('Nominal BBM (kartu 2)', f.biaya_bbm_2)]),
@@ -249,51 +250,68 @@ export async function renderInput(view) {
       el('div', { class: 'col-md-3' }, [baris('Kartu Flazz tol (kartu 2)', f.flazz_card_id_toll_2)]),
     ]),
   ]);
-  const grup2Toggle = el('button', { type: 'button', class: 'btn btn-sm btn-outline-secondary mb-3', text: 'Tambah pengeluaran dengan kartu ke-2' });
+  const grup2Toggle = el('button', { type: 'button', class: 'btn btn-outline-secondary btn-tambah-kartu w-100 mb-3', text: '+ Tambah pengeluaran dengan kartu ke-2' });
   const bukaGrup2 = () => {
     grup2Wrap.classList.remove('d-none');
     grup2Toggle.classList.add('d-none');
   };
   grup2Toggle.addEventListener('click', bukaGrup2);
 
+  // Input dengan satuan (Rp / KM / L) di sisi kiri/kanan.
+  const satuan = (kontrol, kiri, kanan) => el('div', { class: 'input-group' }, [
+    kiri ? el('span', { class: 'input-group-text', text: kiri }) : null,
+    kontrol,
+    kanan ? el('span', { class: 'input-group-text', text: kanan }) : null,
+  ]);
+  const seksi = (judul, isi) => el('div', { class: 'form-section' }, [el('div', { class: 'form-section-title', text: judul }), ...isi]);
+  const meterRusak = (cek, id, teks) => el('div', { class: 'form-check mb-3' }, [cek, el('label', { class: 'form-check-label', for: id, text: teks })]);
+  f.biaya_toll.placeholder = 'Kosongkan bila tidak ada tol';
+  f.biaya_bbm.placeholder = '0';
+  f.liter_bbm.placeholder = 'otomatis';
+
   const form = el('form', { novalidate: 'novalidate' }, [
     alertBox,
-    el('div', { class: 'row' }, [
-      el('div', { class: 'col-md-6' }, [baris('Kendaraan', f.vehicle_id)]),
-      el('div', { class: 'col-md-3' }, [baris('Tanggal', f.tanggal)]),
-      el('div', { class: 'col-md-3' }, [baris('Supir', f.nama_supir), infoJalur]),
+    seksi('Kendaraan & Supir', [
+      el('div', { class: 'row' }, [
+        el('div', { class: 'col-md-6' }, [baris('Kendaraan', f.vehicle_id)]),
+        el('div', { class: 'col-md-3' }, [baris('Tanggal', f.tanggal)]),
+        el('div', { class: 'col-md-3' }, [baris('Supir', f.nama_supir), infoJalur]),
+      ]),
     ]),
-    el('div', { class: 'row' }, [
-      el('div', { class: 'col-md-4' }, [
-        baris('Foto odometer awal', fotoAwal),
-        baris('KM awal', f.km_awal),
-        el('div', { class: 'form-check mb-2' }, [
-          f.km_awal_broken,
-          el('label', { class: 'form-check-label', for: 'f-km-awal-broken', text: 'Meter awal mati/rusak' }),
+    seksi('Odometer & Bensin', [
+      el('div', { class: 'row' }, [
+        el('div', { class: 'col-md-4' }, [
+          baris('Foto odometer awal', el('div', {}, [fotoAwal, pratinjauFoto(fotoAwal)])),
+          baris('KM awal', satuan(f.km_awal, '', 'KM')),
+          meterRusak(f.km_awal_broken, 'f-km-awal-broken', 'Meter awal mati/rusak'),
+        ]),
+        el('div', { class: 'col-md-4' }, [
+          baris('Foto odometer akhir', el('div', {}, [fotoAkhir, pratinjauFoto(fotoAkhir)])),
+          baris('KM akhir', satuan(f.km_akhir, '', 'KM')),
+          meterRusak(f.km_akhir_broken, 'f-km-akhir-broken', 'Meter akhir mati/rusak'),
+        ]),
+        el('div', { class: 'col-md-4' }, [
+          el('div', { class: 'form-subtitle', text: 'Indikator bensin' }),
+          baris('Bar awal', f.bar_awal),
+          baris('Bar akhir', f.bar_akhir),
         ]),
       ]),
-      el('div', { class: 'col-md-4' }, [
-        baris('Foto odometer akhir', fotoAkhir),
-        baris('KM akhir', f.km_akhir),
-        el('div', { class: 'form-check mb-2' }, [
-          f.km_akhir_broken,
-          el('label', { class: 'form-check-label', for: 'f-km-akhir-broken', text: 'Meter akhir mati/rusak' }),
-        ]),
+    ]),
+    seksi('Pembelian BBM', [
+      el('div', { class: 'row' }, [
+        el('div', { class: 'col-md-3' }, [baris('Jenis BBM', f.jenis_bbm)]),
+        el('div', { class: 'col-md-3' }, [baris('Biaya BBM', satuan(f.biaya_bbm, 'Rp'))]),
+        el('div', { class: 'col-md-3' }, [baris('Liter BBM', satuan(f.liter_bbm, '', 'L'), 'Otomatis: biaya ÷ harga per liter')]),
+        el('div', { class: 'col-md-3' }, [baris('Metode pembayaran', f.metode_pembayaran)]),
       ]),
-      el('div', { class: 'col-md-2 align-self-end' }, [baris('Bar awal', f.bar_awal)]),
-      el('div', { class: 'col-md-2 align-self-end' }, [baris('Bar akhir', f.bar_akhir)]),
+      el('div', { class: 'row' }, [el('div', { class: 'col-md-6' }, [baris('Kartu Flazz (BBM)', f.flazz_card_id)])]),
     ]),
-    el('div', { class: 'row' }, [
-      el('div', { class: 'col-md-3' }, [baris('Jenis BBM', f.jenis_bbm)]),
-      el('div', { class: 'col-md-3' }, [baris('Biaya BBM', f.biaya_bbm)]),
-      el('div', { class: 'col-md-3' }, [baris('Liter BBM', f.liter_bbm, 'Otomatis: biaya ÷ harga per liter')]),
-      el('div', { class: 'col-md-3' }, [baris('Metode pembayaran', f.metode_pembayaran)]),
-    ]),
-    el('div', { class: 'row' }, [el('div', { class: 'col-md-4' }, [baris('Kartu Flazz (BBM)', f.flazz_card_id)])]),
-    el('div', { class: 'row' }, [
-      el('div', { class: 'col-md-4' }, [baris('Biaya tol', f.biaya_toll, 'Kosongkan bila tidak ada tol')]),
-      el('div', { class: 'col-md-4' }, [baris('Metode tol', f.metode_toll)]),
-      el('div', { class: 'col-md-4' }, [baris('Kartu Flazz (tol)', f.flazz_card_id_toll)]),
+    seksi('Tol', [
+      el('div', { class: 'row' }, [
+        el('div', { class: 'col-md-4' }, [baris('Biaya tol', satuan(f.biaya_toll, 'Rp'))]),
+        el('div', { class: 'col-md-4' }, [baris('Metode tol', f.metode_toll)]),
+        el('div', { class: 'col-md-4' }, [baris('Kartu Flazz (tol)', f.flazz_card_id_toll)]),
+      ]),
     ]),
     el('div', {}, [grup2Toggle]),
     grup2Wrap,

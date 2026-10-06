@@ -74,3 +74,13 @@ describe('history: teks efisiensi', () => {
     expect(teksEfisiensi({ efisiensi: '', status_efisiensi: 'Data Belum Cukup' })).toBe('Data belum cukup');
   });
 });
+
+describe('history: filter', () => {
+  it('query hanya berisi filter yang terisi', async () => {
+    const { queryHistory, cekRentang } = await import('../../static/js/pages/transaksi.js');
+    expect(queryHistory({ cabang: '', vehicle_id: '', dari: '', sampai: '' })).toBe('');
+    expect(queryHistory({ cabang: 'BDG', vehicle_id: 'V-1', dari: '2026-09-01', sampai: '' })).toBe('?cabang=BDG&vehicle_id=V-1&dari=2026-09-01');
+    expect(cekRentang('2026-10-02', '2026-10-01')).not.toBe('');
+    expect(cekRentang('2026-10-01', '2026-10-01')).toBe('');
+  });
+});

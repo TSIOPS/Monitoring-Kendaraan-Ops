@@ -707,13 +707,13 @@ export interface RecentItem {
   foto_struk_toll_thumb: string;
 }
 
-export function buildRecentList(rows: LaporanRow[], kendaraanMap: KendaraanMap, cabangNamaMap: CabangNamaMap, cardMap: CardMap): RecentItem[] {
+export function buildRecentList(rows: LaporanRow[], kendaraanMap: KendaraanMap, cabangNamaMap: CabangNamaMap, cardMap: CardMap, maxItems = 200): RecentItem[] {
   const groups = groupByVehicleSorted(rows);
   const rowIdx = new Map<LaporanRow, number>();
   for (const arr of groups.values()) arr.forEach((r, i) => rowIdx.set(r, i));
 
   const result: RecentItem[] = [];
-  const start = rows.length > 200 ? rows.length - 200 : 0;
+  const start = rows.length > maxItems ? rows.length - maxItems : 0;
   for (let i = rows.length - 1; i >= start; i--) {
     const row = rows[i];
     if (!row) continue;

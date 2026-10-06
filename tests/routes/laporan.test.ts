@@ -779,3 +779,29 @@ describe('GET /api/dashboard/warnings', () => {
     expect(body.odoEstimasi.map((o: any) => o.vehicle_id)).toEqual(['V-1']);
   });
 });
+
+describe('GET /api/dashboard (filter History Laporan)', () => {
+  const rows = [
+    { transaction_id: 'TRX-A1', kode_cabang: 'CBG-A', vehicle_id: 'V-1', tanggal: '2026-09-01', seq: 1 },
+    { transaction_id: 'TRX-A2', kode_cabang: 'CBG-A', vehicle_id: 'V-1', tanggal: '2026-09-15', seq: 2 },
+    { transaction_id: 'TRX-A3', kode_cabang: 'CBG-A', vehicle_id: 'V-3', plat_nomor: 'B 3 C', tanggal: '2026-09-20', seq: 3 },
+    { transaction_id: 'TRX-B1', kode_cabang: 'CBG-B', vehicle_id: 'V-2', plat_nomor: 'B 2 B', tanggal: '2026-09-10', seq: 4 },
+  ];
+  const ids = async (app: ReturnType<typeof buildApp>, tok: string, q: string) =>
+    ((await (await app.request('/api/dashboard' + q, { headers: authHeaders(tok) })).json()) as any).transactions.map((t: any) => t.transaction_id);
+
+  it('SUPERADMIN: warehouse, kendaraan, rentang tanggal', async () => {
+    const { app, kv } = setup({ rows });
+    const tok = await loginAs(kv, SUPER);
+    expect(await ids(app, tok, '?cabang=CBG-B')).toEqual(['TRX-B1']);
+    expect(await ids(app, tok, '?vehicle_id=V-1')).toEqual(['TRX-A2', 'TRX-A1']);
+    expect(await ids(app, tok, '?dari=2026-09-10&sampai=2026-09-15')).toEqual(['TRX-A2', 'TRX-B1']);
+  });
+
+  it('PIC tidak bisa membuka warehouse lain lewat ?cabang=', async () => {
+    const { app, kv } = setup({ rows });
+    const tok = await loginAs(kv, PIC);
+    expect(await ids(app, tok, '?cabang=CBG-B')).toEqual(['TRX-A3', 'TRX-A2', 'TRX-A1']);
+    expect(await ids(app, tok, '?cabang=CBG-B&vehicle_id=V-2')).toEqual([]);
+  });
+});
