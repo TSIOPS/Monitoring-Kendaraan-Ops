@@ -29,6 +29,17 @@ const NAV = [
   },
 ];
 
+// Thumbnail yang belum dibuat (404) diganti foto penuh dari data-full, sekali saja.
+document.addEventListener('error', (ev) => {
+  const img = ev.target;
+  if (!(img instanceof HTMLImageElement)) return;
+  const full = img.dataset.full;
+  if (full && img.src !== full) {
+    delete img.dataset.full;
+    img.src = full;
+  }
+}, true);
+
 // Pengaturan publik (nama aplikasi, footer); dimuat sekali saat boot dan setelah disimpan.
 let pengaturan = { app_name: '', footer_text: '' };
 

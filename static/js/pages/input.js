@@ -1,8 +1,12 @@
 import { get, post } from '../api.js';
 import { el, fmtNum, pratinjauFoto, toast } from '../ui.js';
 
-const MAKS_LEBAR = 1600;
-const KUALITAS_JPEG = 0.8;
+// Setara compressPhoto GAS (1280 px, 70%) agar kapasitas Storage awet.
+const MAKS_LEBAR = 1280;
+const KUALITAS_JPEG = 0.7;
+// Thumbnail untuk daftar & galeri (hemat egress).
+export const THUMB_LEBAR = 320;
+export const THUMB_KUALITAS = 0.6;
 
 export function validateForm(v) {
   const err = [];
@@ -88,7 +92,7 @@ export function tanggalWib(d = new Date()) {
   return FORMAT_WIB.format(d);
 }
 
-export function kompresGambar(file) {
+export function kompresGambar(file, maksLebar = MAKS_LEBAR, kualitas = KUALITAS_JPEG) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('File tidak dapat dibaca.'));
@@ -96,7 +100,7 @@ export function kompresGambar(file) {
       const img = new Image();
       img.onerror = () => reject(new Error('Foto tidak valid.'));
       img.onload = () => {
-        const skala = img.width > MAKS_LEBAR ? MAKS_LEBAR / img.width : 1;
+        const skala = img.width > maksLebar ? maksLebar / img.width : 1;
         const canvas = document.createElement('canvas');
         canvas.width = Math.round(img.width * skala);
         canvas.height = Math.round(img.height * skala);
@@ -106,7 +110,7 @@ export function kompresGambar(file) {
           return;
         }
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', KUALITAS_JPEG));
+        resolve(canvas.toDataURL('image/jpeg', kualitas));
       };
       img.src = String(reader.result);
     };
@@ -472,10 +476,12 @@ export async function renderInput(view) {
         const fotoBody = {};
         if (fotoAwal.files && fotoAwal.files[0]) {
           fotoBody.foto_odo_awal = await kompresGambar(fotoAwal.files[0]);
+          fotoBody.foto_odo_awal_thumb = await kompresGambar(fotoAwal.files[0], THUMB_LEBAR, THUMB_KUALITAS);
           fotoBody.foto_odo_awal_name = namaAman(fotoAwal.files[0].name);
         }
         if (fotoAkhir.files && fotoAkhir.files[0]) {
           fotoBody.foto_odo_akhir = await kompresGambar(fotoAkhir.files[0]);
+          fotoBody.foto_odo_akhir_thumb = await kompresGambar(fotoAkhir.files[0], THUMB_LEBAR, THUMB_KUALITAS);
           fotoBody.foto_odo_akhir_name = namaAman(fotoAkhir.files[0].name);
         }
 

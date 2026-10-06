@@ -10,6 +10,7 @@ import { bumpMasterRev, invalidateDashwarn, invalidateLaporanCaches, performaCac
 import { CardBalanceError } from '../db/laporan';
 import type { FlazzCardRow, LaporanInsert } from '../db/laporan';
 import { extractStorageKey } from '../db/storage';
+import { thumbKeyOf } from '../logic/foto';
 import * as L from '../logic/laporan';
 import { buildOdoMap, computeWarnings, ringkasanPeringatan } from '../logic/warnings';
 import { todayWib } from '../logic/jalur';
@@ -94,6 +95,27 @@ function cabangNamaMapOf(all: { cabang: Array<{ kode_cabang: string; nama_cabang
   return new Map(all.cabang.map((c) => [c.kode_cabang, c.nama_cabang]));
 }
 
+// Thumbnail dibuat klien (±320 px); disimpan di kunci turunan foto penuh.
+// Kegagalan diabaikan: tampilan memakai foto penuh bila thumbnail tidak ada.
+async function unggahThumb(deps: AppDeps, env: Env, fotoKey: string, dataUrl: unknown): Promise<void> {
+  if (!fotoKey || !dataUrl) return;
+  try {
+    await deps.uploadEvidence(env, { branch: '', folder: 'KM_Awal', key: thumbKeyOf(fotoKey), bytes: decodeBase64(dataUrl), ext: 'jpg', contentType: 'image/jpeg' });
+  } catch {
+    // opsional
+  }
+}
+
+async function hapusFotoDanThumb(deps: AppDeps, env: Env, key: string): Promise<void> {
+  if (!key) return;
+  await deps.deleteEvidence(env, key);
+  try {
+    await deps.deleteEvidence(env, thumbKeyOf(key));
+  } catch {
+    // thumbnail lama mungkin memang tidak ada
+  }
+}
+
 export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   const app = new Hono<{ Bindings: Env }>();
 
@@ -108,6 +130,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
         const { ext, contentType } = extOf(body.foto_odo_awal_name);
         const up = await deps.uploadEvidence(c.env as Env, { branch: u.cabang, folder: 'KM_Awal', bytes, ext, contentType });
         files.odo_awal = up.url;
+        await unggahThumb(deps, c.env as Env, up.key, body.foto_odo_awal_thumb);
       } catch (e) {
         throw new HttpError(422, 'Upload foto KM awal gagal: ' + (e as Error).message, 'UNPROCESSABLE');
       }
@@ -118,6 +141,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
         const { ext, contentType } = extOf(body.foto_odo_akhir_name);
         const up = await deps.uploadEvidence(c.env as Env, { branch: u.cabang, folder: 'KM_Akhir', bytes, ext, contentType });
         files.odo_akhir = up.url;
+        await unggahThumb(deps, c.env as Env, up.key, body.foto_odo_akhir_thumb);
       } catch (e) {
         throw new HttpError(422, 'Upload foto KM akhir gagal: ' + (e as Error).message, 'UNPROCESSABLE');
       }
@@ -517,8 +541,9 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
         const bytes = decodeBase64(p.foto_odo_awal);
         const { ext, contentType } = extOf(p.foto_odo_awal_name ?? 'odo_awal.jpg');
         const up = await deps.uploadEvidence(c.env as Env, { branch: u.cabang, folder: 'KM_Awal', bytes, ext, contentType });
+        await unggahThumb(deps, c.env as Env, up.key, p.foto_odo_awal_thumb);
         const oldKey = extractStorageKey(String(old.foto_km_awal ?? ''));
-        if (oldKey) await deps.deleteEvidence(c.env as Env, oldKey);
+        if (oldKey) await hapusFotoDanThumb(deps, c.env as Env, oldKey);
         patch.foto_km_awal = up.url;
       } catch (e) {
         throw new HttpError(422, 'Upload foto odometer awal gagal: ' + (e as Error).message, 'UNPROCESSABLE');
@@ -529,8 +554,9 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
         const bytes = decodeBase64(p.foto_odo_akhir);
         const { ext, contentType } = extOf(p.foto_odo_akhir_name ?? 'odo_akhir.jpg');
         const up = await deps.uploadEvidence(c.env as Env, { branch: u.cabang, folder: 'KM_Akhir', bytes, ext, contentType });
+        await unggahThumb(deps, c.env as Env, up.key, p.foto_odo_akhir_thumb);
         const oldKey = extractStorageKey(String(old.foto_km_akhir ?? ''));
-        if (oldKey) await deps.deleteEvidence(c.env as Env, oldKey);
+        if (oldKey) await hapusFotoDanThumb(deps, c.env as Env, oldKey);
         patch.foto_km_akhir = up.url;
       } catch (e) {
         throw new HttpError(422, 'Upload foto odometer akhir gagal: ' + (e as Error).message, 'UNPROCESSABLE');

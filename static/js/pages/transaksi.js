@@ -52,9 +52,11 @@ function badgeEfisiensi(row) {
   return el('span', { class: `badge-status ${kelas}`, title: String(row.efisiensi_label || ''), text: teksEfisiensi(row) });
 }
 
-function thumb(url) {
+function thumb(url, full) {
   if (!url) return el('span', { class: 'text-muted', text: '-' });
-  return el('img', { class: 'thumb', src: url, alt: 'foto odometer', loading: 'lazy' });
+  const img = el('img', { class: 'thumb', src: url, alt: 'foto odometer', loading: 'lazy', 'data-full': full || url });
+  // Klik membuka foto penuh untuk membaca angka odometer.
+  return full ? el('a', { href: full, target: '_blank', rel: 'noopener' }, [img]) : img;
 }
 
 function selKolom(nilai, kelas = '') {
@@ -136,8 +138,8 @@ function barisTabel(r) {
       pakaiKartu2(r) ? el('span', { class: 'badge-status ms-1', text: '2 kartu' }) : null,
     ]),
     el('td', { class: 'text-nowrap' }, [badgeEfisiensi(r)]),
-    el('td', {}, [thumb(r.foto_odo_awal_thumb)]),
-    el('td', {}, [thumb(r.foto_odo_akhir_thumb)]),
+    el('td', {}, [thumb(r.foto_odo_awal_thumb, r.foto_odo_awal)]),
+    el('td', {}, [thumb(r.foto_odo_akhir_thumb, r.foto_odo_akhir)]),
     selAksi(r),
   ]);
 }

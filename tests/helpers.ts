@@ -298,7 +298,7 @@ export function memStorage() {
   return {
     files,
     uploadEvidence: async (_env: Env, opts: UploadEvidenceOpts): Promise<StorageUploadResult> => {
-      const key = `${opts.branch}/${opts.folder}/${crypto.randomUUID()}.${opts.ext}`;
+      const key = opts.key || `${opts.branch}/${opts.folder}/${crypto.randomUUID()}.${opts.ext}`;
       files.set(key, opts.bytes);
       return { url: `http://storage.local/storage/v1/object/public/foto/${key}`, key };
     },

@@ -1,5 +1,6 @@
 // Logika MURNI laporan/transaksi BBM. Port 1:1 PaymentLogic.js + SpreadsheetOps.js.
 // Tanpa I/O: tidak menyentuh env, Supabase, KV, atau Storage.
+import { thumbUrlOf } from './foto';
 
 export interface LaporanRow {
   seq?: number;
@@ -547,7 +548,8 @@ export function supabaseThumb(url: string): string {
   const s = String(url);
   const drive = /^https?:\/\/(drive|docs)\.google\.com\//.test(s) ? /[-\w]{25,}/.exec(s) : null;
   if (drive) return `https://drive.google.com/thumbnail?id=${drive[0]}&sz=w200`;
-  return s.split('?')[0] ?? '';
+  // Foto di bucket "foto" punya salinan kecil di thumb/ (klien jatuh ke foto penuh bila belum ada).
+  return thumbUrlOf(s);
 }
 
 export interface Prefill {

@@ -238,7 +238,7 @@ export async function renderDashboard(view) {
       const items = transactions.map((r) => ({ r, foto: fotoPertama(r) })).filter((x) => x.foto).slice(0, 6);
       isiGaleri.replaceChildren(...(items.length ? items.map(({ r, foto }) => el('div', { class: 'col-6 col-md-2' }, [
         el('a', { href: foto.url, target: '_blank', rel: 'noopener', class: 'text-decoration-none' }, [el('div', { class: 'border rounded-3 overflow-hidden h-100' }, [
-          el('img', { src: foto.thumb, alt: 'foto operasional', class: 'w-100', style: 'aspect-ratio:4/3;object-fit:cover' }),
+          el('img', { src: foto.thumb, 'data-full': foto.url, alt: 'foto operasional', class: 'w-100', style: 'aspect-ratio:4/3;object-fit:cover' }),
           el('div', { class: 'py-1 px-2 small text-truncate text-dark', text: fmtDateId(r.tanggal) }),
         ])]),
       ])) : [el('div', { class: 'col-12 text-center text-muted py-4', text: 'Belum ada foto operasional.' })]));

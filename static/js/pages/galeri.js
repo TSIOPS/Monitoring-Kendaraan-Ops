@@ -41,7 +41,7 @@ function kartuFoto(r, jenis) {
       return el('div', { class: `${jenis === 'all' ? 'col-6' : 'col-12'} text-center` }, [
         el('small', { class: 'd-block mb-1 text-muted', text: s.label }),
         url
-          ? el('a', { href: url, target: '_blank', rel: 'noopener' }, [el('img', { src: thumb, alt: s.label, loading: 'lazy', class: 'img-fluid rounded border', style: `aspect-ratio:${s.rasio};object-fit:cover;width:100%` })])
+          ? el('a', { href: url, target: '_blank', rel: 'noopener' }, [el('img', { src: thumb, 'data-full': url, alt: s.label, loading: 'lazy', class: 'img-fluid rounded border', style: `aspect-ratio:${s.rasio};object-fit:cover;width:100%` })])
           : el('span', { class: 'text-muted small', text: '-' }),
       ]);
     })),

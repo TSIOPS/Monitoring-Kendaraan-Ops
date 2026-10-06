@@ -14,7 +14,13 @@ export interface UploadEvidenceOpts {
   bytes: Uint8Array;
   ext: string;
   contentType: string;
+  // Kunci objek tetap (mis. thumbnail turunan); tanpa ini dibuat UUID baru.
+  key?: string;
 }
+
+// Nama objek unik/tidak berubah isinya, jadi browser boleh menyimpan cache 1 tahun
+// (mengurangi egress Supabase saat daftar & galeri dibuka berulang).
+const CACHE_FOTO = '31536000';
 
 export async function ensureSettingsBucket(env: Env): Promise<void> {
   const sb = getSupabase(env);
@@ -69,8 +75,8 @@ function safeBranch(branch: string): string {
 export async function uploadEvidenceStorage(env: Env, opts: UploadEvidenceOpts): Promise<StorageUploadResult> {
   const sb = getSupabase(env);
   await ensureFotoBucket(env);
-  const key = `${safeBranch(opts.branch)}/${opts.folder}/${crypto.randomUUID()}.${opts.ext}`;
-  const { error } = await sb.storage.from(FOTO_BUCKET).upload(key, opts.bytes, { contentType: opts.contentType });
+  const key = opts.key || `${safeBranch(opts.branch)}/${opts.folder}/${crypto.randomUUID()}.${opts.ext}`;
+  const { error } = await sb.storage.from(FOTO_BUCKET).upload(key, opts.bytes, { contentType: opts.contentType, cacheControl: CACHE_FOTO, upsert: Boolean(opts.key) });
   if (error) throw new Error(`Storage upload: ${error.message}`);
   const url = `${env.SUPABASE_URL}/storage/v1/object/public/${FOTO_BUCKET}/${key}`;
   return { url, key };

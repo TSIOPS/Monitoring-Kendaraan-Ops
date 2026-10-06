@@ -153,6 +153,19 @@ describe('POST /api/laporan/photos', () => {
     expect(storage.files.size).toBe(2);
   });
 
+  it('thumbnail dari klien disimpan di thumb/ dengan kunci turunan foto penuh', async () => {
+    const { app, kv, storage } = setup();
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan/photos', tok, {
+      foto_odo_awal: 'data:image/jpeg;base64,AAAA', foto_odo_awal_name: 'a.jpg',
+      foto_odo_awal_thumb: 'data:image/jpeg;base64,CCCC',
+    });
+    expect(res.status).toBe(200);
+    const keys = [...storage.files.keys()];
+    const utama = keys.find((k) => !k.startsWith('thumb/'))!;
+    expect(keys).toContain('thumb/' + utama.replace(/\.jpg$/, '') + '.jpg');
+  });
+
   it('base64 tidak valid -> 422 pesan upload', async () => {
     const { app, kv } = setup();
     const tok = await loginAs(kv, PIC);

@@ -196,9 +196,13 @@ describe('mapping', () => {
     expect(isDuplicateRow(r, { vehicle_id: 'V-1', tanggal: '2026-09-01', km_awal: '100', km_akhir: '200', liter: '11', biaya_bbm: '100000', biaya_toll: '0' })).toBe(false);
   });
 
-  it('supabaseThumb: objek Storage langsung (transformasi gambar tidak aktif), Drive ke thumbnail Drive', () => {
-    expect(supabaseThumb('https://x.supabase.co/storage/v1/object/public/foto/CBG-A/KM_Awal/a.jpg?x=1'))
-      .toBe('https://x.supabase.co/storage/v1/object/public/foto/CBG-A/KM_Awal/a.jpg');
+  it('supabaseThumb: foto bucket -> thumb/ (jpg), bucket lain apa adanya, Drive ke thumbnail Drive', () => {
+    expect(supabaseThumb('https://x.supabase.co/storage/v1/object/public/foto/CBG-A/KM_Awal/a.png?x=1'))
+      .toBe('https://x.supabase.co/storage/v1/object/public/foto/thumb/CBG-A/KM_Awal/a.jpg');
+    expect(supabaseThumb('https://x.supabase.co/storage/v1/object/public/foto/thumb/CBG-A/KM_Awal/a.jpg'))
+      .toBe('https://x.supabase.co/storage/v1/object/public/foto/thumb/CBG-A/KM_Awal/a.jpg');
+    expect(supabaseThumb('https://x.supabase.co/storage/v1/object/public/settings/logo.png'))
+      .toBe('https://x.supabase.co/storage/v1/object/public/settings/logo.png');
     expect(supabaseThumb('https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view?usp=drivesdk'))
       .toBe('https://drive.google.com/thumbnail?id=1AbCdEfGhIjKlMnOpQrStUvWxYz012345&sz=w200');
     expect(supabaseThumb('')).toBe('');

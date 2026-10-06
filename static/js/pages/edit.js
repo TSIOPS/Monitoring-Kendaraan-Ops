@@ -1,7 +1,7 @@
 import { get, put } from '../api.js';
 import { getRouteParam } from '../router.js';
 import { el, fmtNum, toast, pratinjauFoto } from '../ui.js';
-import { kompresGambar, namaAman } from './input.js';
+import { kompresGambar, namaAman, THUMB_KUALITAS, THUMB_LEBAR } from './input.js';
 
 // Edit transaksi lengkap (M11), setara alur edit GAS: tanggal, supir, KM, bar,
 // liter, pembayaran (grup 1 & 2), dan foto odometer. Kendaraan tetap terkunci.
@@ -220,10 +220,12 @@ export async function renderEdit(view) {
       const body = bodyEdit(trx, values);
       if (fotoAwal.files && fotoAwal.files[0]) {
         body.foto_odo_awal = await kompresGambar(fotoAwal.files[0]);
+        body.foto_odo_awal_thumb = await kompresGambar(fotoAwal.files[0], THUMB_LEBAR, THUMB_KUALITAS);
         body.foto_odo_awal_name = namaAman(fotoAwal.files[0].name);
       }
       if (fotoAkhir.files && fotoAkhir.files[0]) {
         body.foto_odo_akhir = await kompresGambar(fotoAkhir.files[0]);
+        body.foto_odo_akhir_thumb = await kompresGambar(fotoAkhir.files[0], THUMB_LEBAR, THUMB_KUALITAS);
         body.foto_odo_akhir_name = namaAman(fotoAkhir.files[0].name);
       }
       const res = await put(`/api/laporan/${encodeURIComponent(id)}`, body);

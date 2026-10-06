@@ -81,8 +81,10 @@ lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`,
   password). Taruh file export di `migrasi/` (di-gitignore).
 - **Migrasi foto** Drive -> Supabase Storage: `node scripts/migrate-photos.mjs`
   (dry-run) lalu `--apply`. Jalankan SETELAH migrasi data; aman diulang (nama
-  objek tetap per ID Drive). Thumbnail memakai objek Storage langsung karena
-  transformasi gambar Supabase tidak aktif di project ini.
+  objek tetap per ID Drive). Lalu `node scripts/buat-thumbnail.mjs --apply`
+  untuk thumbnail (±320 px di `foto/thumb/…`, karena transformasi gambar Supabase
+  tidak aktif). Foto baru: kompresi 1280 px/70% (setara GAS) + thumbnail dibuat
+  klien saat unggah; tampilan jatuh ke foto penuh bila thumbnail belum ada.
 - **M7** — Pembayaran dua kartu (grup-2: `flazz_card_id_2`, `biaya_bbm_2`,
   `flazz_card_id_toll_2`, `biaya_toll_2`) port dari GAS terbaru **selesai** -
   2026-10-05; lihat `docs/superpowers/specs/2026-10-05-m7-dua-kartu-design.md`.
