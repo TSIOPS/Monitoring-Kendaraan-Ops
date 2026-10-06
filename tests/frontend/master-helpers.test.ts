@@ -34,3 +34,11 @@ describe('body API', () => {
     expect(bodyPengguna({ username: 'a', nama: 'A', role: 'SUPERADMIN', cabang: 'CBG-A', password: 'x' }, false)).toEqual({ username: 'a', nama: 'A', role: 'SUPERADMIN', cabang: '', password: 'x' });
   });
 });
+
+describe('teksOliMaster', () => {
+  it('baseline 0 tampil "Belum diatur", selain itu km / interval', async () => {
+    const { teksOliMaster } = await import('../../static/js/pages/master.js');
+    expect(teksOliMaster({ km_terakhir_ganti_oli: 0, interval_ganti_oli_km: 3000 })).toBe('Belum diatur (interval 3.000)');
+    expect(teksOliMaster({ km_terakhir_ganti_oli: 90646, interval_ganti_oli_km: 5000 })).toBe('90.646 / 5.000');
+  });
+});

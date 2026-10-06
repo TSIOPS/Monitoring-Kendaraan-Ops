@@ -15,6 +15,13 @@ const isSuper = () => String(getUser()?.role || '').toUpperCase() === 'SUPERADMI
 const opsi = (pairs) => pairs.map(([value, label]) => ({ value, label }));
 
 // Pesan field wajib yang kosong (validasi murah di klien; aturan lain di server).
+// Kolom oli Data Master: baseline 0 berarti belum pernah diatur (peringatan oli tidak dihitung).
+export function teksOliMaster(v) {
+  const baseline = Number(v.km_terakhir_ganti_oli) || 0;
+  const interval = fmtNum(v.interval_ganti_oli_km);
+  return baseline > 0 ? `${fmtNum(baseline)} / ${interval}` : `Belum diatur (interval ${interval})`;
+}
+
 export function fieldKosong(fields, values, isEdit) {
   return fields
     .filter((f) => (typeof f.wajib === 'function' ? f.wajib(values, isEdit) : f.wajib))
@@ -55,7 +62,7 @@ function entitas(m) {
         ['Plat', (v) => v.plat_nomor], ['Nama', (v) => v.nama], ['Jenis', (v) => v.jenis],
         ['Indikator', (v) => INDIKATOR.find(([k]) => k === v.jenis_indikator)?.[1] || v.jenis_indikator],
         ['Warehouse', (v) => namaCabang(v.cabang)], ['Pajak', (v) => dok(v.tanggal_pajak)], ['KIR', (v) => dok(v.tanggal_kir)],
-        ['Oli (km terakhir / interval)', (v) => `${fmtNum(v.km_terakhir_ganti_oli)} / ${fmtNum(v.interval_ganti_oli_km)}`],
+        ['Oli (km terakhir / interval)', teksOliMaster, (v) => ((Number(v.km_terakhir_ganti_oli) || 0) > 0 ? '' : 'text-warning-emphasis bg-warning-subtle')],
       ],
       fields: [
         { key: 'plat', label: 'Plat nomor', wajib: true, dari: (v) => v.plat_nomor },
@@ -294,7 +301,7 @@ export async function renderMaster(view) {
     const body = rows.map((r) => {
       const h = e.hapus(r);
       return el('tr', {}, [
-        ...e.kolom.map(([, fn]) => el('td', { text: String(fn(r) ?? '-') })),
+        ...e.kolom.map(([, fn, kelas]) => el('td', { class: kelas ? kelas(r) : '', text: String(fn(r) ?? '-') })),
         el('td', { class: 'text-nowrap' }, [
           el('button', { class: 'btn btn-sm btn-outline-primary me-1', type: 'button', text: 'Edit', onclick: () => bukaForm(r) }),
           ...(e.ekstra ? e.ekstra(r).map((x) => el('button', { class: 'btn btn-sm btn-outline-secondary me-1', type: 'button', text: x.label, onclick: () => aksi(x) })) : []),
