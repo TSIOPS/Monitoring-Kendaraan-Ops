@@ -227,6 +227,8 @@ export async function renderInput(view) {
   const fotoAwal = el('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'form-control' });
   const fotoAkhir = el('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'form-control' });
   const submit = el('button', { class: 'btn btn-primary', type: 'submit', text: 'Simpan Laporan' });
+  const batal = el('button', { class: 'btn btn-outline-secondary', type: 'button', text: 'Batal' });
+  let formDiubah = false;
 
   f.tanggal.value = tanggalWib();
 
@@ -293,10 +295,17 @@ export async function renderInput(view) {
       el('div', { class: 'col-md-4' }, [baris('Metode tol', f.metode_toll)]),
       el('div', { class: 'col-md-4' }, [baris('Kartu Flazz (tol)', f.flazz_card_id_toll)]),
     ]),
-    grup2Toggle,
+    el('div', {}, [grup2Toggle]),
     grup2Wrap,
-    submit,
+    el('div', { class: 'd-flex justify-content-end gap-2 border-top pt-3 mt-2' }, [batal, submit]),
   ]);
+
+  form.addEventListener('input', () => { formDiubah = true; });
+  form.addEventListener('change', () => { formDiubah = true; });
+  batal.addEventListener('click', () => {
+    if (formDiubah && !window.confirm('Batalkan input laporan? Data yang sudah diisi tidak disimpan.')) return;
+    window.location.hash = '#/transaksi';
+  });
 
   async function onVehicleChange() {
     if (!f.vehicle_id.value) return;
@@ -432,6 +441,7 @@ export async function renderInput(view) {
     }
 
     submit.disabled = true;
+    batal.disabled = true;
     submit.textContent = 'Menyimpan';
 
     try {
@@ -469,6 +479,7 @@ export async function renderInput(view) {
       alertBox.textContent = err.message || 'Gagal menyimpan laporan.';
       alertBox.classList.remove('d-none');
       submit.disabled = false;
+      batal.disabled = false;
       submit.textContent = 'Simpan Laporan';
     }
   });
