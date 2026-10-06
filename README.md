@@ -115,6 +115,7 @@ lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`,
   cutover: `npx wrangler secret delete ENABLE_RESET_DATA`. Butuh ketik
   `KOSONGKAN` + password SUPERADMIN; tabel `pengguna` & `pengaturan` tidak dihapus.
   Alternatif tanpa tombol: `db/reset.sql` di SQL Editor.
+  Setelah migrasi: jalankan `db/backfill-driver2.sql` (Driver 2 laporan dari jalur).
 - **Pengaturan** (menu Admin, SUPERADMIN) — logo, nama aplikasi, nama perusahaan,
   footer. `PUT /api/settings` tanpa `logo_url` mempertahankan logo; URL logo
   diberi `?v=` agar logo baru tidak tertahan cache.
