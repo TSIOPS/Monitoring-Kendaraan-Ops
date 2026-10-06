@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPayload, opsiSupirJalur, tanggalWib, validateForm } from '../../static/js/pages/input.js';
+import { buildPayload, hitungLiter, opsiBbm, opsiSupirJalur, tanggalWib, validateForm } from '../../static/js/pages/input.js';
 
 const DASAR = {
   vehicle_id: 'V-1',
@@ -148,5 +148,24 @@ describe('opsiSupirJalur', () => {
       { value: '1', label: 'Andi — B 2 B' },
       { value: '2', label: 'Budi' },
     ]);
+  });
+});
+
+describe('liter otomatis dari biaya BBM', () => {
+  it('hitungLiter = biaya / harga, dua desimal; kosong bila salah satu nol', () => {
+    expect(hitungLiter(100000, 10000)).toBe('10.00');
+    expect(hitungLiter(50000, 12500)).toBe('4.00');
+    expect(hitungLiter(10000, 3000)).toBe('3.33');
+    expect(hitungLiter(0, 10000)).toBe('');
+    expect(hitungLiter(100000, 0)).toBe('');
+  });
+  it('opsiBbm menerima bentuk payload SUPERADMIN maupun PIC', () => {
+    expect(opsiBbm([{ id: 'B1', jenis: 'Pertalite', harga: 10000 }])).toEqual([{ value: 'B1', harga: 10000, label: 'Pertalite — Rp 10.000/L' }]);
+    expect(opsiBbm([{ bbm_id: 'B2', jenis_bbm: 'Solar', harga_per_liter: '6800' }])).toEqual([{ value: 'B2', harga: 6800, label: 'Solar — Rp 6.800/L' }]);
+  });
+  it('biaya BBM tanpa jenis BBM ditolak', () => {
+    expect(validateForm({ ...DASAR, biaya_bbm: '100000', harga_bbm: 0 })).toContain('Pilih jenis BBM agar liter terhitung.');
+    expect(validateForm({ ...DASAR, biaya_bbm: '100000', harga_bbm: 10000 })).not.toContain('Pilih jenis BBM agar liter terhitung.');
+    expect(validateForm({ ...DASAR, biaya_bbm: '', harga_bbm: 0 })).not.toContain('Pilih jenis BBM agar liter terhitung.');
   });
 });

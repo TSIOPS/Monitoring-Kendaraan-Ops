@@ -28,6 +28,12 @@ export function validateForm(v) {
     err.push('Biaya BBM harus angka dan tidak boleh negatif.');
   }
 
+  // Liter dihitung dari biaya / harga jenis BBM (seperti calcLiter GAS); tanpa jenis, liter kosong.
+  const biayaTotal = Number(v.biaya_bbm || 0) + Number(v.biaya_bbm_2 || 0);
+  if (v.harga_bbm !== undefined && biayaTotal > 0 && !(Number(v.harga_bbm) > 0)) {
+    err.push('Pilih jenis BBM agar liter terhitung.');
+  }
+
   if (v.metode_pembayaran === 'FLAZZ' && !v.flazz_card_id) {
     err.push('Pilih kartu Flazz untuk pembayaran.');
   }
@@ -126,6 +132,20 @@ export function opsiSupirJalur(list) {
   }));
 }
 
+export function hitungLiter(biaya, harga) {
+  const b = Number(biaya) || 0;
+  const h = Number(harga) || 0;
+  return b > 0 && h > 0 ? (b / h).toFixed(2) : '';
+}
+
+// Payload master SUPERADMIN memakai {id, jenis, harga}; PIC memakai {bbm_id, jenis_bbm, harga_per_liter}.
+export function opsiBbm(list) {
+  return (list || []).map((b) => {
+    const harga = Number(b.harga ?? b.harga_per_liter) || 0;
+    return { value: String(b.id ?? b.bbm_id), harga, label: `${b.jenis ?? b.jenis_bbm} — Rp ${fmtNum(harga)}/L` };
+  });
+}
+
 function opsiKendaraan(vehicles) {
   return vehicles.map((v) => ({ value: v.vehicle_id, label: `${v.plat_nomor} — ${v.nama}` }));
 }
@@ -150,6 +170,7 @@ export async function renderInput(view) {
 
   const vehicles = Array.isArray(master.vehicles) ? master.vehicles : [];
   const cards = Array.isArray(master.flazzCards) ? master.flazzCards : [];
+  const bbmOpsi = opsiBbm(Array.isArray(master.bbmList) ? master.bbmList : []);
 
   const f = {
     vehicle_id: el('select', { class: 'form-select', id: 'f-vehicle' }),
@@ -161,7 +182,8 @@ export async function renderInput(view) {
     km_akhir_broken: el('input', { class: 'form-check-input', type: 'checkbox', id: 'f-km-akhir-broken' }),
     bar_awal: el('input', { class: 'form-control', type: 'number', inputmode: 'numeric', id: 'f-bar-awal' }),
     bar_akhir: el('input', { class: 'form-control', type: 'number', inputmode: 'numeric', id: 'f-bar-akhir' }),
-    liter_bbm: el('input', { class: 'form-control', type: 'number', step: '0.01', id: 'f-liter' }),
+    jenis_bbm: el('select', { class: 'form-select', id: 'f-jenis-bbm' }),
+    liter_bbm: el('input', { class: 'form-control bg-light', type: 'number', step: '0.01', id: 'f-liter', readonly: 'readonly', tabindex: '-1' }),
     biaya_bbm: el('input', { class: 'form-control', type: 'number', id: 'f-biaya-bbm' }),
     metode_pembayaran: el('select', { class: 'form-select', id: 'f-metode' }, [
       el('option', { value: 'TUNAI', text: 'Tunai' }),
@@ -182,6 +204,15 @@ export async function renderInput(view) {
   };
 
   isiOpsi(f.vehicle_id, opsiKendaraan(vehicles), '— pilih kendaraan —');
+  isiOpsi(f.jenis_bbm, bbmOpsi, '— pilih jenis BBM —');
+  if (bbmOpsi.length === 1) f.jenis_bbm.value = bbmOpsi[0].value;
+  const hargaBbm = () => bbmOpsi.find((o) => o.value === f.jenis_bbm.value)?.harga || 0;
+  const hitungUlangLiter = () => {
+    f.liter_bbm.value = hitungLiter(Number(f.biaya_bbm.value || 0) + Number(f.biaya_bbm_2.value || 0), hargaBbm());
+  };
+  f.jenis_bbm.addEventListener('change', hitungUlangLiter);
+  f.biaya_bbm.addEventListener('input', hitungUlangLiter);
+  f.biaya_bbm_2.addEventListener('input', hitungUlangLiter);
   isiOpsi(f.flazz_card_id, opsiKartu(cards), '— tidak ada —');
   isiOpsi(f.flazz_card_id_toll, opsiKartu(cards), '— tidak ada —');
   isiOpsi(f.flazz_card_id_2, opsiKartu(cards), 'Tanpa kartu (tunai)');
@@ -232,6 +263,7 @@ export async function renderInput(view) {
     ]),
     el('div', { class: 'row' }, [
       el('div', { class: 'col-md-4' }, [
+        baris('Foto odometer awal', fotoAwal),
         baris('KM awal', f.km_awal),
         el('div', { class: 'form-check mb-2' }, [
           f.km_awal_broken,
@@ -239,19 +271,21 @@ export async function renderInput(view) {
         ]),
       ]),
       el('div', { class: 'col-md-4' }, [
+        baris('Foto odometer akhir', fotoAkhir),
         baris('KM akhir', f.km_akhir),
         el('div', { class: 'form-check mb-2' }, [
           f.km_akhir_broken,
           el('label', { class: 'form-check-label', for: 'f-km-akhir-broken', text: 'Meter akhir mati/rusak' }),
         ]),
       ]),
-      el('div', { class: 'col-md-2' }, [baris('Bar awal', f.bar_awal)]),
-      el('div', { class: 'col-md-2' }, [baris('Bar akhir', f.bar_akhir)]),
+      el('div', { class: 'col-md-2 align-self-end' }, [baris('Bar awal', f.bar_awal)]),
+      el('div', { class: 'col-md-2 align-self-end' }, [baris('Bar akhir', f.bar_akhir)]),
     ]),
     el('div', { class: 'row' }, [
-      el('div', { class: 'col-md-4' }, [baris('Liter BBM', f.liter_bbm)]),
-      el('div', { class: 'col-md-4' }, [baris('Biaya BBM', f.biaya_bbm)]),
-      el('div', { class: 'col-md-4' }, [baris('Metode pembayaran', f.metode_pembayaran)]),
+      el('div', { class: 'col-md-3' }, [baris('Jenis BBM', f.jenis_bbm)]),
+      el('div', { class: 'col-md-3' }, [baris('Biaya BBM', f.biaya_bbm)]),
+      el('div', { class: 'col-md-3' }, [baris('Liter BBM', f.liter_bbm, 'Otomatis: biaya ÷ harga per liter')]),
+      el('div', { class: 'col-md-3' }, [baris('Metode pembayaran', f.metode_pembayaran)]),
     ]),
     el('div', { class: 'row' }, [el('div', { class: 'col-md-4' }, [baris('Kartu Flazz (BBM)', f.flazz_card_id)])]),
     el('div', { class: 'row' }, [
@@ -261,10 +295,6 @@ export async function renderInput(view) {
     ]),
     grup2Toggle,
     grup2Wrap,
-    el('div', { class: 'row' }, [
-      el('div', { class: 'col-md-6' }, [baris('Foto odometer awal', fotoAwal)]),
-      el('div', { class: 'col-md-6' }, [baris('Foto odometer akhir', fotoAkhir)]),
-    ]),
     submit,
   ]);
 
@@ -290,7 +320,6 @@ export async function renderInput(view) {
         f.bar_awal.value = pref.bar_awal || '';
         f.bar_akhir.value = pref.bar_akhir || '';
       }
-      f.liter_bbm.value = String(pref.liter_bbm ?? '');
       f.biaya_bbm.value = String(pref.biaya_bbm ?? '');
       f.metode_pembayaran.value = pref.metode_pembayaran || 'TUNAI';
       f.flazz_card_id.value = pref.flazz_card_id || '';
@@ -301,6 +330,11 @@ export async function renderInput(view) {
       f.flazz_card_id_toll_2.value = pref.flazz_card_id_toll_2 || '';
       f.biaya_toll_2.value = pref.biaya_toll_2 ? String(pref.biaya_toll_2) : '';
       if (pref.flazz_card_id_2 || pref.biaya_bbm_2 || pref.flazz_card_id_toll_2 || pref.biaya_toll_2) bukaGrup2();
+      // Cocokkan jenis BBM dari harga transaksi terakhir (biaya / liter) bila memungkinkan.
+      const hargaPref = Number(pref.liter_bbm) > 0 ? (Number(pref.biaya_bbm || 0) + Number(pref.biaya_bbm_2 || 0)) / Number(pref.liter_bbm) : 0;
+      const cocok = bbmOpsi.find((o) => Math.abs(o.harga - hargaPref) < 1);
+      if (cocok) f.jenis_bbm.value = cocok.value;
+      hitungUlangLiter();
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -377,6 +411,7 @@ export async function renderInput(view) {
       bar_awal: f.bar_awal.value,
       bar_akhir: f.bar_akhir.value,
       liter_bbm: f.liter_bbm.value,
+      harga_bbm: hargaBbm(),
       biaya_bbm: f.biaya_bbm.value,
       biaya_toll: f.biaya_toll.value,
       metode_pembayaran: f.metode_pembayaran.value,
