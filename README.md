@@ -104,6 +104,10 @@ lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`,
   saldo etoll < Rp100.000, ganti oli, odometer estimasi via `GET /api/dashboard/warnings`;
   status kartu etoll; galeri terbaru) dan grup menu Laporan Operasional (Input
   Laporan, History Laporan, Galeri Foto, Performa Kendaraan) **selesai** - 2026-10-06.
+- **Rekap Pengeluaran** (menu Laporan Operasional) — BBM & tol per metode bayar
+  (etoll/tunai) dari laporan harian (termasuk kartu ke-2) + tol manual Flazz;
+  per kartu etoll, per kendaraan, detail, unduh CSV
+  (`GET /api/laporan/rekap-pengeluaran?dari=&sampai=&cabang=`).
   Berikutnya: cutover dari GAS.
 
 Catatan M5: tidak ada perubahan schema dan tidak ada upload evidence. Field

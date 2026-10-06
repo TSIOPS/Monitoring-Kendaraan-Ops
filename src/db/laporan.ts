@@ -40,6 +40,7 @@ export interface LaporanRepo {
   rowsInScope(cabang: string, limit: number): Promise<LaporanRow[]>;
   duplicateCandidates(cabang: string, limit: number): Promise<LaporanRow[]>;
   rowsInMonth(cabang: string, periode: string): Promise<LaporanRow[]>;
+  rowsBetween(cabang: string, dari: string, sampai: string): Promise<LaporanRow[]>;
   insert(row: LaporanInsert): Promise<void>;
   update(transaction_id: string, patch: Partial<LaporanInsert>): Promise<void>;
   delete(transaction_id: string): Promise<void>;
@@ -85,6 +86,22 @@ export function supabaseLaporanRepo(env: Env): LaporanRepo {
     recentRows(cabang, limit) { return rowsInScope(cabang, limit); },
     rowsInScope(cabang, limit) { return rowsInScope(cabang, limit); },
     duplicateCandidates(cabang, limit) { return rowsInScope(cabang, limit); },
+
+    // Rentang tanggal (YYYY-MM-DD, inklusif); dibaca per 1000 baris (batas PostgREST).
+    async rowsBetween(cabang, dari, sampai) {
+      const out: LaporanRow[] = [];
+      for (let from = 0; ; from += 1000) {
+        let q = sb().from('penggunaan_bbm').select('*').order('seq', { ascending: true }).range(from, from + 999);
+        if (dari) q = q.gte('tanggal', dari);
+        if (sampai) q = q.lte('tanggal', sampai);
+        if (cabang) q = q.eq('kode_cabang', cabang);
+        const { data, error } = await q;
+        if (error) throw fail('rowsBetween')(error);
+        const page = data as unknown as LaporanRow[];
+        out.push(...page);
+        if (page.length < 1000) return out;
+      }
+    },
 
     async rowsInMonth(cabang, periode) {
       let q = sb().from('penggunaan_bbm').select('*').like('tanggal', periode + '-%');

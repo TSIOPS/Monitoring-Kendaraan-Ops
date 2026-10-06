@@ -15,6 +15,7 @@ const NAV = [
       { hash: '#/history', label: 'History Laporan' },
       { hash: '#/galeri', label: 'Galeri Foto' },
       { hash: '#/performa', label: 'Performa Kendaraan' },
+      { hash: '#/rekap', label: 'Rekap Pengeluaran' },
     ],
   },
   { hash: '#/flazz', label: 'Flazz' },
@@ -98,6 +99,11 @@ registerRoute('#/transaksi', historyPage);
 registerRoute('#/galeri', async () => {
   const mod = await import('./pages/galeri.js');
   return { render: mod.renderGaleri };
+});
+
+registerRoute('#/rekap', async () => {
+  const mod = await import('./pages/rekap.js');
+  return { render: mod.renderRekap };
 });
 
 registerRoute('#/performa', async () => {

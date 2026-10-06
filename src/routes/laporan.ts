@@ -13,6 +13,7 @@ import { extractStorageKey } from '../db/storage';
 import * as L from '../logic/laporan';
 import { buildOdoMap, computeWarnings, ringkasanPeringatan } from '../logic/warnings';
 import { todayWib } from '../logic/jalur';
+import { rekapPengeluaran } from '../logic/rekap';
 import type { WarningItem, WarningVehicle } from '../logic/warnings';
 
 const MAX_EVIDENCE_BYTES = 10 * 1024 * 1024;
@@ -342,6 +343,28 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const items = L.buildPerformaList(rows, kendaraanInfoMap(all), cabangNamaMapOf(all));
     await deps.kv.put(key, JSON.stringify(items), { expirationTtl: 300 });
     return c.json(okPayload({ items }));
+  });
+
+  // ── GET /api/laporan/rekap-pengeluaran (BBM & tol per metode bayar) ─────
+  // Didaftarkan sebelum /:id. Warehouse dipilih hanya oleh SUPERADMIN; PIC terkunci ke cabangnya.
+  app.get('/rekap-pengeluaran', requireUser(deps), async (c) => {
+    const u = c.get('user');
+    const dari = String(c.req.query('dari') ?? '');
+    const sampai = String(c.req.query('sampai') ?? '');
+    const pola = /^\d{4}-\d{2}-\d{2}$/;
+    if (!pola.test(dari) || !pola.test(sampai)) throw new HttpError(400, 'Rentang tanggal (dari & sampai) wajib diisi.', 'BAD_REQUEST');
+    if (dari > sampai) throw new HttpError(400, 'Tanggal "dari" tidak boleh setelah tanggal "sampai".', 'BAD_REQUEST');
+    const cabang = isSuper(u) ? String(c.req.query('cabang') ?? '') : u.cabang;
+    if (!isSuper(u) && !cabang) return c.json(okPayload({ lines: [] }));
+    const [rows, tols, cards, all] = await Promise.all([
+      deps.laporan.rowsBetween(cabang, dari, sampai),
+      deps.flazz.listTols(),
+      deps.flazz.listCards(),
+      deps.master.listAll(),
+    ]);
+    const platByVehicle = new Map(all.kendaraan.map((k) => [String(k.vehicle_id), String(k.plat_nomor ?? '')]));
+    const lines = rekapPengeluaran({ rows, tols, cards, platByVehicle, dari, sampai, cabang });
+    return c.json(okPayload({ lines }));
   });
 
   // ── GET /api/laporan/:id (halaman edit; tidak terbatas 200 transaksi terbaru) ──

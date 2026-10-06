@@ -805,3 +805,31 @@ describe('GET /api/dashboard (filter History Laporan)', () => {
     expect(await ids(app, tok, '?cabang=CBG-B&vehicle_id=V-2')).toEqual([]);
   });
 });
+
+describe('GET /api/laporan/rekap-pengeluaran', () => {
+  const rows = [
+    { transaction_id: 'TRX-A', kode_cabang: 'CBG-A', tanggal: '2026-10-02', metode_pembayaran: 'TUNAI', biaya_bbm: 100000, biaya_toll: 0 },
+    { transaction_id: 'TRX-B', kode_cabang: 'CBG-B', vehicle_id: 'V-2', plat_nomor: 'B 2 B', tanggal: '2026-10-03', metode_pembayaran: 'TUNAI', biaya_bbm: 50000, biaya_toll: 0 },
+  ];
+  const rekap = async (app: ReturnType<typeof buildApp>, tok: string, q: string) =>
+    app.request('/api/laporan/rekap-pengeluaran' + q, { headers: authHeaders(tok) });
+
+  it('SUPERADMIN semua warehouse atau satu warehouse; PIC terkunci ke cabangnya', async () => {
+    const { app, kv } = setup({ rows });
+    const sup = await loginAs(kv, SUPER);
+    const semua = await (await rekap(app, sup, '?dari=2026-10-01&sampai=2026-10-31')).json() as any;
+    expect(semua.lines.map((l: any) => l.ref).sort()).toEqual(['TRX-A', 'TRX-B']);
+    const b = await (await rekap(app, sup, '?dari=2026-10-01&sampai=2026-10-31&cabang=CBG-B')).json() as any;
+    expect(b.lines.map((l: any) => l.ref)).toEqual(['TRX-B']);
+    const pic = await loginAs(kv, PIC);
+    const p = await (await rekap(app, pic, '?dari=2026-10-01&sampai=2026-10-31&cabang=CBG-B')).json() as any;
+    expect(p.lines.map((l: any) => [l.ref, l.jenis, l.metode, l.amount])).toEqual([['TRX-A', 'BBM', 'TUNAI', 100000]]);
+  });
+
+  it('tanggal wajib dan berurutan', async () => {
+    const { app, kv } = setup({ rows });
+    const tok = await loginAs(kv, SUPER);
+    expect((await rekap(app, tok, '')).status).toBe(400);
+    expect((await rekap(app, tok, '?dari=2026-10-31&sampai=2026-10-01')).status).toBe(400);
+  });
+});

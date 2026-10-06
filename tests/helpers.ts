@@ -242,6 +242,10 @@ export function memLaporan(initial?: Partial<MemLaporanState>) {
     async recentRows(cabang, limit) { return clone(scoped(cabang, limit)); },
     async rowsInScope(cabang, limit) { return clone(scoped(cabang, limit)); },
     async duplicateCandidates(cabang, limit) { return clone(scoped(cabang, limit)); },
+    async rowsBetween(cabang, dari, sampai) {
+      return clone(state.rows.filter((r) => (!cabang || String(r.kode_cabang) === cabang)
+        && (!dari || String(r.tanggal) >= dari) && (!sampai || String(r.tanggal).substring(0, 10) <= sampai)));
+    },
     async rowsInMonth(cabang, periode) {
       return clone(state.rows.filter((r) => (!cabang || String(r.kode_cabang) === cabang) && String(r.tanggal).startsWith(periode + '-')));
     },
