@@ -165,3 +165,110 @@ export function computeWarnings(input: WarningInput): WarningItem[] {
   );
   return items;
 }
+// ── Peringatan Dini dashboard (port warningsSummary + WarningsCore GAS) ──────
+
+export interface DokumenAlert { tipe: 'PAJAK' | 'PAJAK5' | 'KIR'; status: string; sisa_hari: number | null; tanggal: string }
+export interface PajakKirItem { vehicle_id: string; plat_nomor: string; nama_kendaraan: string; jenis: string; cabang: string; alerts: DokumenAlert[]; worst: string }
+export interface SaldoItem { id: string; card_number: string; card_name: string; card_type: string; cabang: string; last_balance: number; status: string }
+export interface OliItem { vehicle_id: string; plat_nomor: string; nama_kendaraan: string; cabang: string; baseline_km: number; interval_km: number; tempuh_km: number; sisa_km: number; status: 'WASPADA' | 'GANTI_OLI' }
+export interface OdoEstimasiItem { vehicle_id: string; plat_nomor: string; nama_kendaraan: string; cabang: string }
+export interface RingkasanPeringatan { pajakKIR: PajakKirItem[]; saldo: SaldoItem[]; oli: OliItem[]; odoEstimasi: OdoEstimasiItem[] }
+
+type Rec = Record<string, unknown>;
+export interface RingkasanInput {
+  kendaraan: Rec[];
+  kartu: Rec[];
+  rows: Rec[];
+  user: { role: string; cabang: string };
+  today: string; // YYYY-MM-DD (WIB)
+}
+
+const WARN_LEVEL: Record<string, number> = { WASPADA: 1, KRITIS: 2, LEWAT: 3 };
+const OIL_WASPADA_BEFORE_KM = 500;
+const SALDO_RENDAH = 100000;
+const s = (v: unknown): string => (v == null ? '' : String(v));
+
+function statusTanggal(tanggal: string, today: string): { status: string; sisa_hari: number | null } {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(tanggal);
+  const t = /^(\d{4})-(\d{2})-(\d{2})$/.exec(today);
+  if (!m || !t) return { status: 'TIDAK_ADA', sisa_hari: null };
+  const days = Math.ceil((Date.UTC(+m[1]!, +m[2]! - 1, +m[3]!) - Date.UTC(+t[1]!, +t[2]! - 1, +t[3]!)) / DAY_MS);
+  if (days <= 0) return { status: 'LEWAT', sisa_hari: days };
+  if (days <= 30) return { status: 'KRITIS', sisa_hari: days };
+  if (days <= 60) return { status: 'WASPADA', sisa_hari: days };
+  return { status: 'AMAN', sisa_hari: days };
+}
+
+export function statusOli(v: Rec, currentKm: number | undefined): OliItem | null {
+  const baseline = toNum(v.km_terakhir_ganti_oli);
+  if (!baseline || baseline < 0) return null;
+  const interval = toNum(v.interval_ganti_oli_km) > 0 ? toNum(v.interval_ganti_oli_km) : defaultOilIntervalKm(s(v.jenis_kendaraan));
+  const km = currentKm === undefined || !Number.isFinite(currentKm) ? baseline : currentKm;
+  const tempuh = Math.max(0, km - baseline);
+  const sisa = interval - tempuh;
+  let status: OliItem['status'];
+  if (tempuh >= interval) status = 'GANTI_OLI';
+  else if (sisa <= OIL_WASPADA_BEFORE_KM) status = 'WASPADA';
+  else return null;
+  return {
+    vehicle_id: s(v.vehicle_id), plat_nomor: s(v.plat_nomor), nama_kendaraan: s(v.nama_kendaraan), cabang: s(v.kode_cabang),
+    baseline_km: baseline, interval_km: interval, tempuh_km: tempuh, sisa_km: sisa, status,
+  };
+}
+
+export function ringkasanPeringatan(input: RingkasanInput): RingkasanPeringatan {
+  const isSuper = String(input.user.role || '').toUpperCase() === 'SUPERADMIN';
+  const dalamScope = (cabang: unknown) => isSuper || s(cabang) === s(input.user.cabang);
+  const vehs = input.kendaraan.filter((v) => s(v.status) === 'Aktif' && dalamScope(v.kode_cabang));
+
+  // KM akhir & sumber KM dari trip terakhir per kendaraan (urutan seq).
+  const terakhir = new Map<string, Rec>();
+  input.rows.forEach((r, i) => {
+    const vid = s(r.vehicle_id);
+    if (!vid) return;
+    const seq = typeof r.seq === 'number' ? r.seq : i;
+    const prev = terakhir.get(vid);
+    if (!prev || (prev.__seq as number) <= seq) terakhir.set(vid, { ...r, __seq: seq });
+  });
+
+  const pajakKIR: PajakKirItem[] = [];
+  const oli: OliItem[] = [];
+  const odoEstimasi: OdoEstimasiItem[] = [];
+  for (const v of vehs) {
+    const alerts: DokumenAlert[] = [];
+    for (const [tipe, field] of [['PAJAK', 'tanggal_pajak'], ['PAJAK5', 'tanggal_pajak_5_tahunan'], ['KIR', 'tanggal_kir']] as const) {
+      const tanggal = s(v[field]).substring(0, 10);
+      const st = statusTanggal(tanggal, input.today);
+      if (WARN_LEVEL[st.status]) alerts.push({ tipe, status: st.status, sisa_hari: st.sisa_hari, tanggal });
+    }
+    if (alerts.length) {
+      const worst = alerts.reduce((w, a) => ((WARN_LEVEL[a.status] ?? 0) > (WARN_LEVEL[w] ?? 0) ? a.status : w), '');
+      pajakKIR.push({
+        vehicle_id: s(v.vehicle_id), plat_nomor: s(v.plat_nomor), nama_kendaraan: s(v.nama_kendaraan),
+        jenis: s(v.jenis_kendaraan), cabang: s(v.kode_cabang), alerts, worst,
+      });
+    }
+    const last = terakhir.get(s(v.vehicle_id));
+    const km = last ? parseFloat(s(last.km_akhir_confirmed)) : NaN;
+    const o = statusOli(v, Number.isFinite(km) ? km : undefined);
+    if (o) oli.push(o);
+    if (s(v.jenis_indikator) === 'ANALOG_JARUM' && last && s(last.km_sumber) === 'ESTIMASI') {
+      odoEstimasi.push({ vehicle_id: s(v.vehicle_id), plat_nomor: s(v.plat_nomor), nama_kendaraan: s(v.nama_kendaraan), cabang: s(v.kode_cabang) });
+    }
+  }
+
+  const minSisa = (p: PajakKirItem) => Math.min(...p.alerts.map((a) => (a.sisa_hari == null ? Infinity : a.sisa_hari)));
+  pajakKIR.sort((a, b) => (WARN_LEVEL[b.worst] ?? 0) - (WARN_LEVEL[a.worst] ?? 0) || minSisa(a) - minSisa(b));
+  const oliLevel = { GANTI_OLI: 2, WASPADA: 1 };
+  oli.sort((a, b) => oliLevel[b.status] - oliLevel[a.status] || a.sisa_km - b.sisa_km);
+
+  const saldo = input.kartu
+    .filter((c) => dalamScope(c.branch_id) && s(c.status).toUpperCase() !== 'NONAKTIF' && toNum(c.last_balance) < SALDO_RENDAH)
+    .map((c) => ({
+      id: s(c.id), card_number: s(c.card_number), card_name: s(c.card_name), card_type: s(c.card_type),
+      cabang: s(c.branch_id), last_balance: toNum(c.last_balance), status: s(c.status),
+    }))
+    .sort((x, y) => x.last_balance - y.last_balance);
+
+  return { pajakKIR, saldo, oli, odoEstimasi };
+}

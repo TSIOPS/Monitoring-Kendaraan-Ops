@@ -32,7 +32,7 @@ async function run(hash) {
 
   const found = matchRoute(hash);
   if (!found) {
-    if (hash === '#/transaksi') {
+    if (hash === '#/dashboard') {
       // Hash sama tidak memicu hashchange; tanpa ini layar tetap kosong.
       const box = document.createElement('div');
       box.className = 'alert alert-danger';
@@ -40,7 +40,7 @@ async function run(hash) {
       view.replaceChildren(box);
       return;
     }
-    window.location.hash = '#/transaksi';
+    window.location.hash = '#/dashboard';
     return;
   }
 

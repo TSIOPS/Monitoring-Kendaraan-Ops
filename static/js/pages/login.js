@@ -32,7 +32,7 @@ export function renderLogin(view) {
       const data = await post('/api/login', { username: u, password: p });
       setToken(data.token);
       setUser(data.user);
-      window.location.hash = '#/transaksi';
+      window.location.hash = '#/dashboard';
     } catch (err) {
       alertBox.textContent = err.message || 'Login gagal.';
       alertBox.classList.remove('d-none');

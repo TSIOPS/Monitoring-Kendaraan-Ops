@@ -63,6 +63,7 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 | GET | `/api/laporan/prefill` | PIC/SUPERADMIN | prefill dari transaksi terakhir yang memenuhi syarat |
 | GET | `/api/laporan/performa` | PIC/SUPERADMIN | performa 7-trip per kendaraan (cache 300 dtk) |
 | GET | `/api/dashboard` | PIC/SUPERADMIN | riwayat transaksi + ringkasan bulanan + warnings OLI/pajak/KIR (cache 300 dtk) |
+| GET | `/api/dashboard/warnings` | PIC/SUPERADMIN | Peringatan Dini dashboard (cache 300 dtk, `?fresh=1` baca ulang) |
 
 M3 (laporan/transaksi BBM), M4 (dashboard & warnings), dan M5 (Flazz CRUD: kartu,
 top-up, tol, rekonsiliasi, adjust saldo, detach payment BBM) **selesai** —
@@ -99,7 +100,11 @@ lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`,
 - **M11** — Edit transaksi lengkap (tanggal, supir, KM, bar, liter, pembayaran,
   foto) **selesai** - 2026-10-06; lihat
   `docs/superpowers/specs/2026-10-06-m11-edit-transaksi-lengkap-design.md`.
-  Berikutnya: migrasi foto, cutover dari GAS.
+- **M12** — Dashboard ala GAS (sapaan, akses cepat, Peringatan Dini: pajak/KIR,
+  saldo etoll < Rp100.000, ganti oli, odometer estimasi via `GET /api/dashboard/warnings`;
+  status kartu etoll; galeri terbaru) dan grup menu Laporan Operasional (Input
+  Laporan, History Laporan, Galeri Foto, Performa Kendaraan) **selesai** - 2026-10-06.
+  Berikutnya: cutover dari GAS.
 
 Catatan M5: tidak ada perubahan schema dan tidak ada upload evidence. Field
 bukti hanya `evidence_url` (URL http/https), sedangkan upload foto tetap hanya

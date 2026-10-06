@@ -175,3 +175,49 @@ body {
   .panel { border: 0; padding: 0; }
   .view { max-width: none; padding: 0; }
 }
+
+/* Grup menu (Laporan Operasional) */
+.nav-group {
+  position: relative;
+}
+
+.nav-group-toggle {
+  border: 0;
+  background: transparent;
+}
+
+.nav-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 1000;
+  min-width: 210px;
+  background: #fff;
+  border: 1px solid #e3e6ea;
+  border-radius: 0.5rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  padding: 0.35rem;
+}
+
+.nav-group.open .nav-menu {
+  display: block;
+}
+
+.nav-menu-item {
+  display: block;
+  color: #343a40;
+  text-decoration: none;
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.35rem;
+}
+
+.nav-menu-item:hover {
+  background: #eef2f7;
+}
+
+.nav-menu-item.active {
+  background: #e7f0ff;
+  color: var(--warna-utama);
+  font-weight: 600;
+}

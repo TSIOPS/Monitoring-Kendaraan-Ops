@@ -26,6 +26,10 @@ export function warningsCacheKey(role: string, cabang: string): string {
   return `dashwarn:${role || ''}:${cabang || ''}`;
 }
 
+export function peringatanCacheKey(role: string, cabang: string): string {
+  return `peringatan:${role || ''}:${cabang || ''}`;
+}
+
 export async function invalidateLaporanCaches(kv: KVStore, role: string, cabang: string): Promise<void> {
   const scopes: Array<[string, string]> = [[role || '', cabang || ''], ['SUPERADMIN', '']];
   for (const [r, cb] of scopes) {
@@ -38,5 +42,6 @@ export async function invalidateDashwarn(kv: KVStore, role: string, cabang: stri
   const scopes: Array<[string, string]> = [[role || '', cabang || ''], ['SUPERADMIN', '']];
   for (const [r, cb] of scopes) {
     await kv.delete(warningsCacheKey(r, cb));
+    await kv.delete(peringatanCacheKey(r, cb));
   }
 }

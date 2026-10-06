@@ -304,7 +304,7 @@ export async function renderInput(view) {
   form.addEventListener('change', () => { formDiubah = true; });
   batal.addEventListener('click', () => {
     if (formDiubah && !window.confirm('Batalkan input laporan? Data yang sudah diisi tidak disimpan.')) return;
-    window.location.hash = '#/transaksi';
+    window.location.hash = '#/history';
   });
 
   async function onVehicleChange() {
@@ -474,7 +474,7 @@ export async function renderInput(view) {
 
       await post('/api/laporan', buildPayload(values, serverData));
       toast('Laporan tersimpan.', 'success');
-      window.location.hash = '#/transaksi';
+      window.location.hash = '#/history';
     } catch (err) {
       alertBox.textContent = err.message || 'Gagal menyimpan laporan.';
       alertBox.classList.remove('d-none');

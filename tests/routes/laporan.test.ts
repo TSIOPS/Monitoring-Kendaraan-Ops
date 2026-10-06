@@ -755,3 +755,27 @@ describe('GET /api/laporan/:id', () => {
     expect((await app.request('/api/laporan/TRX-X', { headers: authHeaders(tok) })).status).toBe(404);
   });
 });
+
+describe('GET /api/dashboard/warnings', () => {
+  it('pajak/KIR, saldo kartu rendah, oli, odometer estimasi; PIC hanya cabangnya', async () => {
+    const master = memMaster({
+      cabang: [{ kode_cabang: 'CBG-A', nama_cabang: 'Cabang A', lokasi: '', status: 'Aktif' }],
+      kendaraan: [
+        { ...VEHICLE_ROW, tanggal_pajak: '2000-01-01', jenis_indikator: 'ANALOG_JARUM' },
+        { ...VEHICLE_ROW, vehicle_id: 'V-9', plat_nomor: 'B 9 Z', kode_cabang: 'CBG-B', tanggal_pajak: '2000-01-01' },
+      ],
+    });
+    const lap = memLaporan({ rows: [laporanRow({ transaction_id: 'TRX-1', km_akhir_confirmed: '14800', km_sumber: 'ESTIMASI' } as any)] });
+    const flz = memFlazz({ cards: [flazzCard({ id: 'FLZ-1', last_balance: 20000 }), flazzCard({ id: 'FLZ-2', last_balance: 20000, branch_id: 'CBG-B' })] });
+    const { deps, kv } = makeDeps({ master: master.repo, laporan: lap.repo, flazz: flz.repo });
+    const app = buildApp(fakeEnv() as any, deps);
+    const tok = await loginAs(kv, PIC);
+    const res = await app.request('/api/dashboard/warnings', { headers: authHeaders(tok) });
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.pajakKIR.map((p: any) => p.vehicle_id)).toEqual(['V-1']);
+    expect(body.saldo.map((c: any) => c.id)).toEqual(['FLZ-1']);
+    expect(body.oli).toMatchObject([{ vehicle_id: 'V-1', status: 'WASPADA', sisa_km: 200 }]);
+    expect(body.odoEstimasi.map((o: any) => o.vehicle_id)).toEqual(['V-1']);
+  });
+});

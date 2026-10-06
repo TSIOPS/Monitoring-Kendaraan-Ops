@@ -6,12 +6,13 @@ import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
 import { HttpError, okPayload } from '../utils/http';
 import { newId, jsonSnip } from './master';
-import { bumpMasterRev, invalidateDashwarn, invalidateLaporanCaches, performaCacheKey, monthlyCacheKey, warningsCacheKey } from '../logic/master-cache';
+import { bumpMasterRev, invalidateDashwarn, invalidateLaporanCaches, performaCacheKey, monthlyCacheKey, peringatanCacheKey, warningsCacheKey } from '../logic/master-cache';
 import { CardBalanceError } from '../db/laporan';
 import type { FlazzCardRow, LaporanInsert } from '../db/laporan';
 import { extractStorageKey } from '../db/storage';
 import * as L from '../logic/laporan';
-import { buildOdoMap, computeWarnings } from '../logic/warnings';
+import { buildOdoMap, computeWarnings, ringkasanPeringatan } from '../logic/warnings';
+import { todayWib } from '../logic/jalur';
 import type { WarningItem, WarningVehicle } from '../logic/warnings';
 
 const MAX_EVIDENCE_BYTES = 10 * 1024 * 1024;
@@ -739,6 +740,32 @@ export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       await deps.kv.put(wkey, JSON.stringify(warnings), { expirationTtl: 300 });
     }
     return c.json(okPayload({ transactions, monthly, warnings }));
+  });
+
+  // ── GET /api/dashboard/warnings (port getDashboardWarnings) ──────────────
+  // Cache 300 dtk seperti GAS; ?fresh=1 (tombol Refresh) membaca ulang.
+  app.get('/warnings', requireUser(deps), async (c) => {
+    const u = c.get('user');
+    const cabang = isSuper(u) ? '' : u.cabang;
+    const key = peringatanCacheKey(roleOf(u), cabang);
+    if (c.req.query('fresh') !== '1') {
+      const hit = await deps.kv.get(key, 'json');
+      if (hit) return c.json(okPayload(hit as Record<string, unknown>));
+    }
+    const [all, rows, kartu] = await Promise.all([
+      deps.master.listAll(),
+      deps.laporan.rowsInScope(cabang, 5000),
+      deps.flazz.listCards(cabang ? { branchId: cabang } : undefined),
+    ]);
+    const out = ringkasanPeringatan({
+      kendaraan: all.kendaraan as unknown as Record<string, unknown>[],
+      kartu: kartu as unknown as Record<string, unknown>[],
+      rows: rows as unknown as Record<string, unknown>[],
+      user: { role: roleOf(u), cabang: u.cabang },
+      today: todayWib(),
+    });
+    await deps.kv.put(key, JSON.stringify(out), { expirationTtl: 300 });
+    return c.json(okPayload({ ...out }));
   });
 
   return app;

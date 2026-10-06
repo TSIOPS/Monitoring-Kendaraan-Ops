@@ -80,7 +80,7 @@ function pilihNilai(select, value, label) {
 export async function renderEdit(view) {
   const id = getRouteParam('id');
   if (!id) {
-    window.location.hash = '#/transaksi';
+    window.location.hash = '#/history';
     return { ok: false };
   }
 
@@ -194,7 +194,7 @@ export async function renderEdit(view) {
     ]),
     el('div', { class: 'd-flex gap-2' }, [
       submit,
-      el('a', { class: 'btn btn-outline-secondary', href: '#/transaksi', text: 'Batal' }),
+      el('a', { class: 'btn btn-outline-secondary', href: '#/history', text: 'Batal' }),
     ]),
   ]);
 
@@ -229,7 +229,7 @@ export async function renderEdit(view) {
       }
       const res = await put(`/api/laporan/${encodeURIComponent(id)}`, body);
       toast(res.msg || 'Transaksi diperbarui.', 'success');
-      window.location.hash = '#/transaksi';
+      window.location.hash = '#/history';
     } catch (e) {
       alertBox.textContent = e.message || 'Gagal memperbarui transaksi.';
       alertBox.classList.remove('d-none');

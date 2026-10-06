@@ -4,13 +4,50 @@ import { ensureSession, registerRoute, startRouter } from './router.js';
 import { el } from './ui.js';
 import { renderLogin } from './pages/login.js';
 
+// Grup menu mengikuti sidebar GAS ("Laporan Operasional Kendaraan").
 const NAV = [
-  { hash: '#/transaksi', label: 'Transaksi', badge: true },
-  { hash: '#/input', label: 'Input Laporan' },
+  { hash: '#/dashboard', label: 'Dashboard', badge: true },
   { hash: '#/jalur', label: 'Jalur' },
+  {
+    label: 'Laporan Operasional',
+    items: [
+      { hash: '#/input', label: 'Input Laporan' },
+      { hash: '#/history', label: 'History Laporan' },
+      { hash: '#/galeri', label: 'Galeri Foto' },
+      { hash: '#/performa', label: 'Performa Kendaraan' },
+    ],
+  },
   { hash: '#/flazz', label: 'Flazz' },
   { hash: '#/master', label: 'Data Master' },
 ];
+
+function aktif(activeHash, hash) {
+  return activeHash === hash || activeHash.startsWith(hash + '/');
+}
+
+function linkNav(item, activeHash, warn, kelas = 'nav-link') {
+  const label = item.badge && warn > 0 ? `${item.label} (${warn})` : item.label;
+  return el('a', { class: `${kelas} ${aktif(activeHash, item.hash) ? 'active' : ''}`, href: item.hash, text: label });
+}
+
+function grupNav(group, activeHash) {
+  const adaAktif = group.items.some((it) => aktif(activeHash, it.hash) || (it.hash === '#/history' && aktif(activeHash, '#/edit')));
+  const menu = el('div', { class: 'nav-menu' }, group.items.map((it) => linkNav(it, activeHash, 0, 'nav-menu-item')));
+  const tombol = el('button', { type: 'button', class: `nav-link nav-group-toggle ${adaAktif ? 'active' : ''}`, 'aria-expanded': 'false', text: `${group.label} ▾` });
+  const wrap = el('div', { class: 'nav-group' }, [tombol, menu]);
+  tombol.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const buka = !wrap.classList.contains('open');
+    document.querySelectorAll('.nav-group.open').forEach((g) => g.classList.remove('open'));
+    wrap.classList.toggle('open', buka);
+    tombol.setAttribute('aria-expanded', String(buka));
+  });
+  return wrap;
+}
+
+document.addEventListener('click', () => {
+  document.querySelectorAll('.nav-group.open').forEach((g) => g.classList.remove('open'));
+});
 
 function renderTopbar(activeHash) {
   const slot = document.getElementById('topbar-slot');
@@ -20,14 +57,7 @@ function renderTopbar(activeHash) {
     return;
   }
   const warn = getJumlahPeringatan();
-  const links = NAV.map((item) => {
-    const label = item.badge && warn > 0 ? `${item.label} (${warn})` : item.label;
-    return el('a', {
-      class: `nav-link ${activeHash.startsWith(item.hash) ? 'active' : ''}`,
-      href: item.hash,
-      text: label,
-    });
-  });
+  const links = NAV.map((item) => (item.items ? grupNav(item, activeHash) : linkNav(item, activeHash, warn)));
   slot.replaceChildren(
     el('div', { class: 'topbar' }, [
       el('span', { class: 'brand', text: 'Monitoring Kendaraan' }),
@@ -52,9 +82,27 @@ function renderTopbar(activeHash) {
 
 registerRoute('#/login', async () => ({ render: renderLogin }), { guard: false });
 
-registerRoute('#/transaksi', async () => {
+registerRoute('#/dashboard', async () => {
+  const mod = await import('./pages/dashboard.js');
+  return { render: mod.renderDashboard };
+});
+
+const historyPage = async () => {
   const mod = await import('./pages/transaksi.js');
-  return { render: mod.renderTransaksi };
+  return { render: mod.renderHistory };
+};
+registerRoute('#/history', historyPage);
+// Alamat lama (bookmark) tetap membuka History Laporan.
+registerRoute('#/transaksi', historyPage);
+
+registerRoute('#/galeri', async () => {
+  const mod = await import('./pages/galeri.js');
+  return { render: mod.renderGaleri };
+});
+
+registerRoute('#/performa', async () => {
+  const mod = await import('./pages/performa.js');
+  return { render: mod.renderPerforma };
 });
 
 registerRoute('#/input', async () => {

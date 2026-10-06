@@ -1,5 +1,4 @@
 import { get, del } from '../api.js';
-import { setJumlahPeringatan } from '../store.js';
 import { el, fmtNum, fmtDateId, toast, spinner, confirmDialog } from '../ui.js';
 
 const EFISIENSI_KELAS = {
@@ -75,20 +74,6 @@ function panelStatistik(monthly) {
   ]);
 }
 
-function panelWarnings(warnings) {
-  if (!warnings.length) return null;
-  return el('div', { class: 'panel' }, [
-    el('h2', { class: 'h6 mb-3', text: `Peringatan (${warnings.length})` }),
-    ...warnings.map((w) =>
-      el('div', { class: `warning-item warning-${w.severity || 'INFO'}` }, [
-        el('strong', { text: `${w.plat_nomor || '-'} — ${w.kategori || 'info'}` }),
-        el('div', { class: 'small', text: w.pesan || '' }),
-        w.nama_cabang ? el('div', { class: 'small text-muted', text: w.nama_cabang }) : null,
-      ]),
-    ),
-  ]);
-}
-
 function selAksi(r) {
   const id = String(r.transaction_id || '');
   const bisaDetach = Boolean(r.flazz_card_id || r.flazz_card_id_2);
@@ -144,7 +129,7 @@ function panelTransaksi(rows) {
     : el('p', { class: 'text-muted', text: 'Belum ada transaksi.' });
 
   return el('div', { class: 'panel' }, [
-    el('h2', { class: 'h6 mb-3', text: `Transaksi (${rows.length})` }),
+    el('h2', { class: 'h6 mb-3', text: `Riwayat Operasional (${rows.length})` }),
     isi,
   ]);
 }
@@ -158,7 +143,7 @@ function pasangAksiHapus(view) {
       try {
         await del(`/api/laporan/${encodeURIComponent(id)}`);
         toast('Transaksi dihapus.', 'success');
-        await renderTransaksi(view);
+        await renderHistory(view);
       } catch (err) {
         toast(err.message, 'error');
         btn.disabled = false;
@@ -179,7 +164,7 @@ function pasangAksiDetach(view) {
       try {
         await del(`/api/laporan/${encodeURIComponent(id)}/flazz`);
         toast('Pembayaran Flazz dilepas.', 'success');
-        await renderTransaksi(view);
+        await renderHistory(view);
       } catch (err) {
         toast(err.message, 'error');
         btn.disabled = false;
@@ -188,8 +173,8 @@ function pasangAksiDetach(view) {
   });
 }
 
-export async function renderTransaksi(view) {
-  spinner(view, 'Memuat transaksi');
+export async function renderHistory(view) {
+  spinner(view, 'Memuat riwayat laporan');
   let data;
   try {
     data = await get('/api/dashboard');
@@ -200,13 +185,10 @@ export async function renderTransaksi(view) {
 
   const transactions = Array.isArray(data.transactions) ? data.transactions : [];
   const monthly = Array.isArray(data.monthly) ? data.monthly : [];
-  const warnings = Array.isArray(data.warnings) ? data.warnings : [];
-  setJumlahPeringatan(warnings.length);
 
   view.replaceChildren(
     el('div', {}, [
       panelStatistik(monthly),
-      panelWarnings(warnings),
       panelTransaksi(transactions),
     ]),
   );
