@@ -196,9 +196,11 @@ describe('mapping', () => {
     expect(isDuplicateRow(r, { vehicle_id: 'V-1', tanggal: '2026-09-01', km_awal: '100', km_akhir: '200', liter: '11', biaya_bbm: '100000', biaya_toll: '0' })).toBe(false);
   });
 
-  it('supabaseThumb menulis ulang ke render endpoint', () => {
-    expect(supabaseThumb('https://x.supabase.co/storage/v1/object/public/foto/CBG-A/KM_Awal/a.jpg'))
-      .toBe('https://x.supabase.co/storage/v1/render/image/public/foto/CBG-A/KM_Awal/a.jpg?width=200');
+  it('supabaseThumb: objek Storage langsung (transformasi gambar tidak aktif), Drive ke thumbnail Drive', () => {
+    expect(supabaseThumb('https://x.supabase.co/storage/v1/object/public/foto/CBG-A/KM_Awal/a.jpg?x=1'))
+      .toBe('https://x.supabase.co/storage/v1/object/public/foto/CBG-A/KM_Awal/a.jpg');
+    expect(supabaseThumb('https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view?usp=drivesdk'))
+      .toBe('https://drive.google.com/thumbnail?id=1AbCdEfGhIjKlMnOpQrStUvWxYz012345&sz=w200');
     expect(supabaseThumb('')).toBe('');
   });
 
@@ -256,7 +258,8 @@ describe('buildRecentList', () => {
     const rows = [mk(1), mk(2), mk(3, { foto_km_awal: 'https://x/storage/v1/object/public/foto/a.jpg' })];
     const out = buildRecentList(rows, kmap, cmap, cards);
     expect(out[0]!.transaction_id).toBe('TRX-3');
-    expect(out[0]!.foto_odo_awal_thumb).toContain('/render/image/public/');
+    expect(out[0]!.foto_odo_awal_thumb).toContain('/object/public/');
+    expect(out[0]!.foto_odo_awal_thumb).not.toContain('/render/image/');
     expect(out[2]!.transaction_id).toBe('TRX-1');
   });
 

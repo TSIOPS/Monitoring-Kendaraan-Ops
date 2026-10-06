@@ -537,13 +537,15 @@ export function resolveCanonicalCardId(rawId: unknown, cardMap?: Map<string, str
   return raw;
 }
 
+// Transformasi gambar Supabase (render/image) tidak aktif di project ini (403
+// FeatureNotEnabled), jadi objek Storage dipakai langsung; foto sudah terkompres.
+// Link Drive yang belum dimigrasi memakai thumbnail Drive (port driveThumbnail GAS).
 export function supabaseThumb(url: string): string {
   if (!url) return '';
-  const clean = String(url).split('?')[0] ?? '';
-  if (clean.includes('/storage/v1/object/public/')) {
-    return clean.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/') + '?width=200';
-  }
-  return clean + '?width=200';
+  const s = String(url);
+  const drive = /^https?:\/\/(drive|docs)\.google\.com\//.test(s) ? /[-\w]{25,}/.exec(s) : null;
+  if (drive) return `https://drive.google.com/thumbnail?id=${drive[0]}&sz=w200`;
+  return s.split('?')[0] ?? '';
 }
 
 export interface Prefill {
