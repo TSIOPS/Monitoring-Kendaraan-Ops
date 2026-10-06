@@ -125,7 +125,7 @@ function barisTabel(r) {
   return el('tr', {}, [
     selKolom(fmtDateId(r.tanggal)),
     selKolom(String(r.vehicle || '-')),
-    selKolom(String(r.supir || '-')),
+    selKolom(r.supir_2 ? `${r.supir || '-'} & ${r.supir_2}` : String(r.supir || '-')),
     selKolom(fmtNum(r.km_tempuh), 'text-end'),
     selKolom(fmtNum(r.liter), 'text-end'),
     // Total grup-1 + grup-2; data lama tanpa total_bbm memakai biaya_bbm.

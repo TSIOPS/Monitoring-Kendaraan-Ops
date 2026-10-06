@@ -176,6 +176,7 @@ export async function renderInput(view) {
     vehicle_id: el('select', { class: 'form-select', id: 'f-vehicle' }),
     tanggal: el('input', { class: 'form-control', type: 'date', id: 'f-tanggal' }),
     nama_supir: el('select', { class: 'form-select', id: 'f-supir' }),
+    nama_supir_2: el('input', { class: 'form-control bg-light', id: 'f-supir-2', readonly: 'readonly', tabindex: '-1', placeholder: 'tidak ada' }),
     km_awal: el('input', { class: 'form-control', type: 'number', inputmode: 'numeric', id: 'f-km-awal' }),
     km_akhir: el('input', { class: 'form-control', type: 'number', inputmode: 'numeric', id: 'f-km-akhir' }),
     km_awal_broken: el('input', { class: 'form-check-input', type: 'checkbox', id: 'f-km-awal-broken' }),
@@ -276,6 +277,9 @@ export async function renderInput(view) {
         el('div', { class: 'col-md-6' }, [baris('Kendaraan', f.vehicle_id)]),
         el('div', { class: 'col-md-3' }, [baris('Tanggal', f.tanggal)]),
         el('div', { class: 'col-md-3' }, [baris('Supir', f.nama_supir), infoJalur]),
+      ]),
+      el('div', { class: 'row' }, [
+        el('div', { class: 'col-md-6 offset-md-6' }, [baris('Driver 2', f.nama_supir_2, 'Otomatis dari jalur pengiriman.')]),
       ]),
     ]),
     seksi('Odometer & Bensin', [
@@ -395,6 +399,7 @@ export async function renderInput(view) {
 
   async function onSupirChange() {
     const jalur = jalurDrivers[Number(f.nama_supir.value)];
+    f.nama_supir_2.value = jalur && f.nama_supir.value !== '' ? jalur.nama_driver2 || '' : '';
     if (!jalur || f.nama_supir.value === '') return;
     if (jalur.vehicle_id && Array.from(f.vehicle_id.options).some((o) => o.value === jalur.vehicle_id)) {
       f.vehicle_id.value = jalur.vehicle_id;

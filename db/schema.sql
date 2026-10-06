@@ -88,6 +88,7 @@ create table if not exists penggunaan_bbm (
   status text not null default '',
   warning text not null default '',
   nama_supir text not null default '',
+  nama_supir_2 text not null default '',
   metode_pembayaran text not null default 'TUNAI',
   flazz_card_id text not null default '',
   km_sumber text not null default '',
@@ -103,6 +104,8 @@ create table if not exists penggunaan_bbm (
 alter table penggunaan_bbm add column if not exists seq bigint generated always as identity;
 -- M7: grup pembayaran ke-2 (kartu kedua). Metode diturunkan dari isi, tidak disimpan.
 alter table penggunaan_bbm add column if not exists flazz_card_id_2 text not null default '';
+-- Driver kedua dari jalur pengiriman (diisi server saat laporan tertaut ke jalur).
+alter table penggunaan_bbm add column if not exists nama_supir_2 text not null default '';
 alter table penggunaan_bbm add column if not exists biaya_bbm_2 numeric not null default 0;
 alter table penggunaan_bbm add column if not exists flazz_card_id_toll_2 text not null default '';
 alter table penggunaan_bbm add column if not exists biaya_toll_2 numeric not null default 0;

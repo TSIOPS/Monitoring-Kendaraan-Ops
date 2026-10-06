@@ -259,6 +259,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       status: 'COMPLETED',
       warning,
       nama_supir: String(p.nama_supir ?? ''),
+      // Driver kedua mengikuti jalur yang tertaut, bukan isian klien.
+      nama_supir_2: String(matchedJalur.nama_driver2 ?? ''),
       metode_pembayaran: storeMetodeBbm,
       flazz_card_id: cardBbm,
       km_sumber: odo.kmSumber,
@@ -577,6 +579,9 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     if (linkChanged) await deps.laporan.releaseJalurReport(id);
     const matched = await deps.laporan.findJalurByCriteria({ tanggal: newTgl, vehicle_id: old.vehicle_id, nama_driver: newNama, kode_cabang: old.kode_cabang });
     if (matched && matched.status !== 'SELESAI') await deps.laporan.setJalurStatus(matched.id, 'SUDAH_LAPORAN', id);
+    // Driver kedua ikut jalur baru; tanpa jalur yang cocok setelah pindah tautan, dikosongkan.
+    const supir2 = matched ? String(matched.nama_driver2 ?? '') : (linkChanged ? '' : String(old.nama_supir_2 ?? ''));
+    if (supir2 !== String(old.nama_supir_2 ?? '')) await deps.laporan.update(id, { nama_supir_2: supir2 });
 
     await deps.recordAudit({
       user_id: u.user_id, username: u.username, action: 'EDIT', modul: 'transaksi', keterangan: id,

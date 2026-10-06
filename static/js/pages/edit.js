@@ -159,7 +159,7 @@ export async function renderEdit(view) {
     el('div', { class: 'row' }, [
       kol(4, baris('Kendaraan (tidak dapat diubah)', el('input', { class: 'form-control', value: trx.vehicle || '-', disabled: 'disabled' }))),
       kol(4, baris('Tanggal', tanggal)),
-      kol(4, baris('Supir', supir, 'Mengubah tanggal atau supir memindahkan tautan jalur pengiriman.')),
+      kol(4, baris('Supir', supir, trx.supir_2 ? `Driver 2: ${trx.supir_2} (mengikuti jalur). Mengubah tanggal atau supir memindahkan tautan jalur pengiriman.` : 'Mengubah tanggal atau supir memindahkan tautan jalur pengiriman.')),
     ]),
     el('div', { class: 'row' }, [
       kol(3, baris('KM awal', kmAwal)),

@@ -30,6 +30,7 @@ export interface LaporanRow {
   status: string;
   warning: string;
   nama_supir: string;
+  nama_supir_2?: string;
   metode_pembayaran: string;
   flazz_card_id: string;
   km_sumber: string;
@@ -682,6 +683,7 @@ export interface RecentItem {
   efisiensi_label: string;
   warning: string;
   supir: string;
+  supir_2: string;
   transaction_id: string;
   biaya_bbm: number;
   metode_pembayaran: string;
@@ -768,6 +770,7 @@ export function buildRecentList(rows: LaporanRow[], kendaraanMap: KendaraanMap, 
       efisiensi_label: label,
       warning: dynamicWarning,
       supir: row.nama_supir || '-',
+      supir_2: row.nama_supir_2 || '',
       transaction_id: row.transaction_id,
       biaya_bbm: num(row.biaya_bbm),
       metode_pembayaran: num(row.biaya_bbm) > 0 ? (row.metode_pembayaran || 'TUNAI') : (row.metode_pembayaran || ''),

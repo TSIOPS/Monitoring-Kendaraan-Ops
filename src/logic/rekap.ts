@@ -51,7 +51,7 @@ export function rekapPengeluaran(input: RekapInput): RekapLine[] {
     if (input.cabang && String(r.kode_cabang) !== input.cabang) continue;
     const base = {
       tanggal, sumber: 'LAPORAN' as const, ref: String(r.transaction_id), kode_cabang: String(r.kode_cabang ?? ''),
-      vehicle_id: String(r.vehicle_id ?? ''), plat_nomor: String(r.plat_nomor ?? ''), supir: String(r.nama_supir ?? ''),
+      vehicle_id: String(r.vehicle_id ?? ''), plat_nomor: String(r.plat_nomor ?? ''), supir: [r.nama_supir, r.nama_supir_2].map((x) => String(x ?? '').trim()).filter(Boolean).join(' & '),
     };
     for (const g of cardGroups(r)) {
       const tambah = (jenis: JenisPengeluaran, metode: string, card: string, amount: number) => {

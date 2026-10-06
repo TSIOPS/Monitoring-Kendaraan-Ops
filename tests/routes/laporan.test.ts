@@ -833,3 +833,15 @@ describe('GET /api/laporan/rekap-pengeluaran', () => {
     expect((await rekap(app, tok, '?dari=2026-10-31&sampai=2026-10-01')).status).toBe(400);
   });
 });
+
+describe('driver kedua dari jalur', () => {
+  it('POST menyimpan nama_supir_2 dari jalur yang tertaut, bukan dari klien', async () => {
+    const { app, kv, lap } = setup({ jalur: [jalurRow({ nama_driver2: 'Supir B' } as any)] });
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan', tok, saveBody({ nama_supir_2: 'Palsu' }));
+    expect(res.status).toBe(200);
+    expect(lap.state.rows.at(-1)!.nama_supir_2).toBe('Supir B');
+    const dash = await (await app.request('/api/dashboard', { headers: authHeaders(tok) })).json() as any;
+    expect(dash.transactions[0].supir_2).toBe('Supir B');
+  });
+});

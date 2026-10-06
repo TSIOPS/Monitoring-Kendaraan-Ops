@@ -18,6 +18,7 @@ export interface JalurRow {
   id: string;
   tanggal: string;
   nama_driver: string;
+  nama_driver2?: string;
   vehicle_id: string;
   kode_cabang: string;
   status: string;

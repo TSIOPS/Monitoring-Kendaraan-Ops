@@ -168,6 +168,7 @@ export function compareJalur(a: Pick<JalurFull, 'tanggal' | 'jenis_kendaraan' | 
 
 export interface JalurDriver {
   nama_driver: string;
+  nama_driver2: string;
   driver_id: string;
   vehicle_id: string;
   plat_nomor: string;
@@ -195,7 +196,7 @@ export function driversForDate(rows: JalurFull[], tanggal: string, cabang: strin
     if (seen.has(key)) continue;
     seen.add(key);
     out.push({
-      nama_driver: nama, driver_id: str(r.driver_id), vehicle_id: str(r.vehicle_id),
+      nama_driver: nama, nama_driver2: str(r.nama_driver2), driver_id: str(r.driver_id), vehicle_id: str(r.vehicle_id),
       plat_nomor: str(r.plat_nomor), nama_kendaraan: str(r.nama_kendaraan),
       flazz_card_id: str(r.flazz_card_id), flazz_card_name: str(r.flazz_card_name),
       flazz_card_id_2: str(r.flazz_card_id_2), flazz_card_name_2: str(r.flazz_card_name_2),
