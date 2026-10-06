@@ -369,11 +369,12 @@ export interface Efisiensi7 {
   tglMulai: string;
   tglSelesai: string;
   supir: string;
+  supir_2: string;
 }
 
 const EMPTY_EF7: Efisiensi7 = {
   efisiensi: '', label: '', isDataCukup: false, adaEstimasi: false,
-  totalKm: 0, totalBeli: 0, totalKonsumsi: 0, tglMulai: '', tglSelesai: '', supir: '-',
+  totalKm: 0, totalBeli: 0, totalKonsumsi: 0, tglMulai: '', tglSelesai: '', supir: '-', supir_2: '',
 };
 
 export function hitungEfisiensi7Riwayat(trxs: LaporanRow[], currIdx: number, literPerBar: number): Efisiensi7 {
@@ -399,7 +400,7 @@ export function hitungEfisiensi7Riwayat(trxs: LaporanRow[], currIdx: number, lit
   const label = efisiensi ? 'Rata-rata 7 Trip' + (adaEstimasi ? ' ⚠ termasuk estimasi' : '') : '';
   return {
     efisiensi, label, isDataCukup, adaEstimasi, totalKm, totalBeli, totalKonsumsi,
-    tglMulai: first.tanggal, tglSelesai: last.tanggal, supir: last.nama_supir || '-',
+    tglMulai: first.tanggal, tglSelesai: last.tanggal, supir: last.nama_supir || '-', supir_2: last.nama_supir_2 || '',
   };
 }
 
@@ -626,6 +627,7 @@ export interface PerformaItem {
   cabang: string;
   vehicle: string;
   supir: string;
+  supir_2: string;
   total_km: number;
   total_beli: number;
   total_konsumsi: number;
@@ -651,6 +653,7 @@ export function buildPerformaList(rows: LaporanRow[], kendaraanMap: KendaraanMap
         cabang: cabangNamaMap.get(r.kode_cabang) ?? r.kode_cabang,
         vehicle: r.plat_nomor,
         supir: roll.supir,
+        supir_2: roll.supir_2,
         total_km: roll.totalKm,
         total_beli: roll.totalBeli,
         total_konsumsi: Math.round(roll.totalKonsumsi * 100) / 100,

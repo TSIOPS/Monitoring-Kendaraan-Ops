@@ -229,6 +229,13 @@ describe('buildPerformaList (window non-overlap)', () => {
     expect(out[0]!.status_efisiensi).toBeDefined();
   });
 
+  it('supir & driver 2 diambil dari trip terakhir periode', () => {
+    const rows = Array.from({ length: 7 }, (_, i) => mk(i + 1));
+    rows[6] = { ...rows[6]!, nama_supir: 'Agus', nama_supir_2: 'Budi' };
+    const out = buildPerformaList(rows, kmap, cmap);
+    expect([out[0]!.supir, out[0]!.supir_2]).toEqual(['Agus', 'Budi']);
+  });
+
   it('6 baris -> tidak ada output', () => {
     expect(buildPerformaList(Array.from({ length: 6 }, (_, i) => mk(i + 1)), kmap, cmap)).toHaveLength(0);
   });

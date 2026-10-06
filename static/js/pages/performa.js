@@ -36,8 +36,8 @@ export async function renderPerforma(view) {
         el('tbody', {}, rows.map((r) => el('tr', {}, [
           el('td', { text: r.periode || '-' }),
           el('td', { text: r.cabang || '-' }),
-          el('td', { text: r.supir || '-' }),
-          el('td', { text: r.vehicle || '-' }),
+          el('td', {}, [el('div', { text: r.supir || '-' }), r.supir_2 ? el('div', { class: 'small text-muted', text: `& ${r.supir_2}` }) : null]),
+          el('td', { class: 'text-nowrap', text: r.vehicle || '-' }),
           el('td', { class: 'text-end', text: `${fmtNum(r.total_km)} KM` }),
           el('td', { class: 'text-end', text: `${fmtNum(r.total_beli)} L` }),
           el('td', { class: 'text-end', text: `${r.efisiensi} KM/L` }),
