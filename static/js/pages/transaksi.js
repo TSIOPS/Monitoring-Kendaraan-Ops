@@ -1,5 +1,8 @@
 import { get, del } from '../api.js';
-import { el, fmtNum, fmtDateId, toast, spinner, confirmDialog } from '../ui.js';
+import { el, fmtNum, fmtDateId, toast, spinner, confirmDialog, halaman, navHalaman } from '../ui.js';
+
+const PER_HALAMAN = 10;
+let halamanAktif = 1;
 
 const EFISIENSI_KELAS = {
   'di atas standar': 'badge-ef-baik',
@@ -22,11 +25,16 @@ const KOLOM = [
   'Aksi',
 ];
 
+export function teksEfisiensi(row) {
+  const status = String(row.status_efisiensi || '').toLowerCase();
+  if (status === 'data belum cukup') return 'Data belum cukup';
+  return row.efisiensi ? `${row.efisiensi} km/l` : '-';
+}
+
 function badgeEfisiensi(row) {
-  const label = String(row.efisiensi_label || '');
   const status = String(row.status_efisiensi || '').toLowerCase();
   const kelas = EFISIENSI_KELAS[status] || 'badge-ef-kurang-data';
-  return el('span', { class: `badge-status ${kelas}`, text: label ? `${label} km/l` : '-' });
+  return el('span', { class: `badge-status ${kelas}`, title: String(row.efisiensi_label || ''), text: teksEfisiensi(row) });
 }
 
 function thumb(url) {
@@ -118,24 +126,37 @@ function barisTabel(r) {
   ]);
 }
 
-function panelTransaksi(rows) {
-  const isi = rows.length
-    ? el('div', { class: 'table-wrap' }, [
-        el('table', { class: 'table table-sm align-middle' }, [
-          el('thead', {}, [el('tr', {}, KOLOM.map((t) => el('th', { text: t })))]),
-          el('tbody', {}, rows.map(barisTabel)),
-        ]),
-      ])
-    : el('p', { class: 'text-muted', text: 'Belum ada transaksi.' });
-
-  return el('div', { class: 'panel' }, [
-    el('h2', { class: 'h6 mb-3', text: `Riwayat Operasional (${rows.length})` }),
-    isi,
-  ]);
+function panelTransaksi(rows, view) {
+  const panel = el('div', { class: 'panel' });
+  const gambar = () => {
+    const h = halaman(rows, halamanAktif, PER_HALAMAN);
+    halamanAktif = h.aktif;
+    const isi = rows.length
+      ? el('div', { class: 'table-wrap' }, [
+          el('table', { class: 'table table-sm align-middle' }, [
+            el('thead', {}, [el('tr', {}, KOLOM.map((t) => el('th', { text: t })))]),
+            el('tbody', {}, h.isi.map(barisTabel)),
+          ]),
+        ])
+      : el('p', { class: 'text-muted', text: 'Belum ada transaksi.' });
+    panel.replaceChildren(
+      el('h2', { class: 'h6 mb-3', text: `Riwayat Operasional (${rows.length})` }),
+      isi,
+      navHalaman(h.total, h.aktif, (ke) => {
+        halamanAktif = ke;
+        gambar();
+        panel.scrollIntoView({ block: 'start' });
+      }),
+    );
+    pasangAksiHapus(view, panel);
+    pasangAksiDetach(view, panel);
+  };
+  gambar();
+  return panel;
 }
 
-function pasangAksiHapus(view) {
-  view.querySelectorAll('[data-hapus]').forEach((btn) => {
+function pasangAksiHapus(view, root) {
+  root.querySelectorAll('[data-hapus]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.hapus;
       if (!confirmDialog('Hapus transaksi ini? Saldo Flazz akan dikembalikan.')) return;
@@ -152,8 +173,8 @@ function pasangAksiHapus(view) {
   });
 }
 
-function pasangAksiDetach(view) {
-  view.querySelectorAll('[data-detach]').forEach((btn) => {
+function pasangAksiDetach(view, root) {
+  root.querySelectorAll('[data-detach]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.detach;
       const ok = confirmDialog(
@@ -189,12 +210,9 @@ export async function renderHistory(view) {
   view.replaceChildren(
     el('div', {}, [
       panelStatistik(monthly),
-      panelTransaksi(transactions),
+      panelTransaksi(transactions, view),
     ]),
   );
-
-  pasangAksiHapus(view);
-  pasangAksiDetach(view);
 
   return { ok: true };
 }

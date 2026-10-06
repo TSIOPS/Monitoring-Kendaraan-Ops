@@ -65,3 +65,28 @@ export function confirmDialog(message) {
 export function spinner(view, text = 'Memuat data') {
   view.replaceChildren(el('div', { class: 'loading text-muted', text }));
 }
+
+// Potong daftar per halaman; nomor dibatasi ke rentang yang ada.
+export function halaman(list, nomor, per = 10) {
+  const total = Math.max(1, Math.ceil(list.length / per));
+  const aktif = Math.min(Math.max(1, nomor), total);
+  return { total, aktif, isi: list.slice((aktif - 1) * per, aktif * per) };
+}
+
+// Tombol « 1 2 3 » seperti renderDashPagination GAS; kosong bila hanya satu halaman.
+export function navHalaman(total, aktif, keHalaman) {
+  const wrap = el('div', { class: 'd-flex justify-content-center gap-1 flex-wrap mt-3' });
+  if (total <= 1) return wrap;
+  const tombol = (label, ke, sekarang = false, mati = false) => {
+    const b = el('button', { type: 'button', class: `btn btn-sm ${sekarang ? 'btn-primary' : 'btn-outline-primary'}`, text: label });
+    b.disabled = mati;
+    b.addEventListener('click', () => keHalaman(ke));
+    return b;
+  };
+  wrap.append(
+    tombol('«', aktif - 1, false, aktif === 1),
+    ...Array.from({ length: total }, (_, i) => tombol(String(i + 1), i + 1, i + 1 === aktif)),
+    tombol('»', aktif + 1, false, aktif === total),
+  );
+  return wrap;
+}

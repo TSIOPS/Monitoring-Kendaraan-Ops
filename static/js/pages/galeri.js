@@ -1,5 +1,5 @@
 import { get } from '../api.js';
-import { el, fmtDateId } from '../ui.js';
+import { el, fmtDateId, halaman as potong, navHalaman } from '../ui.js';
 
 export const GALERI_PER_HALAMAN = 10;
 
@@ -25,9 +25,7 @@ export function saringGaleri(rows, jenis) {
 }
 
 export function halaman(list, nomor, per = GALERI_PER_HALAMAN) {
-  const total = Math.max(1, Math.ceil(list.length / per));
-  const aktif = Math.min(Math.max(1, nomor), total);
-  return { total, aktif, isi: list.slice((aktif - 1) * per, aktif * per) };
+  return potong(list, nomor, per);
 }
 
 function kartuFoto(r, jenis) {
@@ -63,7 +61,7 @@ export async function renderGaleri(view) {
 
   const pilih = el('select', { class: 'form-select form-select-sm', style: 'max-width:200px' }, JENIS.map((j) => el('option', { value: j.value, text: j.label })));
   const isi = el('div', { class: 'row g-3' });
-  const nav = el('div', { class: 'd-flex justify-content-center gap-1 flex-wrap mt-3' });
+  const nav = el('div', {});
   let nomor = 1;
 
   function gambar() {
@@ -73,17 +71,7 @@ export async function renderGaleri(view) {
     isi.replaceChildren(...(list.length
       ? h.isi.map((r) => kartuFoto(r, pilih.value))
       : [el('div', { class: 'col-12 text-center text-muted py-4', text: 'Belum ada foto operasional. Foto akan muncul setelah laporan harian dibuat.' })]));
-    const tombol = (label, ke, aktif = false, mati = false) => {
-      const b = el('button', { type: 'button', class: `btn btn-sm ${aktif ? 'btn-primary' : 'btn-outline-primary'}`, text: label });
-      b.disabled = mati;
-      b.addEventListener('click', () => { nomor = ke; gambar(); window.scrollTo(0, 0); });
-      return b;
-    };
-    nav.replaceChildren(...(h.total > 1 ? [
-      tombol('«', nomor - 1, false, nomor === 1),
-      ...Array.from({ length: h.total }, (_, i) => tombol(String(i + 1), i + 1, i + 1 === nomor)),
-      tombol('»', nomor + 1, false, nomor === h.total),
-    ] : []));
+    nav.replaceChildren(navHalaman(h.total, nomor, (ke) => { nomor = ke; gambar(); window.scrollTo(0, 0); }));
   }
   pilih.addEventListener('change', () => { nomor = 1; gambar(); });
 

@@ -1,5 +1,16 @@
 :root {
-  --warna-utama: #0d6efd;
+  --warna-utama: #208b3a;
+  --warna-utama-gelap: #176b2c;
+  --warna-utama-muda: #e6f4ea;
+  --bs-primary: #208b3a;
+  --bs-primary-rgb: 32, 139, 58;
+  --bs-primary-text-emphasis: #124f21;
+  --bs-primary-bg-subtle: #e6f4ea;
+  --bs-primary-border-subtle: #c6e6cf;
+  --bs-link-color: #208b3a;
+  --bs-link-color-rgb: 32, 139, 58;
+  --bs-link-hover-color: #176b2c;
+  --bs-link-hover-color-rgb: 23, 107, 44;
   --warna-bahaya: #dc3545;
   --warna-oval: #fd7e14;
   --warna-ok: #198754;
@@ -7,7 +18,48 @@
 }
 
 body {
-  background: #f5f6f8;
+  background: #f5f8f6;
+}
+
+/* Bootstrap memakai warna biru bawaan per komponen; disamakan ke hijau GAS. */
+.btn-primary {
+  --bs-btn-bg: #208b3a;
+  --bs-btn-border-color: #208b3a;
+  --bs-btn-hover-bg: #176b2c;
+  --bs-btn-hover-border-color: #176b2c;
+  --bs-btn-active-bg: #124f21;
+  --bs-btn-active-border-color: #124f21;
+  --bs-btn-disabled-bg: #208b3a;
+  --bs-btn-disabled-border-color: #208b3a;
+  --bs-btn-focus-shadow-rgb: 32, 139, 58;
+}
+
+.btn-outline-primary {
+  --bs-btn-color: #208b3a;
+  --bs-btn-border-color: #208b3a;
+  --bs-btn-hover-bg: #208b3a;
+  --bs-btn-hover-border-color: #208b3a;
+  --bs-btn-active-bg: #176b2c;
+  --bs-btn-active-border-color: #176b2c;
+  --bs-btn-disabled-color: #208b3a;
+  --bs-btn-disabled-border-color: #208b3a;
+  --bs-btn-focus-shadow-rgb: 32, 139, 58;
+}
+
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  border-color: #8fcb9e;
+  box-shadow: 0 0 0 0.25rem rgba(32, 139, 58, 0.25);
+}
+
+.form-check-input:checked {
+  background-color: #208b3a;
+  border-color: #208b3a;
+}
+
+.topbar {
+  border-top: 3px solid var(--warna-utama);
 }
 
 .topbar {
@@ -39,7 +91,7 @@ body {
 }
 
 .nav-link:hover {
-  background: #eef2f7;
+  background: var(--warna-utama-muda);
 }
 
 .nav-link.active {
@@ -217,7 +269,7 @@ body {
 }
 
 .nav-menu-item.active {
-  background: #e7f0ff;
+  background: var(--warna-utama-muda);
   color: var(--warna-utama);
   font-weight: 600;
 }

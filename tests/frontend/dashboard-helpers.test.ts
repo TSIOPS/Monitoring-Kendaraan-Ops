@@ -66,3 +66,11 @@ describe('performa', () => {
     expect(saringPerforma(items, '', cab)).toHaveLength(2);
   });
 });
+
+describe('history: teks efisiensi', () => {
+  it('angka km/l, bukan label periode', async () => {
+    const { teksEfisiensi } = await import('../../static/js/pages/transaksi.js');
+    expect(teksEfisiensi({ efisiensi: '12,5', efisiensi_label: 'Rata-rata 7 Trip', status_efisiensi: 'Sesuai standar' })).toBe('12,5 km/l');
+    expect(teksEfisiensi({ efisiensi: '', status_efisiensi: 'Data Belum Cukup' })).toBe('Data belum cukup');
+  });
+});
