@@ -276,14 +276,15 @@ export async function renderInput(view) {
 
   const form = el('form', { novalidate: 'novalidate' }, [
     alertBox,
-    seksi('Kendaraan & Supir', [
+    // Laporan berbasis supir di jalur: pilih tanggal & supir, kendaraan + driver 2 terisi otomatis.
+    seksi('Supir & Kendaraan', [
       el('div', { class: 'row' }, [
-        el('div', { class: 'col-md-8' }, [baris('Kendaraan', f.vehicle_id)]),
         el('div', { class: 'col-md-4' }, [baris('Tanggal', f.tanggal)]),
+        el('div', { class: 'col-md-8' }, [baris('Supir (Driver 1)', f.nama_supir), infoJalur]),
       ]),
       el('div', { class: 'row' }, [
-        el('div', { class: 'col-md-6' }, [baris('Supir (Driver 1)', f.nama_supir), infoJalur]),
-        el('div', { class: 'col-md-6' }, [baris('Driver 2', f.nama_supir_2, 'Otomatis dari jalur pengiriman.')]),
+        el('div', { class: 'col-md-4' }, [baris('Driver 2', f.nama_supir_2, 'Otomatis dari jalur pengiriman.')]),
+        el('div', { class: 'col-md-8' }, [baris('Kendaraan', f.vehicle_id, 'Otomatis dari jalur pengiriman.')]),
       ]),
     ]),
     // Kolom kiri = awal perjalanan, kanan = akhir: foto, KM, lalu bar bensin.
@@ -403,8 +404,13 @@ export async function renderInput(view) {
 
   async function onSupirChange() {
     const jalur = jalurDrivers[Number(f.nama_supir.value)];
-    f.nama_supir_2.value = jalur && f.nama_supir.value !== '' ? jalur.nama_driver2 || '' : '';
-    if (!jalur || f.nama_supir.value === '') return;
+    const adaJalur = Boolean(jalur && f.nama_supir.value !== '');
+    const d2 = adaJalur ? String(jalur.nama_driver2 || '').trim() : '';
+    // Driver 2 sama dengan Driver 1 (salah input di jalur lama) tidak ditampilkan.
+    f.nama_supir_2.value = d2 && d2.toLowerCase() !== String(jalur.nama_driver || '').trim().toLowerCase() ? d2 : '';
+    // Kendaraan mengikuti jalur (gate server menolak kendaraan yang tidak cocok); dikunci selama supir dipilih.
+    f.vehicle_id.disabled = adaJalur && Array.from(f.vehicle_id.options).some((o) => o.value === jalur.vehicle_id);
+    if (!adaJalur) return;
     if (jalur.vehicle_id && Array.from(f.vehicle_id.options).some((o) => o.value === jalur.vehicle_id)) {
       f.vehicle_id.value = jalur.vehicle_id;
       await onVehicleChange();

@@ -116,6 +116,12 @@ async function hapusFotoDanThumb(deps: AppDeps, env: Env, key: string): Promise<
   }
 }
 
+// Driver 2 dari jalur; kosong bila sama dengan Driver 1 (salah input di jalur lama).
+export function driverKedua(nama2: unknown, nama1: unknown): string {
+  const d2 = String(nama2 ?? '').trim();
+  return d2 && d2.toLowerCase() !== String(nama1 ?? '').trim().toLowerCase() ? d2 : '';
+}
+
 export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   const app = new Hono<{ Bindings: Env }>();
 
@@ -284,7 +290,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       warning,
       nama_supir: String(p.nama_supir ?? ''),
       // Driver kedua mengikuti jalur yang tertaut, bukan isian klien.
-      nama_supir_2: String(matchedJalur.nama_driver2 ?? ''),
+      nama_supir_2: driverKedua(matchedJalur.nama_driver2, p.nama_supir),
       metode_pembayaran: storeMetodeBbm,
       flazz_card_id: cardBbm,
       km_sumber: odo.kmSumber,
@@ -606,7 +612,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const matched = await deps.laporan.findJalurByCriteria({ tanggal: newTgl, vehicle_id: old.vehicle_id, nama_driver: newNama, kode_cabang: old.kode_cabang });
     if (matched && matched.status !== 'SELESAI') await deps.laporan.setJalurStatus(matched.id, 'SUDAH_LAPORAN', id);
     // Driver kedua ikut jalur baru; tanpa jalur yang cocok setelah pindah tautan, dikosongkan.
-    const supir2 = matched ? String(matched.nama_driver2 ?? '') : (linkChanged ? '' : String(old.nama_supir_2 ?? ''));
+    const supir2 = matched ? driverKedua(matched.nama_driver2, newNama) : (linkChanged ? '' : String(old.nama_supir_2 ?? ''));
     if (supir2 !== String(old.nama_supir_2 ?? '')) await deps.laporan.update(id, { nama_supir_2: supir2 });
 
     await deps.recordAudit({

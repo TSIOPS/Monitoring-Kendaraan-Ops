@@ -38,6 +38,8 @@ const str = (v: unknown): string => String(v ?? '').trim();
 export const tgl10 = (v: unknown): string => String(v ?? '').substring(0, 10);
 
 // Kartu etoll yang ter-assign pada satu jalur; slot kosong diabaikan, tanpa duplikat.
+export const MSG_DRIVER_SAMA = 'Driver 2 harus berbeda dari Driver 1.';
+
 export function jalurCardIds(card1: unknown, card2: unknown): string[] {
   const out: string[] = [];
   for (const c of [card1, card2]) {

@@ -164,6 +164,7 @@ export function jalurRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       if (!supir) throw new HttpError(400, 'Driver utama tidak ditemukan.', 'BAD_REQUEST');
       const supir2 = str(r.driver2_id) ? await deps.master.findSupirById(str(r.driver2_id)) : null;
       if (str(r.driver2_id) && !supir2) throw new HttpError(400, 'Driver kedua tidak ditemukan.', 'BAD_REQUEST');
+      if (supir2 && supir2.supir_id === supir.supir_id) throw new HttpError(400, J.MSG_DRIVER_SAMA, 'BAD_REQUEST');
       assertOwnWarehouse(u, kendaraan.kode_cabang, 'kendaraan');
       assertOwnWarehouse(u, supir.kode_cabang, 'driver utama');
       if (supir2) assertOwnWarehouse(u, supir2.kode_cabang, 'driver kedua');
@@ -262,6 +263,10 @@ export function jalurRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       patch.nama_kendaraan = k.nama_kendaraan;
       patch.jenis_kendaraan = k.jenis_kendaraan;
     }
+
+    const drv1 = patch.driver_id ?? old.driver_id;
+    const drv2 = patch.driver2_id ?? old.driver2_id;
+    if (str(drv2) && str(drv1) === str(drv2)) throw new HttpError(400, J.MSG_DRIVER_SAMA, 'BAD_REQUEST');
 
     const oldCards = J.cardsOf(old);
     const id1 = p.etoll_card_id !== undefined ? str(p.etoll_card_id) : old.flazz_card_id;

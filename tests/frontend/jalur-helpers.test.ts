@@ -39,3 +39,11 @@ describe('badgeDokumenRingkasan (seperti jalurPajakBadge GAS)', () => {
     expect(badgeDokumenRingkasan('TIDAK_ADA', null, 'Pajak')).toEqual({ text: 'Pajak -', kelas: 'bg-secondary' });
   });
 });
+
+describe('kumpulkanBaris: driver 2', () => {
+  it('menolak Driver 2 yang sama dengan Driver 1', () => {
+    const { err, valid } = kumpulkanBaris([{ driver_id: 'D-1', driver2_id: 'D-1', vehicle_id: 'V-1', rute_tujuan: 'Bandung' }]);
+    expect(valid).toEqual([]);
+    expect(err[0]).toContain('Driver 2 harus berbeda');
+  });
+});

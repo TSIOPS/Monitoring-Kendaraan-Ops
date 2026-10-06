@@ -858,3 +858,12 @@ describe('driver kedua dari jalur', () => {
     expect(dash.transactions[0].supir_2).toBe('Supir B');
   });
 });
+
+describe('driverKedua', () => {
+  it('kosong bila sama dengan driver 1 (tanpa beda huruf besar/spasi)', async () => {
+    const { driverKedua } = await import('../../src/routes/laporan');
+    expect(driverKedua('Rakhman Hakim', ' rakhman hakim ')).toBe('');
+    expect(driverKedua('Budi', 'Agus')).toBe('Budi');
+    expect(driverKedua('', 'Agus')).toBe('');
+  });
+});

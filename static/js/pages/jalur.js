@@ -35,6 +35,10 @@ export function kumpulkanBaris(rows) {
       err.push(`Baris ${i + 1}: driver, kendaraan, dan rute wajib diisi.`);
       return;
     }
+    if (r.driver2_id && r.driver2_id === r.driver_id) {
+      err.push(`Baris ${i + 1}: Driver 2 harus berbeda dari Driver 1.`);
+      return;
+    }
     if (r.etoll_card_id && r.etoll_card_id === r.etoll_card_id_2) {
       err.push(`Baris ${i + 1}: kartu etoll ke-2 harus berbeda dari kartu etoll ke-1.`);
       return;
