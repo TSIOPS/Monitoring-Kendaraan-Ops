@@ -82,3 +82,50 @@ describe('settings routes', () => {
     expect(String(body.message)).toContain('Gagal upload logo');
   });
 });
+
+describe('kosongkan data (cutover)', () => {
+  const AKTIF = { ENABLE_RESET_DATA: 'true' };
+  async function siap(passwordHash: string) {
+    const { hashPassword } = await import('../../src/auth/password');
+    const hash = passwordHash || (await hashPassword('rahasia'));
+    let dipanggil = 0;
+    const { kv, deps, audits } = makeDeps({
+      findByUsername: async () => ({ ...SUPER_ADMIN, password: hash }) as any,
+      resetData: async () => { dipanggil++; return { penggunaan_bbm: 5 }; },
+    });
+    const app = buildApp(fakeEnv() as any, deps);
+    return { kv, app, audits, dipanggil: () => dipanggil };
+  }
+  const kirim = (app: any, tok: string, body: unknown, env: Record<string, string> = {}) => app.request('/api/settings/reset-data', {
+    method: 'POST', headers: { ...authHeaders(tok), 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  }, env);
+
+  it('mati secara default (tanpa saklar) dan status melaporkannya', async () => {
+    const { kv, app, dipanggil } = await siap('');
+    const tok = await loginAs(kv, SUPER);
+    expect((await kirim(app, tok, { konfirmasi: 'KOSONGKAN', password: 'rahasia' })).status).toBe(403);
+    const st = await (await app.request('/api/settings/reset-status', { headers: authHeaders(tok) }, AKTIF)).json() as any;
+    expect(st.aktif).toBe(true);
+    expect(dipanggil()).toBe(0);
+  });
+
+  it('PIC ditolak; kata konfirmasi & password wajib benar', async () => {
+    const { kv, app, dipanggil } = await siap('');
+    const pic = await loginAs(kv, PIC);
+    expect((await kirim(app, pic, { konfirmasi: 'KOSONGKAN', password: 'rahasia' }, AKTIF)).status).toBe(403);
+    const tok = await loginAs(kv, SUPER);
+    expect((await kirim(app, tok, { konfirmasi: 'kosong', password: 'rahasia' }, AKTIF)).status).toBe(400);
+    expect((await kirim(app, tok, { konfirmasi: 'KOSONGKAN', password: 'salah' }, AKTIF)).status).toBe(403);
+    expect(dipanggil()).toBe(0);
+  });
+
+  it('berhasil: menghapus, mencatat audit RESET_DATA', async () => {
+    const { kv, app, audits, dipanggil } = await siap('');
+    const tok = await loginAs(kv, SUPER);
+    const res = await kirim(app, tok, { konfirmasi: 'KOSONGKAN', password: 'rahasia' }, AKTIF);
+    expect(res.status).toBe(200);
+    expect((await res.json() as any).hapus).toEqual({ penggunaan_bbm: 5 });
+    expect(dipanggil()).toBe(1);
+    expect(audits.some((a) => a.action === 'RESET_DATA')).toBe(true);
+  });
+});

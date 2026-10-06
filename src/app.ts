@@ -15,6 +15,7 @@ import { supabaseLaporanRepo } from './db/laporan';
 import { supabaseFlazzRepo } from './db/flazz';
 import { supabaseJalurRepo } from './db/jalur';
 import { uploadEvidenceStorage, deleteEvidenceStorage } from './db/storage';
+import { resetDataDb } from './db/reset';
 import { laporanRoutes, dashboardRoutes } from './routes/laporan';
 import { flazzRoutes } from './routes/flazz';
 import { jalurRoutes } from './routes/jalur';
@@ -33,6 +34,7 @@ export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bin
     jalur: supabaseJalurRepo(env),
     uploadEvidence: uploadEvidenceStorage,
     deleteEvidence: deleteEvidenceStorage,
+    resetData: resetDataDb,
     ...overrides,
   };
 

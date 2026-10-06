@@ -7,6 +7,13 @@ import { requireUser } from '../auth/middleware';
 import { errPayload, HttpError, okPayload } from '../utils/http';
 import { uploadLogo } from '../db/storage';
 import { SETTINGS_DEFAULTS } from '../db/settings';
+import { verifyPassword } from '../auth/password';
+import { checkRate } from '../auth/rateLimit';
+import { bumpMasterRev } from '../logic/master-cache';
+
+// Tombol "Kosongkan Data" sementara untuk cutover; mati kecuali ENABLE_RESET_DATA=true.
+export const KATA_KONFIRMASI_RESET = 'KOSONGKAN';
+const resetAktif = (env: Env | undefined) => String(env?.ENABLE_RESET_DATA ?? '').toLowerCase() === 'true';
 
 const MAX_LOGO_BYTES = 10 * 1024 * 1024;
 
@@ -61,6 +68,41 @@ export function settingsRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       data_sesudah: JSON.stringify(updates),
     });
     return c.json(okPayload({ msg: 'Pengaturan berhasil disimpan' }));
+  });
+
+  app.get('/reset-status', requireUser(deps), (c) => {
+    const u = c.get('user');
+    if (u.role !== 'SUPERADMIN') throw new HttpError(403, 'Akses ditolak.', 'FORBIDDEN');
+    return c.json(okPayload({ aktif: resetAktif(c.env as Env) }));
+  });
+
+  app.post('/reset-data', requireUser(deps), async (c) => {
+    const u = c.get('user');
+    if (u.role !== 'SUPERADMIN') throw new HttpError(403, 'Akses ditolak: hanya SUPERADMIN.', 'FORBIDDEN');
+    if (!resetAktif(c.env as Env)) throw new HttpError(403, 'Fitur kosongkan data tidak aktif.', 'FORBIDDEN');
+    const rate = await checkRate(deps.kv, `reset:${u.user_id}`, 3, 10 * 60 * 1000, deps.now);
+    if (!rate.allowed) throw new HttpError(429, `Terlalu banyak percobaan. Tunggu ${rate.retryAfterSec} detik.`, 'RATE_LIMIT');
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    if (String(body.konfirmasi ?? '') !== KATA_KONFIRMASI_RESET) {
+      throw new HttpError(400, `Ketik ${KATA_KONFIRMASI_RESET} untuk konfirmasi.`, 'BAD_REQUEST');
+    }
+    // 403 (bukan 401) agar sesi tidak dihapus klien saat password salah.
+    const akun = await deps.findByUsername(u.username);
+    if (!akun || !(await verifyPassword(String(body.password ?? ''), akun.password))) {
+      throw new HttpError(403, 'Password salah.', 'FORBIDDEN');
+    }
+    const hapus = await deps.resetData(c.env as Env);
+    await bumpMasterRev(deps.kv);
+    console.warn('RESET_DATA oleh', u.username, JSON.stringify(hapus));
+    await deps.recordAudit({
+      user_id: u.user_id,
+      username: u.username,
+      action: 'RESET_DATA',
+      modul: 'pengaturan',
+      keterangan: 'Kosongkan data untuk cutover',
+      data_sesudah: JSON.stringify(hapus),
+    });
+    return c.json(okPayload({ msg: 'Data berhasil dikosongkan.', hapus }));
   });
 
   app.post('/logo', requireUser(deps), async (c) => {

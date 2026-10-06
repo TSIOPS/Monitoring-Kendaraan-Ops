@@ -12,3 +12,12 @@ describe('pengaturan', () => {
     expect(bodyPengaturan({ app_name: ' App ', company_name: 'PT X', footer_text: '' })).toEqual({ app_name: 'App', company_name: 'PT X', footer_text: '' });
   });
 });
+
+describe('kosongkan data', () => {
+  it('tombol aktif hanya bila kata tepat dan password diisi', async () => {
+    const { bolehKosongkan } = await import('../../static/js/pages/pengaturan.js');
+    expect(bolehKosongkan('KOSONGKAN', 'x')).toBe(true);
+    expect(bolehKosongkan('kosongkan', 'x')).toBe(false);
+    expect(bolehKosongkan('KOSONGKAN', '')).toBe(false);
+  });
+});

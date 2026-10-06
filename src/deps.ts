@@ -68,4 +68,5 @@ export interface AppDeps {
   jalur: JalurRepo;
   uploadEvidence: (env: Env, opts: UploadEvidenceOpts) => Promise<StorageUploadResult>;
   deleteEvidence: (env: Env, key: string) => Promise<void>;
+  resetData: (env: Env) => Promise<Record<string, number>>;
 }

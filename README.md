@@ -109,6 +109,12 @@ lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`,
 - **Rekap Pengeluaran** (menu Laporan Operasional) — BBM & tol per metode bayar
   (etoll/tunai) dari laporan harian (termasuk kartu ke-2) + tol manual Flazz;
   per kartu etoll, per kendaraan, detail, unduh Excel (.xlsx, 4 sheet)
+- **Kosongkan Data (cutover, SEMENTARA)** — panel "Zona Berbahaya" di Pengaturan,
+  hanya muncul bila secret `ENABLE_RESET_DATA=true`. Nyalakan:
+  `npx wrangler secret put ENABLE_RESET_DATA` (isi `true`); matikan setelah
+  cutover: `npx wrangler secret delete ENABLE_RESET_DATA`. Butuh ketik
+  `KOSONGKAN` + password SUPERADMIN; tabel `pengguna` & `pengaturan` tidak dihapus.
+  Alternatif tanpa tombol: `db/reset.sql` di SQL Editor.
 - **Pengaturan** (menu Admin, SUPERADMIN) — logo, nama aplikasi, nama perusahaan,
   footer. `PUT /api/settings` tanpa `logo_url` mempertahankan logo; URL logo
   diberi `?v=` agar logo baru tidak tertahan cache.

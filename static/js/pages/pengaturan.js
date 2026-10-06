@@ -125,5 +125,71 @@ export async function renderPengaturan(view, { onTersimpan } = {}) {
     ]),
     el('div', { class: 'mt-4' }, [simpan]),
   ]));
+
+  // Zona berbahaya: hanya tampil bila server menyalakan ENABLE_RESET_DATA (sementara, cutover).
+  try {
+    const { aktif } = await get('/api/settings/reset-status');
+    if (aktif) view.appendChild(panelKosongkan());
+  } catch {
+    // Status tidak terbaca: panel tidak ditampilkan.
+  }
   return { ok: true };
+}
+
+export const KATA_KONFIRMASI = 'KOSONGKAN';
+
+export function bolehKosongkan(kata, password) {
+  return String(kata || '').trim() === KATA_KONFIRMASI && String(password || '') !== '';
+}
+
+function panelKosongkan() {
+  const kata = el('input', { type: 'text', class: 'form-control', placeholder: KATA_KONFIRMASI, autocomplete: 'off' });
+  const password = el('input', { type: 'password', class: 'form-control', autocomplete: 'current-password' });
+  const tombol = el('button', { type: 'button', class: 'btn btn-danger', text: 'Kosongkan Data' });
+  const hasil = el('div', { class: 'mt-3' });
+  tombol.disabled = true;
+  const cek = () => { tombol.disabled = !bolehKosongkan(kata.value, password.value); };
+  kata.addEventListener('input', cek);
+  password.addEventListener('input', cek);
+
+  tombol.addEventListener('click', async () => {
+    if (!window.confirm('Yakin mengosongkan SEMUA data operasional? Tindakan ini tidak bisa dibatalkan.')) return;
+    tombol.disabled = true;
+    tombol.textContent = 'Mengosongkan…';
+    try {
+      const res = await post('/api/settings/reset-data', { konfirmasi: kata.value.trim(), password: password.value });
+      const total = Object.values(res.hapus || {}).reduce((n, x) => n + Number(x || 0), 0);
+      hasil.replaceChildren(el('div', { class: 'alert alert-success' }, [
+        el('strong', { text: `Data dikosongkan (${total.toLocaleString('id-ID')} baris). ` }),
+        'Lanjutkan migrasi data dari export GAS.',
+        el('ul', { class: 'small mb-0 mt-2' }, Object.entries(res.hapus || {}).map(([t, n]) => el('li', { text: `${t}: ${Number(n).toLocaleString('id-ID')}` }))),
+      ]));
+      kata.value = '';
+      toast('Data berhasil dikosongkan.', 'success');
+    } catch (err) {
+      hasil.replaceChildren(el('div', { class: 'alert alert-danger', text: err.message }));
+    } finally {
+      password.value = '';
+      tombol.textContent = 'Kosongkan Data';
+      cek();
+    }
+  });
+
+  return el('div', { class: 'panel border-danger' }, [
+    el('h2', { class: 'h5 text-danger mb-2', text: 'Zona Berbahaya — Kosongkan Data (Cutover)' }),
+    el('div', { class: 'alert alert-warning small' }, [
+      el('div', { class: 'fw-bold mb-1', text: 'Tombol sementara untuk cutover dari GAS.' }),
+      el('ul', { class: 'mb-0' }, [
+        el('li', { text: 'Menghapus semua laporan, jalur, data Flazz, kendaraan, supir, BBM, warehouse, dan audit log.' }),
+        el('li', { text: 'Akun pengguna dan pengaturan (logo, nama) TIDAK dihapus; Anda tetap bisa login.' }),
+        el('li', { text: 'Tidak bisa dibatalkan. Jalankan migrasi data dari export GAS setelahnya.' }),
+      ]),
+    ]),
+    el('div', { class: 'row g-2 align-items-end' }, [
+      el('div', { class: 'col-md-4' }, [el('label', { class: 'form-label', text: `Ketik ${KATA_KONFIRMASI}` }), kata]),
+      el('div', { class: 'col-md-4' }, [el('label', { class: 'form-label', text: 'Password Anda' }), password]),
+      el('div', { class: 'col-md-4' }, [tombol]),
+    ]),
+    hasil,
+  ]);
 }

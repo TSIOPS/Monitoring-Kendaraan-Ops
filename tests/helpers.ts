@@ -359,6 +359,7 @@ export function makeDeps(over: Partial<AppDeps> = {}) {
     jalur,
     uploadEvidence: storage.uploadEvidence,
     deleteEvidence: storage.deleteEvidence,
+    resetData: async () => ({ penggunaan_bbm: 0 }),
     ...over,
   };
   return { kv, audits, deps, masterState, settingsValues, laporanState, flazzState, storage };
