@@ -1,5 +1,5 @@
 import { getJumlahPeringatan, getUser, logout, onPeringatanChange } from './store.js';
-import { post } from './api.js';
+import { get, post } from './api.js';
 import { ensureSession, registerRoute, startRouter } from './router.js';
 import { el } from './ui.js';
 import { renderLogin } from './pages/login.js';
@@ -19,8 +19,44 @@ const NAV = [
     ],
   },
   { hash: '#/flazz', label: 'Flazz' },
-  { hash: '#/master', label: 'Data Master' },
+  // Grup ADMIN seperti GAS; Pengaturan hanya SUPERADMIN (grup jadi link biasa bila tinggal satu).
+  {
+    label: 'Admin',
+    items: [
+      { hash: '#/master', label: 'Data Master' },
+      { hash: '#/pengaturan', label: 'Pengaturan', superOnly: true },
+    ],
+  },
 ];
+
+// Pengaturan publik (nama aplikasi, footer); dimuat sekali saat boot dan setelah disimpan.
+let pengaturan = { app_name: '', footer_text: '' };
+
+function renderFooter() {
+  const slot = document.getElementById('footer-slot');
+  if (!slot) return;
+  const teks = String(pengaturan.footer_text || '').trim();
+  slot.replaceChildren(...(teks ? [el('div', { class: 'app-footer', text: teks })] : []));
+}
+
+async function muatPengaturan() {
+  try {
+    const s = await get('/api/settings');
+    pengaturan = { app_name: s.app_name || '', footer_text: s.footer_text || '' };
+  } catch {
+    // Opsional: tanpa pengaturan, nama bawaan dipakai dan footer disembunyikan.
+  }
+  renderFooter();
+  renderTopbar(window.location.hash || '#/login');
+}
+
+export function navUntuk(role) {
+  return NAV.map((item) => {
+    if (!item.items) return item;
+    const items = item.items.filter((it) => !it.superOnly || role === 'SUPERADMIN');
+    return items.length === 1 ? items[0] : { ...item, items };
+  });
+}
 
 function aktif(activeHash, hash) {
   return activeHash === hash || activeHash.startsWith(hash + '/');
@@ -58,10 +94,10 @@ function renderTopbar(activeHash) {
     return;
   }
   const warn = getJumlahPeringatan();
-  const links = NAV.map((item) => (item.items ? grupNav(item, activeHash) : linkNav(item, activeHash, warn)));
+  const links = navUntuk(user.role).map((item) => (item.items ? grupNav(item, activeHash) : linkNav(item, activeHash, warn)));
   slot.replaceChildren(
     el('div', { class: 'topbar' }, [
-      el('span', { class: 'brand', text: 'Monitoring Kendaraan' }),
+      el('span', { class: 'brand', text: pengaturan.app_name || 'Monitoring Kendaraan' }),
       ...links,
       el('span', {
         class: 'user-info',
@@ -130,6 +166,19 @@ registerRoute('#/jalur/buat', jalurPage('renderJalurBuat'));
 registerRoute('#/jalur/ringkasan', jalurPage('renderJalurRingkasan'));
 registerRoute('#/jalur/edit/:id', jalurPage('renderJalurEdit'));
 
+registerRoute('#/pengaturan', async () => {
+  const mod = await import('./pages/pengaturan.js');
+  return {
+    render: (view) => mod.renderPengaturan(view, {
+      onTersimpan: (s) => {
+        pengaturan = { app_name: s.app_name || '', footer_text: s.footer_text || '' };
+        renderFooter();
+        renderTopbar(window.location.hash || '#/login');
+      },
+    }),
+  };
+});
+
 registerRoute('#/master', async () => {
   const mod = await import('./pages/master.js');
   return { render: mod.renderMaster };
@@ -154,6 +203,7 @@ async function boot() {
   onPeringatanChange(() => renderTopbar(window.location.hash || '#/login'));
 
   startRouter();
+  muatPengaturan();
 
   if (!user) {
     window.location.hash = '#/login';

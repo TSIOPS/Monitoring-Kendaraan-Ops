@@ -43,8 +43,10 @@ export function settingsRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     } catch {
       body = {};
     }
+    // logo_url hanya diubah bila dikirim; tanpa itu logo lama dipertahankan
+    // (GAS membaca logo lama di klien sebelum menyimpan; di sini dijaga server).
     const updates: Record<string, string> = {
-      logo_url: String(body?.logo_url ?? '') || '',
+      ...(body?.logo_url !== undefined ? { logo_url: String(body.logo_url ?? '') } : {}),
       app_name: String(body?.app_name ?? '') || 'Monitoring Kendaraan Operasional',
       company_name: String(body?.company_name ?? '') || 'PT Tridaya Sinergi Indonesia',
       footer_text: String(body?.footer_text ?? '') || '',
@@ -78,7 +80,8 @@ export function settingsRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       const rawExt = (m?.[1] ?? 'png').toLowerCase();
       const ext = IMAGE_EXT[rawExt] ? rawExt : 'png';
       const contentType = IMAGE_EXT[ext] ?? 'image/png';
-      const { url } = await uploadLogo(c.env as Env, bytes, ext, contentType);
+      const { url: urlObjek } = await uploadLogo(c.env as Env, bytes, ext, contentType);
+      const url = `${urlObjek}?v=${Date.now()}`;
       await deps.settings.setMany({ logo_url: url });
       await deps.recordAudit({
         user_id: u.user_id,

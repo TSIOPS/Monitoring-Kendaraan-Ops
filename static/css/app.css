@@ -328,3 +328,30 @@ body {
 .btn-tambah-kartu {
   border-style: dashed;
 }
+
+/* Pengaturan & footer */
+.logo-preview {
+  background: #f5f8f6;
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-preview img {
+  max-height: 150px;
+  max-width: 200px;
+}
+
+.app-footer {
+  text-align: center;
+  color: var(--warna-abu);
+  font-size: 0.85rem;
+  padding: 1rem;
+}
+
+@media print {
+  #footer-slot { display: none !important; }
+}

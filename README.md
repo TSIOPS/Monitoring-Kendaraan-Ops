@@ -107,6 +107,9 @@ lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`,
 - **Rekap Pengeluaran** (menu Laporan Operasional) — BBM & tol per metode bayar
   (etoll/tunai) dari laporan harian (termasuk kartu ke-2) + tol manual Flazz;
   per kartu etoll, per kendaraan, detail, unduh Excel (.xlsx, 4 sheet)
+- **Pengaturan** (menu Admin, SUPERADMIN) — logo, nama aplikasi, nama perusahaan,
+  footer. `PUT /api/settings` tanpa `logo_url` mempertahankan logo; URL logo
+  diberi `?v=` agar logo baru tidak tertahan cache.
   (`GET /api/laporan/rekap-pengeluaran?dari=&sampai=&cabang=`).
   Berikutnya: cutover dari GAS.
 

@@ -54,6 +54,20 @@ describe('settings routes', () => {
     expect(settingsValues.app_name).toBe('App Baru');
   });
 
+  it('PUT /api/settings tanpa logo_url mempertahankan logo yang ada', async () => {
+    const { kv, app, settingsValues } = buildEnv();
+    settingsValues.logo_url = 'https://x.supabase.co/storage/v1/object/public/settings/logo.png?v=1';
+    const tok = await loginAs(kv, SUPER);
+    const res = await app.request('/api/settings', {
+      method: 'PUT',
+      headers: { ...authHeaders(tok), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ app_name: 'App Baru', company_name: 'PT X', footer_text: '' }),
+    });
+    expect(res.status).toBe(200);
+    expect(settingsValues.logo_url).toBe('https://x.supabase.co/storage/v1/object/public/settings/logo.png?v=1');
+    expect(settingsValues.footer_text).toBe('');
+  });
+
   it('POST /api/settings/logo: base64 invalid => 400 success:false', async () => {
     const { kv, app } = buildEnv();
     const tok = await loginAs(kv, SUPER);
