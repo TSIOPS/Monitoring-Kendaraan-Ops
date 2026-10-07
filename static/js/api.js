@@ -47,6 +47,8 @@ export async function request(method, path, body) {
     );
   }
 
+  // Perubahan data (simpan/hapus) memberi tahu komponen lain, mis. banner tugas, agar segar.
+  if (method !== 'GET' && typeof window !== 'undefined') window.dispatchEvent(new Event('data-berubah'));
   const { success, ...data } = payload;
   return data;
 }

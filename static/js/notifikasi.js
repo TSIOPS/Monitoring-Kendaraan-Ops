@@ -87,6 +87,10 @@ function tampilPopup(teks, t) {
 
 export function mulaiBanner() {
   window.addEventListener('hashchange', () => segarkanBanner());
+  // Setelah simpan/hapus data (jalur, laporan, rekonsiliasi) hitungan tugas diambil ulang.
+  let tunda = 0;
+  window.addEventListener('data-berubah', () => { clearTimeout(tunda); tunda = setTimeout(() => segarkanBanner(true), 400); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) segarkanBanner(true); });
   setInterval(() => segarkanBanner(true), 5 * 60_000);
   segarkanBanner(true);
 }
