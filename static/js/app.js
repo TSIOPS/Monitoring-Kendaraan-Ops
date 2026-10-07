@@ -95,7 +95,9 @@ const simpan = {
   set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* abaikan */ } },
 };
 const LAYAR_HP = () => window.matchMedia('(max-width: 991.98px)').matches;
-const grupTertutup = () => { try { return new Set(JSON.parse(simpan.get('sidebar-grup-tutup') || '[]')); } catch { return new Set(); } };
+// Akordeon: hanya satu grup terbuka. Default = grup berisi halaman aktif; grup yang dibuka
+// manual bertahan sampai pindah ke halaman di grup lain.
+let grupDibuka = '';
 
 // Tombol ☰: laptop = sembunyikan/tampilkan sidebar (diingat); HP = panel geser.
 function toggleSidebar() {
@@ -121,22 +123,21 @@ function linkSidebar(item, activeHash, warn) {
 }
 
 function grupSidebar(group, activeHash, warn) {
-  const tertutup = grupTertutup();
-  const adaAktif = group.items.some((it) => itemAktif(activeHash, it));
-  const buka = adaAktif || !tertutup.has(group.label);
+  const buka = grupDibuka === group.label;
   const isi = el('div', { class: 'side-grup-isi' }, group.items.map((it) => linkSidebar(it, activeHash, warn)));
   const kepala = el('button', { type: 'button', class: 'side-grup-kepala', 'aria-expanded': String(buka) }, [
     el('span', { text: group.label }),
     el('i', { class: 'bi bi-chevron-down side-chevron', 'aria-hidden': 'true' }),
   ]);
-  const wrap = el('div', { class: `side-grup ${buka ? 'buka' : ''}` }, [kepala, isi]);
+  const wrap = el('div', { class: `side-grup ${buka ? 'buka' : ''}`, 'data-grup': group.label }, [kepala, isi]);
   kepala.addEventListener('click', () => {
     const jadiBuka = !wrap.classList.contains('buka');
-    wrap.classList.toggle('buka', jadiBuka);
-    kepala.setAttribute('aria-expanded', String(jadiBuka));
-    const set = grupTertutup();
-    if (jadiBuka) set.delete(group.label); else set.add(group.label);
-    simpan.set('sidebar-grup-tutup', JSON.stringify([...set]));
+    grupDibuka = jadiBuka ? group.label : '';
+    document.querySelectorAll('.side-grup').forEach((g) => {
+      const on = g.dataset.grup === grupDibuka;
+      g.classList.toggle('buka', on);
+      g.querySelector('.side-grup-kepala')?.setAttribute('aria-expanded', String(on));
+    });
   });
   return wrap;
 }
@@ -152,7 +153,12 @@ function renderTopbar(activeHash) {
     return;
   }
   const warn = getJumlahPeringatan();
-  sidebar?.replaceChildren(el('nav', { class: 'side-nav' }, navUntuk(user.role).map((item) => (item.items ? grupSidebar(item, activeHash, warn) : linkSidebar(item, activeHash, warn)))));
+  const navs = navUntuk(user.role);
+  // Pindah ke halaman di grup lain -> grup itu yang terbuka, grup lain tertutup.
+  const grupAktif = navs.find((it) => it.items && it.items.some((x) => itemAktif(activeHash, x)));
+  if (grupAktif) grupDibuka = grupAktif.label;
+  else if (navs.some((it) => !it.items && itemAktif(activeHash, it))) grupDibuka = '';
+  sidebar?.replaceChildren(el('nav', { class: 'side-nav' }, navs.map((item) => (item.items ? grupSidebar(item, activeHash, warn) : linkSidebar(item, activeHash, warn)))));
 
   const tombolMenu = el('button', { type: 'button', class: 'btn btn-outline-secondary btn-sm btn-menu', title: 'Tampilkan/sembunyikan menu', 'aria-label': 'Tampilkan/sembunyikan menu' }, [el('i', { class: 'bi bi-list', 'aria-hidden': 'true' })]);
   tombolMenu.addEventListener('click', toggleSidebar);
