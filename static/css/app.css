@@ -88,15 +88,18 @@ body {
   margin-right: auto;
 }
 
+/* Nama perusahaan (besar) di atas nama aplikasi (kecil). */
 .topbar .brand-company {
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: 1.05rem;
+  font-weight: 700;
   color: var(--warna-utama-gelap);
-  letter-spacing: 0.02em;
-  line-height: 1.1;
+  line-height: 1.2;
 }
 
 .topbar .brand-title {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--warna-abu);
   line-height: 1.2;
 }
 
