@@ -20,9 +20,9 @@ const NAV = [
     ],
   },
   { hash: '#/flazz', label: 'Flazz' },
-  // Grup ADMIN seperti GAS; Pengaturan hanya SUPERADMIN (grup jadi link biasa bila tinggal satu).
+  // Grup Konfigurasi (ADMIN di GAS); Pengaturan hanya SUPERADMIN (grup jadi link biasa bila tinggal satu).
   {
-    label: 'Admin',
+    label: 'Konfigurasi',
     items: [
       { hash: '#/master', label: 'Data Master' },
       { hash: '#/pengaturan', label: 'Pengaturan', superOnly: true },
