@@ -142,6 +142,13 @@ function grupSidebar(group, activeHash, warn) {
   return wrap;
 }
 
+// Tinggi header dipakai CSS agar sidebar menempel tepat di bawah header yang beku.
+function sinkronTinggiHeader() {
+  const slot = document.getElementById('topbar-slot');
+  document.documentElement.style.setProperty('--tinggi-topbar', slot && slot.offsetHeight ? slot.offsetHeight + 'px' : '58px');
+}
+window.addEventListener('resize', sinkronTinggiHeader);
+
 function renderTopbar(activeHash) {
   const slot = document.getElementById('topbar-slot');
   const sidebar = document.getElementById('sidebar-slot');
@@ -181,6 +188,7 @@ function renderTopbar(activeHash) {
     ]),
   );
   const btn = document.getElementById('btn-logout');
+  sinkronTinggiHeader();
   btn.addEventListener('click', async () => {
     try {
       await post('/api/logout', {});
