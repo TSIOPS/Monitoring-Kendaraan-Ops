@@ -17,6 +17,11 @@
   --warna-abu: #6c757d;
 }
 
+/* Ukuran huruf dasar 15px (bawaan Bootstrap 16px); semua ukuran rem/em ikut turun proporsional. */
+html {
+  font-size: 15px;
+}
+
 body {
   background: #f5f8f6;
   /* Kolom setinggi layar: isi mengisi sisa ruang, footer menempel di bawah tanpa scroll. */
