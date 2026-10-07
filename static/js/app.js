@@ -25,6 +25,7 @@ const NAV = [
       { hash: '#/galeri', label: 'Galeri Foto', ikon: 'bi-images' },
       { hash: '#/performa', label: 'Performa Kendaraan', ikon: 'bi-graph-up' },
       { hash: '#/rekap', label: 'Rekap Pengeluaran', ikon: 'bi-cash-stack' },
+      { hash: '#/perbandingan', label: 'Perbandingan Pengeluaran', ikon: 'bi-bar-chart-line', superOnly: true },
     ],
   },
   {
@@ -217,6 +218,11 @@ registerRoute('#/transaksi', historyPage);
 registerRoute('#/galeri', async () => {
   const mod = await import('./pages/galeri.js');
   return { render: mod.renderGaleri };
+});
+
+registerRoute('#/perbandingan', async () => {
+  const mod = await import('./pages/perbandingan.js');
+  return { render: mod.renderPerbandingan };
 });
 
 registerRoute('#/rekap', async () => {
