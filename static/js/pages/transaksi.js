@@ -19,44 +19,33 @@ export function cekRentang(dari, sampai) {
   return dari && sampai && dari > sampai ? 'Tanggal "dari" tidak boleh setelah tanggal "sampai".' : '';
 }
 
-const EFISIENSI_KELAS = {
-  'di atas standar': 'badge-ef-baik',
-  'sesuai standar': 'badge-ef-waspada',
-  'di bawah standar': 'badge-ef-buruk',
-  'data belum cukup': 'badge-ef-kurang-data',
+// Tampilan mengikuti Riwayat Operasional GAS; foto odometer cukup dilihat di Galeri.
+const STATUS_KELAS = {
+  'di atas standar': 'badge-ef-atas',
+  'sesuai standar': 'text-bg-success',
+  'di bawah standar': 'text-bg-danger',
+  'data belum cukup': 'text-bg-secondary',
 };
 
-const KOLOM = [
-  'Tanggal',
-  'Kendaraan',
-  'Supir',
-  'KM',
-  'Liter',
-  'Biaya BBM',
-  'Bayar',
-  'Efisiensi',
-  'Foto awal',
-  'Foto akhir',
-  'Aksi',
-];
+const KOLOM = ['Tanggal', 'Warehouse', 'Supir', 'Kendaraan', 'KM Tempuh', 'Isi BBM', 'Konsumsi BBM', 'Aksi'];
 
 export function teksEfisiensi(row) {
   const status = String(row.status_efisiensi || '').toLowerCase();
   if (status === 'data belum cukup') return 'Data belum cukup';
-  return row.efisiensi ? `${row.efisiensi} km/l` : '-';
+  return row.efisiensi ? `${row.efisiensi} KM/L` : '-';
 }
 
-function badgeEfisiensi(row) {
+function selKonsumsi(row) {
   const status = String(row.status_efisiensi || '').toLowerCase();
-  const kelas = EFISIENSI_KELAS[status] || 'badge-ef-kurang-data';
-  return el('span', { class: `badge-status ${kelas}`, title: String(row.efisiensi_label || ''), text: teksEfisiensi(row) });
-}
-
-function thumb(url, full) {
-  if (!url) return el('span', { class: 'text-muted', text: '-' });
-  const img = el('img', { class: 'thumb', src: url, alt: 'foto odometer', loading: 'lazy', 'data-full': full || url });
-  // Klik membuka foto penuh untuk membaca angka odometer.
-  return full ? el('a', { href: full, target: '_blank', rel: 'noopener' }, [img]) : img;
+  const badge = row.status_efisiensi
+    ? el('span', { class: `badge ${STATUS_KELAS[status] || 'text-bg-secondary'}`, text: row.status_efisiensi })
+    : null;
+  if (status === 'data belum cukup' || !row.efisiensi) return el('td', { class: 'text-center' }, [badge || '-']);
+  return el('td', { class: 'text-center' }, [
+    el('span', { class: 'fw-semibold', text: teksEfisiensi(row) }),
+    row.efisiensi_label ? el('span', { class: 'small text-muted ms-1', text: `(${row.efisiensi_label})` }) : null,
+    badge ? el('div', {}, [badge]) : null,
+  ]);
 }
 
 function selKolom(nilai, kelas = '') {
@@ -121,25 +110,25 @@ function pakaiKartu2(r) {
 }
 
 function barisTabel(r) {
+  const liter = Number(r.isi_bbm) || 0;
   return el('tr', {}, [
     selKolom(fmtDateId(r.tanggal), 'text-nowrap'),
-    selKolom(String(r.vehicle || '-'), 'text-nowrap'),
+    selKolom(String(r.cabang || r.kode_cabang || '-')),
     // Driver 2 di baris kedua (kecil) agar kolom tidak melebar.
     el('td', {}, [
       el('div', { text: String(r.supir || '-') }),
       r.supir_2 ? el('div', { class: 'small text-muted', text: `& ${r.supir_2}` }) : null,
     ]),
-    selKolom(fmtNum(r.km_tempuh), 'text-end'),
-    selKolom(fmtNum(r.liter), 'text-end'),
-    // Total grup-1 + grup-2; data lama tanpa total_bbm memakai biaya_bbm.
-    selKolom(fmtNum(r.total_bbm ?? r.biaya_bbm), 'text-end text-nowrap'),
-    el('td', {}, [
-      String(r.metode_pembayaran || '-'),
-      pakaiKartu2(r) ? el('span', { class: 'badge-status ms-1', text: '2 kartu' }) : null,
+    selKolom(String(r.vehicle || '-').trim(), 'text-nowrap'),
+    el('td', { class: 'text-center text-nowrap' }, [
+      `${fmtNum(r.km_tempuh)} KM`,
+      String(r.km_sumber) === 'ESTIMASI' ? el('span', { class: 'badge text-bg-warning ms-1', title: 'KM dihitung dari estimasi (odometer tidak terbaca)', text: 'ESTIMASI' }) : null,
     ]),
-    el('td', { class: 'text-nowrap' }, [badgeEfisiensi(r)]),
-    el('td', {}, [thumb(r.foto_odo_awal_thumb, r.foto_odo_awal)]),
-    el('td', {}, [thumb(r.foto_odo_akhir_thumb, r.foto_odo_akhir)]),
+    el('td', { class: 'text-center text-nowrap' }, [
+      liter > 0 ? `${fmtNum(liter)} L` : '-',
+      pakaiKartu2(r) ? el('div', {}, [el('span', { class: 'badge text-bg-light border', title: 'Dibayar dengan 2 kartu', text: '2 kartu' })]) : null,
+    ]),
+    selKonsumsi(r),
     selAksi(r),
   ]);
 }
@@ -151,14 +140,16 @@ function panelTransaksi(rows, view, adaFilter = false) {
     halamanAktif = h.aktif;
     const isi = rows.length
       ? el('div', { class: 'table-wrap' }, [
-          el('table', { class: 'table table-sm align-middle table-history' }, [
-            el('thead', {}, [el('tr', {}, KOLOM.map((t) => el('th', { text: t })))]),
+          el('table', { class: 'table table-bordered table-striped table-hover align-middle table-history' }, [
+            el('thead', { class: 'thead-hijau' }, [el('tr', {}, KOLOM.map((t) => el('th', { class: 'text-center', text: t })))]),
             el('tbody', {}, h.isi.map(barisTabel)),
           ]),
         ])
       : el('p', { class: 'text-muted', text: adaFilter ? 'Tidak ada transaksi yang cocok dengan filter.' : 'Belum ada transaksi.' });
     panel.replaceChildren(
-      el('h2', { class: 'h6 mb-3', text: `Riwayat Operasional (${rows.length})` }),
+      el('h2', { class: 'h5 mb-3 pb-2 border-bottom text-success fw-bold' }, [
+        el('i', { class: 'bi bi-clock-history me-2', 'aria-hidden': 'true' }), `Riwayat Operasional (${rows.length})`,
+      ]),
       isi,
       navHalaman(h.total, h.aktif, (ke) => {
         halamanAktif = ke;

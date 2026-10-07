@@ -440,3 +440,17 @@ body {
 @media print {
   #banner-slot { display: none !important; }
 }
+
+/* Header tabel hijau tua seperti Riwayat Operasional GAS */
+.thead-hijau th {
+  background: #14532d !important;
+  color: #fff !important;
+  border-color: #14532d !important;
+  vertical-align: middle;
+}
+
+/* Status "Di atas standar" biru (bukan primary, karena primary = hijau tema). */
+.badge-ef-atas {
+  background-color: #0d6efd !important;
+  color: #fff !important;
+}

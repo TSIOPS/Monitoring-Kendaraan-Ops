@@ -2,7 +2,7 @@ import { get } from '../api.js';
 import { getUser } from '../store.js';
 import { el, fmtNum } from '../ui.js';
 
-const STATUS_KELAS = { 'Sesuai standar': 'bg-success', 'Di bawah standar': 'bg-danger', 'Di atas standar': 'bg-primary' };
+const STATUS_KELAS = { 'Sesuai standar': 'bg-success', 'Di bawah standar': 'bg-danger', 'Di atas standar': 'badge-ef-atas' };
 
 // Item performa membawa NAMA warehouse; filter SUPERADMIN memakai kode (renderPerforma GAS).
 export function saringPerforma(items, kode, cabangList) {
