@@ -151,6 +151,15 @@ export function jalurRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     if (blockers.length) {
       throw new HttpError(409, 'Jalur baru diblokir: ' + blockers.map((b) => J.blockerDetail(b) + '.').join(' '), 'CONFLICT');
     }
+    // Gate per driver (Driver 1 & 2): satu driver satu jalur aktif, tidak ganda di hari yang sama.
+    const ganda = J.driverGanda(input);
+    if (ganda.length) {
+      const nama = new Map((await Promise.all(ganda.map((id) => deps.master.findSupirById(id)))).filter(Boolean).map((s) => [s!.supir_id, s!.nama_supir]));
+      throw new HttpError(409, 'Jalur baru diblokir: driver ' + ganda.map((id) => nama.get(id) || id).join(', ') + ' dipilih lebih dari sekali.', 'CONFLICT');
+    }
+    const driverIds = input.flatMap((r: any) => [str(r.driver_id), str(r.driver2_id)]).filter(Boolean);
+    const blokDriver = J.findDriverBlockers(await deps.jalur.listForDrivers(driverIds), driverIds, tanggal);
+    if (blokDriver.length) throw new HttpError(409, 'Jalur baru diblokir: ' + blokDriver.join(' '), 'CONFLICT');
 
     const card = await cardLookup(deps);
     const createdBy = u.nama || u.username;
@@ -299,6 +308,17 @@ export function jalurRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       if (blockers.length) {
         throw new HttpError(409, J.blockerDetail(blockers[0]!) + ' sebelum memindahkan jalur ini ke kendaraan tersebut.', 'CONFLICT');
       }
+    }
+    // Gate per driver saat driver/tanggal berubah (jalur ini sendiri dikecualikan).
+    const d1 = str(patch.driver_id ?? old.driver_id);
+    const d2 = str(patch.driver2_id ?? old.driver2_id);
+    const driverBerubah = (patch.driver_id !== undefined && patch.driver_id !== old.driver_id)
+      || (patch.driver2_id !== undefined && patch.driver2_id !== old.driver2_id)
+      || tanggalBaru !== J.tgl10(old.tanggal);
+    if (driverBerubah) {
+      const cek = [d1, d2].filter(Boolean);
+      const blok = J.findDriverBlockers(await deps.jalur.listForDrivers(cek), cek, tanggalBaru, old.id);
+      if (blok.length) throw new HttpError(409, blok.join(' '), 'CONFLICT');
     }
     if (p.tanggal !== undefined) patch.tanggal = tanggalBaru;
     if (p.rute_tujuan !== undefined) patch.rute_tujuan = str(p.rute_tujuan);

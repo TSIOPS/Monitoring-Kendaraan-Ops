@@ -7,6 +7,7 @@ export interface JalurRepo {
   listRange(from: string, to: string, cabang: string | null): Promise<JalurFull[]>;
   listForDate(tanggal: string, cabang: string | null): Promise<JalurFull[]>;
   listForVehicles(vehicleIds: string[]): Promise<JalurFull[]>;
+  listForDrivers(driverIds: string[]): Promise<JalurFull[]>;
   listForCards(cardIds: string[]): Promise<JalurFull[]>;
   findById(id: string): Promise<JalurFull | null>;
   insertMany(rows: JalurFull[]): Promise<void>;
@@ -44,6 +45,17 @@ export function supabaseJalurRepo(env: Env): JalurRepo {
       const { data, error } = await q;
       if (error) throw fail('listForDate')(error);
       return rows(data);
+    },
+    async listForDrivers(driverIds) {
+      const out: JalurFull[] = [];
+      for (const part of chunks([...new Set(driverIds.filter(Boolean))])) {
+        const daftar = part.map((x) => '"' + String(x).replace(/"/g, '') + '"').join(',');
+        const { data, error } = await sb().from('jalur_pengiriman').select('*').or(NOT_DELETED)
+          .or(`driver_id.in.(${daftar}),driver2_id.in.(${daftar})`);
+        if (error) throw fail('listForDrivers')(error);
+        out.push(...rows(data));
+      }
+      return out;
     },
     async listForVehicles(vehicleIds) {
       const out: JalurFull[] = [];

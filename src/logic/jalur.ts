@@ -111,6 +111,42 @@ export function findBlockers(rows: JalurFull[], vehicleIds: string[], tanggal: s
   return out;
 }
 
+// Gate per DRIVER (Driver 1 & Driver 2), aturan tuntas sama dengan gate kendaraan:
+// jalur terakhir driver di tanggal SEBELUMNYA harus tuntas, dan driver tidak boleh
+// sudah terjadwal di tanggal yang sama. excludeId = jalur yang sedang diedit.
+const punyaDriver = (r: JalurFull, id: string) => str(r.driver_id) === id || str(r.driver2_id) === id;
+const namaDriverDi = (r: JalurFull, id: string) => (str(r.driver_id) === id ? str(r.nama_driver) : str(r.nama_driver2)) || id;
+
+export function findDriverBlockers(rows: JalurFull[], driverIds: string[], tanggal: string, excludeId = ''): string[] {
+  const input = tgl10(tanggal);
+  const ids = [...new Set(driverIds.map(str).filter(Boolean))];
+  if (!input || !ids.length) return [];
+  const pesan: string[] = [];
+  for (const id of ids) {
+    const milik = rows.filter((r) => str(r.is_deleted) !== '1' && str(r.id) !== excludeId && punyaDriver(r, id));
+    const hariSama = milik.find((r) => tgl10(r.tanggal) === input);
+    if (hariSama) {
+      pesan.push('Driver ' + namaDriverDi(hariSama, id) + ' sudah terjadwal pada ' + input + ' (kendaraan ' + (hariSama.plat_nomor || hariSama.vehicle_id) + ').');
+      continue;
+    }
+    const sebelum = milik.filter((r) => tgl10(r.tanggal) < input)
+      .sort((a, b) => tgl10(b.tanggal).localeCompare(tgl10(a.tanggal)) || str(b.created_at).localeCompare(str(a.created_at)))[0];
+    if (sebelum && (str(sebelum.status) || STATUS_BELUM) !== statusTuntas(sebelum)) {
+      const aksi = cardsOf(sebelum).length ? 'rekonsiliasi saldo flazz' : 'input laporan';
+      pesan.push('Driver ' + namaDriverDi(sebelum, id) + ' (jalur ' + tgl10(sebelum.tanggal) + ', ' + (sebelum.plat_nomor || sebelum.vehicle_id) +
+        ', status ' + (sebelum.status || STATUS_BELUM) + ') masih belum selesai. Harap ' + aksi + ' terlebih dahulu.');
+    }
+  }
+  return pesan;
+}
+
+// Driver yang muncul lebih dari sekali dalam satu kali simpan (sebagai Driver 1 atau 2).
+export function driverGanda(rows: Array<{ driver_id?: unknown; driver2_id?: unknown }>): string[] {
+  const hit = new Map<string, number>();
+  for (const r of rows) for (const id of [str(r.driver_id), str(r.driver2_id)]) if (id) hit.set(id, (hit.get(id) ?? 0) + 1);
+  return [...hit].filter(([, n]) => n > 1).map(([id]) => id);
+}
+
 export function blockerDetail(b: JalurFull): string {
   const aksi = cardsOf(b).length ? 'rekonsiliasi saldo flazz' : 'input laporan';
   return 'Kendaraan ' + (b.plat_nomor || b.id) + ' (jalur ' + tgl10(b.tanggal) + ', status ' + (b.status || STATUS_BELUM) +

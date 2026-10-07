@@ -130,3 +130,29 @@ describe('daftar dan supir per tanggal', () => {
     expect(driversForDate(rows, '2026-10-01', null).map((d) => d.nama_driver)).toEqual(['Supir A', 'Supir C']);
   });
 });
+
+describe('gate per driver', () => {
+  const j = (o: Record<string, unknown>) => ({ id: 'J', tanggal: '2026-10-05', driver_id: 'D-1', nama_driver: 'Agus', driver2_id: '', nama_driver2: '',
+    vehicle_id: 'V-1', plat_nomor: 'D 1 A', flazz_card_id: '', flazz_card_id_2: '', status: 'BELUM_DIISI', is_deleted: '', created_at: '', ...o }) as any;
+  it('jalur terakhir driver (sebagai Driver 1 atau 2) belum tuntas -> diblokir', async () => {
+    const { findDriverBlockers } = await import('../../src/logic/jalur');
+    expect(findDriverBlockers([j({})], ['D-1'], '2026-10-06')[0]).toContain('Driver Agus (jalur 2026-10-05, D 1 A, status BELUM_DIISI) masih belum selesai. Harap input laporan');
+    expect(findDriverBlockers([j({ driver_id: 'D-9', driver2_id: 'D-1', nama_driver2: 'Agus' })], ['D-1'], '2026-10-06')).toHaveLength(1);
+  });
+  it('tanpa kartu cukup SUDAH_LAPORAN; dengan kartu harus SELESAI (rekonsiliasi)', async () => {
+    const { findDriverBlockers } = await import('../../src/logic/jalur');
+    expect(findDriverBlockers([j({ status: 'SUDAH_LAPORAN' })], ['D-1'], '2026-10-06')).toEqual([]);
+    expect(findDriverBlockers([j({ status: 'SUDAH_LAPORAN', flazz_card_id: 'FLZ-1' })], ['D-1'], '2026-10-06')[0]).toContain('rekonsiliasi saldo flazz');
+    expect(findDriverBlockers([j({ status: 'SELESAI', flazz_card_id: 'FLZ-1' })], ['D-1'], '2026-10-06')).toEqual([]);
+  });
+  it('sudah terjadwal di tanggal sama -> diblokir; jalur yang diedit dikecualikan', async () => {
+    const { findDriverBlockers } = await import('../../src/logic/jalur');
+    expect(findDriverBlockers([j({ id: 'J-1', tanggal: '2026-10-06' })], ['D-1'], '2026-10-06')[0]).toContain('sudah terjadwal pada 2026-10-06');
+    expect(findDriverBlockers([j({ id: 'J-1', tanggal: '2026-10-06' })], ['D-1'], '2026-10-06', 'J-1')).toEqual([]);
+  });
+  it('driverGanda: driver dipilih dua kali dalam satu simpan', async () => {
+    const { driverGanda } = await import('../../src/logic/jalur');
+    expect(driverGanda([{ driver_id: 'D-1', driver2_id: 'D-2' }, { driver_id: 'D-3', driver2_id: 'D-1' }])).toEqual(['D-1']);
+    expect(driverGanda([{ driver_id: 'D-1' }, { driver_id: 'D-2' }])).toEqual([]);
+  });
+});

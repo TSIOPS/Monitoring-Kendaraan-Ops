@@ -630,6 +630,7 @@ export function memJalur(shared: JalurRow[] = []) {
       return alive().filter((j) => j.tanggal.startsWith(tanggal) && (!cabang || j.kode_cabang === cabang));
     },
     async listForVehicles(ids) { return alive().filter((j) => ids.includes(j.vehicle_id)); },
+    async listForDrivers(ids) { return alive().filter((j) => ids.includes((j as any).driver_id) || ids.includes((j as any).driver2_id)); },
     async listForCards(ids) { return all().filter((j) => ids.includes(j.flazz_card_id) || ids.includes(j.flazz_card_id_2)); },
     async findById(id) { return all().find((j) => j.id === id) ?? null; },
     async insertMany(rows) { for (const r of rows) shared.push(clone(r) as unknown as JalurRow); },

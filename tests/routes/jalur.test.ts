@@ -227,3 +227,21 @@ describe('alur penuh: jalur -> laporan -> rekon dua kartu', () => {
     expect(rows[0]!.status).toBe('SUDAH_LAPORAN');
   });
 });
+
+describe('POST /api/jalur — gate per driver', () => {
+  it('driver dengan jalur sebelumnya belum tuntas (kendaraan lain) -> 409', async () => {
+    const { app, kv, rows } = setup({ jalur: [jalurRow({ id: 'J-0', vehicle_id: 'V-9', plat_nomor: 'B 9 Z' })] });
+    const tok = await loginAs(kv, PIC);
+    const res = await req(app, 'POST', '/api/jalur', tok, { tanggal: '2026-10-06', rows: [baris()] });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as any).message).toContain('Driver Supir A (jalur 2026-10-01, B 9 Z, status BELUM_DIISI) masih belum selesai');
+    expect(rows).toHaveLength(1);
+  });
+  it('driver yang sama dipilih dua kali dalam satu simpan -> 409', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, PIC);
+    const res = await req(app, 'POST', '/api/jalur', tok, { tanggal: '2026-10-06', rows: [baris({ driver2_id: 'S-1' })] });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as any).message).toContain('dipilih lebih dari sekali');
+  });
+});
