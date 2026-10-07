@@ -19,6 +19,11 @@
 
 body {
   background: #f5f8f6;
+  /* Kolom setinggi layar: isi mengisi sisa ruang, footer menempel di bawah tanpa scroll. */
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Bootstrap memakai warna biru bawaan per komponen; disamakan ke hijau GAS. */
@@ -103,6 +108,14 @@ body {
   padding: 1rem;
   max-width: 1200px;
   margin: 0 auto;
+  width: 100%;
+  flex: 1 0 auto;
+}
+
+/* Halaman login: kotak di tengah area isi (bukan 100vh) agar footer tetap terlihat. */
+.view:has(> .login-wrap) {
+  display: flex;
+  flex-direction: column;
 }
 
 .panel {
@@ -188,7 +201,7 @@ body {
 .toast-success { background: var(--warna-ok); }
 
 .login-wrap {
-  min-height: 100vh;
+  flex: 1 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -199,7 +212,7 @@ body {
   background: #fff;
   border: 1px solid #e3e6ea;
   border-radius: 0.6rem;
-  padding: 1.5rem;
+  padding: 1.25rem 1.5rem;
   width: 100%;
   max-width: 22rem;
 }
@@ -361,7 +374,7 @@ body {
   text-align: center;
   color: var(--warna-abu);
   font-size: 0.85rem;
-  padding: 1rem;
+  padding: 0.6rem 1rem;
 }
 
 @media print {
