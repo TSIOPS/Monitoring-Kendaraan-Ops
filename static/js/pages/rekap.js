@@ -135,6 +135,16 @@ export function bukuExcel(XLSX, sheets) {
         if (cell && typeof cell.v === 'number') cell.z = FORMAT_RUPIAH;
       }
     });
+    // Persen disimpan sebagai angka biasa (12,5 = 12,5%) dengan format 0.0"%".
+    if (sh.persen) {
+      sh.aoa.forEach((baris, r) => {
+        if (sh.persen.baris && !sh.persen.baris.includes(r)) return;
+        for (const c of sh.persen.kolom) {
+          const cell = ws[XLSX.utils.encode_cell({ r, c })];
+          if (cell && typeof cell.v === 'number') cell.z = '0.0"%"';
+        }
+      });
+    }
     if (sh.filter && sh.aoa.length > 2) {
       ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: sh.aoa.length - 2, c: sh.aoa[0].length - 1 } }) };
     }
@@ -145,7 +155,7 @@ export function bukuExcel(XLSX, sheets) {
 
 const SHEETJS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
 let sheetjsSiap = null;
-function muatSheetJS() {
+export function muatSheetJS() {
   if (window.XLSX) return Promise.resolve(window.XLSX);
   sheetjsSiap ??= new Promise((resolve, reject) => {
     const sc = document.createElement('script');
