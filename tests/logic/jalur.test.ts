@@ -147,8 +147,14 @@ describe('gate per driver', () => {
   });
   it('sudah terjadwal di tanggal sama -> diblokir; jalur yang diedit dikecualikan', async () => {
     const { findDriverBlockers } = await import('../../src/logic/jalur');
-    expect(findDriverBlockers([j({ id: 'J-1', tanggal: '2026-10-06' })], ['D-1'], '2026-10-06')[0]).toContain('sudah terjadwal pada 2026-10-06');
+    expect(findDriverBlockers([j({ id: 'J-1', tanggal: '2026-10-06', status: 'BELUM_LAPORAN' })], ['D-1'], '2026-10-06')[0]).toContain('sudah terjadwal pada 2026-10-06');
     expect(findDriverBlockers([j({ id: 'J-1', tanggal: '2026-10-06' })], ['D-1'], '2026-10-06', 'J-1')).toEqual([]);
+  });
+  it('jalur di tanggal sama yang sudah tuntas tidak memblokir jalur baru', async () => {
+    const { findDriverBlockers } = await import('../../src/logic/jalur');
+    expect(findDriverBlockers([j({ id: 'J-1', tanggal: '2026-10-06', status: 'SUDAH_LAPORAN' })], ['D-1'], '2026-10-06')).toEqual([]);
+    expect(findDriverBlockers([j({ id: 'J-1', tanggal: '2026-10-06', status: 'SUDAH_LAPORAN', flazz_card_id: 'FLZ-1' })], ['D-1'], '2026-10-06')[0]).toContain('sudah terjadwal');
+    expect(findDriverBlockers([j({ id: 'J-1', tanggal: '2026-10-06', status: 'SELESAI', flazz_card_id: 'FLZ-1' })], ['D-1'], '2026-10-06')).toEqual([]);
   });
   it('driverGanda: driver dipilih dua kali dalam satu simpan', async () => {
     const { driverGanda } = await import('../../src/logic/jalur');

@@ -113,7 +113,7 @@ export function findBlockers(rows: JalurFull[], vehicleIds: string[], tanggal: s
 
 // Gate per DRIVER (Driver 1 & Driver 2), aturan tuntas sama dengan gate kendaraan:
 // jalur terakhir driver di tanggal SEBELUMNYA harus tuntas, dan driver tidak boleh
-// sudah terjadwal di tanggal yang sama. excludeId = jalur yang sedang diedit.
+// punya jalur belum tuntas di tanggal yang sama (jalur tuntas tidak memblokir). excludeId = jalur yang sedang diedit.
 const punyaDriver = (r: JalurFull, id: string) => str(r.driver_id) === id || str(r.driver2_id) === id;
 const namaDriverDi = (r: JalurFull, id: string) => (str(r.driver_id) === id ? str(r.nama_driver) : str(r.nama_driver2)) || id;
 
@@ -124,7 +124,7 @@ export function findDriverBlockers(rows: JalurFull[], driverIds: string[], tangg
   const pesan: string[] = [];
   for (const id of ids) {
     const milik = rows.filter((r) => str(r.is_deleted) !== '1' && str(r.id) !== excludeId && punyaDriver(r, id));
-    const hariSama = milik.find((r) => tgl10(r.tanggal) === input);
+    const hariSama = milik.find((r) => tgl10(r.tanggal) === input && (str(r.status) || STATUS_BELUM) !== statusTuntas(r));
     if (hariSama) {
       pesan.push('Driver ' + namaDriverDi(hariSama, id) + ' sudah terjadwal pada ' + input + ' (kendaraan ' + (hariSama.plat_nomor || hariSama.vehicle_id) + ').');
       continue;
