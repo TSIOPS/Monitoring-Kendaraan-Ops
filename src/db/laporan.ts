@@ -173,7 +173,7 @@ export function supabaseLaporanRepo(env: Env): LaporanRepo {
       const rows = (data as Array<{ id: string; status: string }> | null) ?? [];
       for (const j of rows) {
         const patch: Record<string, unknown> = { laporan_id: '', updated_at: nowIso() };
-        if (j.status === 'SUDAH_LAPORAN') patch.status = 'BELUM_DIISI';
+        if (j.status === 'SUDAH_LAPORAN' || j.status === 'SELESAI') patch.status = 'BELUM_DIISI';
         const { error: upErr } = await sb().from('jalur_pengiriman').update(patch).eq('id', j.id);
         if (upErr) throw fail('releaseJalurReport:update')(upErr);
       }

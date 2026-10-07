@@ -416,6 +416,16 @@ describe('DELETE /api/laporan/:id', () => {
     expect(audits[0]).toMatchObject({ action: 'DELETE', modul: 'transaksi' });
   });
 
+  it('jalur yang sudah SELESAI (rekonsiliasi) kembali ke BELUM_DIISI saat laporan dihapus', async () => {
+    const { app, kv, lap } = setup({
+      rows: [{ transaction_id: 'TRX-1', metode_pembayaran: '', flazz_card_id: '', biaya_bbm: 0 }],
+      jalur: [jalurRow({ status: 'SELESAI', laporan_id: 'TRX-1' })],
+    });
+    const tok = await loginAs(kv, PIC);
+    expect((await del(app, '/api/laporan/TRX-1', tok)).status).toBe(200);
+    expect(lap.state.jalur[0]).toMatchObject({ status: 'BELUM_DIISI', laporan_id: '' });
+  });
+
   it('404 bila tidak ada', async () => {
     const { app, kv } = setup({ rows: [] });
     const tok = await loginAs(kv, PIC);

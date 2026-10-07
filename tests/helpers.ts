@@ -286,7 +286,7 @@ export function memLaporan(initial?: Partial<MemLaporanState>) {
       for (const j of state.jalur) {
         if (String(j.laporan_id || '') !== String(laporanId)) continue;
         j.laporan_id = '';
-        if (j.status === 'SUDAH_LAPORAN') j.status = 'BELUM_DIISI';
+        if (j.status === 'SUDAH_LAPORAN' || j.status === 'SELESAI') j.status = 'BELUM_DIISI';
       }
     },
   };
