@@ -83,10 +83,10 @@ async function loadCardIdMap(deps: AppDeps): Promise<Map<string, string>> {
   return new Map(cards.map((c) => [L.canonicalCardId(c.id), c.id]));
 }
 
-function kendaraanInfoMap(all: { kendaraan: Array<{ vehicle_id: string; kapasitas_tangki: number; jumlah_bar: number; standar_km_l: number }> }): L.KendaraanMap {
+function kendaraanInfoMap(all: { kendaraan: Array<{ vehicle_id: string; kapasitas_tangki: number; jumlah_bar: number; standar_km_l: number; jenis_indikator?: string }> }): L.KendaraanMap {
   return new Map(all.kendaraan.map((k) => [k.vehicle_id, {
     kapasitas: L.num(k.kapasitas_tangki),
-    jumlah_bar: L.num(k.jumlah_bar),
+    jumlah_bar: L.jumlahBarEfektif(k.jenis_indikator, k.jumlah_bar),
     standar: L.num(k.standar_km_l),
   }]));
 }
@@ -171,7 +171,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     assertOwnWarehouse(u, trxCabang);
 
     const isJarum = String(kendaraan.jenis_indikator) === 'ANALOG_JARUM';
-    const jumlahBar = isJarum ? 100 : L.num(kendaraan.jumlah_bar);
+    const jumlahBar = L.jumlahBarEfektif(kendaraan.jenis_indikator, kendaraan.jumlah_bar);
     const standarKmL = L.num(kendaraan.standar_km_l);
     const literPerBar = L.literPerBarFor(L.num(kendaraan.kapasitas_tangki), jumlahBar);
 
@@ -539,7 +539,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
     // Kolom turunan dihitung ulang dengan rumus yang sama seperti saat simpan
     // (port recalcTripEfficiencyRow GAS), supaya tidak basi setelah KM/bar/liter dikoreksi.
-    const jumlahBar = String(kendaraan?.jenis_indikator) === 'ANALOG_JARUM' ? 100 : L.num(kendaraan?.jumlah_bar);
+    const jumlahBar = L.jumlahBarEfektif(kendaraan?.jenis_indikator, kendaraan?.jumlah_bar);
     const literPerBar = L.literPerBarFor(L.num(kendaraan?.kapasitas_tangki), jumlahBar);
     const literKonsumsi = L.computeLiterKonsumsi(newLiter, newBarAwal, newBarAkhir, literPerBar);
     patch.perubahan_bar = newBarAwal - newBarAkhir;

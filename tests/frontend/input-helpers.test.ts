@@ -179,3 +179,10 @@ describe('kartuJalur', () => {
     expect(kartuJalur(cards, null)).toHaveLength(3);
   });
 });
+
+describe('validasi jarum', () => {
+  it('persen jarum harus 0-100', () => {
+    expect(validateForm({ ...DASAR, jarum: true, bar_awal: '120', bar_akhir: '50' })).toContain('Indikator jarum diisi persen jarum 0–100.');
+    expect(validateForm({ ...DASAR, jarum: true, bar_awal: '67', bar_akhir: '36' })).not.toContain('Indikator jarum diisi persen jarum 0–100.');
+  });
+});

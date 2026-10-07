@@ -332,6 +332,12 @@ export function estimateOdo(i: OdoEstimateInput): OdoEstimate {
   return { kmAwal, kmAkhir, kmTempuh, kmSumber };
 }
 
+// Indikator jarum: level tangki dicatat sebagai persen (0-100), bukan jumlah bar (GAS
+// saveTransaction). Riwayat/performa GAS lupa menerapkannya; di sini dipakai di semua tempat.
+export function jumlahBarEfektif(jenisIndikator: unknown, jumlahBar: unknown): number {
+  return String(jenisIndikator ?? '') === 'ANALOG_JARUM' ? 100 : num(jumlahBar);
+}
+
 export function literPerBarFor(kapasitas: number, jumlahBar: number): number {
   return kapasitas > 0 && jumlahBar > 0 ? kapasitas / jumlahBar : 0;
 }

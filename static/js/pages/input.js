@@ -38,6 +38,10 @@ export function validateForm(v) {
     err.push('Pilih jenis BBM agar liter terhitung.');
   }
 
+  if (v.jarum && [v.bar_awal, v.bar_akhir].some((x) => x !== '' && (Number(x) < 0 || Number(x) > 100))) {
+    err.push('Indikator jarum diisi persen jarum 0–100.');
+  }
+
   if (v.metode_pembayaran === 'FLAZZ' && !v.flazz_card_id) {
     err.push('Pilih kartu Flazz untuk pembayaran.');
   }
@@ -256,6 +260,7 @@ export async function renderInput(view) {
   // Supir hanya dari jalur BELUM_DIISI pada tanggal terpilih (seperti GAS, spec M8 D4).
   let jalurDrivers = [];
   const infoJalur = el('div', { class: 'form-text' });
+  const infoBar = el('div', { class: 'form-text mb-3' });
 
   const serverData = { files: { odo_awal: '', odo_akhir: '' }, km_awal: '', km_akhir: '' };
   const alertBox = el('div', { class: 'alert alert-danger d-none' });
@@ -333,6 +338,7 @@ export async function renderInput(view) {
           baris('KM akhir', satuan(f.km_akhir, '', 'KM')),
           meterRusak(f.km_akhir_broken, 'f-km-akhir-broken', 'Meter akhir mati/rusak'),
           baris('Bar bensin akhir', f.bar_akhir),
+          infoBar,
         ]),
       ]),
     ]),
@@ -367,26 +373,22 @@ export async function renderInput(view) {
   // Tidak ada prefill dari laporan terakhir: bar bensin adalah bacaan fisik saat ini
   // (GAS pun tidak mengisinya), dan biaya/metode/kartu BBM lama rawan terbawa
   // sehingga saldo Flazz terpotong salah. Yang otomatis hanya data dari jalur.
-  let barOtomatis = false;
+  // Indikator jarum: level diisi persen (0-100) seperti GAS; bar digital: jumlah bar menyala.
+  let isJarum = false;
   async function onVehicleChange() {
     if (!f.vehicle_id.value) return;
     const terpilih = vehicles.find((v) => String(v.vehicle_id) === f.vehicle_id.value);
-    if (terpilih && String(terpilih.jenis_indikator) === 'ANALOG_JARUM') {
-      // Indikator jarum tidak punya bar; nilai tetap 100 seperti GAS.
-      f.bar_awal.value = '100';
-      f.bar_akhir.value = '100';
-      f.bar_awal.disabled = true;
-      f.bar_akhir.disabled = true;
-      barOtomatis = true;
-    } else {
-      f.bar_awal.disabled = false;
-      f.bar_akhir.disabled = false;
-      if (barOtomatis) {
-        f.bar_awal.value = '';
-        f.bar_akhir.value = '';
-        barOtomatis = false;
-      }
+    isJarum = Boolean(terpilih && String(terpilih.jenis_indikator) === 'ANALOG_JARUM');
+    const maks = isJarum ? '100' : String(Number(terpilih?.jumlah_bar) || '');
+    for (const x of [f.bar_awal, f.bar_akhir]) {
+      x.disabled = false;
+      x.min = '0';
+      if (maks) x.max = maks; else x.removeAttribute('max');
+      x.placeholder = isJarum ? 'persen jarum 0–100' : (maks ? `0–${maks} bar` : '');
     }
+    infoBar.textContent = isJarum
+      ? 'Indikator jarum: isi posisi jarum dalam persen (kosong = 0, penuh = 100).'
+      : (maks ? `Indikator bar: isi jumlah bar yang menyala (0–${maks}).` : '');
   }
   f.vehicle_id.addEventListener('change', onVehicleChange);
 
@@ -467,6 +469,7 @@ export async function renderInput(view) {
       km_awal_broken: f.km_awal_broken.checked,
       km_akhir_broken: f.km_akhir_broken.checked,
       km_tanpa_estimasi: false,
+      jarum: isJarum,
       bar_awal: f.bar_awal.value,
       bar_akhir: f.bar_akhir.value,
       liter_bbm: f.liter_bbm.value,

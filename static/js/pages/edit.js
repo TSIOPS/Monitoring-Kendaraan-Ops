@@ -114,8 +114,10 @@ export async function renderEdit(view) {
   pilihNilai(supir, trx.supir === '-' ? '' : trx.supir, trx.supir);
   const kmAwal = angka(trx.km_awal);
   const kmAkhir = angka(trx.km_akhir);
-  const barAwal = angka(jarum ? 100 : trx.bar_awal, jarum ? { disabled: 'disabled' } : {});
-  const barAkhir = angka(jarum ? 100 : trx.bar_akhir, jarum ? { disabled: 'disabled' } : {});
+  // Jarum: persen 0-100 (seperti GAS), bar digital: jumlah bar menyala.
+  const batasBar = jarum ? { max: '100', placeholder: 'persen jarum 0–100' } : {};
+  const barAwal = angka(trx.bar_awal, batasBar);
+  const barAkhir = angka(trx.bar_akhir, batasBar);
   const liter = angka(trx.isi_bbm, { step: '0.01', readonly: 'readonly', tabindex: '-1' });
   liter.classList.add('bg-light');
   const bbmOpsi = opsiBbm(Array.isArray(master.bbmList) ? master.bbmList : []);
@@ -185,8 +187,8 @@ export async function renderEdit(view) {
     el('div', { class: 'row' }, [
       kol(3, baris('KM awal', kmAwal)),
       kol(3, baris('KM akhir', kmAkhir, trx.km_sumber === 'ESTIMASI' ? 'KM saat ini hasil estimasi; mengubah KM menjadikannya aktual.' : '')),
-      kol(2, baris('Bar awal', barAwal)),
-      kol(2, baris('Bar akhir', barAkhir)),
+      kol(2, baris(jarum ? 'Jarum awal (%)' : 'Bar awal', barAwal)),
+      kol(2, baris(jarum ? 'Jarum akhir (%)' : 'Bar akhir', barAkhir)),
       kol(2, baris('Liter BBM', liter, 'Otomatis dari biaya')),
     ]),
     el('div', { class: 'row' }, [

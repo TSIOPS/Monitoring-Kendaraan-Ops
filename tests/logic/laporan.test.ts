@@ -294,3 +294,19 @@ describe('groupMonthly', () => {
     expect(out[1]).toMatchObject({ total_transaksi: 1, total_liter: 10.56, total_biaya_bbm: 100, total_toll: 5 });
   });
 });
+describe('indikator jarum = persen 0-100', () => {
+  it('jumlahBarEfektif: jarum 100, bar digital apa adanya', async () => {
+    const { jumlahBarEfektif } = await import('../../src/logic/laporan');
+    expect(jumlahBarEfektif('ANALOG_JARUM', 0)).toBe(100);
+    expect(jumlahBarEfektif('DIGITAL_BAR', 8)).toBe(8);
+  });
+  it('rata-rata 7 trip memakai penurunan jarum (Z 3036 II: 85 -> ±51 km/l)', async () => {
+    const { hitungEfisiensi7Riwayat, literPerBarFor, jumlahBarEfektif } = await import('../../src/logic/laporan');
+    const trips = [[30, 0, 67, 58], [10, 0, 56, 53], [7, 0, 48, 45], [16, 0, 47, 31], [39, 1.88, 20, 57], [14, 0, 54, 54], [44, 0, 55, 36]]
+      .map(([km, l, a, b], i) => ({ km_tempuh: km, liter_bbm: l, bar_awal: a, bar_akhir: b, tanggal: '2026-10-0' + (i + 1), km_sumber: 'AKTUAL', nama_supir: 'A' }) as any);
+    const lpb = literPerBarFor(4, jumlahBarEfektif('ANALOG_JARUM', 0));
+    const r = hitungEfisiensi7Riwayat(trips, 6, lpb);
+    expect(r.isDataCukup).toBe(true);
+    expect(Number(r.efisiensi)).toBeCloseTo(160 / (1.88 + 0.31 * 4), 1);
+  });
+});
