@@ -334,45 +334,28 @@ export async function renderInput(view) {
     window.location.hash = '#/history';
   });
 
+  // Tidak ada prefill dari laporan terakhir: bar bensin adalah bacaan fisik saat ini
+  // (GAS pun tidak mengisinya), dan biaya/metode/kartu BBM lama rawan terbawa
+  // sehingga saldo Flazz terpotong salah. Yang otomatis hanya data dari jalur.
+  let barOtomatis = false;
   async function onVehicleChange() {
     if (!f.vehicle_id.value) return;
-
     const terpilih = vehicles.find((v) => String(v.vehicle_id) === f.vehicle_id.value);
     if (terpilih && String(terpilih.jenis_indikator) === 'ANALOG_JARUM') {
+      // Indikator jarum tidak punya bar; nilai tetap 100 seperti GAS.
       f.bar_awal.value = '100';
       f.bar_akhir.value = '100';
       f.bar_awal.disabled = true;
       f.bar_akhir.disabled = true;
+      barOtomatis = true;
     } else {
       f.bar_awal.disabled = false;
       f.bar_akhir.disabled = false;
-    }
-
-    try {
-      const data = await get('/api/laporan/prefill');
-      const pref = data.pref;
-      if (!pref || String(pref.vehicle_id) !== f.vehicle_id.value) return;
-      if (!f.bar_awal.disabled) {
-        f.bar_awal.value = pref.bar_awal || '';
-        f.bar_akhir.value = pref.bar_akhir || '';
+      if (barOtomatis) {
+        f.bar_awal.value = '';
+        f.bar_akhir.value = '';
+        barOtomatis = false;
       }
-      f.biaya_bbm.value = String(pref.biaya_bbm ?? '');
-      f.metode_pembayaran.value = pref.metode_pembayaran || 'TUNAI';
-      f.flazz_card_id.value = pref.flazz_card_id || '';
-      f.metode_toll.value = pref.metode_toll || '';
-      f.flazz_card_id_toll.value = pref.flazz_card_id_toll || '';
-      f.flazz_card_id_2.value = pref.flazz_card_id_2 || '';
-      f.biaya_bbm_2.value = pref.biaya_bbm_2 ? String(pref.biaya_bbm_2) : '';
-      f.flazz_card_id_toll_2.value = pref.flazz_card_id_toll_2 || '';
-      f.biaya_toll_2.value = pref.biaya_toll_2 ? String(pref.biaya_toll_2) : '';
-      if (pref.flazz_card_id_2 || pref.biaya_bbm_2 || pref.flazz_card_id_toll_2 || pref.biaya_toll_2) bukaGrup2();
-      // Cocokkan jenis BBM dari harga transaksi terakhir (biaya / liter) bila memungkinkan.
-      const hargaPref = Number(pref.liter_bbm) > 0 ? (Number(pref.biaya_bbm || 0) + Number(pref.biaya_bbm_2 || 0)) / Number(pref.liter_bbm) : 0;
-      const cocok = bbmOpsi.find((o) => Math.abs(o.harga - hargaPref) < 1);
-      if (cocok) f.jenis_bbm.value = cocok.value;
-      hitungUlangLiter();
-    } catch (err) {
-      toast(err.message, 'error');
     }
   }
   f.vehicle_id.addEventListener('change', onVehicleChange);
@@ -415,7 +398,7 @@ export async function renderInput(view) {
       f.vehicle_id.value = jalur.vehicle_id;
       await onVehicleChange();
     }
-    // Diterapkan SETELAH prefill agar kartu dari jalur tidak tertimpa transaksi terakhir.
+    // Kartu etoll jalur dipakai untuk tol (tidak ada prefill dari laporan terakhir).
     if (jalur.flazz_card_id) {
       f.metode_toll.value = 'FLAZZ';
       pilihKartu(f.flazz_card_id_toll, jalur.flazz_card_id);
