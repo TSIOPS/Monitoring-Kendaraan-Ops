@@ -109,6 +109,15 @@ function pakaiKartu2(r) {
   return Boolean(r.flazz_card_id_2 || r.flazz_card_id_toll_2 || Number(r.biaya_bbm_2) || Number(r.biaya_toll_2));
 }
 
+// Selisih KM akhir laporan sebelumnya dengan KM awal laporan ini (teks dari server).
+export function selisihOdo(row) {
+  const w = String(row.warning || '');
+  if (!w) return null;
+  const m = w.match(/KM akhir terakhir ([d.,]+) (([^)]*)), KM awal ([d.,]+), selisih (-?[d.,]+) KM/);
+  const teks = m ? `Selisih ODO ${m[4].startsWith('-') ? '' : '+'}${m[4]} KM` : 'Selisih ODO';
+  return el('div', {}, [el('span', { class: 'badge text-bg-danger', title: w, text: teks })]);
+}
+
 function barisTabel(r) {
   const liter = Number(r.isi_bbm) || 0;
   return el('tr', {}, [
@@ -123,6 +132,7 @@ function barisTabel(r) {
     el('td', { class: 'text-center text-nowrap' }, [
       `${fmtNum(r.km_tempuh)} KM`,
       String(r.km_sumber) === 'ESTIMASI' ? el('span', { class: 'badge text-bg-warning ms-1', title: 'KM dihitung dari estimasi (odometer tidak terbaca)', text: 'ESTIMASI' }) : null,
+      selisihOdo(r),
     ]),
     el('td', { class: 'text-center text-nowrap' }, [
       liter > 0 ? `${fmtNum(liter)} L` : '-',

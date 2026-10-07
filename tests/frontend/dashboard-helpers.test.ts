@@ -84,3 +84,10 @@ describe('history: filter', () => {
     expect(cekRentang('2026-10-01', '2026-10-01')).toBe('');
   });
 });
+
+describe('history: selisih ODO', () => {
+  it('tanpa warning tidak menampilkan apa pun', async () => {
+    const { selisihOdo } = await import('../../static/js/pages/transaksi.js');
+    expect(selisihOdo({ warning: '' })).toBeNull();
+  });
+});
