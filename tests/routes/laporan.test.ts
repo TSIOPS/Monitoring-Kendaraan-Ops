@@ -867,3 +867,21 @@ describe('driverKedua', () => {
     expect(driverKedua('', 'Agus')).toBe('');
   });
 });
+
+describe('liter mengikuti pembelian BBM', () => {
+  it('PUT: biaya BBM dihapus (0) -> liter 0 walau liter lama dikirim', async () => {
+    const { app, kv, lap } = setup({ rows: [{ transaction_id: 'TRX-L', liter_bbm: 20, biaya_bbm: 200000, metode_pembayaran: 'TUNAI' }] });
+    const tok = await loginAs(kv, PIC);
+    const res = await app.request('/api/laporan/TRX-L', { method: 'PUT', headers: { ...authHeaders(tok), 'Content-Type': 'application/json' }, body: JSON.stringify({ biaya_bbm: 0, liter_bbm: 20, metode_pembayaran: 'TUNAI' }) });
+    expect(res.status).toBe(200);
+    const row = lap.state.rows.find((r: any) => r.transaction_id === 'TRX-L')!;
+    expect(row.liter_bbm).toBe(0);
+  });
+  it('POST: liter tanpa biaya disimpan 0', async () => {
+    const { app, kv, lap } = setup();
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan', tok, saveBody({ biaya_bbm: 0, liter_bbm: 15 }));
+    expect(res.status).toBe(200);
+    expect(lap.state.rows.at(-1)!.liter_bbm).toBe(0);
+  });
+});

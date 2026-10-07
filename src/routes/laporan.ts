@@ -177,7 +177,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
     const barAwal = L.num(p.bar_awal);
     const barAkhir = L.num(p.bar_akhir);
-    const liter = L.num(p.liter_bbm);
+    // Liter berasal dari pembelian: tanpa biaya BBM (kartu 1 + 2) liter = 0.
+    const liter = L.num(p.biaya_bbm) + L.num(p.biaya_bbm_2) > 0 ? L.num(p.liter_bbm) : 0;
     const literKonsumsi = L.computeLiterKonsumsi(liter, barAwal, barAkhir, literPerBar);
 
     const matchedJalur = await deps.laporan.findJalurByCriteria({
@@ -506,7 +507,9 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
     const newTgl = (p.tanggal !== undefined && p.tanggal !== '') ? String(p.tanggal) : String(old.tanggal);
     const newNama = (p.nama_supir !== undefined && p.nama_supir !== null && String(p.nama_supir) !== '') ? String(p.nama_supir) : oldNama;
-    const newLiter = (p.liter_bbm !== undefined && p.liter_bbm !== null) ? L.num(p.liter_bbm) : oldLiter;
+    // Pembelian BBM dihapus (biaya 0) -> liter ikut 0 agar laporan & efisiensi tidak memakai liter lama.
+    const literDiminta = (p.liter_bbm !== undefined && p.liter_bbm !== null) ? L.num(p.liter_bbm) : oldLiter;
+    const newLiter = newBiaya + newBbm2 > 0 ? literDiminta : 0;
     const newBarAwal = p.bar_awal !== undefined ? L.num(p.bar_awal) : L.num(old.bar_awal);
     const newBarAkhir = p.bar_akhir !== undefined ? L.num(p.bar_akhir) : L.num(old.bar_akhir);
     const newKmAwal = p.km_awal !== undefined ? L.num(p.km_awal) : L.num(old.km_awal_confirmed);

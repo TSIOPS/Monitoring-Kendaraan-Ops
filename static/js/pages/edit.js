@@ -1,7 +1,7 @@
 import { get, put } from '../api.js';
 import { getRouteParam } from '../router.js';
 import { el, fmtNum, toast, pratinjauFoto } from '../ui.js';
-import { kompresGambar, namaAman, THUMB_KUALITAS, THUMB_LEBAR } from './input.js';
+import { hitungLiter, kompresGambar, namaAman, opsiBbm, THUMB_KUALITAS, THUMB_LEBAR } from './input.js';
 
 // Edit transaksi lengkap (M11), setara alur edit GAS: tanggal, supir, KM, bar,
 // liter, pembayaran (grup 1 & 2), dan foto odometer. Kendaraan tetap terkunci.
@@ -29,6 +29,12 @@ export function validateEdit(v) {
 
 // Body PUT. KM hanya dikirim bila berubah: server menandai km_sumber = AKTUAL setiap kali
 // KM dikirim, dan transaksi ESTIMASI tidak boleh berubah diam-diam (spec M11).
+// Jenis BBM transaksi lama ditebak dari harga per liter (biaya / liter), seperti calcEditLiter GAS.
+export function tebakJenisBbm(opsi, biayaTotal, liter) {
+  const harga = Number(liter) > 0 ? Number(biayaTotal) / Number(liter) : 0;
+  return opsi.find((o) => harga > 0 && Math.abs(o.harga - harga) < 1)?.value || '';
+}
+
 export function bodyEdit(trx, v) {
   const body = {
     tanggal: v.tanggal,
@@ -110,7 +116,11 @@ export async function renderEdit(view) {
   const kmAkhir = angka(trx.km_akhir);
   const barAwal = angka(jarum ? 100 : trx.bar_awal, jarum ? { disabled: 'disabled' } : {});
   const barAkhir = angka(jarum ? 100 : trx.bar_akhir, jarum ? { disabled: 'disabled' } : {});
-  const liter = angka(trx.isi_bbm, { step: '0.01' });
+  const liter = angka(trx.isi_bbm, { step: '0.01', readonly: 'readonly', tabindex: '-1' });
+  liter.classList.add('bg-light');
+  const bbmOpsi = opsiBbm(Array.isArray(master.bbmList) ? master.bbmList : []);
+  const jenisBbm = el('select', { class: 'form-select' });
+  isiOpsi(jenisBbm, bbmOpsi, '— pilih jenis BBM —');
   const fotoAwal = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
   const fotoAkhir = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
 
@@ -136,6 +146,17 @@ export async function renderEdit(view) {
 
   // Grup-2 (kartu kedua): kartu kosong berarti nominalnya dicatat tunai.
   const biayaBbm2 = angka(trx.biaya_bbm_2 || '');
+  jenisBbm.value = tebakJenisBbm(bbmOpsi, Number(trx.biaya_bbm || 0) + Number(trx.biaya_bbm_2 || 0), trx.isi_bbm)
+    || (bbmOpsi.length === 1 ? bbmOpsi[0].value : '');
+  // Liter mengikuti biaya (kartu 1 + 2) / harga jenis BBM; biaya 0 -> liter 0.
+  const hitungUlangLiter = () => {
+    const total = Number(biayaBbm.value || 0) + Number(biayaBbm2.value || 0);
+    const harga = bbmOpsi.find((o) => o.value === jenisBbm.value)?.harga || 0;
+    if (!(total > 0)) liter.value = '0';
+    else if (harga > 0) liter.value = hitungLiter(total, harga);
+  };
+  for (const x of [biayaBbm, biayaBbm2]) x.addEventListener('input', hitungUlangLiter);
+  jenisBbm.addEventListener('change', hitungUlangLiter);
   const kartu2 = el('select', { class: 'form-select' });
   isiOpsi(kartu2, opsiKartu(cards), 'Tanpa kartu (tunai)');
   pilihNilai(kartu2, trx.flazz_card_id_2);
@@ -166,7 +187,7 @@ export async function renderEdit(view) {
       kol(3, baris('KM akhir', kmAkhir, trx.km_sumber === 'ESTIMASI' ? 'KM saat ini hasil estimasi; mengubah KM menjadikannya aktual.' : '')),
       kol(2, baris('Bar awal', barAwal)),
       kol(2, baris('Bar akhir', barAkhir)),
-      kol(2, baris('Liter BBM', liter)),
+      kol(2, baris('Liter BBM', liter, 'Otomatis dari biaya')),
     ]),
     el('div', { class: 'row' }, [
       kol(6, baris('Foto odometer awal', el('div', {}, [fotoAwal, pratinjauFoto(fotoAwal, trx.foto_odo_awal || trx.foto_odo_awal_thumb)]), 'Kosongkan bila tidak diganti.')),
@@ -174,9 +195,10 @@ export async function renderEdit(view) {
     ]),
     el('h3', { class: 'h6 mt-2', text: 'Pembayaran' }),
     el('div', { class: 'row' }, [
-      kol(4, baris('Biaya BBM', biayaBbm)),
-      kol(4, baris('Metode pembayaran', metode)),
-      kol(4, baris('Kartu Flazz (BBM)', kartu)),
+      kol(3, baris('Jenis BBM', jenisBbm)),
+      kol(3, baris('Biaya BBM', biayaBbm, 'Kosongkan/0 bila tidak membeli BBM.')),
+      kol(3, baris('Metode pembayaran', metode)),
+      kol(3, baris('Kartu Flazz (BBM)', kartu)),
     ]),
     el('div', { class: 'row' }, [
       kol(4, baris('Biaya tol', biayaTol)),

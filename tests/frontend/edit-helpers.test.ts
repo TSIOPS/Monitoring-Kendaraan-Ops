@@ -38,3 +38,13 @@ describe('bodyEdit', () => {
     expect(bodyEdit(TRX, { ...NILAI, km_akhir: '1150' })).toMatchObject({ km_awal: 1000, km_akhir: 1150 });
   });
 });
+
+describe('tebakJenisBbm', () => {
+  it('jenis dari harga per liter transaksi lama', async () => {
+    const { tebakJenisBbm } = await import('../../static/js/pages/edit.js');
+    const opsi = [{ value: 'B1', harga: 10000 }, { value: 'B2', harga: 6800 }];
+    expect(tebakJenisBbm(opsi, 200000, 20)).toBe('B1');
+    expect(tebakJenisBbm(opsi, 68000, 10)).toBe('B2');
+    expect(tebakJenisBbm(opsi, 0, 0)).toBe('');
+  });
+});
