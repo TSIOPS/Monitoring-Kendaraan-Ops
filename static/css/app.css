@@ -83,6 +83,18 @@ body {
   margin-right: auto;
 }
 
+.topbar .brand-company {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--warna-utama-gelap);
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+
+.topbar .brand-title {
+  line-height: 1.2;
+}
+
 .topbar .user-info {
   color: var(--warna-abu);
   font-size: 0.9rem;

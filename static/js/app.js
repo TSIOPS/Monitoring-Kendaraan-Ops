@@ -42,7 +42,7 @@ document.addEventListener('error', (ev) => {
 }, true);
 
 // Pengaturan publik (nama aplikasi, footer); dimuat sekali saat boot dan setelah disimpan.
-let pengaturan = { app_name: '', footer_text: '' };
+let pengaturan = { app_name: '', company_name: '', footer_text: '' };
 
 function renderFooter() {
   const slot = document.getElementById('footer-slot');
@@ -54,7 +54,7 @@ function renderFooter() {
 async function muatPengaturan() {
   try {
     const s = await get('/api/settings');
-    pengaturan = { app_name: s.app_name || '', footer_text: s.footer_text || '' };
+    pengaturan = { app_name: s.app_name || '', company_name: s.company_name || '', footer_text: s.footer_text || '' };
   } catch {
     // Opsional: tanpa pengaturan, nama bawaan dipakai dan footer disembunyikan.
   }
@@ -109,7 +109,11 @@ function renderTopbar(activeHash) {
   const links = navUntuk(user.role).map((item) => (item.items ? grupNav(item, activeHash) : linkNav(item, activeHash, warn)));
   slot.replaceChildren(
     el('div', { class: 'topbar' }, [
-      el('span', { class: 'brand', text: pengaturan.app_name || 'Monitoring Kendaraan' }),
+      // Nama perusahaan (kecil) di atas nama aplikasi, seperti navbar GAS.
+      el('div', { class: 'brand' }, [
+        pengaturan.company_name ? el('div', { class: 'brand-company', text: pengaturan.company_name }) : null,
+        el('div', { class: 'brand-title', text: pengaturan.app_name || 'Monitoring Kendaraan' }),
+      ]),
       ...links,
       el('a', {
         class: 'user-info text-decoration-none',
@@ -191,7 +195,7 @@ registerRoute('#/pengaturan', async () => {
   return {
     render: (view) => mod.renderPengaturan(view, {
       onTersimpan: (s) => {
-        pengaturan = { app_name: s.app_name || '', footer_text: s.footer_text || '' };
+        pengaturan = { app_name: s.app_name || '', company_name: s.company_name || '', footer_text: s.footer_text || '' };
         renderFooter();
         renderTopbar(window.location.hash || '#/login');
       },
