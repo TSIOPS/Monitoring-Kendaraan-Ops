@@ -16,8 +16,14 @@
 <body>
   <div id="topbar-slot"></div>
   <div id="banner-slot"></div>
-  <main id="view" class="view"></main>
-  <footer id="footer-slot"></footer>
+  <div class="app-shell">
+    <aside id="sidebar-slot" class="sidebar" aria-label="Menu utama"></aside>
+    <div class="app-konten">
+      <main id="view" class="view"></main>
+      <footer id="footer-slot"></footer>
+    </div>
+  </div>
+  <div id="sidebar-latar" class="sidebar-latar"></div>
   <div id="toast-host" class="toast-host"></div>
   <script type="module" src="/js/app.js"></script>
 </body>

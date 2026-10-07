@@ -5,27 +5,42 @@ import { el } from './ui.js';
 import { renderLogin } from './pages/login.js';
 import { daftarkanServiceWorker, mulaiBanner } from './notifikasi.js';
 
-// Grup menu mengikuti sidebar GAS ("Laporan Operasional Kendaraan").
+// Sidebar mengikuti GAS: grup dapat dilipat; Pengaturan hanya SUPERADMIN.
+// juga: rute lain yang ikut menyalakan item (mis. halaman edit).
 const NAV = [
-  { hash: '#/dashboard', label: 'Dashboard', badge: true },
-  { hash: '#/jalur', label: 'Jalur' },
+  { hash: '#/dashboard', label: 'Dashboard', ikon: 'bi-speedometer2', badge: true },
   {
-    label: 'Laporan Operasional',
+    label: 'Jalur Pengiriman',
     items: [
-      { hash: '#/input', label: 'Input Laporan' },
-      { hash: '#/history', label: 'History Laporan' },
-      { hash: '#/galeri', label: 'Galeri Foto' },
-      { hash: '#/performa', label: 'Performa Kendaraan' },
-      { hash: '#/rekap', label: 'Rekap Pengeluaran' },
+      { hash: '#/jalur/buat', label: 'Buat Jalur', ikon: 'bi-calendar-plus' },
+      { hash: '#/jalur', label: 'Daftar Jalur', ikon: 'bi-list-ul', juga: ['#/jalur/edit'] },
+      { hash: '#/jalur/ringkasan', label: 'Ringkasan Jalur', ikon: 'bi-clipboard-data' },
     ],
   },
-  { hash: '#/flazz', label: 'Flazz' },
-  // Grup Konfigurasi (ADMIN di GAS); Pengaturan hanya SUPERADMIN (grup jadi link biasa bila tinggal satu).
+  {
+    label: 'Laporan Operasional Kendaraan',
+    items: [
+      { hash: '#/input', label: 'Input Laporan', ikon: 'bi-pencil-square' },
+      { hash: '#/history', label: 'History Laporan', ikon: 'bi-clock-history', juga: ['#/edit', '#/transaksi'] },
+      { hash: '#/galeri', label: 'Galeri Foto', ikon: 'bi-images' },
+      { hash: '#/performa', label: 'Performa Kendaraan', ikon: 'bi-graph-up' },
+      { hash: '#/rekap', label: 'Rekap Pengeluaran', ikon: 'bi-cash-stack' },
+    ],
+  },
+  {
+    label: 'Kartu Flazz',
+    items: [
+      { hash: '#/flazz/topup', label: 'Top Up', ikon: 'bi-plus-circle' },
+      { hash: '#/flazz/rekon', label: 'Rekonsiliasi', ikon: 'bi-check2-all' },
+      { hash: '#/flazz', label: 'Daftar Kartu', ikon: 'bi-credit-card-2-front' },
+      { hash: '#/flazz/riwayat', label: 'Riwayat', ikon: 'bi-journal-text' },
+    ],
+  },
   {
     label: 'Konfigurasi',
     items: [
-      { hash: '#/master', label: 'Data Master' },
-      { hash: '#/pengaturan', label: 'Pengaturan', superOnly: true },
+      { hash: '#/master', label: 'Data Master', ikon: 'bi-database' },
+      { hash: '#/pengaturan', label: 'Pengaturan', ikon: 'bi-sliders', superOnly: true },
     ],
   },
 ];
@@ -65,56 +80,90 @@ async function muatPengaturan() {
 export function navUntuk(role) {
   return NAV.map((item) => {
     if (!item.items) return item;
-    const items = item.items.filter((it) => !it.superOnly || role === 'SUPERADMIN');
-    return items.length === 1 ? items[0] : { ...item, items };
-  });
+    return { ...item, items: item.items.filter((it) => !it.superOnly || role === 'SUPERADMIN') };
+  }).filter((item) => !item.items || item.items.length);
 }
 
-function aktif(activeHash, hash) {
-  return activeHash === hash || activeHash.startsWith(hash + '/');
+// Item aktif: hash sama persis, atau hash termasuk daftar "juga" (awalan rute).
+export function itemAktif(activeHash, item) {
+  const h = String(activeHash || '').split('?')[0];
+  return h === item.hash || (item.juga || []).some((j) => h === j || h.startsWith(j + '/'));
 }
 
-function linkNav(item, activeHash, warn, kelas = 'nav-link') {
-  const label = item.badge && warn > 0 ? `${item.label} (${warn})` : item.label;
-  return el('a', { class: `${kelas} ${aktif(activeHash, item.hash) ? 'active' : ''}`, href: item.hash, text: label });
+const simpan = {
+  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* abaikan */ } },
+};
+const LAYAR_HP = () => window.matchMedia('(max-width: 991.98px)').matches;
+const grupTertutup = () => { try { return new Set(JSON.parse(simpan.get('sidebar-grup-tutup') || '[]')); } catch { return new Set(); } };
+
+// Tombol ☰: laptop = sembunyikan/tampilkan sidebar (diingat); HP = panel geser.
+function toggleSidebar() {
+  if (LAYAR_HP()) {
+    document.body.classList.toggle('sidebar-buka');
+  } else {
+    const tutup = !document.body.classList.contains('sidebar-tutup');
+    document.body.classList.toggle('sidebar-tutup', tutup);
+    simpan.set('sidebar-tutup', tutup ? '1' : '0');
+  }
+}
+document.getElementById('sidebar-latar')?.addEventListener('click', () => document.body.classList.remove('sidebar-buka'));
+window.addEventListener('hashchange', () => document.body.classList.remove('sidebar-buka'));
+if (simpan.get('sidebar-tutup') === '1') document.body.classList.add('sidebar-tutup');
+
+function linkSidebar(item, activeHash, warn) {
+  const on = itemAktif(activeHash, item);
+  return el('a', { class: `side-link ${on ? 'active' : ''}`, href: item.hash, 'aria-current': on ? 'page' : null }, [
+    el('i', { class: `bi ${item.ikon} side-ikon`, 'aria-hidden': 'true' }),
+    el('span', { class: 'side-teks', text: item.label }),
+    item.badge && warn > 0 ? el('span', { class: 'badge rounded-pill text-bg-danger ms-auto', text: String(warn) }) : null,
+  ]);
 }
 
-function grupNav(group, activeHash) {
-  const adaAktif = group.items.some((it) => aktif(activeHash, it.hash) || (it.hash === '#/history' && aktif(activeHash, '#/edit')));
-  const menu = el('div', { class: 'nav-menu' }, group.items.map((it) => linkNav(it, activeHash, 0, 'nav-menu-item')));
-  const tombol = el('button', { type: 'button', class: `nav-link nav-group-toggle ${adaAktif ? 'active' : ''}`, 'aria-expanded': 'false', text: `${group.label} ▾` });
-  const wrap = el('div', { class: 'nav-group' }, [tombol, menu]);
-  tombol.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    const buka = !wrap.classList.contains('open');
-    document.querySelectorAll('.nav-group.open').forEach((g) => g.classList.remove('open'));
-    wrap.classList.toggle('open', buka);
-    tombol.setAttribute('aria-expanded', String(buka));
+function grupSidebar(group, activeHash, warn) {
+  const tertutup = grupTertutup();
+  const adaAktif = group.items.some((it) => itemAktif(activeHash, it));
+  const buka = adaAktif || !tertutup.has(group.label);
+  const isi = el('div', { class: 'side-grup-isi' }, group.items.map((it) => linkSidebar(it, activeHash, warn)));
+  const kepala = el('button', { type: 'button', class: 'side-grup-kepala', 'aria-expanded': String(buka) }, [
+    el('span', { text: group.label }),
+    el('i', { class: 'bi bi-chevron-down side-chevron', 'aria-hidden': 'true' }),
+  ]);
+  const wrap = el('div', { class: `side-grup ${buka ? 'buka' : ''}` }, [kepala, isi]);
+  kepala.addEventListener('click', () => {
+    const jadiBuka = !wrap.classList.contains('buka');
+    wrap.classList.toggle('buka', jadiBuka);
+    kepala.setAttribute('aria-expanded', String(jadiBuka));
+    const set = grupTertutup();
+    if (jadiBuka) set.delete(group.label); else set.add(group.label);
+    simpan.set('sidebar-grup-tutup', JSON.stringify([...set]));
   });
   return wrap;
 }
 
-document.addEventListener('click', () => {
-  document.querySelectorAll('.nav-group.open').forEach((g) => g.classList.remove('open'));
-});
-
 function renderTopbar(activeHash) {
   const slot = document.getElementById('topbar-slot');
+  const sidebar = document.getElementById('sidebar-slot');
   const user = getUser();
+  document.body.classList.toggle('tanpa-sidebar', !user);
   if (!user) {
     slot.replaceChildren();
+    sidebar?.replaceChildren();
     return;
   }
   const warn = getJumlahPeringatan();
-  const links = navUntuk(user.role).map((item) => (item.items ? grupNav(item, activeHash) : linkNav(item, activeHash, warn)));
+  sidebar?.replaceChildren(el('nav', { class: 'side-nav' }, navUntuk(user.role).map((item) => (item.items ? grupSidebar(item, activeHash, warn) : linkSidebar(item, activeHash, warn)))));
+
+  const tombolMenu = el('button', { type: 'button', class: 'btn btn-outline-secondary btn-sm btn-menu', title: 'Tampilkan/sembunyikan menu', 'aria-label': 'Tampilkan/sembunyikan menu' }, [el('i', { class: 'bi bi-list', 'aria-hidden': 'true' })]);
+  tombolMenu.addEventListener('click', toggleSidebar);
   slot.replaceChildren(
     el('div', { class: 'topbar' }, [
-      // Nama perusahaan (kecil) di atas nama aplikasi, seperti navbar GAS.
+      tombolMenu,
+      // Nama perusahaan (besar) di atas nama aplikasi (kecil).
       el('div', { class: 'brand' }, [
         pengaturan.company_name ? el('div', { class: 'brand-company', text: pengaturan.company_name }) : null,
         el('div', { class: 'brand-title', text: pengaturan.app_name || 'Monitoring Kendaraan' }),
       ]),
-      ...links,
       el('a', {
         class: 'user-info text-decoration-none',
         href: '#/password',

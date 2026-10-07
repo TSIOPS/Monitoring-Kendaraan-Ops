@@ -474,3 +474,115 @@ body {
   background-color: #0d6efd !important;
   color: #fff !important;
 }
+
+/* ===== Sidebar (menggantikan navbar) ===== */
+.topbar { position: sticky; top: 0; z-index: 1030; }
+.topbar .btn-menu { font-size: 1.1rem; line-height: 1; padding: 0.3rem 0.55rem; }
+
+.app-shell {
+  display: flex;
+  flex: 1 0 auto;
+  min-height: 0;
+}
+
+.app-konten {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar {
+  width: 250px;
+  flex: 0 0 250px;
+  background: #fff;
+  border-right: 1px solid #e2e8e4;
+  position: sticky;
+  top: 58px;
+  align-self: flex-start;
+  height: calc(100vh - 58px);
+  overflow-y: auto;
+  padding: 0.75rem 0.6rem 1.5rem;
+  transition: margin-left 0.2s ease;
+}
+
+body.sidebar-tutup .sidebar { margin-left: -250px; }
+body.tanpa-sidebar .sidebar, body.tanpa-sidebar .sidebar-latar { display: none; }
+
+.side-link {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  color: #2b3a31;
+  text-decoration: none;
+  font-weight: 500;
+}
+.side-link:hover { background: var(--warna-utama-muda); color: var(--warna-utama-gelap); }
+.side-link.active { background: var(--warna-utama-muda); color: var(--warna-utama-gelap); font-weight: 700; }
+.side-ikon { font-size: 1.05rem; width: 1.2rem; text-align: center; }
+
+.side-grup { margin-top: 0.6rem; }
+.side-grup-kepala {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: 0;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--warna-abu);
+  text-align: left;
+}
+.side-grup-kepala:hover { color: var(--warna-utama-gelap); }
+.side-chevron { transition: transform 0.2s ease; }
+.side-grup:not(.buka) .side-chevron { transform: rotate(-90deg); }
+.side-grup:not(.buka) .side-grup-isi { display: none; }
+
+.sidebar-latar { display: none; }
+
+/* HP & tablet: sidebar jadi panel geser di atas konten. */
+@media (max-width: 991.98px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 1050;
+    margin-left: 0 !important;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 0 0 24px rgba(0, 0, 0, 0.15);
+  }
+  body.sidebar-buka .sidebar { transform: none; }
+  body.sidebar-buka .sidebar-latar {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 1040;
+  }
+}
+
+@media print {
+  .sidebar, .sidebar-latar { display: none !important; }
+}
+
+/* Bilah atas HP: satu baris (☰, nama, 🔑, Keluar); menimpa aturan lama yang melipat brand. */
+@media (max-width: 640px) {
+  .topbar { flex-wrap: nowrap; gap: 0.5rem; padding: 0.5rem 0.75rem; }
+  .topbar .brand { flex: 1 1 auto; flex-basis: auto; min-width: 0; margin-right: 0; }
+  .topbar .brand-company, .topbar .brand-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar .brand-company { font-size: 0.95rem; }
+  .topbar .user-info { display: none; }
+}
+
+/* Login: area isi boleh menyusut agar tidak ada scroll karena pembulatan piksel. */
+.view:has(> .login-wrap) { flex: 1 1 auto; min-height: 0; }
+.app-shell:has(.login-wrap) { flex: 1 1 auto; }
+.login-wrap { min-height: 0; }
