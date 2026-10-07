@@ -154,6 +154,14 @@ function opsiKendaraan(vehicles) {
   return vehicles.map((v) => ({ value: v.vehicle_id, label: `${v.plat_nomor} — ${v.nama}` }));
 }
 
+// Kartu Flazz yang boleh dipakai: hanya kartu yang dikeluarkan di jalur (urut kartu 1, 2).
+// Tanpa jalur terpilih, semua kartu ditampilkan.
+export function kartuJalur(cards, jalur) {
+  if (!jalur) return cards;
+  const ids = [jalur.flazz_card_id, jalur.flazz_card_id_2].map((x) => String(x || '')).filter(Boolean);
+  return ids.map((id) => cards.find((c) => String(c.id || c.card_id) === id)).filter(Boolean);
+}
+
 function opsiKartu(cards) {
   return cards.map((c) => ({
     value: c.id || c.card_id,
@@ -218,10 +226,32 @@ export async function renderInput(view) {
   f.jenis_bbm.addEventListener('change', hitungUlangLiter);
   f.biaya_bbm.addEventListener('input', hitungUlangLiter);
   f.biaya_bbm_2.addEventListener('input', hitungUlangLiter);
-  isiOpsi(f.flazz_card_id, opsiKartu(cards), '— tidak ada —');
-  isiOpsi(f.flazz_card_id_toll, opsiKartu(cards), '— tidak ada —');
-  isiOpsi(f.flazz_card_id_2, opsiKartu(cards), 'Tanpa kartu (tunai)');
-  isiOpsi(f.flazz_card_id_toll_2, opsiKartu(cards), 'Tanpa kartu (tunai)');
+  let kartuBoleh = cards;
+  // Isi ulang pilihan kartu; nilai terpilih dipertahankan bila masih termasuk.
+  function isiKartu(daftar) {
+    kartuBoleh = daftar;
+    const kosong = daftar.length ? '— tidak ada —' : '— jalur tidak membawa kartu etoll —';
+    for (const [sel, ph] of [[f.flazz_card_id, kosong], [f.flazz_card_id_toll, kosong], [f.flazz_card_id_2, 'Tanpa kartu (tunai)'], [f.flazz_card_id_toll_2, 'Tanpa kartu (tunai)']]) {
+      const lama = sel.value;
+      isiOpsi(sel, opsiKartu(daftar), ph);
+      pilihKartu(sel, lama);
+    }
+  }
+  isiKartu(cards);
+  // Metode Flazz -> kartu jalur langsung terpilih (kartu 1), mencegah salah pilih kartu.
+  f.metode_pembayaran.addEventListener('change', () => {
+    if (f.metode_pembayaran.value !== 'FLAZZ') return;
+    if (!kartuBoleh.length) {
+      toast('Jalur ini tidak membawa kartu etoll; BBM dibayar tunai atau perbarui jalur.', 'error');
+      return;
+    }
+    if (!f.flazz_card_id.value) f.flazz_card_id.value = String(kartuBoleh[0].id || kartuBoleh[0].card_id);
+  });
+  f.metode_toll.addEventListener('change', () => {
+    if (f.metode_toll.value === 'FLAZZ' && !f.flazz_card_id_toll.value && kartuBoleh.length) {
+      f.flazz_card_id_toll.value = String(kartuBoleh[0].id || kartuBoleh[0].card_id);
+    }
+  });
 
   // Supir hanya dari jalur BELUM_DIISI pada tanggal terpilih (seperti GAS, spec M8 D4).
   let jalurDrivers = [];
@@ -393,7 +423,11 @@ export async function renderInput(view) {
     f.nama_supir_2.value = d2 && d2.toLowerCase() !== String(jalur.nama_driver || '').trim().toLowerCase() ? d2 : '';
     // Kendaraan mengikuti jalur (gate server menolak kendaraan yang tidak cocok); dikunci selama supir dipilih.
     f.vehicle_id.disabled = adaJalur && Array.from(f.vehicle_id.options).some((o) => o.value === jalur.vehicle_id);
+    isiKartu(kartuJalur(cards, adaJalur ? jalur : null));
     if (!adaJalur) return;
+    if (f.metode_pembayaran.value === 'FLAZZ' && !f.flazz_card_id.value && kartuBoleh.length) {
+      f.flazz_card_id.value = String(kartuBoleh[0].id || kartuBoleh[0].card_id);
+    }
     if (jalur.vehicle_id && Array.from(f.vehicle_id.options).some((o) => o.value === jalur.vehicle_id)) {
       f.vehicle_id.value = jalur.vehicle_id;
       await onVehicleChange();

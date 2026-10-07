@@ -169,3 +169,13 @@ describe('liter otomatis dari biaya BBM', () => {
     expect(validateForm({ ...DASAR, biaya_bbm: '', harga_bbm: 0 })).not.toContain('Pilih jenis BBM agar liter terhitung.');
   });
 });
+
+describe('kartuJalur', () => {
+  const cards = [{ id: 'FLZ-1' }, { id: 'FLZ-2' }, { id: 'FLZ-3' }];
+  it('hanya kartu yang dikeluarkan di jalur, urut kartu 1 lalu 2', async () => {
+    const { kartuJalur } = await import('../../static/js/pages/input.js');
+    expect(kartuJalur(cards, { flazz_card_id: 'FLZ-3', flazz_card_id_2: 'FLZ-1' }).map((c: any) => c.id)).toEqual(['FLZ-3', 'FLZ-1']);
+    expect(kartuJalur(cards, { flazz_card_id: '', flazz_card_id_2: '' })).toEqual([]);
+    expect(kartuJalur(cards, null)).toHaveLength(3);
+  });
+});
