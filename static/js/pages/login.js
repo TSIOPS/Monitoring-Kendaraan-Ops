@@ -15,8 +15,9 @@ export function renderLogin(view) {
   });
 
   const logo = el('div', { class: 'login-logo mb-2' });
-  const perusahaan = el('small', { class: 'text-muted d-block mb-1 fw-semibold', text: 'PT Tridaya Sinergi Indonesia' });
-  const namaApp = el('h1', { class: 'h4 mb-1', text: 'Monitoring Kendaraan Operasional' });
+  // Nama perusahaan besar & tebal; nama aplikasi kecil di bawahnya.
+  const perusahaan = el('h1', { class: 'h5 fw-bold mb-1', style: 'color: var(--warna-utama-gelap)', text: 'PT. Tridaya Sinergi Indonesia' });
+  const namaApp = el('div', { class: 'text-muted fw-semibold', style: 'font-size: 0.9rem', text: 'Monitoring Kendaraan Operasional' });
 
   const form = el('form', { class: 'needs-validation', novalidate: 'novalidate' }, [
     el('div', { class: 'text-center mb-3' }, [logo, perusahaan, namaApp]),
