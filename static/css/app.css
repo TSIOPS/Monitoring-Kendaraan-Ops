@@ -226,6 +226,18 @@ body {
   body { background: #fff; }
   .panel { border: 0; padding: 0; }
   .view { max-width: none; padding: 0; }
+
+  /* Tabel muat selebar kertas (A5/A4): tanpa scroll horizontal, huruf & badge diperkecil. */
+  @page { margin: 8mm; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .table-responsive, .table-wrap { overflow: visible !important; }
+  .card, .shadow-sm { box-shadow: none !important; }
+  table { width: 100% !important; table-layout: auto; font-size: 8pt; }
+  table th, table td { padding: 0.2rem 0.3rem !important; }
+  table .text-nowrap { white-space: normal !important; }
+  table .badge { white-space: normal; font-size: 7pt; line-height: 1.15; text-align: left; padding: 0.15rem 0.3rem; }
+  table td svg { width: 12px; height: 12px; }
+  tr { page-break-inside: avoid; }
 }
 
 /* Grup menu (Laporan Operasional) */
