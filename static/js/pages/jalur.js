@@ -179,6 +179,25 @@ export async function renderJalurList(view) {
   return { ok: true };
 }
 
+// Port jalurAutofillFromDriver + jalurResolveDefaultCard GAS: kendaraan default supir dan
+// kartu etoll yang "supir default"-nya driver ini (dicocokkan lewat id atau nama).
+// Hanya mengisi pilihan yang ada di daftar (warehouse yang sama, kartu tidak NONAKTIF).
+export function autofillDariDriver(driver, vehicleIds, cards) {
+  if (!driver) return { vehicle_id: '', etoll_card_id: '', pesan: '' };
+  const defVeh = String(driver.default_vehicle_id || '').trim();
+  const adaVeh = Boolean(defVeh) && vehicleIds.includes(defVeh);
+  const nama = String(driver.nama || '').trim();
+  const kartu = (cards || []).find((c) => {
+    const def = String(c.default_driver_id || '').trim();
+    return def && (def === String(driver.id) || def === nama) && String(c.status || '').toUpperCase() !== 'NONAKTIF';
+  });
+  return {
+    vehicle_id: adaVeh ? defVeh : '',
+    etoll_card_id: kartu ? String(kartu.id) : '',
+    pesan: defVeh && !adaVeh ? 'Kendaraan default supir tidak tersedia di warehouse ini; pilih manual.' : '',
+  };
+}
+
 // ── Form baris (buat & edit) ───────────────────────────────────────────────
 function formBaris(master, cabang, nilai = {}) {
   const drv = (placeholder) => {
@@ -199,6 +218,19 @@ function formBaris(master, cabang, nilai = {}) {
   isiOpsi(f.etoll_card_id, kartu, '— tanpa kartu etoll —');
   isiOpsi(f.etoll_card_id_2, kartu, '— tanpa kartu kedua —');
   for (const [k, ctl] of Object.entries(f)) if (nilai[k] !== undefined) ctl.value = String(nilai[k] ?? '');
+  // Pilih Driver 1 -> kendaraan & kartu etoll 1 terisi dari data master (bisa diubah manual).
+  f.driver_id.addEventListener('change', () => {
+    const driver = master.drivers.find((d) => String(d.id) === f.driver_id.value);
+    const ids = Array.from(f.vehicle_id.options).map((o) => o.value);
+    const kartuDaftar = master.cards.filter((c) => Array.from(f.etoll_card_id.options).some((o) => o.value === String(c.id)));
+    const a = autofillDariDriver(driver, ids, kartuDaftar);
+    if (a.vehicle_id) f.vehicle_id.value = a.vehicle_id;
+    if (a.etoll_card_id) {
+      f.etoll_card_id.value = a.etoll_card_id;
+      if (f.etoll_card_id_2.value === a.etoll_card_id) f.etoll_card_id_2.value = '';
+    }
+    if (a.pesan) toast(a.pesan, 'error');
+  });
   const ambil = () => Object.fromEntries(Object.entries(f).map(([k, ctl]) => [k, ctl.value.trim()]));
   return { f, ambil };
 }
