@@ -310,3 +310,20 @@ describe('indikator jarum = persen 0-100', () => {
     expect(Number(r.efisiensi)).toBeCloseTo(160 / (1.88 + 0.31 * 4), 1);
   });
 });
+
+describe('cekKartuJalur', () => {
+  const nama = (id: string) => ({ 'FLZ-1': 'E toll 1', 'FLZ-2': 'E toll 2', 'FLZ-9': 'E toll 9' } as Record<string, string>)[id] || id;
+  it('kartu jalur (kartu 1/2) sah; kartu lain ditolak dengan nama kartu jalur', async () => {
+    const { cekKartuJalur } = await import('../../src/logic/laporan');
+    const j = { flazz_card_id: 'FLZ-1', flazz_card_id_2: 'FLZ-2' };
+    expect(cekKartuJalur(['FLZ-1', 'FLZ-2'], j, nama)).toBe('');
+    expect(cekKartuJalur(['FLZ-9'], j, nama)).toContain('"E toll 9" tidak dikeluarkan');
+    expect(cekKartuJalur(['FLZ-9'], j, nama)).toContain('E toll 1, E toll 2');
+  });
+  it('jalur tanpa kartu menolak Flazz; tanpa kartu dipakai / tanpa jalur tidak dicek', async () => {
+    const { cekKartuJalur } = await import('../../src/logic/laporan');
+    expect(cekKartuJalur(['FLZ-1'], { flazz_card_id: '', flazz_card_id_2: '' }, nama)).toContain('tidak membawa kartu etoll');
+    expect(cekKartuJalur([], { flazz_card_id: '' }, nama)).toBe('');
+    expect(cekKartuJalur(['FLZ-1'], null, nama)).toBe('');
+  });
+});

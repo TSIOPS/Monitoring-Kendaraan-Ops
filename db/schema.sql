@@ -296,3 +296,22 @@ values
   ('company_name', 'PT Tridaya Sinergi Indonesia', ''),
   ('footer_text', '© 2026 Tridaya Sinergi Indonesia', '')
 on conflict (key) do nothing;
+
+-- RLS: tanpa policy, anon/authenticated tidak bisa akses; Worker memakai service role (lihat db/rls.sql).
+alter table cabang enable row level security;
+alter table supir enable row level security;
+alter table bbm enable row level security;
+alter table pengguna enable row level security;
+alter table kendaraan enable row level security;
+alter table penggunaan_bbm enable row level security;
+alter table pengisian_bbm enable row level security;
+alter table foto_evidence enable row level security;
+alter table audit_log enable row level security;
+alter table konfigurasi enable row level security;
+alter table pengaturan enable row level security;
+alter table flazz_card enable row level security;
+alter table flazz_usage enable row level security;
+alter table flazz_topup enable row level security;
+alter table flazz_tol enable row level security;
+alter table flazz_reconciliation enable row level security;
+alter table jalur_pengiriman enable row level security;

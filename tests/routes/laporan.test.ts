@@ -19,7 +19,7 @@ const flazzCard = (over: Partial<FlazzCardRow> = {}): FlazzCardRow => ({
 
 const jalurRow = (over: Partial<JalurRow> = {}): JalurRow => ({
   id: 'J-1', tanggal: '2026-09-21', nama_driver: 'Supir A', vehicle_id: 'V-1',
-  kode_cabang: 'CBG-A', status: 'BELUM_DIISI', laporan_id: '', ...over,
+  kode_cabang: 'CBG-A', status: 'BELUM_DIISI', laporan_id: '', flazz_card_id: 'FLZ-1', flazz_card_id_2: 'FLZ-2', ...over,
 });
 
 const saveBody = (over: Record<string, unknown> = {}) => ({
@@ -613,7 +613,7 @@ describe('grup-2 (kartu kedua)', () => {
     (await app.request(path, { headers: authHeaders(tok) })).json() as Promise<any>;
 
   it('simpan: dua kartu terpotong, kolom grup-2 tersimpan, usage untuk kedua kartu', async () => {
-    const { app, kv, lap, flz } = setup({ flazzCard: [A(), B()] });
+    const { app, kv, lap, flz } = setup({ flazzCard: [A(), B()], jalur: [jalurRow({ flazz_card_id: 'FLZ-A', flazz_card_id_2: 'FLZ-B' } as any)] });
     const tok = await loginAs(kv, PIC);
     const res = await post(app, '/api/laporan', tok, saveBody({
       metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-A', biaya_bbm: 150000,
@@ -883,5 +883,20 @@ describe('liter mengikuti pembelian BBM', () => {
     const res = await post(app, '/api/laporan', tok, saveBody({ biaya_bbm: 0, liter_bbm: 15 }));
     expect(res.status).toBe(200);
     expect(lap.state.rows.at(-1)!.liter_bbm).toBe(0);
+  });
+});
+
+describe('kartu Flazz harus kartu jalur (server)', () => {
+  it('POST: kartu di luar jalur ditolak 409, tidak ada baris & saldo utuh', async () => {
+    const { app, kv, lap, flz } = setup({
+      flazzCard: [flazzCard({ id: 'FLZ-9', card_name: 'Kartu Lain', last_balance: 500000 })],
+      jalur: [jalurRow({ flazz_card_id: 'FLZ-1', flazz_card_id_2: '' } as any)],
+    });
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan', tok, saveBody({ metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-9', biaya_bbm: 100000 }));
+    expect(res.status).toBe(409);
+    expect((await res.json() as any).message).toContain('"Kartu Lain" tidak dikeluarkan di jalur');
+    expect(lap.state.rows).toHaveLength(0);
+    expect(flz.state.cards.find((c) => c.id === 'FLZ-9')!.last_balance).toBe(500000);
   });
 });

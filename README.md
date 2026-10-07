@@ -14,7 +14,7 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
   ke `wrangler.jsonc` → `kv_namespaces[0].id`.
 
 ## Setup
-1. Apply `db/schema.sql` di Supabase SQL editor.
+1. Apply `db/schema.sql` di Supabase SQL editor. (termasuk RLS; untuk database lama jalankan `db/rls.sql`).
 2. `npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY`
 3. Tambah `SUPABASE_URL` di section `vars` `wrangler.jsonc` (atau `.dev.vars` lokal).
 4. `npm run dev` untuk lokal; `npm run deploy` untuk rilis.

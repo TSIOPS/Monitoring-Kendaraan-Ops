@@ -110,10 +110,13 @@ function renderTopbar(activeHash) {
     el('div', { class: 'topbar' }, [
       el('span', { class: 'brand', text: pengaturan.app_name || 'Monitoring Kendaraan' }),
       ...links,
-      el('span', {
-        class: 'user-info',
+      el('a', {
+        class: 'user-info text-decoration-none',
+        href: '#/password',
+        title: 'Ganti password',
         text: `${user.nama || user.username} · ${user.role}${user.cabang ? ' · ' + user.cabang : ''}`,
       }),
+      el('a', { class: 'btn btn-outline-secondary btn-sm', href: '#/password', title: 'Ganti password', 'aria-label': 'Ganti password' }, [el('i', { class: 'bi bi-key', 'aria-hidden': 'true' })]),
       el('button', { class: 'btn btn-outline-secondary btn-sm', id: 'btn-logout', text: 'Keluar' }),
     ]),
   );
@@ -176,6 +179,11 @@ registerRoute('#/jalur', jalurPage('renderJalurList'));
 registerRoute('#/jalur/buat', jalurPage('renderJalurBuat'));
 registerRoute('#/jalur/ringkasan', jalurPage('renderJalurRingkasan'));
 registerRoute('#/jalur/edit/:id', jalurPage('renderJalurEdit'));
+
+registerRoute('#/password', async () => {
+  const mod = await import('./pages/password.js');
+  return { render: mod.renderPassword };
+});
 
 registerRoute('#/pengaturan', async () => {
   const mod = await import('./pages/pengaturan.js');

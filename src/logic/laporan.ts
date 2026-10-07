@@ -338,6 +338,24 @@ export function jumlahBarEfektif(jenisIndikator: unknown, jumlahBar: unknown): n
   return String(jenisIndikator ?? '') === 'ANALOG_JARUM' ? 100 : num(jumlahBar);
 }
 
+// Kartu Flazz laporan harus kartu yang dikeluarkan di jalur pengiriman (kartu 1/2).
+// Mengembalikan pesan penolakan, atau '' bila semua kartu sah.
+export function cekKartuJalur(
+  cardIds: string[],
+  jalur: { flazz_card_id?: string | null; flazz_card_id_2?: string | null } | null,
+  namaKartu: (id: string) => string,
+): string {
+  const dipakai = cardIds.map((x) => String(x || '').trim()).filter(Boolean);
+  if (!dipakai.length || !jalur) return '';
+  const izin = [jalur.flazz_card_id, jalur.flazz_card_id_2].map((x) => String(x || '').trim()).filter(Boolean);
+  if (!izin.length) return 'Jalur pengiriman ini tidak membawa kartu etoll; pembayaran Flazz tidak bisa dipakai. Gunakan tunai atau perbarui jalur.';
+  const sah = new Set(izin.map(canonicalCardId));
+  const salah = dipakai.find((id) => !sah.has(canonicalCardId(id)));
+  return salah
+    ? `Kartu etoll "${namaKartu(salah)}" tidak dikeluarkan di jalur pengiriman ini. Gunakan kartu jalur: ${izin.map(namaKartu).join(', ')}.`
+    : '';
+}
+
 export function literPerBarFor(kapasitas: number, jumlahBar: number): number {
   return kapasitas > 0 && jumlahBar > 0 ? kapasitas / jumlahBar : 0;
 }

@@ -239,6 +239,9 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
         throw new HttpError(409, L.msgInsufficient(info.card_name || chk.cardId, chk.label, L.num(info.last_balance), chk.total), 'CONFLICT');
       }
     }
+    // Kartu yang dipotong harus kartu yang dikeluarkan di jalur pengiriman ini.
+    const kartuLuarJalur = L.cekKartuJalur(checks.map((c) => c.cardId), matchedJalur, (id) => cardMap.get(L.canonicalCardId(id))?.card_name || id);
+    if (kartuLuarJalur) throw new HttpError(409, kartuLuarJalur, 'CONFLICT');
 
     const storeMetodeBbm = L.storeMetodeBbm(biayaBbm, metodeBbm);
     const serverData = p.serverData && typeof p.serverData === 'object' ? p.serverData : {};
@@ -482,6 +485,19 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       const target = cardMap.get(L.canonicalCardId(baru));
       if (!target) throw new HttpError(400, L.MSG_CARD2_TARGET_NOT_FOUND, 'BAD_REQUEST');
       assertFlazzAccess(u, target.branch_id);
+    }
+
+    // Kartu yang DIGANTI harus kartu jalur pengiriman tujuan laporan ini. Kartu lama dibiarkan
+    // (data GAS lama boleh tidak konsisten); laporan tanpa jalur yang cocok tidak dicek.
+    const kartuBaru = [[newCard, oldCard], [newCardToll, oldCardToll], [newCard2, oldCard2], [newCardToll2, oldCardToll2]]
+      .filter(([baru, lama]) => baru && L.canonicalCardId(baru) !== L.canonicalCardId(lama))
+      .map(([baru]) => String(baru));
+    if (kartuBaru.length) {
+      const tglCek = (p.tanggal !== undefined && p.tanggal !== '') ? String(p.tanggal) : String(old.tanggal);
+      const namaCek = (p.nama_supir !== undefined && p.nama_supir !== null && String(p.nama_supir) !== '') ? String(p.nama_supir) : oldNama;
+      const jalurCek = await deps.laporan.findJalurByCriteria({ tanggal: tglCek, vehicle_id: old.vehicle_id, nama_driver: namaCek, kode_cabang: old.kode_cabang });
+      const pesan = L.cekKartuJalur(kartuBaru, jalurCek, (id) => cardMap.get(L.canonicalCardId(id))?.card_name || id);
+      if (pesan) throw new HttpError(409, pesan, 'CONFLICT');
     }
 
     const oldPayState = {
