@@ -19,9 +19,10 @@ import { resetDataDb } from './db/reset';
 import { laporanRoutes, dashboardRoutes } from './routes/laporan';
 import { flazzRoutes } from './routes/flazz';
 import { jalurRoutes } from './routes/jalur';
+import { pushRoutes } from './routes/push';
 
-export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bindings: Env }> {
-  const deps: AppDeps = {
+export function buildDeps(env: Env, overrides: Partial<AppDeps> = {}): AppDeps {
+  return {
     kv: env.SESSION_KV,
     findByUsername: findByUsernameDb(env),
     recordAudit: recordAuditDb(env),
@@ -37,6 +38,10 @@ export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bin
     resetData: resetDataDb,
     ...overrides,
   };
+}
+
+export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bindings: Env }> {
+  const deps = buildDeps(env, overrides);
 
   const app = new Hono<{ Bindings: Env }>();
 
@@ -64,6 +69,7 @@ export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bin
   app.route('/api/audit', auditRoutes(deps));
   app.route('/api/flazz', flazzRoutes(deps));
   app.route('/api/jalur', jalurRoutes(deps));
+  app.route('/api', pushRoutes(deps));
   app.route('/api/laporan', laporanRoutes(deps));
   app.route('/api/dashboard', dashboardRoutes(deps));
 

@@ -13,6 +13,9 @@
     { "binding": "SESSION_KV", "id": "4f4ecbcfe4f34e78bf5db8cfdfc1f435" }
   ],
   "vars": {
-    "SUPABASE_URL": "https://jscpogjdquwcbglavurd.supabase.co"
-  }
+    "SUPABASE_URL": "https://jscpogjdquwcbglavurd.supabase.co",
+    "VAPID_PUBLIC_KEY": "BDv6druYCAio168ZghIDx7IBIiTM4e_cA11lfJXfsR8MSAoRRhkEL3cxHzy2Btzo3x_DDcyvvAcpdRgB5LOCSA4"
+  },
+  // Pengingat laporan/rekonsiliasi: 09:30 UTC = 16:30 WIB setiap hari.
+  "triggers": { "crons": ["30 9 * * *"] }
 }

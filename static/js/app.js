@@ -3,6 +3,7 @@ import { get, post } from './api.js';
 import { ensureSession, registerRoute, startRouter } from './router.js';
 import { el } from './ui.js';
 import { renderLogin } from './pages/login.js';
+import { daftarkanServiceWorker, mulaiBanner } from './notifikasi.js';
 
 // Grup menu mengikuti sidebar GAS ("Laporan Operasional Kendaraan").
 const NAV = [
@@ -223,6 +224,9 @@ async function boot() {
 
   startRouter();
   muatPengaturan();
+  // Banner tugas hari ini (kuning sepanjang hari, merah + pop-up mulai 16:30) & service worker push.
+  mulaiBanner();
+  daftarkanServiceWorker();
 
   if (!user) {
     window.location.hash = '#/login';

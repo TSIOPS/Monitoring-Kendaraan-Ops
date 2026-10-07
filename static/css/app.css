@@ -399,3 +399,44 @@ body {
   align-items: center;
   justify-content: center;
 }
+
+/* Banner tugas hari ini & pop-up 16:30 */
+.banner-tugas {
+  background: #fff8e1;
+  border-bottom: 1px solid #f2d27a;
+  color: #6b4e00;
+  padding: 0.5rem 1rem;
+  font-size: 0.92rem;
+  text-align: center;
+}
+
+.banner-tugas-akhir {
+  background: #fdecec;
+  border-bottom-color: #f1a7a7;
+  color: #a11d1d;
+  font-weight: 600;
+}
+
+.popup-latar {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.popup-kotak {
+  background: #fff;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+}
+
+@media print {
+  #banner-slot { display: none !important; }
+}

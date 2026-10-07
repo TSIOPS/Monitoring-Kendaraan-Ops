@@ -116,6 +116,7 @@ lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`,
   `KOSONGKAN` + password SUPERADMIN; tabel `pengguna` & `pengaturan` tidak dihapus.
   Alternatif tanpa tombol: `db/reset.sql` di SQL Editor.
   Setelah migrasi: jalankan `db/backfill-driver2.sql` (Driver 2 laporan dari jalur).
+- **Pengingat 16:30 WIB** — banner tugas hari ini (kuning sepanjang hari, merah + pop-up mulai 16:30) dan Web Push (Cron `30 9 * * *` UTC). Langganan per perangkat di KV (`push:*`), aktifkan di Dashboard → Notifikasi HP. Kunci VAPID: publik di `wrangler.jsonc`, privat di secret `VAPID_PRIVATE_JWK`. iPhone: pasang ke Layar Utama dulu.
 - **Pengaturan** (menu Admin, SUPERADMIN) — logo, nama aplikasi, nama perusahaan,
   footer. `PUT /api/settings` tanpa `logo_url` mempertahankan logo; URL logo
   diberi `?v=` agar logo baru tidak tertahan cache.

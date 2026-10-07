@@ -1,6 +1,7 @@
 import { get, post } from '../api.js';
 import { getUser, setJumlahPeringatan } from '../store.js';
 import { confirmDialog, el, fmtDateId, fmtNum, labelDari, petaMaster, toast } from '../ui.js';
+import { aktifkanNotifikasi, matikanNotifikasi, segarkanBanner, statusNotifikasi, tesNotifikasi } from '../notifikasi.js';
 
 // ── Helper murni (diuji) ────────────────────────────────────────────────────
 
@@ -249,7 +250,38 @@ export async function renderDashboard(view) {
     }
   }
 
-  view.replaceChildren(salam, aksesCepat, panelWarn, panelKartu, panelGaleri);
+  // Notifikasi HP: pengingat otomatis 16:30 WIB walau aplikasi tertutup.
+  const isiNotif = el('div', { class: 'd-flex flex-wrap align-items-center gap-2' });
+  const panelNotif = kartuPanel('Notifikasi HP (pengingat 16:30)', null, isiNotif);
+  async function gambarNotif() {
+    const st = await statusNotifikasi().catch(() => 'tidak-didukung');
+    const tombol = (teks, kelas, aksi) => {
+      const b = el('button', { type: 'button', class: `btn btn-sm ${kelas}`, text: teks });
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        try { await aksi(); } catch (err) { toast(err.message, 'error'); } finally { b.disabled = false; gambarNotif(); }
+      });
+      return b;
+    };
+    const teks = {
+      aktif: 'Aktif di perangkat ini. Pukul 16:30 WIB Anda akan menerima pengingat bila masih ada laporan/rekonsiliasi yang belum selesai.',
+      belum: 'Belum aktif di perangkat ini. Aktifkan agar pengingat 16:30 muncul di HP/laptop walau aplikasi tertutup.',
+      ditolak: 'Izin notifikasi diblokir. Buka pengaturan situs di browser, izinkan Notifikasi, lalu muat ulang halaman.',
+      'pasang-dulu': 'Di iPhone/iPad: ketuk tombol Bagikan lalu "Tambahkan ke Layar Utama", buka aplikasi dari ikon tersebut, lalu aktifkan notifikasi.',
+      'tidak-didukung': 'Browser ini tidak mendukung notifikasi. Gunakan Chrome/Edge terbaru.',
+    }[st];
+    isiNotif.replaceChildren(...[
+      el('span', { class: `badge ${st === 'aktif' ? 'text-bg-success' : 'text-bg-secondary'}`, text: st === 'aktif' ? 'Aktif' : 'Tidak aktif' }),
+      el('span', { class: 'small text-muted flex-fill', text: teks }),
+      st === 'belum' ? tombol('Aktifkan notifikasi', 'btn-primary', async () => { await aktifkanNotifikasi(); toast('Notifikasi aktif.', 'success'); }) : null,
+      st === 'aktif' ? tombol('Kirim tes', 'btn-outline-primary', async () => { const r = await tesNotifikasi(); toast(r.msg, 'success'); }) : null,
+      st === 'aktif' ? tombol('Matikan', 'btn-outline-secondary', async () => { await matikanNotifikasi(); toast('Notifikasi dimatikan.', 'success'); }) : null,
+    ].filter(Boolean));
+  }
+  gambarNotif();
+  segarkanBanner(true);
+
+  view.replaceChildren(salam, aksesCepat, panelNotif, panelWarn, panelKartu, panelGaleri);
 
   try {
     const master = await get('/api/master');
