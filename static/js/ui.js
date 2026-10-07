@@ -112,3 +112,16 @@ export function pratinjauFoto(input, urlAwal = '') {
   tampil(urlAwal, 'Foto tersimpan');
   return kotak;
 }
+
+// Kolom driver/kendaraan di data Flazz berisi campuran KODE master (mis. supir default
+// kartu: "DRV-…") dan NAMA (dari laporan/jalur). Kode diterjemahkan; nama dibiarkan.
+export function petaMaster(master) {
+  const supir = new Map((master?.drivers || []).map((d) => [String(d.id), String(d.nama || d.id)]));
+  const kendaraan = new Map((master?.vehicles || []).map((v) => [String(v.vehicle_id), String(v.plat_nomor || v.vehicle_id).trim()]));
+  return { supir, kendaraan };
+}
+
+export function labelDari(nilai, peta) {
+  const s = String(nilai ?? '').trim();
+  return s ? peta.get(s) || s : '';
+}

@@ -43,3 +43,15 @@ describe('fmtDateId', () => {
     expect(fmtDateId('bukan tanggal')).toBe('bukan tanggal');
   });
 });
+
+describe('labelDari / petaMaster', () => {
+  it('kode supir/kendaraan diterjemahkan, nama dibiarkan', async () => {
+    const { labelDari, petaMaster } = await import('../../static/js/ui.js');
+    const p = petaMaster({ drivers: [{ id: 'DRV-1', nama: 'Agus' }], vehicles: [{ vehicle_id: 'V-1', plat_nomor: ' D 1 A ' }] });
+    expect(labelDari('DRV-1', p.supir)).toBe('Agus');
+    expect(labelDari('Aria Hendrata', p.supir)).toBe('Aria Hendrata');
+    expect(labelDari('V-1', p.kendaraan)).toBe('D 1 A');
+    expect(labelDari('', p.supir)).toBe('');
+    expect(labelDari('X', petaMaster(null).supir)).toBe('X');
+  });
+});

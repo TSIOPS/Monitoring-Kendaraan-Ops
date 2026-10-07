@@ -1,6 +1,6 @@
 import { get, post } from '../api.js';
 import { getUser, setJumlahPeringatan } from '../store.js';
-import { confirmDialog, el, fmtDateId, fmtNum, toast } from '../ui.js';
+import { confirmDialog, el, fmtDateId, fmtNum, labelDari, petaMaster, toast } from '../ui.js';
 
 // ── Helper murni (diuji) ────────────────────────────────────────────────────
 
@@ -185,6 +185,8 @@ export async function renderDashboard(view) {
   tombolWarn.addEventListener('click', () => muatWarn(true));
   pilihCabang.addEventListener('change', gambarWarn);
 
+  let peta = petaMaster(null);
+
   // Status Kartu Etoll
   const tombolKartu = el('button', { class: 'btn btn-outline-primary btn-sm', type: 'button', text: 'Refresh' });
   const isiKartu = el('div', { class: 'text-muted', text: 'Memuat data kartu etoll…' });
@@ -199,7 +201,7 @@ export async function renderDashboard(view) {
         el('div', { class: 'small text-white-50', text: label }), el('div', { class: 'h5 fw-bold mb-0', text: nilai }),
       ])]);
       isiKartu.className = '';
-      isiKartu.replaceChildren(
+      isiKartu.replaceChildren(...[
         r.aktif > 0 ? el('div', { class: 'alert alert-warning' }, [
           el('strong', { text: 'Peringatan! ' }), `Ada ${r.aktif} kartu Flazz berstatus "Sedang Digunakan". Jika fisik kartu sudah dikembalikan oleh supir ke Admin, Anda mungkin terlewat melakukan `,
           el('a', { href: '#/flazz/rekon', class: 'alert-link', text: 'Rekonsiliasi Flazz' }), ' hari ini.',
@@ -214,12 +216,12 @@ export async function renderDashboard(view) {
           el('tbody', {}, cards.map((c) => el('tr', {}, [
             el('td', { class: 'fw-bold', text: c.card_number || '-' }),
             el('td', { text: c.card_type || '-' }),
-            el('td', { text: c.driver_id || '-' }),
+            el('td', { text: labelDari(c.driver_id, peta.supir) || '-' }),
             el('td', { class: 'fw-bold', text: rp(c.last_balance) }),
             el('td', {}, [el('span', { class: `badge ${KARTU_KELAS[c.status] || 'bg-secondary'}`, text: c.status || '-' })]),
           ]))),
         ])]),
-      );
+      ].filter(Boolean));
     } catch (err) {
       isiKartu.className = 'text-muted';
       isiKartu.textContent = `Gagal memuat data Flazz: ${err.message}`;
@@ -249,17 +251,16 @@ export async function renderDashboard(view) {
 
   view.replaceChildren(salam, aksesCepat, panelWarn, panelKartu, panelGaleri);
 
-  if (isSuper) {
-    try {
-      const master = await get('/api/master');
-      const cabang = Array.isArray(master.cabangList) ? master.cabangList : [];
-      if (cabang.length > 1) {
-        cabang.forEach((c) => pilihCabang.appendChild(el('option', { value: c.kode, text: c.nama || c.kode })));
-        pilihCabang.classList.remove('d-none');
-      }
-    } catch {
-      // Filter warehouse opsional; peringatan tetap tampil untuk semua warehouse.
+  try {
+    const master = await get('/api/master');
+    peta = petaMaster(master);
+    const cabang = Array.isArray(master.cabangList) ? master.cabangList : [];
+    if (isSuper && cabang.length > 1) {
+      cabang.forEach((c) => pilihCabang.appendChild(el('option', { value: c.kode, text: c.nama || c.kode })));
+      pilihCabang.classList.remove('d-none');
     }
+  } catch {
+    // Master opsional: tanpa itu kode supir tampil apa adanya dan filter warehouse disembunyikan.
   }
   await Promise.all([muatWarn(), muatKartu(), muatGaleri()]);
   return { ok: true };

@@ -1,6 +1,6 @@
 import { del, get, post, put } from '../api.js';
 import { getUser } from '../store.js';
-import { confirmDialog, el, fmtDateId, fmtNum, toast } from '../ui.js';
+import { confirmDialog, el, fmtDateId, fmtNum, toast, labelDari, petaMaster } from '../ui.js';
 import { kompresGambar, namaAman, tanggalWib } from './input.js';
 
 // Halaman Flazz (M9): List, Top Up, Pengembalian & Rekonsiliasi, Riwayat.
@@ -86,8 +86,14 @@ function tabel(kolom, barisList) {
   ])]);
 }
 
+// Peta kode -> nama supir / plat kendaraan, diisi saat data dimuat.
+let peta = petaMaster(null);
+const supirNama = (x) => labelDari(x, peta.supir);
+const platOf = (x) => labelDari(x, peta.kendaraan);
+
 async function muatData() {
   const [dash, master] = await Promise.all([get('/api/flazz/dashboard'), get('/api/master')]);
+  peta = petaMaster(master);
   return { ...dash, cabang: Array.isArray(master.cabangList) ? master.cabangList : [] };
 }
 
@@ -148,7 +154,7 @@ export async function renderFlazzList(view) {
           el('td', { text: String(i + 1) }),
           el('td', {}, [el('a', { href: '#', text: c.card_number || c.id, onclick: (e) => { e.preventDefault(); tampilDetail(c, start, end); } })]),
           el('td', { text: c.card_name || '-' }),
-          el('td', { text: c.driver_id || '-' }),
+          el('td', { text: supirNama(c.driver_id) || '-' }),
           el('td', {}, [el('span', { class: `badge-status ${KELAS_STATUS_KARTU[c.status] || ''}`, text: c.status || '-' })]),
           el('td', { class: 'text-end', text: rp(h.saldoAwal) }),
           el('td', { class: 'text-end', text: h.pengeluaran > 0 ? '-' + rp(h.pengeluaran) : '-' }),
@@ -255,7 +261,7 @@ export async function renderFlazzRekon(view) {
   if (!data) return { ok: false };
   const kartu = el('select', { class: 'form-select' });
   const dipakai = data.cards.filter((c) => c.status === 'SEDANG_DIGUNAKAN');
-  isiOpsi(kartu, dipakai.map((c) => ({ value: c.id, label: `${namaKartu(c)} — ${c.driver_id || 'tanpa pemegang'}` })),
+  isiOpsi(kartu, dipakai.map((c) => ({ value: c.id, label: `${namaKartu(c)} — ${supirNama(c.driver_id) || 'tanpa pemegang'}` })),
     dipakai.length ? '— pilih kartu yang sedang digunakan —' : '— tidak ada kartu yang sedang digunakan —');
   const gate = el('div', { class: 'alert d-none py-2' });
   const rincian = el('div', { class: 'small text-muted mb-3' });
@@ -302,7 +308,7 @@ export async function renderFlazzRekon(view) {
     simpan.disabled = !preview.eligible;
     sistem.value = rp(preview.flazz_balance);
     rincian.textContent = `Saldo awal ${rp(preview.opening_balance)} + top up ${rp(preview.total_topup)} − BBM ${rp(preview.total_bbm_flazz)} − tol ${rp(preview.total_tol)}` +
-      (preview.usage ? ` · diserahkan ke ${preview.usage.driver_id || '-'} sejak ${fmtDateId(tglKey(preview.usage.used_at))}` : '');
+      (preview.usage ? ` · diserahkan ke ${supirNama(preview.usage.driver_id) || '-'} sejak ${fmtDateId(tglKey(preview.usage.used_at))}` : '');
     hitungSelisih();
   });
   fisik.addEventListener('input', hitungSelisih);
@@ -431,7 +437,7 @@ export async function renderFlazzRiwayat(view) {
       const list = filterKartu(data.tolHistory).filter((t) => dalam(t.date));
       konten = tabel(['Tanggal', 'Kartu', 'Supir / Kendaraan', 'Nominal', 'Bukti', 'Catatan', 'Aksi'], list.map((t) => el('tr', {}, [
         el('td', { text: fmtDateId(tglKey(t.date)) }), el('td', { text: kn(t.card_id) }),
-        el('td', { text: [t.driver_id, t.vehicle_id].filter(Boolean).join(' / ') || '-' }), el('td', { class: 'text-end', text: rp(t.amount) }),
+        el('td', { text: [supirNama(t.driver_id), platOf(t.vehicle_id)].filter(Boolean).join(' / ') || '-' }), el('td', { class: 'text-end', text: rp(t.amount) }),
         el('td', {}, [tautan(t.evidence_url)]), el('td', { text: t.notes || '-' }),
         el('td', {}, t.source === 'MANUAL' ? [
           el('button', { class: 'btn btn-sm btn-outline-primary me-1', type: 'button', text: 'Edit', onclick: () => formEdit('tol', t) }),
@@ -451,14 +457,14 @@ export async function renderFlazzRiwayat(view) {
       const list = filterKartu(data.usages).filter((u) => dalam(u.used_at || u.date));
       konten = tabel(['Tanggal', 'Kartu', 'Supir / Kendaraan', 'Sumber', 'Status', 'Dikembalikan'], list.map((u) => el('tr', {}, [
         el('td', { text: fmtDateId(tglKey(u.used_at || u.date)) }), el('td', { text: kn(u.card_id) }),
-        el('td', { text: [u.driver_id, u.vehicle_id].filter(Boolean).join(' / ') || '-' }), el('td', { text: u.ref_type || '-' }),
+        el('td', { text: [supirNama(u.driver_id), platOf(u.vehicle_id)].filter(Boolean).join(' / ') || '-' }), el('td', { text: u.ref_type || '-' }),
         el('td', { text: u.status }), el('td', { text: u.returned_at ? fmtDateId(tglKey(u.returned_at)) : '-' }),
       ])));
     } else {
       const list = filterKartu(data.recons).filter((r) => dalam(r.date));
       konten = tabel(['Tanggal', 'Kartu', 'Pemegang', 'Saldo awal', 'Top up', 'BBM+Tol', 'Saldo sistem', 'Saldo fisik', 'Selisih', 'Status', 'Catatan', 'Oleh', 'Aksi'],
         list.map((r) => el('tr', {}, [
-          el('td', { text: fmtDateId(r.date) }), el('td', { text: kn(r.card_id) }), el('td', { text: r.driver_id || '-' }),
+          el('td', { text: fmtDateId(r.date) }), el('td', { text: kn(r.card_id) }), el('td', { text: supirNama(r.driver_id) || '-' }),
           el('td', { class: 'text-end', text: rp(r.opening_balance) }), el('td', { class: 'text-end', text: rp(r.total_topup) }),
           el('td', { class: 'text-end', text: rp(n(r.total_bbm_flazz) + n(r.total_tol)) }), el('td', { class: 'text-end', text: rp(r.flazz_balance) }),
           el('td', { class: 'text-end', text: rp(r.actual_balance) }), el('td', { class: 'text-end', text: rp(r.difference) }),
