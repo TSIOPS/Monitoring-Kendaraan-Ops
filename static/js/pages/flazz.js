@@ -60,6 +60,20 @@ export function hitungListing(card, data, start, end) {
   return { saldoAwal, pengeluaran, saldoAkhir, totalTopup, totalBbm, totalTol, topups, tols, bbm };
 }
 
+// Baris rekap detail kartu: top up dan pengeluaran (BBM & tol dipisah per baris), urut tanggal.
+export function susunDetailKartu(h) {
+  const urut = (a, b) => String(a.tanggal).localeCompare(String(b.tanggal));
+  const topup = h.topups.map((t) => ({ tanggal: t.date, ket: t.notes || '', nominal: n(t.amount), bukti: t.evidence_url || '' })).sort(urut);
+  const keluar = [
+    ...h.tols.map((t) => ({ tanggal: t.date, jenis: 'Tol', driver: t.driver_id || '', kendaraan: t.vehicle_id || '', nominal: n(t.amount), bukti: t.evidence_url || '' })),
+    ...h.bbm.flatMap((b) => [
+      n(b.amount) > 0 ? { tanggal: b.tanggal, jenis: 'BBM', driver: b.driver || '', kendaraan: b.vehicle || '', nominal: n(b.amount), bukti: b.evidence || '' } : null,
+      n(b.toll_amount) > 0 ? { tanggal: b.tanggal, jenis: 'Tol', driver: b.driver || '', kendaraan: b.vehicle || '', nominal: n(b.toll_amount), bukti: b.toll_evidence || '' } : null,
+    ].filter(Boolean)),
+  ].sort(urut);
+  return { topup, keluar };
+}
+
 // Info selisih seperti GAS: selisih tampilan = fisik - sistem; usulan tindakan.
 export function infoSelisih(sistem, fisik) {
   const diff = n(fisik) - n(sistem);
@@ -165,23 +179,59 @@ export async function renderFlazzList(view) {
 
   function tampilDetail(c, start, end) {
     const h = hitungListing(c, data, start, end);
-    const item = [
-      ...h.topups.map((t) => ({ t: t.date, jenis: 'Top up', ket: t.notes || '', masuk: n(t.amount), keluar: 0 })),
-      ...h.tols.map((t) => ({ t: t.date, jenis: 'Tol', ket: t.notes || '', masuk: 0, keluar: n(t.amount) })),
-      ...h.bbm.map((b) => ({ t: b.tanggal, jenis: n(b.amount) ? 'BBM' : 'Tol (laporan)', ket: `${b.driver || ''} ${b.vehicle || ''}`.trim(), masuk: 0, keluar: n(b.amount) + n(b.toll_amount) })),
-    ].sort((a, b) => String(a.t).localeCompare(String(b.t)));
-    detail.replaceChildren(el('div', { class: 'panel mt-3' }, [
-      el('div', { class: 'd-flex justify-content-between align-items-center mb-2' }, [
-        el('h3', { class: 'h6 m-0', text: `${namaKartu(c)} (${c.card_number}) — ${fmtDateId(start)} s.d. ${fmtDateId(end)}` }),
-        el('button', { class: 'btn btn-sm btn-outline-primary no-print', type: 'button', text: 'Cetak', onclick: () => window.print() }),
+    const r = susunDetailKartu(h);
+    const periode = start === end ? fmtDateId(start) : `${fmtDateId(start)} s.d. ${fmtDateId(end)}`;
+    const stat = (label, nilai, kelas = '') => el('div', { class: 'stat-card' }, [
+      el('div', { class: 'label', text: label }),
+      el('div', { class: `value ${kelas}`, text: nilai }),
+    ]);
+    const bukti = (url) => (url ? el('a', { href: url, target: '_blank', rel: 'noopener', title: 'Lihat bukti', 'aria-label': 'Lihat bukti' }, [el('i', { class: 'bi bi-image', 'aria-hidden': 'true' })]) : '-');
+    const tabelRekap = (judul, kolom, isi, total, kosong) => el('div', { class: 'mb-3' }, [
+      el('h4', { class: 'h6 mb-2', text: judul }),
+      isi.length
+        ? el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm table-bordered align-middle mb-0' }, [
+          el('thead', { class: 'thead-hijau' }, [el('tr', {}, kolom.map((t) => el('th', { class: 'text-center', text: t })))]),
+          el('tbody', {}, isi),
+          el('tfoot', {}, [el('tr', { class: 'fw-bold' }, [
+            el('td', { colspan: String(kolom.length - 2), class: 'text-end', text: 'Total' }),
+            el('td', { class: 'text-end text-nowrap', text: rp(total) }),
+            el('td', {}),
+          ])]),
+        ])])
+        : el('div', { class: 'text-muted small', text: kosong }),
+    ]);
+    detail.replaceChildren(el('div', { class: 'panel mt-3 detail-kartu' }, [
+      el('div', { class: 'd-flex flex-wrap justify-content-between align-items-start gap-2 mb-3' }, [
+        el('div', {}, [
+          el('h3', { class: 'h6 m-0', text: `Rekap Kartu ${namaKartu(c)}` }),
+          el('div', { class: 'small text-muted', text: `${c.card_number || c.id} · ${periode} · Driver: ${supirNama(c.driver_id) || '-'}` }),
+        ]),
+        el('div', { class: 'd-flex gap-2 no-print' }, [
+          el('button', { class: 'btn btn-sm btn-outline-primary', type: 'button', onclick: () => window.print() }, [el('i', { class: 'bi bi-printer me-1', 'aria-hidden': 'true' }), 'Cetak']),
+          el('button', { class: 'btn btn-sm btn-outline-secondary', type: 'button', onclick: () => detail.replaceChildren() }, [el('i', { class: 'bi bi-x-lg me-1', 'aria-hidden': 'true' }), 'Tutup']),
+        ]),
       ]),
-      el('div', { class: 'small mb-2', text: `Saldo awal ${rp(h.saldoAwal)} · Top up ${rp(h.totalTopup)} · BBM ${rp(h.totalBbm)} · Tol ${rp(h.totalTol)} · Saldo akhir ${rp(h.saldoAkhir)}` }),
-      item.length
-        ? tabel(['Tanggal', 'Jenis', 'Keterangan', 'Masuk', 'Keluar'], item.map((x) => el('tr', {}, [
-          el('td', { text: fmtDateId(x.t) }), el('td', { text: x.jenis }), el('td', { text: x.ket || '-' }),
-          el('td', { class: 'text-end', text: x.masuk ? rp(x.masuk) : '-' }), el('td', { class: 'text-end', text: x.keluar ? rp(x.keluar) : '-' }),
-        ])))
-        : el('div', { class: 'text-muted', text: 'Tidak ada transaksi pada periode ini.' }),
+      el('div', { class: 'stat-grid mb-3' }, [
+        stat('Saldo awal', rp(h.saldoAwal)),
+        stat('Top up', '+' + rp(h.totalTopup), 'text-success'),
+        stat('BBM', '-' + rp(h.totalBbm), 'text-danger'),
+        stat('Tol', '-' + rp(h.totalTol), 'text-danger'),
+        stat('Saldo akhir', rp(h.saldoAkhir)),
+      ]),
+      el('div', { class: 'row g-3' }, [
+        el('div', { class: 'col-lg-5' }, [tabelRekap('Top Up', ['Tanggal', 'Keterangan', 'Nominal', 'Bukti'],
+          r.topup.map((x) => el('tr', {}, [
+            el('td', { class: 'text-nowrap', text: fmtDateId(x.tanggal) }), el('td', { text: x.ket || '-' }),
+            el('td', { class: 'text-end text-nowrap text-success', text: '+' + rp(x.nominal) }), el('td', { class: 'text-center' }, [bukti(x.bukti)]),
+          ])), h.totalTopup, 'Tidak ada top up pada periode ini.')]),
+        el('div', { class: 'col-lg-7' }, [tabelRekap('Pengeluaran', ['Tanggal', 'Jenis', 'Driver', 'Kendaraan', 'Nominal', 'Bukti'],
+          r.keluar.map((x) => el('tr', {}, [
+            el('td', { class: 'text-nowrap', text: fmtDateId(x.tanggal) }),
+            el('td', { class: 'text-center' }, [el('span', { class: `badge ${x.jenis === 'BBM' ? 'text-bg-warning' : 'text-bg-info'}`, text: x.jenis })]),
+            el('td', { text: supirNama(x.driver) || '-' }), el('td', { class: 'text-nowrap', text: platOf(x.kendaraan) || '-' }),
+            el('td', { class: 'text-end text-nowrap text-danger', text: '-' + rp(x.nominal) }), el('td', { class: 'text-center' }, [bukti(x.bukti)]),
+          ])), h.pengeluaran, 'Tidak ada pengeluaran pada periode ini.')]),
+      ]),
     ]));
     detail.scrollIntoView({ behavior: 'smooth' });
   }
@@ -471,7 +521,7 @@ export async function renderFlazzRiwayat(view) {
           el('td', {}, [el('span', { class: `badge-status ${r.reconciliation_status === 'SESUAI' ? 'badge-ef-baik' : 'badge-ef-waspada'}`, text: r.reconciliation_status })]),
           el('td', { text: r.notes || '-' }), el('td', { text: r.reconciled_by || '-' }),
           el('td', {}, isSuper() ? [el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', text: 'Hapus',
-            onclick: () => hapus('Hapus rekonsiliasi ini? Saldo kartu kembali ke saldo awal dan kartu kembali SEDANG_DIGUNAKAN.', `/api/flazz/reconciliation/${encodeURIComponent(r.id)}`) })] : []),
+            onclick: () => hapus('Hapus rekonsiliasi ini? Saldo kartu kembali ke saldo sistem sebelum rekonsiliasi dan kartu kembali SEDANG_DIGUNAKAN.', `/api/flazz/reconciliation/${encodeURIComponent(r.id)}`) })] : []),
         ])));
     }
     for (const [k, b] of Object.entries(tombolTab)) b.className = `btn btn-sm ${k === tab ? 'btn-secondary' : 'btn-outline-secondary'}`;

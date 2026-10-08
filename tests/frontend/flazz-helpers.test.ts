@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hitungListing, infoSelisih, tglKey } from '../../static/js/pages/flazz.js';
+import { hitungListing, infoSelisih, susunDetailKartu, tglKey } from '../../static/js/pages/flazz.js';
 
 describe('tglKey', () => {
   it('tanggal polos apa adanya; stempel waktu ke tanggal WIB', () => {
@@ -40,5 +40,20 @@ describe('hitungListing (rumus List Flazz GAS)', () => {
     const h = hitungListing(card, d, '2026-10-01', '2026-10-31');
     // Setelah rekon: tol 5.000 + BBM 150.000 + tol 20.000 = 175.000.
     expect(h).toMatchObject({ saldoAwal: 400000, saldoAkhir: 325000 });
+  });
+});
+
+describe('susunDetailKartu', () => {
+  it('top up dan pengeluaran terpisah; BBM & tol laporan jadi dua baris; urut tanggal', () => {
+    const r = susunDetailKartu({
+      topups: [{ date: '2026-10-07', amount: 300000, notes: 'isi', evidence_url: 'u1' }],
+      tols: [{ date: '2026-10-06', amount: 5000, driver_id: 'D-1', vehicle_id: 'V-1' }],
+      bbm: [{ tanggal: '2026-10-05', amount: 200000, toll_amount: 4000, driver: 'Agus', vehicle: 'D 1 A', evidence: 'e1', toll_evidence: '' },
+        { tanggal: '2026-10-07', amount: 0, toll_amount: 2500, driver: 'Agus', vehicle: 'D 1 A' }],
+    });
+    expect(r.topup).toEqual([{ tanggal: '2026-10-07', ket: 'isi', nominal: 300000, bukti: 'u1' }]);
+    expect(r.keluar.map((x) => [x.tanggal, x.jenis, x.nominal])).toEqual([
+      ['2026-10-05', 'BBM', 200000], ['2026-10-05', 'Tol', 4000], ['2026-10-06', 'Tol', 5000], ['2026-10-07', 'Tol', 2500],
+    ]);
   });
 });
