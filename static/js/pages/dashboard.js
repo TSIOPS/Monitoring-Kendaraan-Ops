@@ -250,9 +250,9 @@ export async function renderDashboard(view) {
     }
   }
 
-  // Notifikasi HP: pengingat otomatis 16:30 WIB walau aplikasi tertutup.
+  // Reminder: pengingat otomatis 16:30 WIB walau aplikasi tertutup (Web Push).
   const isiNotif = el('div', { class: 'd-flex flex-wrap align-items-center gap-2' });
-  const panelNotif = kartuPanel('Notifikasi HP (pengingat 16:30)', null, isiNotif);
+  const panelNotif = kartuPanel('Reminder (pengingat 16:30)', null, isiNotif);
   async function gambarNotif() {
     const st = await statusNotifikasi().catch(() => 'tidak-didukung');
     const tombol = (teks, kelas, aksi) => {
@@ -265,17 +265,17 @@ export async function renderDashboard(view) {
     };
     const teks = {
       aktif: 'Aktif di perangkat ini. Pukul 16:30 WIB Anda akan menerima pengingat bila masih ada laporan/rekonsiliasi yang belum selesai.',
-      belum: 'Belum aktif di perangkat ini. Aktifkan agar pengingat 16:30 muncul di HP/laptop walau aplikasi tertutup.',
+      belum: 'Belum aktif di perangkat ini. Aktifkan agar reminder 16:30 muncul walau aplikasi tertutup.',
       ditolak: 'Izin notifikasi diblokir. Buka pengaturan situs di browser, izinkan Notifikasi, lalu muat ulang halaman.',
-      'pasang-dulu': 'Di iPhone/iPad: ketuk tombol Bagikan lalu "Tambahkan ke Layar Utama", buka aplikasi dari ikon tersebut, lalu aktifkan notifikasi.',
+      'pasang-dulu': 'Di iPhone/iPad: ketuk tombol Bagikan lalu "Tambahkan ke Layar Utama", buka aplikasi dari ikon tersebut, lalu aktifkan reminder.',
       'tidak-didukung': 'Browser ini tidak mendukung notifikasi. Gunakan Chrome/Edge terbaru.',
     }[st];
     isiNotif.replaceChildren(...[
       el('span', { class: `badge ${st === 'aktif' ? 'text-bg-success' : 'text-bg-secondary'}`, text: st === 'aktif' ? 'Aktif' : 'Tidak aktif' }),
       el('span', { class: 'small text-muted flex-fill', text: teks }),
-      st === 'belum' ? tombol('Aktifkan notifikasi', 'btn-primary', async () => { await aktifkanNotifikasi(); toast('Notifikasi aktif.', 'success'); }) : null,
+      st === 'belum' ? tombol('Aktifkan reminder', 'btn-primary', async () => { await aktifkanNotifikasi(); toast('Reminder aktif.', 'success'); }) : null,
       st === 'aktif' ? tombol('Kirim tes', 'btn-outline-primary', async () => { const r = await tesNotifikasi(); toast(r.msg, 'success'); }) : null,
-      st === 'aktif' ? tombol('Matikan', 'btn-outline-secondary', async () => { await matikanNotifikasi(); toast('Notifikasi dimatikan.', 'success'); }) : null,
+      st === 'aktif' ? tombol('Matikan', 'btn-outline-secondary', async () => { await matikanNotifikasi(); toast('Reminder dimatikan.', 'success'); }) : null,
     ].filter(Boolean));
   }
   gambarNotif();
