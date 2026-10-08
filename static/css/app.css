@@ -612,3 +612,11 @@ body.tanpa-sidebar .sidebar, body.tanpa-sidebar .sidebar-latar { display: none; 
   #view:has(.detail-kartu) > .panel { display: none !important; }
   .detail-kartu { border: 0; padding: 0; margin: 0; }
 }
+
+/* Meteran bensin indikator jarum (Input/Edit Laporan). */
+.meteran { border: 1px solid #e3e6ea; border-radius: 0.5rem; padding: 0.5rem 0.75rem; background: #fff; max-width: 320px; }
+.meteran-gambar { margin-bottom: 0.25rem; }
+.meteran-nilai { color: var(--bs-primary); font-size: 1rem; }
+.meteran.belum .meteran-nilai { color: var(--warna-abu, #6c757d); font-weight: 600; font-style: italic; }
+.meteran.belum .form-range::-webkit-slider-thumb { background: #adb5bd; }
+.meteran.belum .form-range::-moz-range-thumb { background: #adb5bd; }

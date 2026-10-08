@@ -186,3 +186,21 @@ describe('validasi jarum', () => {
     expect(validateForm({ ...DASAR, jarum: true, bar_awal: '67', bar_akhir: '36' })).not.toContain('Indikator jarum diisi persen jarum 0–100.');
   });
 });
+
+describe('meteran jarum', () => {
+  it('meteran wajib digeser: kosong ditolak untuk jarum, tidak untuk bar digital', () => {
+    const pesan = 'Geser meteran bensin awal dan akhir sesuai posisi jarum.';
+    expect(validateForm({ ...DASAR, jarum: true, bar_awal: '', bar_akhir: '40' })).toContain(pesan);
+    expect(validateForm({ ...DASAR, jarum: true, bar_awal: '0', bar_akhir: '40' })).not.toContain(pesan);
+    expect(validateForm({ ...DASAR, jarum: false, bar_awal: '', bar_akhir: '' })).not.toContain(pesan);
+  });
+  it('persen dibulatkan & dibatasi 0-100; jenis motor/mobil; warna level seperti GAS', async () => {
+    const { persenJarum, jenisMeteran, warnaLevel } = await import('../../static/js/meteran.js');
+    expect(persenJarum('')).toBeNull();
+    expect(persenJarum('67.6')).toBe(68);
+    expect(persenJarum('150')).toBe(100);
+    expect(jenisMeteran('Motor')).toBe('motor');
+    expect(jenisMeteran('Mobil')).toBe('mobil');
+    expect([warnaLevel(10), warnaLevel(30), warnaLevel(80)]).toEqual(['#dc3545', '#fd7e14', '#198754']);
+  });
+});

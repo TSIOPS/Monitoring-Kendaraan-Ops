@@ -1,6 +1,7 @@
 import { get, put } from '../api.js';
 import { getRouteParam } from '../router.js';
 import { el, fmtNum, toast, pratinjauFoto } from '../ui.js';
+import { meteranBensin } from '../meteran.js';
 import { hitungLiter, kompresGambar, namaAman, opsiBbm, THUMB_KUALITAS, THUMB_LEBAR } from './input.js';
 
 // Edit transaksi lengkap (M11), setara alur edit GAS: tanggal, supir, KM, bar,
@@ -118,6 +119,10 @@ export async function renderEdit(view) {
   const batasBar = jarum ? { max: '100', placeholder: 'persen jarum 0–100' } : {};
   const barAwal = angka(trx.bar_awal, batasBar);
   const barAkhir = angka(trx.bar_akhir, batasBar);
+  // Jarum: meteran E-F + slider seperti Input Laporan; nilai lama langsung tampil di jarum.
+  const meterAwal = jarum ? meteranBensin(barAwal, 'Level bensin awal') : null;
+  const meterAkhir = jarum ? meteranBensin(barAkhir, 'Level bensin akhir') : null;
+  if (jarum) for (const m of [meterAwal, meterAkhir]) m.setJenis(kendaraan?.jenis);
   const liter = angka(trx.isi_bbm, { step: '0.01', readonly: 'readonly', tabindex: '-1' });
   liter.classList.add('bg-light');
   const bbmOpsi = opsiBbm(Array.isArray(master.bbmList) ? master.bbmList : []);
@@ -187,10 +192,14 @@ export async function renderEdit(view) {
     el('div', { class: 'row' }, [
       kol(3, baris('KM awal', kmAwal)),
       kol(3, baris('KM akhir', kmAkhir, trx.km_sumber === 'ESTIMASI' ? 'KM saat ini hasil estimasi; mengubah KM menjadikannya aktual.' : '')),
-      kol(2, baris(jarum ? 'Jarum awal (%)' : 'Bar awal', barAwal)),
-      kol(2, baris(jarum ? 'Jarum akhir (%)' : 'Bar akhir', barAkhir)),
-      kol(2, baris('Liter BBM', liter, 'Otomatis dari biaya')),
-    ]),
+      jarum ? null : kol(2, baris('Bar awal', barAwal)),
+      jarum ? null : kol(2, baris('Bar akhir', barAkhir)),
+      kol(jarum ? 6 : 2, baris('Liter BBM', liter, 'Otomatis dari biaya')),
+    ].filter(Boolean)),
+    jarum ? el('div', { class: 'row' }, [
+      kol(6, baris('Level bensin awal (berangkat)', meterAwal.elemen)),
+      kol(6, baris('Level bensin akhir (pulang)', meterAkhir.elemen)),
+    ]) : null,
     el('div', { class: 'row' }, [
       kol(6, baris('Foto odometer awal', el('div', {}, [fotoAwal, pratinjauFoto(fotoAwal, trx.foto_odo_awal || trx.foto_odo_awal_thumb)]), 'Kosongkan bila tidak diganti.')),
       kol(6, baris('Foto odometer akhir', el('div', {}, [fotoAkhir, pratinjauFoto(fotoAkhir, trx.foto_odo_akhir || trx.foto_odo_akhir_thumb)]), 'Kosongkan bila tidak diganti.')),

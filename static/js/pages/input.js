@@ -1,5 +1,6 @@
 import { get, post } from '../api.js';
 import { el, fmtNum, pratinjauFoto, toast } from '../ui.js';
+import { meteranBensin } from '../meteran.js';
 
 // Setara compressPhoto GAS (1280 px, 70%) agar kapasitas Storage awet.
 const MAKS_LEBAR = 1280;
@@ -40,6 +41,10 @@ export function validateForm(v) {
 
   if (v.jarum && [v.bar_awal, v.bar_akhir].some((x) => x !== '' && (Number(x) < 0 || Number(x) > 100))) {
     err.push('Indikator jarum diisi persen jarum 0–100.');
+  }
+  // Meteran jarum wajib digeser: kosong berarti belum dibaca, bukan tangki kosong.
+  if (v.jarum && (v.bar_awal === '' || v.bar_akhir === '')) {
+    err.push('Geser meteran bensin awal dan akhir sesuai posisi jarum.');
   }
 
   if (v.metode_pembayaran === 'FLAZZ' && !v.flazz_card_id) {
@@ -304,6 +309,13 @@ export async function renderInput(view) {
     kanan ? el('span', { class: 'input-group-text', text: kanan }) : null,
   ]);
   const seksi = (judul, isi) => el('div', { class: 'form-section' }, [el('div', { class: 'form-section-title', text: judul }), ...isi]);
+  // Indikator bar digital: kolom angka; indikator jarum: meteran E-F + slider (seperti GAS).
+  const meterAwal = meteranBensin(f.bar_awal, 'Level bensin awal');
+  const meterAkhir = meteranBensin(f.bar_akhir, 'Level bensin akhir');
+  const barAngkaAwal = baris('Bar bensin awal', f.bar_awal);
+  const barAngkaAkhir = baris('Bar bensin akhir', f.bar_akhir);
+  const barJarumAwal = el('div', { class: 'd-none' }, [baris('Level bensin awal (berangkat)', meterAwal.elemen)]);
+  const barJarumAkhir = el('div', { class: 'd-none' }, [baris('Level bensin akhir (pulang)', meterAkhir.elemen)]);
   const meterRusak = (cek, id, teks) => el('div', { class: 'form-check mb-3' }, [cek, el('label', { class: 'form-check-label', for: id, text: teks })]);
   f.biaya_toll.placeholder = 'Kosongkan bila tidak ada tol';
   f.biaya_bbm.placeholder = '0';
@@ -330,14 +342,16 @@ export async function renderInput(view) {
           baris('Foto odometer awal', el('div', {}, [fotoAwal, pratinjauFoto(fotoAwal)])),
           baris('KM awal', satuan(f.km_awal, '', 'KM')),
           meterRusak(f.km_awal_broken, 'f-km-awal-broken', 'Meter awal mati/rusak'),
-          baris('Bar bensin awal', f.bar_awal),
+          barAngkaAwal,
+          barJarumAwal,
         ]),
         el('div', { class: 'col-md-6' }, [
           el('div', { class: 'form-subtitle', text: 'Akhir perjalanan' }),
           baris('Foto odometer akhir', el('div', {}, [fotoAkhir, pratinjauFoto(fotoAkhir)])),
           baris('KM akhir', satuan(f.km_akhir, '', 'KM')),
           meterRusak(f.km_akhir_broken, 'f-km-akhir-broken', 'Meter akhir mati/rusak'),
-          baris('Bar bensin akhir', f.bar_akhir),
+          barAngkaAkhir,
+          barJarumAkhir,
           infoBar,
         ]),
       ]),
@@ -378,7 +392,13 @@ export async function renderInput(view) {
   async function onVehicleChange() {
     if (!f.vehicle_id.value) return;
     const terpilih = vehicles.find((v) => String(v.vehicle_id) === f.vehicle_id.value);
+    const jarumSebelumnya = isJarum;
     isJarum = Boolean(terpilih && String(terpilih.jenis_indikator) === 'ANALOG_JARUM');
+    // Satuan berbeda (bar vs persen): nilai lama dibuang saat jenis indikator berganti.
+    if (jarumSebelumnya !== isJarum) { f.bar_awal.value = ''; f.bar_akhir.value = ''; }
+    for (const x of [barAngkaAwal, barAngkaAkhir]) x.classList.toggle('d-none', isJarum);
+    for (const x of [barJarumAwal, barJarumAkhir]) x.classList.toggle('d-none', !isJarum);
+    if (isJarum) for (const m of [meterAwal, meterAkhir]) m.setJenis(terpilih?.jenis);
     const maks = isJarum ? '100' : String(Number(terpilih?.jumlah_bar) || '');
     for (const x of [f.bar_awal, f.bar_akhir]) {
       x.disabled = false;
@@ -387,7 +407,7 @@ export async function renderInput(view) {
       x.placeholder = isJarum ? 'persen jarum 0–100' : (maks ? `0–${maks} bar` : '');
     }
     infoBar.textContent = isJarum
-      ? 'Indikator jarum: isi posisi jarum dalam persen (kosong = 0, penuh = 100).'
+      ? ''
       : (maks ? `Indikator bar: isi jumlah bar yang menyala (0–${maks}).` : '');
   }
   f.vehicle_id.addEventListener('change', onVehicleChange);
