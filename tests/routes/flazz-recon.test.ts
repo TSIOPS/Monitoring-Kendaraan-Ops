@@ -137,7 +137,7 @@ describe('DELETE /api/flazz/reconciliation/:id (model GAS)', () => {
     const res = await req(app, 'DELETE', '/api/flazz/reconciliation/REC-1', await loginAs(kv, SUPER));
     expect(res.status).toBe(200);
     expect(flz.state.reconciliations[0]!.is_deleted).toBe('1');
-    expect(flz.state.cards[0]).toMatchObject({ last_balance: 500000, status: 'SEDANG_DIGUNAKAN', driver_id: 'Supir A' });
+    expect(flz.state.cards[0]).toMatchObject({ last_balance: 430000, status: 'SEDANG_DIGUNAKAN', driver_id: 'Supir A' });
     expect(flz.state.usage[0]).toMatchObject({ status: 'DIBERIKAN', returned_at: '' });
   });
 

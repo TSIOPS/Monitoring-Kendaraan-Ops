@@ -556,17 +556,20 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const tolak = R.deleteRecon409(row, recons, laporan, topups, usages);
     if (tolak) throw new HttpError(409, tolak, 'CONFLICT');
 
-    // Balikkan semua efek rekon: penyerahan dibuka lagi, saldo ke saldo awal rekon.
+    // Balikkan semua efek rekon: penyerahan dibuka lagi, saldo ke saldo sistem sesaat sebelum rekon
+    // (saldo awal - pengeluaran + topup). GAS memakai saldo awal sehingga pengeluaran yang masih
+    // tercatat ikut dikembalikan; bila laporannya lalu dihapus, saldo terkembalikan dua kali.
     const closed = R.usageClosedBy(row, usages);
     if (closed) await deps.flazz.updateUsage(closed.id, { status: 'DIBERIKAN', returned_at: '' });
     await deps.flazz.updateReconciliation(row.id, { is_deleted: '1' });
-    await deps.flazz.setBalance(card.id, Number(row.opening_balance) || 0);
+    const saldoSistem = Number((row as { flazz_balance?: unknown }).flazz_balance);
+    await deps.flazz.setBalance(card.id, Number.isFinite(saldoSistem) && String((row as { flazz_balance?: unknown }).flazz_balance ?? '') !== '' ? saldoSistem : Number(row.opening_balance) || 0);
     await deps.flazz.updateCard(card.id, { status: 'SEDANG_DIGUNAKAN', driver_id: closed?.driver_id ?? '' });
     await recomputeJalurForCard(deps, card.id);
 
     await audit(c, { action: 'DELETE', modul: 'flazz', keterangan: 'Recon ' + row.id, data_sebelum: jsonSnip({ id: row.id, card_id: card.id, reconciliation_status: row.reconciliation_status }) });
     await afterWrite(u);
-    return c.json(okPayload({ msg: 'Rekonsiliasi dihapus. Saldo kartu dikembalikan ke saldo awal dan status kartu jadi SEDANG_DIGUNAKAN.' }));
+    return c.json(okPayload({ msg: 'Rekonsiliasi dihapus. Saldo kartu dikembalikan ke saldo sistem sebelum rekonsiliasi dan status kartu jadi SEDANG_DIGUNAKAN.' }));
   });
 
   // ── GET /api/flazz/dashboard (port getFlazzDashboardData) ─────────────────

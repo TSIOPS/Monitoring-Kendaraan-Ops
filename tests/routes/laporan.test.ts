@@ -416,6 +416,25 @@ describe('DELETE /api/laporan/:id', () => {
     expect(audits[0]).toMatchObject({ action: 'DELETE', modul: 'transaksi' });
   });
 
+  it('laporan yang sudah tercakup rekonsiliasi dikunci: hapus & Lepas Flazz -> 409, saldo tetap', async () => {
+    const { app, kv, lap, flz } = setup({
+      rows: [{ transaction_id: 'TRX-1', metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1', biaya_bbm: 120000 }],
+      flazzCard: [flazzCard({ last_balance: 380000, status: 'TERSEDIA' })],
+    });
+    flz.state.reconciliations.push({
+      id: 'REC-1', date: '2026-09-01', card_id: 'FLZ-1', driver_id: '', vehicle_id: '', opening_balance: 500000, total_topup: 0,
+      total_bbm_flazz: 120000, total_tol: 0, total_expense: 120000, flazz_balance: 380000, actual_balance: 380000, difference: 0,
+      reconciliation_status: 'SESUAI', notes: '', reconciled_by: '', reconciled_at: '2026-09-01T09:00:00.000Z', is_deleted: '',
+    } as any);
+    const tok = await loginAs(kv, PIC);
+    const hapus = await del(app, '/api/laporan/TRX-1', tok);
+    expect(hapus.status).toBe(409);
+    expect((await hapus.json() as any).message).toContain('tercakup rekonsiliasi');
+    expect((await del(app, '/api/laporan/TRX-1/flazz', tok)).status).toBe(409);
+    expect(lap.state.rows).toHaveLength(1);
+    expect(flz.state.cards[0]!.last_balance).toBe(380000);
+  });
+
   it('jalur yang sudah SELESAI (rekonsiliasi) kembali ke BELUM_DIISI saat laporan dihapus', async () => {
     const { app, kv, lap } = setup({
       rows: [{ transaction_id: 'TRX-1', metode_pembayaran: '', flazz_card_id: '', biaya_bbm: 0 }],

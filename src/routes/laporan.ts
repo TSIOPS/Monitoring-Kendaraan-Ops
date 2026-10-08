@@ -15,6 +15,7 @@ import * as L from '../logic/laporan';
 import { buildOdoMap, computeWarnings, ringkasanPeringatan } from '../logic/warnings';
 import { todayWib } from '../logic/jalur';
 import { rekapPengeluaran } from '../logic/rekap';
+import { laporanTerkunciRekon } from '../logic/flazz-recon';
 import type { WarningItem, WarningVehicle } from '../logic/warnings';
 
 const MAX_EVIDENCE_BYTES = 10 * 1024 * 1024;
@@ -38,6 +39,14 @@ function deny(kind: string, cabang: string): never {
 function assertOwnWarehouse(u: SessionUser, cabang: string): void {
   if (!isSuper(u) && String(u.cabang || '') !== String(cabang || '')) deny('data', u.cabang);
 }
+// Tolak perubahan pembayaran Flazz pada laporan yang sudah tercakup rekonsiliasi kartunya.
+async function assertBelumDirekon(deps: AppDeps, old: { timestamp?: string | null; tanggal?: string | null }, cardIds: string[]): Promise<void> {
+  if (!cardIds.length) return;
+  const waktu = L.parseTimestampMs(old.timestamp) ?? L.parseTanggalMs(old.tanggal);
+  const pesan = laporanTerkunciRekon(cardIds, waktu, await deps.flazz.listReconciliations());
+  if (pesan) throw new HttpError(409, pesan, 'CONFLICT');
+}
+
 function assertTransactionAccess(u: SessionUser, cabang: string): void {
   if (!isSuper(u) && String(u.cabang || '') !== String(cabang || '')) deny('transaksi', u.cabang);
 }
@@ -520,6 +529,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
         if (bal + delta < 0) throw new HttpError(409, L.msgEditInsufficient(bal), 'CONFLICT');
       }
     }
+    await assertBelumDirekon(deps, old, involved.filter((cid) => L.flazzEditDelta(oldPayState, newPayState, cid) !== 0));
 
     const newTgl = (p.tanggal !== undefined && p.tanggal !== '') ? String(p.tanggal) : String(old.tanggal);
     const newNama = (p.nama_supir !== undefined && p.nama_supir !== null && String(p.nama_supir) !== '') ? String(p.nama_supir) : oldNama;
@@ -678,6 +688,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const kartuTol = [metodeToll === 'FLAZZ' ? cardToll : '', String(old.flazz_card_id_toll_2 ?? '')]
       .filter((c) => c).map((c) => L.canonicalCardId(masterOf(c)));
 
+    await assertBelumDirekon(deps, old, [lepas1 ? cardBbm : '', lepas2 ? cardBbm2 : ''].filter(Boolean));
+
     const patch: Partial<LaporanInsert> = {};
     const kembalikan: Array<{ cardId: string; amount: number }> = [];
     if (lepas1) {
@@ -754,6 +766,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     // Semua kartu terlibat, termasuk kartu kedua.
     const cards = L.distinctFlazzCardsOf(payState);
     const txStampMs = L.parseTimestampMs(old.timestamp) ?? L.parseTanggalMs(old.tanggal);
+
+    await assertBelumDirekon(deps, old, cards);
 
     await deps.laporan.delete(id);
 

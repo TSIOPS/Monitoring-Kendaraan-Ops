@@ -152,6 +152,22 @@ export function deleteRecon409(
   return null;
 }
 
+// Laporan yang sudah tercakup rekonsiliasi (rekon kartunya dibuat pada/setelah laporan) dikunci:
+// pembayaran Flazz-nya tidak boleh diubah, dilepas, atau dihapus agar saldo tidak bergeser
+// dari saldo fisik yang sudah dicocokkan. Hapus rekonsiliasinya dulu bila perlu dikoreksi.
+export function laporanTerkunciRekon(cardIds: string[], waktuLaporan: number | null, recons: ReconLike[]): string | null {
+  if (waktuLaporan === null || !cardIds.length) return null;
+  for (const o of recons) {
+    if (!alive(o) || !cardIds.some((c) => sameCard(c, o.card_id))) continue;
+    const t = reconTs(o);
+    if (t !== null && t >= waktuLaporan) {
+      return 'Laporan ini sudah tercakup rekonsiliasi kartu Flazz tanggal ' + String(o.date || o.reconciled_at).slice(0, 10) +
+        '. Pembayaran Flazz tidak dapat diubah, dilepas, atau dihapus. Hapus rekonsiliasi tersebut terlebih dahulu bila memang perlu dikoreksi.';
+    }
+  }
+  return null;
+}
+
 // Penyerahan yang ditutup rekon ini: DIKEMBALIKAN terakhir dengan returned_at <= waktu rekon.
 export function usageClosedBy<T extends UsageLike>(recon: ReconLike, usages: T[]): T | null {
   const ts = reconTs(recon) ?? 0;
