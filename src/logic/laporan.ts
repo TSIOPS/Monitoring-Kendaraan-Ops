@@ -374,6 +374,20 @@ export function storeMetodeBbm(biayaBbm: number, metode: string): string {
   return num(biayaBbm) > 0 ? metode || 'TUNAI' : '';
 }
 
+// KM odometer wajib 5-6 digit (10.000-999.999) agar salah ketik (digit kurang/lebih) tertangkap.
+// Pengecualian: kendaraan yang odometernya memang masih < 10.000 (KM rujukan < 10.000) atau
+// belum punya riwayat (rujukan null). Meter rusak (estimasi) tidak dicek oleh pemanggil.
+export const KM_MIN_5_DIGIT = 10000;
+export const KM_MAKS_6_DIGIT = 999999;
+export function pesanDigitKm(label: string, km: number, kmRujukan: number | null): string {
+  if (!Number.isFinite(km)) return '';
+  if (km > KM_MAKS_6_DIGIT) return label + ' maksimal 6 digit (999.999). Periksa kembali angka odometer.';
+  if (km < KM_MIN_5_DIGIT && kmRujukan !== null && kmRujukan >= KM_MIN_5_DIGIT) {
+    return label + ' minimal 5 digit. KM terakhir kendaraan ini ' + formatIdNumber(kmRujukan) + '; periksa kembali angka odometer.';
+  }
+  return '';
+}
+
 export function buildOdoWarning(kmAwalBaru: number, prevKmAkhir: number, prevTanggal: string): string {
   const selisih = kmAwalBaru - prevKmAkhir;
   const tgl = formatDateId(prevTanggal);

@@ -77,6 +77,17 @@ describe('POST /api/laporan (save)', () => {
     expect(audits[0]).toMatchObject({ action: 'CREATE', modul: 'transaksi', keterangan: 'TRX ' + body.transaction_id });
   });
 
+  it('KM wajib 5-6 digit bila KM terakhir kendaraan sudah 5 digit; meter rusak dikecualikan', async () => {
+    const { app, kv, lap } = setup({ rows: [{ transaction_id: 'TRX-0', km_awal_confirmed: '14000', km_akhir_confirmed: '14100' }] });
+    const tok = await loginAs(kv, PIC);
+    const salah = await post(app, '/api/laporan', tok, saveBody({ km_awal_confirmed: '1410', km_akhir_confirmed: '14200' }));
+    expect(salah.status).toBe(400);
+    expect(((await salah.json()) as any).message).toContain('KM awal minimal 5 digit');
+    const lebih = await post(app, '/api/laporan', tok, saveBody({ km_awal_confirmed: '14100', km_akhir_confirmed: '1420000' }));
+    expect(((await lebih.json()) as any).message).toContain('KM akhir maksimal 6 digit');
+    expect(lap.state.rows).toHaveLength(1);
+  });
+
   it('gate jalur 409 dengan pesan verbatim', async () => {
     const { app, kv } = setup({ jalur: [] });
     const tok = await loginAs(kv, PIC);

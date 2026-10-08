@@ -217,6 +217,12 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     }
 
     const prevTrx = await deps.laporan.lastForVehicle(vehicleId);
+    const rujukanKm = prevTrx ? prevTrx.km_akhir : null;
+    const salahDigit = [
+      p.km_awal_broken ? '' : L.pesanDigitKm('KM awal', L.num(p.km_awal_confirmed), rujukanKm),
+      p.km_akhir_broken ? '' : L.pesanDigitKm('KM akhir', L.num(p.km_akhir_confirmed), rujukanKm),
+    ].filter(Boolean);
+    if (salahDigit.length) throw new HttpError(400, salahDigit.join(' '), 'BAD_REQUEST');
     let odo;
     try {
       odo = L.estimateOdo({
@@ -556,6 +562,12 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const newBarAkhir = p.bar_akhir !== undefined ? L.num(p.bar_akhir) : L.num(old.bar_akhir);
     const newKmAwal = p.km_awal !== undefined ? L.num(p.km_awal) : L.num(old.km_awal_confirmed);
     const newKmAkhir = p.km_akhir !== undefined ? L.num(p.km_akhir) : L.num(old.km_akhir_confirmed);
+    // Cek digit hanya untuk KM yang diubah; rujukan = nilai lama laporan ini.
+    const salahDigitEdit = [
+      newKmAwal !== L.num(old.km_awal_confirmed) ? L.pesanDigitKm('KM awal', newKmAwal, L.num(old.km_awal_confirmed) || null) : '',
+      newKmAkhir !== L.num(old.km_akhir_confirmed) ? L.pesanDigitKm('KM akhir', newKmAkhir, L.num(old.km_akhir_confirmed) || null) : '',
+    ].filter(Boolean);
+    if (salahDigitEdit.length) throw new HttpError(400, salahDigitEdit.join(' '), 'BAD_REQUEST');
 
     const patch: Partial<LaporanInsert> = {
       metode_pembayaran: (newBiaya > 0 || newMetode === 'FLAZZ') ? newMetode : '',

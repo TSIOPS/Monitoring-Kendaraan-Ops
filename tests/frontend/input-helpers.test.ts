@@ -204,3 +204,16 @@ describe('meteran jarum', () => {
     expect([warnaLevel(10), warnaLevel(30), warnaLevel(80)]).toEqual(['#dc3545', '#fd7e14', '#198754']);
   });
 });
+
+describe('digit KM', () => {
+  it('5-6 digit; odometer < 10.000 atau tanpa riwayat dikecualikan; meter rusak tidak dicek', async () => {
+    const { pesanDigitKm } = await import('../../static/js/pages/input.js');
+    expect(pesanDigitKm('KM awal', '1410', 14000)).toContain('minimal 5 digit');
+    expect(pesanDigitKm('KM awal', '14100', 14000)).toBe('');
+    expect(pesanDigitKm('KM akhir', '1000000', 14000)).toContain('maksimal 6 digit');
+    expect(pesanDigitKm('KM awal', '8513', 8507)).toBe('');
+    expect(pesanDigitKm('KM awal', '500', null)).toBe('');
+    const err = validateForm({ ...DASAR, km_awal: '1410', km_akhir: '14200', km_terakhir: 14000, km_awal_broken: true });
+    expect(err.join(' ')).not.toContain('digit');
+  });
+});

@@ -2,7 +2,7 @@ import { get, put } from '../api.js';
 import { getRouteParam } from '../router.js';
 import { el, fmtNum, toast, pratinjauFoto } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
-import { hitungLiter, kompresGambar, namaAman, opsiBbm, THUMB_KUALITAS, THUMB_LEBAR } from './input.js';
+import { hitungLiter, kompresGambar, namaAman, opsiBbm, pesanDigitKm, THUMB_KUALITAS, THUMB_LEBAR } from './input.js';
 
 // Edit transaksi lengkap (M11), setara alur edit GAS: tanggal, supir, KM, bar,
 // liter, pembayaran (grup 1 & 2), dan foto odometer. Kendaraan tetap terkunci.
@@ -24,6 +24,12 @@ export function validateEdit(v) {
     if (String(x) === '' || !Number.isFinite(Number(x)) || Number(x) < 0) err.push(`${label} harus angka dan tidak boleh negatif.`);
   }
   if (Number(v.km_akhir) < Number(v.km_awal)) err.push('KM akhir tidak boleh lebih kecil dari KM awal.');
+  // Cek digit hanya untuk KM yang diubah; rujukan = nilai lama laporan (sama dengan server).
+  for (const [label, baru, lama] of [['KM awal', v.km_awal, v.km_awal_lama], ['KM akhir', v.km_akhir, v.km_akhir_lama]]) {
+    if (lama !== undefined && Number(baru) === Number(lama)) continue;
+    const pesan = pesanDigitKm(label, baru, Number(lama) || null);
+    if (pesan) err.push(pesan);
+  }
   if (v.metode_pembayaran === 'FLAZZ' && !v.flazz_card_id) err.push('Pilih kartu Flazz untuk pembayaran.');
   return err;
 }
@@ -235,6 +241,7 @@ export async function renderEdit(view) {
     alertBox.classList.add('d-none');
     const values = {
       tanggal: tanggal.value, nama_supir: supir.value, km_awal: kmAwal.value, km_akhir: kmAkhir.value,
+      km_awal_lama: trx.km_awal, km_akhir_lama: trx.km_akhir,
       bar_awal: barAwal.value, bar_akhir: barAkhir.value, liter_bbm: liter.value,
       metode_pembayaran: metode.value, biaya_bbm: biayaBbm.value, biaya_toll: biayaTol.value, flazz_card_id: kartu.value,
       metode_toll: metodeTol.value, flazz_card_id_toll: kartuTol.value,

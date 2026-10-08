@@ -9,6 +9,17 @@ const KUALITAS_JPEG = 0.7;
 export const THUMB_LEBAR = 320;
 export const THUMB_KUALITAS = 0.6;
 
+// KM wajib 5-6 digit (sama dengan server); kendaraan yang odometernya memang < 10.000
+// (KM terakhir < 10.000) atau belum punya riwayat (rujukan kosong) dikecualikan.
+export function pesanDigitKm(label, km, kmRujukan) {
+  const n = Number(km);
+  if (String(km ?? '') === '' || !Number.isFinite(n)) return '';
+  if (n > 999999) return `${label} maksimal 6 digit (999.999). Periksa kembali angka odometer.`;
+  const r = kmRujukan === null || kmRujukan === undefined || kmRujukan === '' ? null : Number(kmRujukan);
+  if (n < 10000 && r !== null && r >= 10000) return `${label} minimal 5 digit. KM terakhir kendaraan ini ${fmtNum(r)}; periksa kembali angka odometer.`;
+  return '';
+}
+
 export function validateForm(v) {
   const err = [];
   if (!v.vehicle_id) err.push('Kendaraan wajib dipilih.');
@@ -21,6 +32,11 @@ export function validateForm(v) {
     err.push('KM awal dan akhir wajib diisi.');
   } else if (!Number.isFinite(kmAwal) || !Number.isFinite(kmAkhir)) {
     err.push('KM awal dan akhir harus berupa angka.');
+  } else {
+    for (const [label, km, rusak] of [['KM awal', v.km_awal, v.km_awal_broken], ['KM akhir', v.km_akhir, v.km_akhir_broken]]) {
+      const pesan = rusak ? '' : pesanDigitKm(label, km, v.km_terakhir);
+      if (pesan) err.push(pesan);
+    }
   }
 
   const liter = Number(v.liter_bbm);
@@ -198,8 +214,8 @@ export async function renderInput(view) {
     tanggal: el('input', { class: 'form-control', type: 'date', id: 'f-tanggal' }),
     nama_supir: el('select', { class: 'form-select', id: 'f-supir' }),
     nama_supir_2: el('input', { class: 'form-control bg-light', id: 'f-supir-2', readonly: 'readonly', tabindex: '-1', placeholder: 'tidak ada' }),
-    km_awal: el('input', { class: 'form-control', type: 'number', inputmode: 'numeric', id: 'f-km-awal' }),
-    km_akhir: el('input', { class: 'form-control', type: 'number', inputmode: 'numeric', id: 'f-km-akhir' }),
+    km_awal: el('input', { class: 'form-control', type: 'number', inputmode: 'numeric', id: 'f-km-awal', min: '0', max: '999999', placeholder: '5–6 digit' }),
+    km_akhir: el('input', { class: 'form-control', type: 'number', inputmode: 'numeric', id: 'f-km-akhir', min: '0', max: '999999', placeholder: '5–6 digit' }),
     km_awal_broken: el('input', { class: 'form-check-input', type: 'checkbox', id: 'f-km-awal-broken' }),
     km_akhir_broken: el('input', { class: 'form-check-input', type: 'checkbox', id: 'f-km-akhir-broken' }),
     bar_awal: el('input', { class: 'form-control', type: 'number', inputmode: 'numeric', id: 'f-bar-awal' }),
@@ -488,6 +504,7 @@ export async function renderInput(view) {
       km_akhir: f.km_akhir.value,
       km_awal_broken: f.km_awal_broken.checked,
       km_akhir_broken: f.km_akhir_broken.checked,
+      km_terakhir: vehicles.find((x) => String(x.vehicle_id) === f.vehicle_id.value)?.km_terakhir ?? null,
       km_tanpa_estimasi: false,
       jarum: isJarum,
       bar_awal: f.bar_awal.value,

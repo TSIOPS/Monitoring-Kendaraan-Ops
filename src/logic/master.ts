@@ -73,6 +73,8 @@ export function getMasterPayload(
           v.interval_ganti_oli_km > 0 ? v.interval_ganti_oli_km : defaultOilIntervalKm(jenis),
         odo_estimasi_terakhir: indikator === 'ANALOG_JARUM' && lastSumber[String(v.vehicle_id)] === 'ESTIMASI',
         cabang_bersama: daftarCabangBersama(v.cabang_bersama),
+        // KM akhir laporan terakhir (rujukan cek digit KM di form); null bila belum ada laporan.
+        km_terakhir: Number.isFinite(Number(lastSumber[String(v.vehicle_id)])) && lastSumber[String(v.vehicle_id)] !== undefined ? Number(lastSumber[String(v.vehicle_id)]) : null,
       };
     });
 
