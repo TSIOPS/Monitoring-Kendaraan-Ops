@@ -5,13 +5,21 @@ import { el, fmtNum, fmtDateId, toast, spinner, confirmDialog, halaman, navHalam
 const PER_HALAMAN = 10;
 let halamanAktif = 1;
 // Filter bertahan selama sesi halaman (mis. setelah hapus/detach yang menggambar ulang).
-let filterAktif = { cabang: '', vehicle_id: '', dari: '', sampai: '' };
+let filterAktif = { cabang: '', vehicle_id: '', dari: '', sampai: '', pengguna: '' };
 
 export function queryHistory(f) {
   const q = new URLSearchParams();
   for (const k of ['cabang', 'vehicle_id', 'dari', 'sampai']) if (f[k]) q.set(k, f[k]);
   const s = q.toString();
   return s ? `?${s}` : '';
+}
+
+// Daftar penginput unik (untuk filter "Diinput oleh") dan penyaringannya di sisi klien.
+export function opsiPengguna(rows) {
+  return [...new Set(rows.map((r) => String(r.user || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+export function saringPengguna(rows, nama) {
+  return nama ? rows.filter((r) => String(r.user || '').trim() === nama) : rows;
 }
 
 // Pesan validasi rentang tanggal; kosong bila valid.
@@ -27,7 +35,7 @@ const STATUS_KELAS = {
   'data belum cukup': 'text-bg-secondary',
 };
 
-const KOLOM = ['Tanggal', 'Warehouse', 'Supir', 'Kendaraan', 'KM Tempuh', 'Isi BBM', 'Konsumsi BBM', 'Aksi'];
+const KOLOM = ['Tanggal', 'Warehouse', 'Supir', 'Kendaraan', 'KM Tempuh', 'Isi BBM', 'Konsumsi BBM', 'Diinput oleh', 'Aksi'];
 
 export function teksEfisiensi(row) {
   const status = String(row.status_efisiensi || '').toLowerCase();
@@ -139,6 +147,7 @@ function barisTabel(r) {
       pakaiKartu2(r) ? el('div', {}, [el('span', { class: 'badge text-bg-light border', title: 'Dibayar dengan 2 kartu', text: '2 kartu' })]) : null,
     ]),
     selKonsumsi(r),
+    el('td', { class: 'small' }, [String(r.user || '-')]),
     selAksi(r),
   ]);
 }
@@ -213,13 +222,15 @@ function pasangAksiDetach(view, root) {
   });
 }
 
-function panelFilter(master, isSuper, view) {
+function panelFilter(master, isSuper, view, penginput) {
   const cabangList = Array.isArray(master.cabangList) ? master.cabangList : [];
   const vehicles = Array.isArray(master.vehicles) ? master.vehicles : [];
   const wh = el('select', { class: 'form-select' }, [el('option', { value: '', text: 'Semua Warehouse' }), ...cabangList.map((c) => el('option', { value: c.kode, text: c.nama || c.kode }))]);
   const kendaraan = el('select', { class: 'form-select' });
   const dari = el('input', { type: 'date', class: 'form-control', value: filterAktif.dari });
   const sampai = el('input', { type: 'date', class: 'form-control', value: filterAktif.sampai });
+  const pengguna = el('select', { class: 'form-select' }, [el('option', { value: '', text: 'Semua penginput' }), ...penginput.map((n) => el('option', { value: n, text: n }))]);
+  pengguna.value = penginput.includes(filterAktif.pengguna) ? filterAktif.pengguna : '';
   const pesan = el('div', { class: 'text-danger small mt-1' });
   wh.value = filterAktif.cabang;
 
@@ -243,13 +254,14 @@ function panelFilter(master, isSuper, view) {
 
   return el('div', { class: 'panel' }, [
     el('div', { class: 'row g-2 align-items-end' }, [
-      isSuper ? kolom('col-md-3', 'Warehouse', wh) : null,
-      kolom(isSuper ? 'col-md-3' : 'col-md-4', 'Kendaraan', kendaraan),
+      isSuper ? kolom('col-md-2', 'Warehouse', wh) : null,
+      kolom(isSuper ? 'col-md-2' : 'col-md-3', 'Kendaraan', kendaraan),
+      kolom('col-md-2', 'Diinput oleh', pengguna),
       kolom('col-md-2', 'Dari tanggal', dari),
       kolom('col-md-2', 'Sampai tanggal', sampai),
-      el('div', { class: `${isSuper ? 'col-md-2' : 'col-md-4'} d-flex gap-2` }, [
-        el('button', { class: 'btn btn-primary flex-fill', type: 'button', text: 'Tampilkan', onclick: () => terapkan({ cabang: isSuper ? wh.value : '', vehicle_id: kendaraan.value, dari: dari.value, sampai: sampai.value }) }),
-        el('button', { class: 'btn btn-outline-secondary', type: 'button', text: 'Reset', onclick: () => terapkan({ cabang: '', vehicle_id: '', dari: '', sampai: '' }) }),
+      el('div', { class: `${isSuper ? 'col-md-2' : 'col-md-3'} d-flex gap-2` }, [
+        el('button', { class: 'btn btn-primary flex-fill', type: 'button', text: 'Tampilkan', onclick: () => terapkan({ cabang: isSuper ? wh.value : '', vehicle_id: kendaraan.value, dari: dari.value, sampai: sampai.value, pengguna: pengguna.value }) }),
+        el('button', { class: 'btn btn-outline-secondary', type: 'button', text: 'Reset', onclick: () => terapkan({ cabang: '', vehicle_id: '', dari: '', sampai: '', pengguna: '' }) }),
       ]),
     ]),
     pesan,
@@ -268,14 +280,15 @@ export async function renderHistory(view) {
     return { ok: false };
   }
 
-  const transactions = Array.isArray(data.transactions) ? data.transactions : [];
+  const semua = Array.isArray(data.transactions) ? data.transactions : [];
+  const transactions = saringPengguna(semua, filterAktif.pengguna);
   const monthly = (Array.isArray(data.monthly) ? data.monthly : [])
     .filter((m) => !filterAktif.cabang || String(m.cabang) === filterAktif.cabang);
-  const adaFilter = Boolean(filterAktif.cabang || filterAktif.vehicle_id || filterAktif.dari || filterAktif.sampai);
+  const adaFilter = Boolean(filterAktif.cabang || filterAktif.vehicle_id || filterAktif.dari || filterAktif.sampai || filterAktif.pengguna);
 
   view.replaceChildren(
     el('div', {}, [
-      panelFilter(master, isSuper, view),
+      panelFilter(master, isSuper, view, opsiPengguna(semua)),
       panelStatistik(monthly),
       panelTransaksi(transactions, view, adaFilter),
     ]),

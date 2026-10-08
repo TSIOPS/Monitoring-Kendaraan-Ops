@@ -1,3 +1,5 @@
+import { cocokAudit } from '../src/logic/audit';
+import type { AuditFilter } from '../src/logic/audit';
 import type { JalurRepo } from '../src/db/jalur';
 import type { JalurFull } from '../src/logic/jalur';
 import type { AppDeps, AuditRow, KVStore, SessionUser } from '../src/deps';
@@ -322,7 +324,7 @@ export function memSettings(initial?: Record<string, string>) {
 }
 
 export function memAudit(rows: AuditRow[] = []) {
-  const auditList = async (limit: number) => rows.slice(0, limit);
+  const auditList = async (limit: number, f?: AuditFilter) => rows.filter((r) => cocokAudit(r, f)).slice(0, limit);
   return { rows, auditList };
 }
 

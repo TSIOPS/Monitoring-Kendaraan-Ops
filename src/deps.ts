@@ -1,3 +1,4 @@
+import type { AuditFilter } from './logic/audit';
 import type { MasterRepo } from './db/master';
 import type { SettingsRepo } from './db/settings';
 import type { LaporanRepo } from './db/laporan';
@@ -59,7 +60,7 @@ export interface AppDeps {
   kv: KVStore;
   findByUsername: (username: string) => Promise<UserRecord | null>;
   recordAudit: (entry: AuditEntry) => Promise<void>;
-  auditList: (limit: number) => Promise<AuditRow[]>;
+  auditList: (limit: number, filter?: AuditFilter) => Promise<AuditRow[]>;
   now: () => number;
   master: MasterRepo;
   settings: SettingsRepo;

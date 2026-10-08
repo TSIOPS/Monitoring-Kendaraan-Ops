@@ -135,6 +135,7 @@ export async function renderJalurList(view) {
       el('td', {}, [el('div', { text: j.flazz_card_name || (j.flazz_card_id ? j.flazz_card_id : '-') }), j.flazz_card_id_2 ? el('div', { class: 'small text-muted', text: j.flazz_card_name_2 || j.flazz_card_id_2 }) : null]),
       el('td', {}, [badge(LABEL_STATUS[j.status] || j.status, KELAS_STATUS[j.status])]),
       el('td', {}, [badge(teksDokumen(j.status_pajak, j.sisa_hari_pajak), KELAS_DOKUMEN[j.status_pajak])]),
+      el('td', { class: 'small', text: j.created_by || '-' }),
       el('td', {}, [
         el('a', { class: 'btn btn-sm btn-outline-primary me-1', href: `#/jalur/edit/${encodeURIComponent(j.id)}`, text: 'Edit' }),
         el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', text: 'Hapus', onclick: () => hapus(j) }),
@@ -142,7 +143,7 @@ export async function renderJalurList(view) {
     ])));
     hasil.replaceChildren(el('div', { class: 'table-wrap' }, [
       el('table', { class: 'table table-sm align-middle' }, [
-        el('thead', {}, [el('tr', {}, ['Tanggal', 'Kendaraan', 'Driver', 'Rute', 'Etoll', 'Status', 'Pajak', 'Aksi'].map((t) => el('th', { text: t })))]),
+        el('thead', {}, [el('tr', {}, ['Tanggal', 'Kendaraan', 'Driver', 'Rute', 'Etoll', 'Status', 'Pajak', 'Dibuat oleh', 'Aksi'].map((t) => el('th', { text: t })))]),
         tbody,
       ]),
     ]));

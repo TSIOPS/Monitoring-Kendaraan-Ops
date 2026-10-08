@@ -42,6 +42,7 @@ const NAV = [
     items: [
       { hash: '#/master', label: 'Data Master', ikon: 'bi-database' },
       { hash: '#/pengaturan', label: 'Pengaturan', ikon: 'bi-sliders', superOnly: true },
+      { hash: '#/audit', label: 'Audit Log', ikon: 'bi-shield-check', superOnly: true },
     ],
   },
 ];
@@ -223,6 +224,11 @@ registerRoute('#/galeri', async () => {
 registerRoute('#/perbandingan', async () => {
   const mod = await import('./pages/perbandingan.js');
   return { render: mod.renderPerbandingan };
+});
+
+registerRoute('#/audit', async () => {
+  const mod = await import('./pages/audit.js');
+  return { render: mod.renderAudit };
 });
 
 registerRoute('#/rekap', async () => {
