@@ -41,6 +41,8 @@ export interface LaporanRepo {
   lastForVehicle(vehicle_id: string): Promise<{ km_akhir: number | null; tanggal: string } | null>;
   recentRows(cabang: string, limit: number): Promise<LaporanRow[]>;
   rowsInScope(cabang: string, limit: number): Promise<LaporanRow[]>;
+  // Baris laporan kendaraan tertentu dari semua cabang (konteks kendaraan bersama), urut seq naik.
+  rowsForVehicles(vehicleIds: string[], limit: number): Promise<LaporanRow[]>;
   duplicateCandidates(cabang: string, limit: number): Promise<LaporanRow[]>;
   rowsInMonth(cabang: string, periode: string): Promise<LaporanRow[]>;
   rowsBetween(cabang: string, dari: string, sampai: string): Promise<LaporanRow[]>;
@@ -88,6 +90,13 @@ export function supabaseLaporanRepo(env: Env): LaporanRepo {
 
     recentRows(cabang, limit) { return rowsInScope(cabang, limit); },
     rowsInScope(cabang, limit) { return rowsInScope(cabang, limit); },
+    async rowsForVehicles(vehicleIds, limit) {
+      if (!vehicleIds.length) return [];
+      const { data, error } = await sb().from('penggunaan_bbm').select('*').in('vehicle_id', vehicleIds)
+        .order('seq', { ascending: false }).limit(limit);
+      if (error) throw fail('rowsForVehicles')(error);
+      return (data as unknown as LaporanRow[]).slice().reverse();
+    },
     duplicateCandidates(cabang, limit) { return rowsInScope(cabang, limit); },
 
     // Rentang tanggal (YYYY-MM-DD, inklusif); dibaca per 1000 baris (batas PostgREST).

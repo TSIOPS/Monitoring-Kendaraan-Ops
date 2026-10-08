@@ -134,7 +134,8 @@ export function memMaster(initial?: Partial<MemMasterState>) {
     },
     async updateKendaraan(v) {
       const i = state.kendaraan.findIndex((x) => x.vehicle_id === v.vehicle_id);
-      if (i > -1) state.kendaraan[i] = clone(v);
+      // Seperti UPDATE PostgREST: kolom yang tidak dikirim tetap.
+      if (i > -1) state.kendaraan[i] = { ...state.kendaraan[i]!, ...clone(v) };
     },
     async setKendaraanStatus(vehicle_id, status) {
       const v = state.kendaraan.find((x) => x.vehicle_id === vehicle_id);
@@ -243,6 +244,9 @@ export function memLaporan(initial?: Partial<MemLaporanState>) {
     },
     async recentRows(cabang, limit) { return clone(scoped(cabang, limit)); },
     async rowsInScope(cabang, limit) { return clone(scoped(cabang, limit)); },
+    async rowsForVehicles(vehicleIds, limit) {
+      return clone(state.rows.filter((r) => vehicleIds.includes(String(r.vehicle_id))).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0)).slice(-limit));
+    },
     async duplicateCandidates(cabang, limit) { return clone(scoped(cabang, limit)); },
     async rowsBetween(cabang, dari, sampai) {
       return clone(state.rows.filter((r) => (!cabang || String(r.kode_cabang) === cabang)

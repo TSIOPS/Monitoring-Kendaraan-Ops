@@ -74,6 +74,14 @@ export function susunDetailKartu(h) {
   return { topup, keluar };
 }
 
+// BBM Flazz yang kartunya sudah direkonsiliasi pada/setelah laporan dibuat (server menolak Lepas Flazz).
+export function sudahDirekon(b, recons) {
+  const waktu = ts(b.timestamp) ?? ts(b.tanggal);
+  if (waktu === null) return false;
+  return (recons || []).some((r) => String(r.is_deleted || '') !== '1' && r.card_id === b.card_id &&
+    (ts(r.reconciled_at) ?? ts(r.date) ?? -Infinity) >= waktu);
+}
+
 // Info selisih seperti GAS: selisih tampilan = fisik - sistem; usulan tindakan.
 export function infoSelisih(sistem, fisik) {
   const diff = n(fisik) - n(sistem);
@@ -501,8 +509,8 @@ export async function renderFlazzRiwayat(view) {
         el('td', { text: fmtDateId(b.tanggal) }), el('td', { text: kn(b.card_id) }),
         el('td', { text: [b.driver, b.vehicle].filter(Boolean).join(' / ') || '-' }),
         el('td', { class: 'text-end', text: rp(n(b.amount) + n(b.toll_amount)) }), el('td', {}, [tautan(b.evidence)]),
-        el('td', {}, n(b.amount) > 0 ? [el('button', { class: 'btn btn-sm btn-outline-warning', type: 'button', text: 'Lepas Flazz',
-          onclick: () => hapus('Lepas pembayaran BBM Flazz dari laporan ini? Nominal tetap tercatat sebagai tunai dan saldo kartu dikembalikan.', `/api/laporan/${encodeURIComponent(b.transaction_id)}/flazz`) })] : []),
+        el('td', {}, n(b.amount) <= 0 ? [] : sudahDirekon(b, data.recons) ? [el('span', { class: 'small text-muted', title: 'Hapus rekonsiliasi kartunya dulu bila perlu dikoreksi.' }, [el('i', { class: 'bi bi-lock me-1', 'aria-hidden': 'true' }), 'Sudah direkon'])] : [el('button', { class: 'btn btn-sm btn-outline-warning', type: 'button', text: 'Lepas Flazz',
+          onclick: () => hapus('Lepas pembayaran BBM Flazz dari laporan ini? Nominal tetap tercatat sebagai tunai dan saldo kartu dikembalikan.', `/api/laporan/${encodeURIComponent(b.transaction_id)}/flazz`) })]),
       ])));
     } else if (tab === 'usage') {
       const list = filterKartu(data.usages).filter((u) => dalam(u.used_at || u.date));

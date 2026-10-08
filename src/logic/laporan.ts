@@ -696,6 +696,9 @@ export interface RecentItem {
   tanggal: string;
   timestamp: number;
   sub_timestamp: number;
+  // Kartu laporan sudah tercakup rekonsiliasi: Lepas Flazz / hapus ditolak server (UI menyembunyikan).
+  kunci_lepas?: boolean;
+  kunci_hapus?: boolean;
   user: string;
   cabang: string;
   kode_cabang: string;

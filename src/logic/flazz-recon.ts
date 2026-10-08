@@ -168,6 +168,22 @@ export function laporanTerkunciRekon(cardIds: string[], waktuLaporan: number | n
   return null;
 }
 
+// Tandai item History yang terkunci rekonsiliasi (aturan sama dengan server: Lepas Flazz = kartu BBM,
+// hapus = semua kartu laporan).
+export function tandaiKunciRekon<T extends {
+  timestamp: number; sub_timestamp: number; metode_pembayaran: string; flazz_card_id: string; metode_toll: string;
+  flazz_card_id_toll: string; flazz_card_id_2: string; flazz_card_id_toll_2: string; kunci_lepas?: boolean; kunci_hapus?: boolean;
+}>(items: T[], recons: ReconLike[]): T[] {
+  for (const t of items) {
+    const waktu = t.sub_timestamp || t.timestamp || null;
+    const bbm = [t.metode_pembayaran === 'FLAZZ' ? t.flazz_card_id : '', t.flazz_card_id_2].filter(Boolean);
+    const semua = [...bbm, t.metode_toll === 'FLAZZ' ? t.flazz_card_id_toll : '', t.flazz_card_id_toll_2].filter(Boolean);
+    t.kunci_lepas = !!laporanTerkunciRekon(bbm, waktu, recons);
+    t.kunci_hapus = !!laporanTerkunciRekon(semua, waktu, recons);
+  }
+  return items;
+}
+
 // Penyerahan yang ditutup rekon ini: DIKEMBALIKAN terakhir dengan returned_at <= waktu rekon.
 export function usageClosedBy<T extends UsageLike>(recon: ReconLike, usages: T[]): T | null {
   const ts = reconTs(recon) ?? 0;

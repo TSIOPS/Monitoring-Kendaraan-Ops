@@ -15,7 +15,8 @@ import * as L from '../logic/laporan';
 import { buildOdoMap, computeWarnings, ringkasanPeringatan } from '../logic/warnings';
 import { todayWib } from '../logic/jalur';
 import { rekapPengeluaran } from '../logic/rekap';
-import { laporanTerkunciRekon } from '../logic/flazz-recon';
+import { laporanTerkunciRekon, tandaiKunciRekon } from '../logic/flazz-recon';
+import { bolehPakai, cabangPemakai, gabungKonteks, idBersamaUntuk } from '../logic/kendaraan-bersama';
 import type { WarningItem, WarningVehicle } from '../logic/warnings';
 
 const MAX_EVIDENCE_BYTES = 10 * 1024 * 1024;
@@ -36,8 +37,13 @@ function isSuper(u: SessionUser): boolean {
 function deny(kind: string, cabang: string): never {
   throw new HttpError(403, 'Akses ditolak: Anda hanya dapat mengelola ' + kind + ' warehouse ' + cabang + '.', 'FORBIDDEN');
 }
-function assertOwnWarehouse(u: SessionUser, cabang: string): void {
-  if (!isSuper(u) && String(u.cabang || '') !== String(cabang || '')) deny('data', u.cabang);
+// Baris laporan cabang + baris kendaraan bersamanya dari cabang lain, agar efisiensi 7 trip,
+// selisih ODO, dan KM ganti oli dihitung dari riwayat lengkap kendaraan.
+async function denganKonteksBersama(deps: AppDeps, kendaraan: Array<{ vehicle_id: string; kode_cabang: string; cabang_bersama?: string }>, rows: L.LaporanRow[], cabang: string): Promise<L.LaporanRow[]> {
+  if (!cabang) return rows;
+  const ids = idBersamaUntuk(kendaraan, cabang);
+  if (!ids.length) return rows;
+  return gabungKonteks(rows, await deps.laporan.rowsForVehicles(ids, 2000));
 }
 // Tolak perubahan pembayaran Flazz pada laporan yang sudah tercakup rekonsiliasi kartunya.
 async function assertBelumDirekon(deps: AppDeps, old: { timestamp?: string | null; tanggal?: string | null }, cardIds: string[]): Promise<void> {
@@ -45,6 +51,13 @@ async function assertBelumDirekon(deps: AppDeps, old: { timestamp?: string | nul
   const waktu = L.parseTimestampMs(old.timestamp) ?? L.parseTanggalMs(old.tanggal);
   const pesan = laporanTerkunciRekon(cardIds, waktu, await deps.flazz.listReconciliations());
   if (pesan) throw new HttpError(409, pesan, 'CONFLICT');
+}
+
+// Cabang akses laporan lama: cabang laporan bila kendaraannya (bersama) memang dipakai cabang itu,
+// selain itu cabang kendaraan (kendaraan pindah cabang tetap mengikuti pemilik barunya).
+function cabangAksesLaporan(k: { kode_cabang: string; cabang_bersama?: string } | null, laporanCabang: string): string {
+  if (!k) return laporanCabang;
+  return cabangPemakai(k).includes(String(laporanCabang || '')) ? laporanCabang : k.kode_cabang;
 }
 
 function assertTransactionAccess(u: SessionUser, cabang: string): void {
@@ -176,8 +189,10 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const vehicleId = String(p.vehicle_id ?? '').trim();
     const kendaraan = await deps.master.findKendaraanById(vehicleId);
     if (!kendaraan) throw new HttpError(404, 'Kendaraan tidak ditemukan', 'NOT_FOUND');
-    const trxCabang = kendaraan.kode_cabang || u.cabang;
-    assertOwnWarehouse(u, trxCabang);
+    // Kendaraan bersama: laporan distempel cabang jalurnya (cabang pemakai), bukan pemilik.
+    if (!isSuper(u) && !bolehPakai(String(u.cabang || ''), kendaraan)) deny('data', u.cabang);
+    const calonCabang = isSuper(u) ? cabangPemakai(kendaraan) : [String(u.cabang || '')];
+    if (!calonCabang.length) calonCabang.push(String(kendaraan.kode_cabang || u.cabang || ''));
 
     const isJarum = String(kendaraan.jenis_indikator) === 'ANALOG_JARUM';
     const jumlahBar = L.jumlahBarEfektif(kendaraan.jenis_indikator, kendaraan.jumlah_bar);
@@ -190,12 +205,13 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const liter = L.num(p.biaya_bbm) + L.num(p.biaya_bbm_2) > 0 ? L.num(p.liter_bbm) : 0;
     const literKonsumsi = L.computeLiterKonsumsi(liter, barAwal, barAkhir, literPerBar);
 
-    const matchedJalur = await deps.laporan.findJalurByCriteria({
-      tanggal: String(p.tanggal ?? ''),
-      vehicle_id: vehicleId,
-      nama_driver: String(p.nama_supir ?? ''),
-      kode_cabang: trxCabang,
-    });
+    let trxCabang = calonCabang[0]!;
+    let matchedJalur: Awaited<ReturnType<typeof deps.laporan.findJalurByCriteria>> = null;
+    for (const cab of calonCabang) {
+      const j = await deps.laporan.findJalurByCriteria({ tanggal: String(p.tanggal ?? ''), vehicle_id: vehicleId, nama_driver: String(p.nama_supir ?? ''), kode_cabang: cab });
+      if (j && (!matchedJalur || j.status === 'BELUM_DIISI')) { matchedJalur = j; trxCabang = cab; }
+      if (j?.status === 'BELUM_DIISI') break;
+    }
     if (!matchedJalur || matchedJalur.status !== 'BELUM_DIISI') {
       throw new HttpError(409, L.MSG_JALUR_GATE, 'CONFLICT');
     }
@@ -383,8 +399,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const key = performaCacheKey(roleOf(u), cabang);
     const cached = await deps.kv.get(key, 'json');
     if (cached) return c.json(okPayload({ items: cached }));
-    const rows = await deps.laporan.rowsInScope(cabang, 5000);
     const all = await deps.master.listAll();
+    const rows = await denganKonteksBersama(deps, all.kendaraan, await deps.laporan.rowsInScope(cabang, 5000), cabang);
     const items = L.buildPerformaList(rows, kendaraanInfoMap(all), cabangNamaMapOf(all));
     await deps.kv.put(key, JSON.stringify(items), { expirationTtl: 300 });
     return c.json(okPayload({ items }));
@@ -444,7 +460,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
     const { cardMap } = await loadCards(deps);
     const kendaraan = await deps.master.findKendaraanById(old.vehicle_id);
-    const vehicleBranch = kendaraan?.kode_cabang ?? old.kode_cabang;
+    const vehicleBranch = cabangAksesLaporan(kendaraan, old.kode_cabang);
     let branch = vehicleBranch;
     if (oldMetode === 'FLAZZ') branch = cardMap.get(L.canonicalCardId(oldCard))?.branch_id ?? vehicleBranch;
     else if (oldMetodeToll === 'FLAZZ' && oldCardToll) branch = cardMap.get(L.canonicalCardId(oldCardToll))?.branch_id ?? vehicleBranch;
@@ -678,7 +694,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
     const { cardMap } = await loadCards(deps);
     const masterOf = (cid: string) => cardMap.get(L.canonicalCardId(cid))?.id ?? cid;
-    const vehicleBranch = (await deps.master.findKendaraanById(old.vehicle_id))?.kode_cabang ?? old.kode_cabang;
+    const vehicleBranch = cabangAksesLaporan(await deps.master.findKendaraanById(old.vehicle_id), old.kode_cabang);
     const kartuAkses = lepas1 ? cardBbm : cardBbm2;
     assertTransactionAccess(u, cardMap.get(L.canonicalCardId(kartuAkses))?.branch_id ?? vehicleBranch);
 
@@ -752,7 +768,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const cardToll = (metodeToll === 'FLAZZ' && !String(old.flazz_card_id_toll ?? '')) ? cardBbm : String(old.flazz_card_id_toll ?? '');
 
     const { cardMap } = await loadCards(deps);
-    const vehicleBranch = (await deps.master.findKendaraanById(old.vehicle_id))?.kode_cabang ?? old.kode_cabang;
+    const vehicleBranch = cabangAksesLaporan(await deps.master.findKendaraanById(old.vehicle_id), old.kode_cabang);
     let branch = vehicleBranch;
     if (metodeBbm === 'FLAZZ') branch = cardMap.get(L.canonicalCardId(cardBbm))?.branch_id ?? vehicleBranch;
     else if (metodeToll === 'FLAZZ' && cardToll) branch = cardMap.get(L.canonicalCardId(cardToll))?.branch_id ?? vehicleBranch;
@@ -810,7 +826,10 @@ export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const cabang = isSuper(u) ? '' : u.cabang;
     const all = await deps.master.listAll();
     const cardIdMap = await loadCardIdMap(deps);
-    const rows = await deps.laporan.recentRows(cabang, 2000);
+    const rowsCabang = await deps.laporan.recentRows(cabang, 2000);
+    const rows = await denganKonteksBersama(deps, all.kendaraan, rowsCabang, cabang);
+    // Baris konteks (kendaraan bersama dari cabang lain) hanya untuk perhitungan, tidak ditampilkan.
+    const milikCabang = (cab: string) => (t: L.RecentItem) => !cab || String(t.kode_cabang) === cab;
 
     // Filter History Laporan. Warehouse hanya untuk SUPERADMIN (PIC terkunci ke cabangnya).
     // Efisiensi 7-trip dihitung dari riwayat lengkap kendaraan, baru dipotong rentang tanggal.
@@ -820,18 +839,24 @@ export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const fSampai = String(c.req.query('sampai') ?? '');
     let transactions: L.RecentItem[];
     if (fCabang || fVehicle || fDari || fSampai) {
-      let scoped = await deps.laporan.rowsInScope(fCabang || cabang, HISTORY_SCAN_LIMIT);
+      const cabScope = fCabang || cabang;
+      let scoped = await denganKonteksBersama(deps, all.kendaraan, await deps.laporan.rowsInScope(cabScope, HISTORY_SCAN_LIMIT), cabScope);
       if (fVehicle) scoped = scoped.filter((r) => String(r.vehicle_id) === fVehicle);
       const tglById = new Map(scoped.map((r) => [String(r.transaction_id), String(r.tanggal || '').substring(0, 10)]));
       transactions = L.buildRecentList(scoped, kendaraanInfoMap(all), cabangNamaMapOf(all), cardIdMap, scoped.length)
+        .filter(milikCabang(cabScope))
         .filter((t) => {
           const tgl = tglById.get(String(t.transaction_id)) ?? '';
           return (!fDari || tgl >= fDari) && (!fSampai || tgl <= fSampai);
         })
         .slice(0, HISTORY_MAX_ITEMS);
     } else {
-      transactions = L.buildRecentList(rows, kendaraanInfoMap(all), cabangNamaMapOf(all), cardIdMap);
+      transactions = rows === rowsCabang
+        ? L.buildRecentList(rows, kendaraanInfoMap(all), cabangNamaMapOf(all), cardIdMap)
+        : L.buildRecentList(rows, kendaraanInfoMap(all), cabangNamaMapOf(all), cardIdMap, rows.length).filter(milikCabang(cabang)).slice(0, 200);
     }
+
+    tandaiKunciRekon(transactions, await deps.flazz.listReconciliations());
 
     const periode = L.periodKey(new Date());
     const mkey = monthlyCacheKey(roleOf(u), cabang);
@@ -873,10 +898,11 @@ export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       deps.laporan.rowsInScope(cabang, 5000),
       deps.flazz.listCards(cabang ? { branchId: cabang } : undefined),
     ]);
+    const rowsK = await denganKonteksBersama(deps, all.kendaraan, rows, cabang);
     const out = ringkasanPeringatan({
       kendaraan: all.kendaraan as unknown as Record<string, unknown>[],
       kartu: kartu as unknown as Record<string, unknown>[],
-      rows: rows as unknown as Record<string, unknown>[],
+      rows: rowsK as unknown as Record<string, unknown>[],
       user: { role: roleOf(u), cabang: u.cabang },
       today: todayWib(),
     });

@@ -37,6 +37,8 @@ export function bodyKendaraan(v) {
     standar_km_l: Number(v.standar_km_l) || 0, jenis_indikator: v.jenis_indikator, cabang: v.cabang,
     tanggal_pajak: v.tanggal_pajak, tanggal_pajak_5_tahunan: v.tanggal_pajak_5_tahunan, tanggal_kir: v.tanggal_kir,
     interval_ganti_oli_km: Number(v.interval_ganti_oli_km) || 0, km_terakhir_ganti_oli: Number(v.km_terakhir_ganti_oli) || 0,
+    // Hanya SUPERADMIN yang punya isian ini; tanpa isian, nilai lama di server dipertahankan.
+    ...(v.cabang_bersama !== undefined ? { cabang_bersama: String(v.cabang_bersama).split(',').map((x) => x.trim()).filter((x) => x && x !== v.cabang) } : {}),
   };
 }
 
@@ -61,7 +63,7 @@ function entitas(m) {
       kolom: [
         ['Plat', (v) => v.plat_nomor], ['Nama', (v) => v.nama], ['Jenis', (v) => v.jenis],
         ['Indikator', (v) => INDIKATOR.find(([k]) => k === v.jenis_indikator)?.[1] || v.jenis_indikator],
-        ['Warehouse', (v) => namaCabang(v.cabang)], ['Pajak', (v) => dok(v.tanggal_pajak)], ['KIR', (v) => dok(v.tanggal_kir)],
+        ['Warehouse', (v) => [namaCabang(v.cabang), ...(v.cabang_bersama || []).map((k) => '+ ' + namaCabang(k))].join(' ')], ['Pajak', (v) => dok(v.tanggal_pajak)], ['KIR', (v) => dok(v.tanggal_kir)],
         ['Oli (km terakhir / interval)', teksOliMaster, (v) => ((Number(v.km_terakhir_ganti_oli) || 0) > 0 ? '' : 'text-warning-emphasis bg-warning-subtle')],
       ],
       fields: [
@@ -80,6 +82,9 @@ function entitas(m) {
         { key: 'interval_ganti_oli_km', label: 'Interval ganti oli (KM)', type: 'number', awal: '5000', dari: (v) => v.interval_ganti_oli_km },
         { key: 'km_terakhir_ganti_oli', label: 'KM terakhir ganti oli (odometer)', type: 'number', dari: (v) => v.km_terakhir_ganti_oli },
         { key: 'cabang', label: 'Warehouse', type: 'select', wajib: true, opsi: cabangOpsi, dari: (v) => v.cabang },
+        ...(isSuper() ? [{ key: 'cabang_bersama', label: 'Dipakai juga oleh (kendaraan bersama)', type: 'multi', ikut: 'cabang',
+          opsi: (v) => cabangOpsi().filter((o) => o.value !== v.cabang), dari: (v) => (v.cabang_bersama || []).join(','),
+          catatan: () => 'Centang warehouse lain yang ikut memakai kendaraan ini. Riwayat KM, ganti oli, dan efisiensi tetap satu.' }] : []),
       ],
       simpan: (v, row) => (row ? put('/api/master/kendaraan', { ...bodyKendaraan(v), edit_id: row.vehicle_id }) : post('/api/master/kendaraan', bodyKendaraan(v))),
       hapus: (row) => ({ tanya: `Hapus kendaraan ${row.plat_nomor}?`, jalan: () => del(`/api/master/kendaraan/${encodeURIComponent(row.vehicle_id)}`) }),
@@ -106,7 +111,7 @@ function entitas(m) {
         { key: 'nama', label: 'Nama lengkap', wajib: true, dari: (d) => d.nama },
         { key: 'cabang', label: 'Warehouse', type: 'select', wajib: true, opsi: cabangOpsi, dari: (d) => d.cabang },
         { key: 'default_vehicle_id', label: 'Kendaraan default (opsional)', type: 'select', ikut: 'cabang',
-          opsi: (v) => m.vehicles.filter((x) => !v.cabang || x.cabang === v.cabang).map((x) => ({ value: x.vehicle_id, label: `${x.plat_nomor} — ${x.nama}` })),
+          opsi: (v) => m.vehicles.filter((x) => !v.cabang || x.cabang === v.cabang || (x.cabang_bersama || []).includes(v.cabang)).map((x) => ({ value: x.vehicle_id, label: `${x.plat_nomor} — ${x.nama}` })),
           dari: (d) => d.default_vehicle_id },
       ],
       simpan: (v, row) => {
@@ -184,6 +189,17 @@ async function muat() {
 
 function kontrol(f, nilai, isEdit, values) {
   let node;
+  if (f.type === 'multi') {
+    // Kotak centang; .value = kode terpilih dipisah koma (seragam dengan kontrol lain).
+    const terpilih = new Set(String(nilai ?? '').split(',').filter(Boolean));
+    const kotak = f.opsi(values).map((o) => el('input', { class: 'form-check-input', type: 'checkbox', value: String(o.value), id: `m-${f.key}-${o.value}` }));
+    kotak.forEach((k) => { k.checked = terpilih.has(k.value); });
+    node = el('div', { class: 'border rounded px-2 py-1', style: 'max-height:9rem;overflow:auto' }, kotak.length
+      ? kotak.map((k, i) => el('div', { class: 'form-check' }, [k, el('label', { class: 'form-check-label small', for: k.id, text: f.opsi(values)[i].label })]))
+      : [el('div', { class: 'small text-muted', text: 'Pilih warehouse pemilik dulu.' })]);
+    Object.defineProperty(node, 'value', { get: () => kotak.filter((k) => k.checked).map((k) => k.value).join(','), set: () => {} });
+    return node;
+  }
   if (f.type === 'select') {
     node = el('select', { class: 'form-select form-select-sm' });
     node.appendChild(el('option', { value: '', text: '—' }));
@@ -300,9 +316,11 @@ export async function renderMaster(view) {
       (!q || e.kolom.some(([, fn]) => String(fn(r) ?? '').toLowerCase().includes(q))));
     const body = rows.map((r) => {
       const h = e.hapus(r);
+      // Kendaraan bersama milik warehouse lain: PIC hanya memakai, pengelolaan oleh pemilik.
+      const bukanMilik = !isSuper() && e.cabangOf && String(e.cabangOf(r)) !== String(getUser()?.cabang || '');
       return el('tr', {}, [
         ...e.kolom.map(([, fn, kelas]) => el('td', { class: kelas ? kelas(r) : '', text: String(fn(r) ?? '-') })),
-        el('td', { class: 'text-nowrap' }, [
+        bukanMilik ? el('td', { class: 'small text-muted', text: 'Kendaraan bersama (dikelola pemilik)' }) : el('td', { class: 'text-nowrap' }, [
           el('button', { class: 'btn btn-sm btn-outline-primary me-1', type: 'button', text: 'Edit', onclick: () => bukaForm(r) }),
           ...(e.ekstra ? e.ekstra(r).map((x) => el('button', { class: 'btn btn-sm btn-outline-secondary me-1', type: 'button', text: x.label, onclick: () => aksi(x) })) : []),
           el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', text: h.label || 'Hapus', onclick: () => aksi(h) }),

@@ -1,6 +1,7 @@
 import { formatDateId, formatIdNumber } from './laporan';
 import type { LaporanRow } from './laporan';
 import { defaultOilIntervalKm } from './master';
+import { bolehPakai } from './kendaraan-bersama';
 
 export type WarningCategory = 'OLI' | 'PAJAK' | 'PAJAK_5_TAHUNAN' | 'KIR';
 export type WarningSeverity = 'KRITIS' | 'PERHATIAN';
@@ -107,7 +108,7 @@ export function computeWarnings(input: WarningInput): WarningItem[] {
 
   for (const v of input.kendaraan) {
     if (String(v.status || '') !== 'Aktif') continue;
-    if (!isSuper && String(v.kode_cabang ?? '') !== cabangUser) continue;
+    if (!isSuper && !bolehPakai(cabangUser, v)) continue;
 
     const odo = toNum(input.odoMap[v.vehicle_id]);
     if (odo > 0 && toNum(v.km_terakhir_ganti_oli) > 0) {
@@ -219,7 +220,7 @@ export function statusOli(v: Rec, currentKm: number | undefined): OliItem | null
 export function ringkasanPeringatan(input: RingkasanInput): RingkasanPeringatan {
   const isSuper = String(input.user.role || '').toUpperCase() === 'SUPERADMIN';
   const dalamScope = (cabang: unknown) => isSuper || s(cabang) === s(input.user.cabang);
-  const vehs = input.kendaraan.filter((v) => s(v.status) === 'Aktif' && dalamScope(v.kode_cabang));
+  const vehs = input.kendaraan.filter((v) => s(v.status) === 'Aktif' && (dalamScope(v.kode_cabang) || bolehPakai(s(input.user.cabang), v as { kode_cabang?: string; cabang_bersama?: string })));
 
   // KM akhir & sumber KM dari trip terakhir per kendaraan (urutan seq).
   const terakhir = new Map<string, Rec>();

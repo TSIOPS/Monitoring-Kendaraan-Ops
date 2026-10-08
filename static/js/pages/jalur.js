@@ -91,8 +91,11 @@ function pilihWarehouse(cabangList) {
   return sel;
 }
 
-function opsiCabang(list, cabang, key) {
-  return cabang ? list.filter((x) => String(x[key]) === cabang) : list;
+// Kendaraan bersama ikut tampil di warehouse yang tercantum pada cabang_bersama-nya.
+export function opsiCabang(list, cabang, key) {
+  return cabang
+    ? list.filter((x) => String(x[key]) === cabang || (Array.isArray(x.cabang_bersama) && x.cabang_bersama.includes(cabang)))
+    : list;
 }
 
 // ── Daftar ────────────────────────────────────────────────────────────────

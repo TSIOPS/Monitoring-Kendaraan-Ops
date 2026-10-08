@@ -99,13 +99,24 @@ function panelStatistik(monthly) {
 // Tombol ikon; label lengkap di title (tooltip) dan aria-label untuk pembaca layar.
 const ikon = (nama) => el('i', { class: `bi ${nama}`, 'aria-hidden': 'true' });
 
+// Lepas Flazz hanya untuk BBM ber-Flazz yang kartunya BELUM direkonsiliasi (aturan sama dengan server).
+export function bisaLepasFlazz(r) {
+  const bbmFlazz = (String(r.metode_pembayaran) === 'FLAZZ' && !!r.flazz_card_id) || !!r.flazz_card_id_2;
+  return bbmFlazz && !r.kunci_lepas;
+}
+
 function selAksi(r) {
   const id = String(r.transaction_id || '');
-  const bisaDetach = Boolean(r.flazz_card_id || r.flazz_card_id_2);
+  const bisaDetach = bisaLepasFlazz(r);
+  const pesanKunci = 'Sudah direkonsiliasi: hapus rekonsiliasi kartunya dulu bila perlu dikoreksi.';
   return el('td', { class: 'text-nowrap' }, [
     el('div', { class: 'aksi-ikon' }, [
       el('a', { class: 'btn btn-sm btn-outline-primary', href: `#/edit/${encodeURIComponent(id)}`, title: 'Edit', 'aria-label': 'Edit transaksi' }, [ikon('bi-pencil')]),
-      el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', 'data-hapus': id, title: 'Hapus', 'aria-label': 'Hapus transaksi' }, [ikon('bi-trash')]),
+      r.kunci_hapus
+        ? el('span', { class: 'd-inline-block', tabindex: '0', title: pesanKunci }, [
+          el('button', { class: 'btn btn-sm btn-outline-secondary', type: 'button', disabled: 'disabled', 'aria-label': 'Hapus (terkunci rekonsiliasi)' }, [ikon('bi-lock')]),
+        ])
+        : el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', 'data-hapus': id, title: 'Hapus', 'aria-label': 'Hapus transaksi' }, [ikon('bi-trash')]),
       bisaDetach
         ? el('button', { class: 'btn btn-sm btn-outline-warning', type: 'button', 'data-detach': id, title: 'Lepas pembayaran Flazz', 'aria-label': 'Lepas pembayaran Flazz' }, [ikon('bi-credit-card-2-back')])
         : null,
@@ -206,7 +217,8 @@ function pasangAksiDetach(view, root) {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.detach;
       const ok = confirmDialog(
-        'Lepas pembayaran Flazz pada transaksi ini?\n\nPayment BBM dilepas, tetapi data tol dan kartu tol tetap tersimpan.',
+        'Lepas pembayaran Flazz pada laporan ini?\n\nGunakan HANYA bila BBM sebenarnya dibayar TUNAI (salah pilih Flazz).\n\n' +
+        '• Metode BBM menjadi Tunai, nominal tetap tercatat.\n• Biaya BBM dikembalikan ke saldo kartu.\n• Biaya tol tidak berubah.',
       );
       if (!ok) return;
       btn.disabled = true;

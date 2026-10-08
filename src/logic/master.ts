@@ -1,4 +1,5 @@
 import type { MasterAllRaw } from '../db/master';
+import { bolehPakai, daftarCabangBersama } from './kendaraan-bersama';
 
 export interface MasterUserCtx {
   role: string;
@@ -48,7 +49,7 @@ export function getMasterPayload(
 
   const vehicles = raw.kendaraan
     .filter((v) => v.status === 'Aktif')
-    .filter((v) => isSuper || v.kode_cabang === user.cabang)
+    .filter((v) => isSuper || bolehPakai(String(user.cabang || ''), v))
     .map((v) => {
       const jenis = v.jenis_kendaraan || 'Mobil';
       const indikator = v.jenis_indikator || 'DIGITAL_BAR';
@@ -71,6 +72,7 @@ export function getMasterPayload(
         interval_ganti_oli_km:
           v.interval_ganti_oli_km > 0 ? v.interval_ganti_oli_km : defaultOilIntervalKm(jenis),
         odo_estimasi_terakhir: indikator === 'ANALOG_JARUM' && lastSumber[String(v.vehicle_id)] === 'ESTIMASI',
+        cabang_bersama: daftarCabangBersama(v.cabang_bersama),
       };
     });
 

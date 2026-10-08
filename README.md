@@ -121,6 +121,8 @@ lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`,
   Tab **Bulan vs Bulan**: 3/6/12 bulan terakhir per warehouse, rata-rata (bulan penuh), selisih bulan berjalan vs tanggal yang sama bulan lalu, proyeksi linear akhir bulan; bulan awal tanpa data dipangkas. Kedua tab punya **Unduh Excel** (.xlsx).
 - **Audit Log** (SUPERADMIN, menu Konfigurasi) — semua aktivitas pengguna (tambah/ubah/hapus/Lepas Flazz/login) dengan filter pengguna, modul, aksi, rentang tanggal WIB; rincian perubahan per kolom (sebelum/sesudah) dan Unduh Excel. API `GET /api/audit?username=&modul=&action=&dari=&sampai=&login=1&limit=` (maks 2000).
 - **Diinput oleh** — kolom & filter penginput di History Laporan, kolom "Dibuat oleh" di Daftar Jalur, "Dicatat oleh" di Riwayat Flazz (Top Up & Tol).
+- **Kendaraan bersama** — kendaraan didaftarkan sekali di warehouse pemilik; SUPERADMIN mencentang "Dipakai juga oleh" (kolom `kendaraan.cabang_bersama`, `db/kendaraan-bersama.sql`). Warehouse pemakai bisa memakainya di Buat Jalur & Input Laporan; laporan/jalur distempel warehouse pemakai (rekap biaya ikut pemakai), sedangkan riwayat KM, selisih ODO, ganti oli, efisiensi 7 trip, dan gate jalur menyatu per kendaraan. Kendaraan yang dijadwalkan warehouse lain di tanggal sama (belum tuntas) diblokir.
+- **Kunci rekonsiliasi** — laporan yang kartunya sudah direkonsiliasi: Lepas Flazz disembunyikan (History & Riwayat Flazz), tombol hapus terkunci; server tetap menolak (409).
 - **Pengaturan** (menu Konfigurasi, SUPERADMIN) — logo, nama aplikasi, nama perusahaan,
   footer. `PUT /api/settings` tanpa `logo_url` mempertahankan logo; URL logo
   diberi `?v=` agar logo baru tidak tertahan cache.

@@ -40,6 +40,8 @@ export interface MasterKendaraan {
   tanggal_kir: string;
   km_terakhir_ganti_oli: number;
   interval_ganti_oli_km: number;
+  // Cabang lain yang ikut memakai kendaraan ini, dipisah koma (lihat logic/kendaraan-bersama).
+  cabang_bersama?: string;
 }
 export interface MasterPengguna {
   user_id: string;

@@ -9,6 +9,7 @@ import { errPayload, HttpError, okPayload, reqIp } from '../utils/http';
 import { bumpMasterRev, getMasterRev, invalidateDashwarn, masterCacheKey } from '../logic/master-cache';
 import { defaultOilIntervalKm, getMasterPayload } from '../logic/master';
 import type { AppDeps } from '../deps';
+import { normalisasiCabangBersama } from '../logic/kendaraan-bersama';
 
 // Minimal 60: Cloudflare KV menolak expirationTtl di bawahnya. Cache tetap
 // segar karena kuncinya memuat master-rev yang naik pada setiap write.
@@ -124,7 +125,7 @@ export function masterRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const body = await json(c);
     if (!isSuper(u)) needOwn(u, (body as any)?.cabang);
     const id = newId('V-');
-    const row = buildVehicleInsert(body, id);
+    const row = await denganCabangBersama(deps, buildVehicleInsert(body, id), body);
     await deps.master.insertKendaraan(row);
     await audit(c, { action: 'CREATE', modul: 'master', keterangan: 'Kendaraan ' + id, data_sesudah: jsonSnip({ vehicle_id: id, plat: body?.plat, nama: body?.nama, cabang: body?.cabang }) });
     await bumpMasterRev(deps.kv);
@@ -141,12 +142,12 @@ export function masterRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       needOwn(u, target.kode_cabang);
       needOwn(u, (body as any)?.cabang);
     }
-    const row = buildVehicleInsert(body, editId);
+    const row = await denganCabangBersama(deps, buildVehicleInsert(body, editId), body);
     await deps.master.updateKendaraan({ ...row, status: target.status });
     await audit(c, {
       action: 'EDIT', modul: 'master', keterangan: 'Kendaraan ' + editId,
-      data_sebelum: jsonSnip({ plat: target.plat_nomor, nama: target.nama_kendaraan }),
-      data_sesudah: jsonSnip({ plat: (body as any)?.plat, nama: (body as any)?.nama, cabang: (body as any)?.cabang }),
+      data_sebelum: jsonSnip({ plat: target.plat_nomor, nama: target.nama_kendaraan, cabang: target.kode_cabang, cabang_bersama: target.cabang_bersama ?? '' }),
+      data_sesudah: jsonSnip({ plat: (body as any)?.plat, nama: (body as any)?.nama, cabang: (body as any)?.cabang, cabang_bersama: row.cabang_bersama ?? target.cabang_bersama ?? '' }),
     });
     await bumpMasterRev(deps.kv);
     return c.json(okPayload({ msg: 'Kendaraan Berhasil Diupdate' }));
@@ -357,6 +358,13 @@ export function masterRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
 async function json(c: Context<any>): Promise<any> {
   return c.req.json().catch(() => null);
+}
+
+// cabang_bersama hanya ditulis bila dikirim klien (klien lama tidak menghapus nilainya).
+async function denganCabangBersama<T extends { kode_cabang: string }>(deps: AppDeps, row: T, body: any): Promise<T & { cabang_bersama?: string }> {
+  if (body?.cabang_bersama === undefined) return row;
+  const valid = new Set((await deps.master.listAll()).cabang.filter((c) => c.status === 'Aktif').map((c) => String(c.kode_cabang)));
+  return { ...row, cabang_bersama: normalisasiCabangBersama(body.cabang_bersama, row.kode_cabang, valid) };
 }
 
 function buildVehicleInsert(body: any, vehicleId: string) {

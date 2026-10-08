@@ -147,6 +147,19 @@ export function driverGanda(rows: Array<{ driver_id?: unknown; driver2_id?: unkn
   return [...hit].filter(([, n]) => n > 1).map(([id]) => id);
 }
 
+// Kendaraan bersama: kendaraan yang sama sedang dijadwalkan di CABANG LAIN pada tanggal yang
+// sama dan jalurnya belum tuntas -> tidak boleh dipakai bersamaan.
+export function kendaraanDipakaiCabangLain(rows: JalurFull[], vehicleId: string, tanggal: string, cabang: string, excludeId = ''): JalurFull | null {
+  const input = tgl10(tanggal);
+  return rows.find((r) => str(r.is_deleted) !== '1' && str(r.id) !== excludeId && str(r.vehicle_id) === str(vehicleId) &&
+    tgl10(r.tanggal) === input && str(r.kode_cabang) !== str(cabang) && (str(r.status) || STATUS_BELUM) !== statusTuntas(r)) ?? null;
+}
+
+export function pesanDipakaiCabangLain(j: JalurFull): string {
+  return 'Kendaraan ' + (j.plat_nomor || j.vehicle_id) + ' sudah dijadwalkan warehouse ' + (j.kode_cabang || '-') + ' pada ' + tgl10(j.tanggal) +
+    ' (driver ' + (j.nama_driver || '-') + ') dan jalurnya belum selesai.';
+}
+
 export function blockerDetail(b: JalurFull): string {
   const aksi = cardsOf(b).length ? 'rekonsiliasi saldo flazz' : 'input laporan';
   return 'Kendaraan ' + (b.plat_nomor || b.id) + ' (jalur ' + tgl10(b.tanggal) + ', status ' + (b.status || STATUS_BELUM) +

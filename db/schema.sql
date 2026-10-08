@@ -56,7 +56,9 @@ create table if not exists kendaraan (
   tanggal_pajak_5_tahunan text not null default '',
   tanggal_kir text not null default '',
   km_terakhir_ganti_oli numeric not null default 0,
-  interval_ganti_oli_km numeric not null default 0
+  interval_ganti_oli_km numeric not null default 0,
+  -- Kendaraan bersama: warehouse lain yang ikut memakai, dipisah koma (db/kendaraan-bersama.sql).
+  cabang_bersama text not null default ''
 );
 
 -- CORE LAPORAN -------------------------------------------------------------

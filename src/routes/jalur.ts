@@ -10,6 +10,7 @@ import { bumpMasterRev } from '../logic/master-cache';
 import { canonicalCardId } from '../logic/laporan';
 import type { FlazzCardRow } from '../db/flazz';
 import * as J from '../logic/jalur';
+import { bolehPakai, isBersama } from '../logic/kendaraan-bersama';
 
 // Port JalurOps.js (GAS terbaru). Spec: docs/superpowers/specs/2026-10-06-m8-jalur-pengiriman-design.md
 
@@ -24,6 +25,13 @@ function assertMasterAccess(u: SessionUser): void {
     throw new HttpError(403, 'Akses ditolak: peran tidak dikenali.', 'FORBIDDEN');
   }
 }
+// Kendaraan boleh dipakai cabang pemilik dan cabang 'Dipakai juga oleh' (kendaraan bersama).
+function assertKendaraanCabang(cabang: string, k: { kode_cabang: string; cabang_bersama?: string }): void {
+  if (!bolehPakai(cabang, k)) {
+    throw new HttpError(403, 'Akses ditolak: kendaraan tidak berada di warehouse ' + cabang + '.', 'FORBIDDEN');
+  }
+}
+
 function assertOwnWarehouse(u: SessionUser, cabang: string, label: string): void {
   if (isSuper(u)) return;
   const mine = str(u.cabang);
@@ -174,7 +182,11 @@ export function jalurRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       const supir2 = str(r.driver2_id) ? await deps.master.findSupirById(str(r.driver2_id)) : null;
       if (str(r.driver2_id) && !supir2) throw new HttpError(400, 'Driver kedua tidak ditemukan.', 'BAD_REQUEST');
       if (supir2 && supir2.supir_id === supir.supir_id) throw new HttpError(400, J.MSG_DRIVER_SAMA, 'BAD_REQUEST');
-      assertOwnWarehouse(u, kendaraan.kode_cabang, 'kendaraan');
+      // Cabang jalur: PIC = cabangnya; SUPERADMIN = cabang driver untuk kendaraan bersama, selain itu cabang kendaraan.
+      const cabangJalur = isSuper(u) ? (isBersama(kendaraan) ? supir.kode_cabang : kendaraan.kode_cabang) : str(u.cabang);
+      assertKendaraanCabang(cabangJalur, kendaraan);
+      const dipakai = J.kendaraanDipakaiCabangLain(await deps.jalur.listForVehicles([kendaraan.vehicle_id]), kendaraan.vehicle_id, tanggal, cabangJalur);
+      if (dipakai) throw new HttpError(409, 'Jalur baru diblokir: ' + J.pesanDipakaiCabangLain(dipakai), 'CONFLICT');
       assertOwnWarehouse(u, supir.kode_cabang, 'driver utama');
       if (supir2) assertOwnWarehouse(u, supir2.kode_cabang, 'driver kedua');
 
@@ -195,8 +207,8 @@ export function jalurRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
         vehicle_id: kendaraan.vehicle_id, plat_nomor: kendaraan.plat_nomor,
         nama_kendaraan: kendaraan.nama_kendaraan, jenis_kendaraan: kendaraan.jenis_kendaraan,
         rute_tujuan: str(r.rute_tujuan),
-        // Jalur buatan SUPERADMIN distempel cabang kendaraan agar gate laporan tetap cocok.
-        kode_cabang: isSuper(u) ? kendaraan.kode_cabang : str(u.cabang),
+        // Jalur buatan SUPERADMIN distempel cabang kendaraan (bersama: cabang driver) agar gate laporan cocok.
+        kode_cabang: cabangJalur,
         flazz_card_id: k1?.id ?? '', flazz_card_name: k1?.card_name ?? '',
         flazz_card_id_2: k2?.id ?? '', flazz_card_name_2: k2?.card_name ?? '',
         created_by: createdBy, created_at: nowIso, updated_at: nowIso, is_deleted: '',
@@ -266,7 +278,7 @@ export function jalurRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     if (p.vehicle_id !== undefined) {
       const k = await deps.master.findKendaraanById(str(p.vehicle_id));
       if (!k) throw new HttpError(400, 'Kendaraan tidak ditemukan.', 'BAD_REQUEST');
-      assertOwnWarehouse(u, k.kode_cabang, 'kendaraan');
+      assertKendaraanCabang(str(old.kode_cabang), k);
       patch.vehicle_id = k.vehicle_id;
       patch.plat_nomor = k.plat_nomor;
       patch.nama_kendaraan = k.nama_kendaraan;
@@ -308,6 +320,11 @@ export function jalurRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       if (blockers.length) {
         throw new HttpError(409, J.blockerDetail(blockers[0]!) + ' sebelum memindahkan jalur ini ke kendaraan tersebut.', 'CONFLICT');
       }
+    }
+    const vidCek = patch.vehicle_id ?? old.vehicle_id;
+    if (vidCek && (patch.vehicle_id !== undefined || p.tanggal !== undefined)) {
+      const dipakai = J.kendaraanDipakaiCabangLain(await deps.jalur.listForVehicles([vidCek]), vidCek, tanggalBaru, str(old.kode_cabang), old.id);
+      if (dipakai) throw new HttpError(409, J.pesanDipakaiCabangLain(dipakai), 'CONFLICT');
     }
     // Gate per driver saat driver/tanggal berubah (jalur ini sendiri dikecualikan).
     const d1 = str(patch.driver_id ?? old.driver_id);
