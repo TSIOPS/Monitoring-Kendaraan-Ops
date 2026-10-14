@@ -26,15 +26,14 @@ export function validateForm(v) {
   if (!v.tanggal) err.push('Tanggal wajib diisi.');
   if (!v.nama_supir) err.push('Nama supir wajib diisi.');
 
-  const kmAwal = Number(v.km_awal);
-  const kmAkhir = Number(v.km_akhir);
-  if (v.km_awal === '' || v.km_akhir === '') {
-    err.push('KM awal dan akhir wajib diisi.');
-  } else if (!Number.isFinite(kmAwal) || !Number.isFinite(kmAkhir)) {
-    err.push('KM awal dan akhir harus berupa angka.');
-  } else {
-    for (const [label, km, rusak] of [['KM awal', v.km_awal, v.km_awal_broken], ['KM akhir', v.km_akhir, v.km_akhir_broken]]) {
-      const pesan = rusak ? '' : pesanDigitKm(label, km, v.km_terakhir);
+  // Sisi yang dicentang "meter mati/rusak" tidak wajib diisi: KM-nya diestimasi server
+  // (liter konsumsi x standar KM/L). Sisi lain tetap wajib angka 5-6 digit.
+  for (const [label, km, rusak] of [['KM awal', v.km_awal, v.km_awal_broken], ['KM akhir', v.km_akhir, v.km_akhir_broken]]) {
+    if (rusak) continue;
+    if (String(km ?? '') === '') err.push(`${label} wajib diisi (atau centang meter mati/rusak).`);
+    else if (!Number.isFinite(Number(km))) err.push(`${label} harus berupa angka.`);
+    else {
+      const pesan = pesanDigitKm(label, km, v.km_terakhir);
       if (pesan) err.push(pesan);
     }
   }
@@ -392,6 +391,15 @@ export async function renderInput(view) {
     grup2Wrap,
     el('div', { class: 'd-flex justify-content-end gap-2 border-top pt-3 mt-2' }, [batal, submit]),
   ]);
+
+  // Meter mati/rusak: kolom KM dikunci & dikosongkan, server mengisi KM estimasi.
+  for (const [cek, km] of [[f.km_awal_broken, f.km_awal], [f.km_akhir_broken, f.km_akhir]]) {
+    cek.addEventListener('change', () => {
+      km.disabled = cek.checked;
+      if (cek.checked) km.value = '';
+      km.placeholder = cek.checked ? 'Diestimasi otomatis' : '5–6 digit';
+    });
+  }
 
   form.addEventListener('input', () => { formDiubah = true; });
   form.addEventListener('change', () => { formDiubah = true; });

@@ -277,7 +277,7 @@ export class OdoEstimateError extends Error {}
 export const MSG_ODO_NO_STANDAR =
   'KM tidak terbaca tapi estimasi tidak tersedia: Standar KM/L kendaraan belum diisi di Master Kendaraan. Harap isi dulu atau input KM asli.';
 export const MSG_ODO_NO_LITER =
-  'KM tidak terbaca tapi estimasi tidak tersedia: liter BBM kosong. Pastikan "Ada struk BBM?" = Ya, total biaya terisi, dan Master BBM punya harga per liter. Harap input KM asli jika ingin lanjut.';
+  'KM tidak terbaca tapi estimasi tidak tersedia: tidak ada liter BBM terpakai (biaya BBM kosong dan level bensin tidak turun). Isi pembelian BBM beserta jenis BBM, atau input KM asli dari meter yang masih terbaca.';
 
 export interface OdoEstimateInput {
   kmAwal: number;

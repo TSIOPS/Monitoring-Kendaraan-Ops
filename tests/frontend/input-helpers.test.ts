@@ -40,7 +40,10 @@ describe('validateForm', () => {
   });
 
   it('menolak KM kosong', () => {
-    expect(validateForm({ ...DASAR, km_akhir: '' })).toContain('KM awal dan akhir wajib diisi.');
+    expect(validateForm({ ...DASAR, km_akhir: '' })).toContain('KM akhir wajib diisi (atau centang meter mati/rusak).');
+    // Meter rusak: KM sisi itu boleh kosong (diestimasi server).
+    expect(validateForm({ ...DASAR, km_awal: '', km_akhir: '', km_awal_broken: true, km_akhir_broken: true }).join(' ')).not.toContain('KM');
+    expect(validateForm({ ...DASAR, km_awal: '', km_akhir_broken: true, km_akhir: '' })).toContain('KM awal wajib diisi (atau centang meter mati/rusak).');
   });
 
   it('menolak KM bukan angka', () => {
