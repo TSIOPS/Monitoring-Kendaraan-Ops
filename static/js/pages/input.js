@@ -396,7 +396,7 @@ export async function renderInput(view) {
         el('div', { class: 'col-md-4' }, [baris('Kartu Flazz (tol)', f.flazz_card_id_toll)]),
       ]),
       el('div', { class: 'row' }, [
-        el('div', { class: 'col-md-6' }, [baris('Foto struk / bukti tol (opsional)', el('div', {}, [fotoStrukTol, pratinjauFoto(fotoStrukTol)]), 'Struk gerbang tol atau tangkapan layar saldo bila ada.')]),
+        el('div', { class: 'col-md-6' }, [baris('Foto struk / bukti tol (opsional)', el('div', {}, [fotoStrukTol, pratinjauFoto(fotoStrukTol)]), 'Lebih dari satu struk: susun lalu foto sekaligus dalam 1 foto, dan isi total di Biaya tol. E-toll tanpa struk: foto hasil cetak cek pengeluaran kartu.')]),
       ]),
     ]),
     el('div', {}, [grup2Toggle]),

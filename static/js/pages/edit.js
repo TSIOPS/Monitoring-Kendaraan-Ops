@@ -214,7 +214,7 @@ export async function renderEdit(view) {
     ]),
     el('div', { class: 'row' }, [
       kol(6, baris('Foto struk BBM (opsional)', el('div', {}, [fotoStrukBbm, pratinjauFoto(fotoStrukBbm, trx.foto_struk_bbm || trx.foto_struk_bbm_thumb)]), trx.foto_struk_bbm ? 'Kosongkan bila tidak diganti.' : 'Belum ada struk; tambahkan bila ada.')),
-      kol(6, baris('Foto struk / bukti tol (opsional)', el('div', {}, [fotoStrukTol, pratinjauFoto(fotoStrukTol, trx.foto_struk_toll || trx.foto_struk_toll_thumb)]), trx.foto_struk_toll ? 'Kosongkan bila tidak diganti.' : 'Belum ada bukti; tambahkan bila ada.')),
+      kol(6, baris('Foto struk / bukti tol (opsional)', el('div', {}, [fotoStrukTol, pratinjauFoto(fotoStrukTol, trx.foto_struk_toll || trx.foto_struk_toll_thumb)]), trx.foto_struk_toll ? 'Kosongkan bila tidak diganti.' : 'Belum ada bukti. Beberapa struk difoto sekaligus dalam 1 foto; e-toll tanpa struk: foto cetak cek pengeluaran kartu.')),
     ]),
     el('h3', { class: 'h6 mt-2', text: 'Pembayaran' }),
     el('div', { class: 'row' }, [
