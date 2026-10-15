@@ -1,6 +1,6 @@
 import { get, post } from '../api.js';
 import { getUser, setJumlahPeringatan } from '../store.js';
-import { confirmDialog, el, fmtDateId, fmtNum, labelDari, petaMaster, toast } from '../ui.js';
+import { autoRefresh, confirmDialog, el, fmtDateId, fmtNum, labelDari, petaMaster, toast } from '../ui.js';
 import { aktifkanNotifikasi, matikanNotifikasi, segarkanBanner, statusNotifikasi, tesNotifikasi } from '../notifikasi.js';
 
 // ── Helper murni (diuji) ────────────────────────────────────────────────────
@@ -170,12 +170,13 @@ export async function renderDashboard(view) {
       el('div', { class: 'col-12 mb-3' }, [judulSeksi('Odometer Tidak Terbaca (Estimasi)'), daftar(w.odoEstimasi, itemOdo, 'Semua aman - tidak ada kendaraan dengan odometer tidak terbaca.')]),
     );
   }
-  async function muatWarn(fresh = false) {
+  async function muatWarn(fresh = false, diam = false) {
     tombolWarn.disabled = true;
     try {
       cacheWarn = await get(`/api/dashboard/warnings${fresh ? '?fresh=1' : ''}`);
       gambarWarn();
     } catch (err) {
+      if (diam) return;
       isiWarn.className = 'text-muted';
       isiWarn.textContent = 'Gagal memuat peringatan.';
       toast(`Gagal memuat peringatan: ${err.message}`, 'error');
@@ -192,7 +193,8 @@ export async function renderDashboard(view) {
   const tombolKartu = el('button', { class: 'btn btn-outline-primary btn-sm', type: 'button', text: 'Refresh' });
   const isiKartu = el('div', { class: 'text-muted', text: 'Memuat data kartu etoll…' });
   const panelKartu = kartuPanel('Status Kartu Etoll', tombolKartu, isiKartu);
-  async function muatKartu() {
+  async function muatKartu(diam = false) {
+    diam = diam === true;
     tombolKartu.disabled = true;
     try {
       const data = await get('/api/flazz/dashboard');
@@ -224,13 +226,14 @@ export async function renderDashboard(view) {
         ])]),
       ].filter(Boolean));
     } catch (err) {
+      if (diam) return;
       isiKartu.className = 'text-muted';
       isiKartu.textContent = `Gagal memuat data Flazz: ${err.message}`;
     } finally {
       tombolKartu.disabled = false;
     }
   }
-  tombolKartu.addEventListener('click', muatKartu);
+  tombolKartu.addEventListener('click', () => muatKartu());
 
   // Galeri Foto Terbaru
   const isiGaleri = el('div', { class: 'row g-2' }, [el('div', { class: 'col-12 text-center text-muted py-4', text: 'Memuat galeri…' })]);
@@ -295,5 +298,7 @@ export async function renderDashboard(view) {
     // Master opsional: tanpa itu kode supir tampil apa adanya dan filter warehouse disembunyikan.
   }
   await Promise.all([muatWarn(), muatKartu(), muatGaleri()]);
+  // Status kartu & peringatan ikut berubah tanpa reload (galeri tidak, agar hemat kuota foto).
+  autoRefresh(view, () => Promise.all([muatWarn(false, true), muatKartu(true)]));
   return { ok: true };
 }

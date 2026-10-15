@@ -1,6 +1,6 @@
 import { del, get, post, put } from '../api.js';
 import { getUser } from '../store.js';
-import { confirmDialog, el, fmtDateId, fmtNum, toast, labelDari, petaMaster, pratinjauFoto } from '../ui.js';
+import { autoRefresh, confirmDialog, el, fmtDateId, fmtNum, toast, labelDari, petaMaster, pratinjauFoto } from '../ui.js';
 import { kompresGambar, namaAman, tanggalWib } from './input.js';
 
 // Halaman Flazz (M9): List, Top Up, Pengembalian & Rekonsiliasi, Riwayat.
@@ -149,7 +149,7 @@ async function bacaFoto(input) {
 
 // ── List Flazz ────────────────────────────────────────────────────────────
 export async function renderFlazzList(view) {
-  const data = await siapkan(view, '#/flazz');
+  let data = await siapkan(view, '#/flazz');
   if (!data) return { ok: false };
   const wh = pilihWarehouse(data.cabang);
   const dari = el('input', { type: 'date', class: 'form-control', value: tanggalWib() });
@@ -258,6 +258,9 @@ export async function renderFlazzList(view) {
     hasil,
   ]), detail);
   tampilkan();
+  // Status & saldo kartu (mis. setelah rekonsiliasi warehouse lain) diperbarui tanpa reload;
+  // dilewati saat rekap kartu sedang dibuka.
+  autoRefresh(view, async () => { data = await muatData(); tampilkan(); }, { sibuk: () => detail.children.length > 0 });
   return { ok: true };
 }
 
@@ -569,5 +572,6 @@ export async function renderFlazzRiwayat(view) {
     barTab, editBox, isi,
   ]));
   gambar();
+  autoRefresh(view, muatUlang, { sibuk: () => editBox.children.length > 0 });
   return { ok: true };
 }

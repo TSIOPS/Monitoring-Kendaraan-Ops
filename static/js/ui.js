@@ -125,3 +125,33 @@ export function labelDari(nilai, peta) {
   const s = String(nilai ?? '').trim();
   return s ? peta.get(s) || s : '';
 }
+
+// Refresh otomatis halaman daftar: tiap `ms` selama halaman ini masih tampil & tab terlihat,
+// dan langsung saat tab dibuka lagi. Dilewati bila pengguna sedang mengetik/memilih di
+// halaman atau `sibuk()` true (mis. form edit terbuka) agar isian tidak hilang.
+export function autoRefresh(view, muat, { ms = 30_000, sibuk = () => false } = {}) {
+  const hash = String(window.location.hash || '').split('?')[0];
+  let jalan = false;
+  // Satu refresh aktif per view: render ulang halaman yang sama menggantikan yang lama.
+  const token = String(Math.random());
+  view.dataset.autoRefresh = token;
+  const masihDiHalaman = () => String(window.location.hash || '').split('?')[0] === hash && view.isConnected && view.dataset.autoRefresh === token;
+  const tick = async () => {
+    if (!masihDiHalaman()) { berhenti(); return; }
+    if (document.hidden || jalan) return;
+    const aktif = document.activeElement;
+    if (aktif && view.contains(aktif) && /^(INPUT|TEXTAREA|SELECT)$/.test(aktif.tagName)) return;
+    if (sibuk()) return;
+    jalan = true;
+    try { await muat(); } catch { /* refresh diam: abaikan galat jaringan sesaat */ } finally { jalan = false; }
+  };
+  const id = setInterval(tick, ms);
+  const saatTerlihat = () => { if (!document.hidden) tick(); };
+  document.addEventListener('visibilitychange', saatTerlihat);
+  function berhenti() {
+    clearInterval(id);
+    document.removeEventListener('visibilitychange', saatTerlihat);
+  }
+  window.addEventListener('hashchange', () => { if (!masihDiHalaman()) berhenti(); });
+  return berhenti;
+}

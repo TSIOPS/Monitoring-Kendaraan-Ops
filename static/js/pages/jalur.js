@@ -1,7 +1,7 @@
 import { del, get, post, put } from '../api.js';
 import { getRouteParam } from '../router.js';
 import { getUser } from '../store.js';
-import { confirmDialog, el, fmtDateId, toast } from '../ui.js';
+import { autoRefresh, confirmDialog, el, fmtDateId, toast } from '../ui.js';
 import { tanggalWib } from './input.js';
 
 // Halaman Jalur Pengiriman (M8): daftar, buat, edit, ringkasan.
@@ -114,14 +114,17 @@ export async function renderJalurList(view) {
   const wh = pilihWarehouse(master.cabang);
   const hasil = el('div', {});
 
-  async function tampilkan() {
-    hasil.replaceChildren(el('div', { class: 'text-muted', text: 'Memuat jalur' }));
+  // diam = refresh otomatis: tanpa tulisan 'Memuat', galat jaringan tidak menghapus daftar.
+  async function tampilkan(diam = false) {
+    diam = diam === true;
+    if (!diam) hasil.replaceChildren(el('div', { class: 'text-muted', text: 'Memuat jalur' }));
     const q = new URLSearchParams({ tanggal: dari.value, tanggal_akhir: sampai.value || dari.value });
     if (isSuper() && wh.value) q.set('cabang', wh.value);
     let data;
     try {
       data = await get(`/api/jalur?${q}`);
     } catch (err) {
+      if (diam) return;
       hasil.replaceChildren(el('div', { class: 'alert alert-danger', text: err.message }));
       return;
     }
@@ -180,6 +183,8 @@ export async function renderJalurList(view) {
     hasil,
   ]));
   await tampilkan();
+  // Jalur baru/berubah dari pengguna lain muncul tanpa reload.
+  autoRefresh(view, () => tampilkan(true));
   return { ok: true };
 }
 
