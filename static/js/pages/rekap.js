@@ -213,12 +213,12 @@ export async function renderRekap(view) {
   function gambarRingkasan() {
     const r = ringkasRekap(lines);
     ringkasan.replaceChildren(
-      kotak('bg-primary text-white', 'BBM via Etoll', rp(r.bbmEtoll)),
-      kotak('bg-primary text-white', 'Tol via Etoll', rp(r.tolEtoll)),
+      kotak('bg-primary text-white', 'BBM Flazz', rp(r.bbmEtoll)),
+      kotak('bg-primary text-white', 'Bayar Tol By Flazz', rp(r.tolEtoll)),
       kotak('bg-warning-subtle', 'BBM Tunai', rp(r.bbmTunai)),
-      kotak('bg-warning-subtle', 'Tol Tunai', rp(r.tolTunai)),
-      kotak('border bg-white', 'Total Etoll', rp(r.totalEtoll)),
-      kotak('border bg-white', 'Total Tunai', rp(r.totalTunai)),
+      kotak('bg-warning-subtle', 'Bayar Tol Tunai', rp(r.tolTunai)),
+      kotak('border bg-white', 'Total Pembayaran By Flazz', rp(r.totalEtoll)),
+      kotak('border bg-white', 'Total Pembayaran Tunai', rp(r.totalTunai)),
       kotak('bg-success text-white', 'Total Pengeluaran', rp(r.total), `${fmtNum(r.jumlah)} pembayaran`),
     );
   }
