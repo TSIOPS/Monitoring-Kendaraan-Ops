@@ -260,7 +260,7 @@ export async function renderFlazzList(view) {
   tampilkan();
   // Status & saldo kartu (mis. setelah rekonsiliasi warehouse lain) diperbarui tanpa reload;
   // dilewati saat rekap kartu sedang dibuka.
-  autoRefresh(view, async () => { data = await muatData(); tampilkan(); }, { sibuk: () => detail.children.length > 0 });
+  autoRefresh(view, async () => { data = { ...data, ...(await get('/api/flazz/dashboard')) }; tampilkan(); }, { sibuk: () => detail.children.length > 0 });
   return { ok: true };
 }
 

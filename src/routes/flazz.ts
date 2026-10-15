@@ -10,7 +10,7 @@ import { decodeBase64, extOf } from './laporan';
 import * as R from '../logic/flazz-recon';
 import { todayWib } from '../logic/jalur';
 import { jsonSnip } from './master';
-import { bumpMasterRev, invalidateDashwarn } from '../logic/master-cache';
+import { bumpMasterRev } from '../logic/master-cache';
 import { CardBalanceError } from '../db/flazz';
 import type { CardPatch, FlazzCardRow } from '../db/flazz';
 import { extractStorageKey } from '../db/storage';
@@ -73,7 +73,6 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
   const afterWrite = async (u: SessionUser) => {
     await bumpMasterRev(deps.kv);
-    await invalidateDashwarn(deps.kv, roleOf(u), u.cabang);
   };
 
   const requireCard = async (id: string, u: SessionUser): Promise<FlazzCardRow> => {

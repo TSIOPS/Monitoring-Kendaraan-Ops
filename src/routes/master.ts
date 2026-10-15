@@ -6,14 +6,15 @@ import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
 import { hashPassword } from '../auth/password';
 import { errPayload, HttpError, okPayload, reqIp } from '../utils/http';
-import { bumpMasterRev, getMasterRev, invalidateDashwarn, masterCacheKey } from '../logic/master-cache';
+import { bumpMasterRev, CACHE_TTL_DETIK, getMasterRev, masterCacheKey } from '../logic/master-cache';
 import { defaultOilIntervalKm, getMasterPayload } from '../logic/master';
 import type { AppDeps } from '../deps';
 import { normalisasiCabangBersama } from '../logic/kendaraan-bersama';
 
 // Minimal 60: Cloudflare KV menolak expirationTtl di bawahnya. Cache tetap
 // segar karena kuncinya memuat master-rev yang naik pada setiap write.
-const MASTER_CACHE_TTL = 60;
+// Kunci memuat versi data; TTL panjang aman (hemat kuota write KV).
+const MASTER_CACHE_TTL = CACHE_TTL_DETIK;
 
 type Ctx = Context<{ Bindings: Env; Variables: AuthVars }>;
 
@@ -185,7 +186,6 @@ export function masterRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       data_sebelum: jsonSnip(sebelum), data_sesudah: jsonSnip({ km_terakhir_ganti_oli: km }),
     });
     await bumpMasterRev(deps.kv);
-    await invalidateDashwarn(deps.kv, u.role, u.cabang);
     return c.json(okPayload({ msg: 'Baseline ganti oli diperbarui ke KM ' + km + '.', km }));
   });
 

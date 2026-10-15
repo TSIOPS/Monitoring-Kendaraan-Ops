@@ -114,16 +114,15 @@ describe('master routes', () => {
     expect(state.kendaraan[0]?.status).toBe('Aktif');
   });
 
-  it('reset-oli menghapus key dashwarn', async () => {
+  it('reset-oli menaikkan versi cache', async () => {
     const { state, repo } = memMaster({ kendaraan: [VEHICLE_ROW] });
     const { deps, kv } = makeDeps({ master: repo });
     const app = buildApp(fakeEnv() as any, deps);
-    const key = warningsCacheKey('SUPERADMIN', '');
-    await kv.put(key, 'x');
+    await kv.put(warningsCacheKey('0', 'SUPERADMIN', ''), 'x');
     const tok = await loginAs(kv, SUPER);
     const res = await app.request('/api/master/kendaraan/V-1/reset-oli', { method: 'POST', headers: authHeaders(tok) });
     expect(res.status).toBe(200);
-    expect(await kv.get(key)).toBeNull();
+    expect(await kv.get('master-rev')).toBe('1');
   });
 
   it('loginAs super dapat menonaktifkan PIC; PIC tidak dapat mengelola pengguna', async () => {

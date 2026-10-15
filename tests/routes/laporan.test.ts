@@ -344,7 +344,7 @@ describe('GET /api/dashboard', () => {
     const b1 = await (await app.request('/api/dashboard', { headers: authHeaders(tok) })).json() as any;
     expect(b1.warnings).toHaveLength(1);
     expect(b1.warnings[0].severity).toBe('PERHATIAN');
-    expect(await kv.get(warningsCacheKey('PIC CABANG', 'CBG-A'), 'json')).not.toBeNull();
+    expect(await kv.get(warningsCacheKey('0', 'PIC CABANG', 'CBG-A'), 'json')).not.toBeNull();
     lap.state.rows.push(laporanRow({ transaction_id: 'TRX-2', km_akhir_confirmed: '15020' }));
     const b2 = await (await app.request('/api/dashboard', { headers: authHeaders(tok) })).json() as any;
     expect(b2.warnings).toHaveLength(1);
@@ -568,16 +568,17 @@ describe('DELETE /api/laporan/:id/flazz (detach)', () => {
 });
 
 describe('lintas-cutting', () => {
-  it('save menghapus cache performa & monthly (scope PIC + SUPERADMIN)', async () => {
+  it('save menaikkan versi cache: cache performa & monthly lama tidak terpakai, tanpa delete', async () => {
     const { app, kv } = setup();
-    const keys = [
-      performaCacheKey('PIC CABANG', 'CBG-A'), monthlyCacheKey('PIC CABANG', 'CBG-A'),
-      performaCacheKey('SUPERADMIN', ''), monthlyCacheKey('SUPERADMIN', ''),
+    const keys = (rev: string) => [
+      performaCacheKey(rev, 'PIC CABANG', 'CBG-A'), monthlyCacheKey(rev, 'PIC CABANG', 'CBG-A'),
+      performaCacheKey(rev, 'SUPERADMIN', ''), monthlyCacheKey(rev, 'SUPERADMIN', ''),
     ];
-    for (const k of keys) await kv.put(k, 'x');
+    for (const k of keys('0')) await kv.put(k, 'x');
     const tok = await loginAs(kv, PIC);
     await post(app, '/api/laporan', tok, saveBody());
-    for (const k of keys) expect(await kv.get(k)).toBeNull();
+    expect(await kv.get('master-rev')).toBe('1');
+    for (const k of keys('1')) expect(await kv.get(k)).toBeNull();
   });
 
   it('tol Flazz terpisah (BBM tunai): hanya kartu tol terpotong', async () => {
@@ -626,34 +627,29 @@ describe('lintas-cutting', () => {
     expect(b2.transactions).toHaveLength(2);
   });
 
-  it('save menghapus cache dashwarn (scope PIC + SUPERADMIN)', async () => {
+  it('save menaikkan versi cache dashwarn (scope PIC + SUPERADMIN)', async () => {
     const { app, kv } = setup();
-    const keys = [
-      warningsCacheKey('PIC CABANG', 'CBG-A'),
-      warningsCacheKey('SUPERADMIN', ''),
-    ];
-    for (const k of keys) await kv.put(k, 'x');
+    for (const k of [warningsCacheKey('0', 'PIC CABANG', 'CBG-A'), warningsCacheKey('0', 'SUPERADMIN', '')]) await kv.put(k, 'x');
     const tok = await loginAs(kv, PIC);
     await post(app, '/api/laporan', tok, saveBody());
-    for (const k of keys) expect(await kv.get(k)).toBeNull();
+    expect(await kv.get('master-rev')).toBe('1');
+    expect(await kv.get(warningsCacheKey('1', 'PIC CABANG', 'CBG-A'))).toBeNull();
   });
 
   it('edit menghapus cache dashwarn', async () => {
     const { app, kv } = setup({ rows: [{ transaction_id: 'TRX-1' }] });
-    const key = warningsCacheKey('PIC CABANG', 'CBG-A');
-    await kv.put(key, 'x');
+    await kv.put(warningsCacheKey('0', 'PIC CABANG', 'CBG-A'), 'x');
     const tok = await loginAs(kv, PIC);
     await put(app, '/api/laporan/TRX-1', tok, { biaya_bbm: 90000 });
-    expect(await kv.get(key)).toBeNull();
+    expect(await kv.get('master-rev')).toBe('1');
   });
 
   it('delete menghapus cache dashwarn', async () => {
     const { app, kv } = setup({ rows: [{ transaction_id: 'TRX-1' }] });
-    const key = warningsCacheKey('PIC CABANG', 'CBG-A');
-    await kv.put(key, 'x');
+    await kv.put(warningsCacheKey('0', 'PIC CABANG', 'CBG-A'), 'x');
     const tok = await loginAs(kv, PIC);
     await del(app, '/api/laporan/TRX-1', tok);
-    expect(await kv.get(key)).toBeNull();
+    expect(await kv.get('master-rev')).toBe('1');
   });
 
   it('tanpa token -> 401 pada /api/laporan dan /api/dashboard', async () => {

@@ -6,7 +6,7 @@ import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
 import { HttpError, okPayload } from '../utils/http';
 import { newId, jsonSnip } from './master';
-import { bumpMasterRev, invalidateDashwarn, invalidateLaporanCaches, performaCacheKey, monthlyCacheKey, peringatanCacheKey, warningsCacheKey } from '../logic/master-cache';
+import { bumpMasterRev, CACHE_TTL_DETIK, getMasterRev, performaCacheKey, monthlyCacheKey, peringatanCacheKey, warningsCacheKey } from '../logic/master-cache';
 import { CardBalanceError } from '../db/laporan';
 import type { FlazzCardRow, LaporanInsert } from '../db/laporan';
 import { extractStorageKey } from '../db/storage';
@@ -394,9 +394,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       keterangan: 'TRX ' + transaction_id,
       data_sesudah: jsonSnip({ cabang: trxCabang, vehicle: kendaraan.plat_nomor, km_tempuh: odo.kmTempuh, liter, biaya: L.rowBbmTotal(row) }),
     });
-    await invalidateLaporanCaches(deps.kv, roleOf(u), u.cabang);
-    await invalidateDashwarn(deps.kv, roleOf(u), u.cabang);
-    if (usedFlazz) await bumpMasterRev(deps.kv);
+    // Laporan baru mengubah KM terakhir, efisiensi, peringatan -> naikkan versi cache (1 write).
+    await bumpMasterRev(deps.kv);
 
     return c.json(okPayload({ transaction_id }));
   });
@@ -421,13 +420,13 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   app.get('/performa', requireUser(deps), async (c) => {
     const u = c.get('user');
     const cabang = isSuper(u) ? '' : u.cabang;
-    const key = performaCacheKey(roleOf(u), cabang);
+    const key = performaCacheKey(await getMasterRev(deps.kv), roleOf(u), cabang);
     const cached = await deps.kv.get(key, 'json');
     if (cached) return c.json(okPayload({ items: cached }));
     const all = await deps.master.listAll();
     const rows = await denganKonteksBersama(deps, all.kendaraan, await deps.laporan.rowsInScope(cabang, 5000), cabang);
     const items = L.buildPerformaList(rows, kendaraanInfoMap(all), cabangNamaMapOf(all));
-    await deps.kv.put(key, JSON.stringify(items), { expirationTtl: 300 });
+    await deps.kv.put(key, JSON.stringify(items), { expirationTtl: CACHE_TTL_DETIK });
     return c.json(okPayload({ items }));
   });
 
@@ -706,8 +705,6 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       data_sebelum: jsonSnip({ metode_pembayaran: oldMetode, flazz_card_id: oldCard, biaya_bbm: oldBiaya, biaya_toll: oldToll, metode_toll: oldMetodeToll, flazz_card_id_toll: oldCardToll, flazz_card_id_2: oldCard2, biaya_bbm_2: oldBbm2, flazz_card_id_toll_2: oldCardToll2, biaya_toll_2: oldTol2 }),
       data_sesudah: jsonSnip({ metode_pembayaran: newMetode, flazz_card_id: newCard, biaya_bbm: newBiaya, biaya_toll: newToll, metode_toll: newMetodeToll, flazz_card_id_toll: newCardToll, flazz_card_id_2: newCard2, biaya_bbm_2: newBbm2, flazz_card_id_toll_2: newCardToll2, biaya_toll_2: newTol2 }),
     });
-    await invalidateLaporanCaches(deps.kv, roleOf(u), u.cabang);
-    await invalidateDashwarn(deps.kv, roleOf(u), u.cabang);
     await bumpMasterRev(deps.kv);
     return c.json(okPayload({ msg: L.MSG_EDIT_SUCCESS }));
   });
@@ -787,8 +784,6 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       data_sebelum: jsonSnip({ metode_pembayaran: metodeBbm, flazz_card_id: cardBbm, biaya_bbm: biaya, flazz_card_id_2: cardBbm2, biaya_bbm_2: biaya2 }),
       data_sesudah: jsonSnip({ metode_pembayaran: lepas1 ? patch.metode_pembayaran : metodeBbm, flazz_card_id: lepas1 ? '' : cardBbm, biaya_bbm: biaya, flazz_card_id_2: '', biaya_bbm_2: biaya2, metode_toll: old.metode_toll, flazz_card_id_toll: old.flazz_card_id_toll }),
     });
-    await invalidateLaporanCaches(deps.kv, roleOf(u), u.cabang);
-    await invalidateDashwarn(deps.kv, roleOf(u), u.cabang);
     await bumpMasterRev(deps.kv);
     return c.json(okPayload({ msg: 'Pembayaran BBM Flazz berhasil dilepas.' }));
   });
@@ -846,8 +841,6 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       user_id: u.user_id, username: u.username, action: 'DELETE', modul: 'transaksi', keterangan: id,
       data_sebelum: jsonSnip({ metode_pembayaran: metodeBbm, flazz_card_id: cardBbm, biaya_bbm: biaya, biaya_toll: toll, metode_toll: metodeToll, flazz_card_id_toll: cardToll, flazz_card_id_2: payState.cardBbm2, biaya_bbm_2: payState.biayaBbm2, flazz_card_id_toll_2: payState.cardTol2, biaya_toll_2: payState.biayaTol2, vehicle_id: old.vehicle_id, kode_cabang: old.kode_cabang, tanggal: old.tanggal }),
     });
-    await invalidateLaporanCaches(deps.kv, roleOf(u), u.cabang);
-    await invalidateDashwarn(deps.kv, roleOf(u), u.cabang);
     await bumpMasterRev(deps.kv);
     return c.json(okPayload({ msg: L.MSG_DELETE_SUCCESS }));
   });
@@ -900,15 +893,15 @@ export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     tandaiKunciRekon(transactions, await deps.flazz.listReconciliations());
 
     const periode = L.periodKey(new Date());
-    const mkey = monthlyCacheKey(roleOf(u), cabang);
+    const mkey = monthlyCacheKey(await getMasterRev(deps.kv), roleOf(u), cabang);
     let monthly = await deps.kv.get(mkey, 'json') as L.MonthlyItem[] | null;
     if (!monthly) {
       const monthRows = await deps.laporan.rowsInMonth(cabang, periode);
       monthly = L.groupMonthly(monthRows, periode);
-      await deps.kv.put(mkey, JSON.stringify(monthly), { expirationTtl: 300 });
+      await deps.kv.put(mkey, JSON.stringify(monthly), { expirationTtl: CACHE_TTL_DETIK });
     }
 
-    const wkey = warningsCacheKey(roleOf(u), cabang);
+    const wkey = warningsCacheKey(await getMasterRev(deps.kv), roleOf(u), cabang);
     let warnings = await deps.kv.get(wkey, 'json') as WarningItem[] | null;
     if (!warnings) {
       const kendaraan = all.kendaraan as WarningVehicle[];
@@ -919,7 +912,7 @@ export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
         cabangNama: cabangNamaMapOf(all),
         today: new Date(),
       });
-      await deps.kv.put(wkey, JSON.stringify(warnings), { expirationTtl: 300 });
+      await deps.kv.put(wkey, JSON.stringify(warnings), { expirationTtl: CACHE_TTL_DETIK });
     }
     return c.json(okPayload({ transactions, monthly, warnings }));
   });
@@ -929,7 +922,7 @@ export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   app.get('/warnings', requireUser(deps), async (c) => {
     const u = c.get('user');
     const cabang = isSuper(u) ? '' : u.cabang;
-    const key = peringatanCacheKey(roleOf(u), cabang);
+    const key = peringatanCacheKey(await getMasterRev(deps.kv), roleOf(u), cabang);
     if (c.req.query('fresh') !== '1') {
       const hit = await deps.kv.get(key, 'json');
       if (hit) return c.json(okPayload(hit as Record<string, unknown>));
@@ -947,7 +940,7 @@ export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       user: { role: roleOf(u), cabang: u.cabang },
       today: todayWib(),
     });
-    await deps.kv.put(key, JSON.stringify(out), { expirationTtl: 300 });
+    await deps.kv.put(key, JSON.stringify(out), { expirationTtl: CACHE_TTL_DETIK });
     return c.json(okPayload({ ...out }));
   });
 
