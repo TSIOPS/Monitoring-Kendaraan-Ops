@@ -592,9 +592,12 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       ? await Promise.all([deps.flazz.listTopups(), deps.flazz.listTols(), deps.flazz.listUsages(ids), deps.flazz.listReconciliations(), deps.laporan.rowsForCards(ids)])
       : [[], [], [], [], []];
     const bbmFlazz = R.buildBbmFlazz(laporan, resolve);
+    // created_by top up/tol menyimpan username; tampilkan nama lengkap pengguna.
+    const namaPengguna = new Map((await deps.master.listAll()).pengguna.map((p) => [String(p.username), String(p.nama || p.username)]));
+    const denganNama = <T extends { created_by?: string }>(x: T) => ({ ...x, created_by_nama: namaPengguna.get(String(x.created_by ?? '')) ?? String(x.created_by ?? '') });
     const waktu = (x: Record<string, any>) => R.ms(x.created_at || x.used_at || x.reconciled_at || x.timestamp || x.date) ?? 0;
     const terbaru = (a: Record<string, any>, b: Record<string, any>) => waktu(b) - waktu(a);
-    const tolsN = norm(tols);
+    const tolsN = norm(tols).map(denganNama);
     const tolHistory = [
       ...tolsN.map((t) => ({ ...t, source: 'MANUAL' })),
       ...bbmFlazz.filter((x) => x.toll_amount > 0).map((x) => ({
@@ -605,7 +608,7 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     ].sort((a, b) => (R.ms(b.date) ?? 0) - (R.ms(a.date) ?? 0));
     return c.json(okPayload({
       cards,
-      topups: norm(topups).sort(terbaru),
+      topups: norm(topups).map(denganNama).sort(terbaru),
       tols: tolsN.sort(terbaru),
       tolHistory,
       usages: norm(usages).sort(terbaru),

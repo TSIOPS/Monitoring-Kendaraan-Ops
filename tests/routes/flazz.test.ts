@@ -34,6 +34,7 @@ function setup(init: { cards?: FlazzCardRow[]; topups?: FlazzTopupRow[]; tols?: 
   const master = memMaster({
     cabang: CABANG,
     kendaraan: [VEHICLE_ROW],
+    pengguna: [{ user_id: 'U-P', username: 'pic', nama: 'Pic Lengkap', role: 'PIC CABANG', kode_cabang: 'CBG-A', status: 'Aktif', password: '' }],
     supir: [{ supir_id: 'S-1', nama_supir: 'Supir A', kode_cabang: 'CBG-A', default_vehicle_id: '', status: 'Aktif' }],
   });
   const flz = memFlazz({ cards: init.cards ?? [], topups: init.topups ?? [], tols: init.tols ?? [], reconciliations: init.recons ?? [] });
@@ -154,6 +155,13 @@ describe('/api/flazz/topup', () => {
     expect(flz.state.cards[0]!.last_balance).toBe(750000);
     expect(flz.state.topups[0]).toMatchObject({ amount: 250000, created_by: 'pic' });
     expect(audits[0]).toMatchObject({ action: 'CREATE', modul: 'flazz' });
+  });
+
+  it('dashboard menyertakan nama lengkap pencatat top up (created_by_nama)', async () => {
+    const { app, kv } = setup({ cards: [card()], topups: [topup()] });
+    const res = await app.request('/api/flazz/dashboard', { headers: headers(await loginAs(kv, PIC)) });
+    const b = (await res.json()) as any;
+    expect(b.topups[0]).toMatchObject({ created_by: 'pic', created_by_nama: 'Pic Lengkap' });
   });
 
   it('update hanya menyesuaikan delta', async () => {

@@ -488,7 +488,7 @@ export async function renderFlazzRiwayat(view) {
       const list = filterKartu(data.topups).filter((t) => dalam(t.date));
       konten = tabel(['Tanggal', 'Kartu', 'Nominal', 'Bukti', 'Catatan', 'Dicatat oleh', 'Aksi'], list.map((t) => el('tr', {}, [
         el('td', { text: fmtDateId(t.date) }), el('td', { text: kn(t.card_id) }), el('td', { class: 'text-end', text: rp(t.amount) }),
-        el('td', {}, [tautan(t.evidence_url)]), el('td', { text: t.notes || '-' }), el('td', { class: 'small', text: t.created_by || '-' }),
+        el('td', {}, [tautan(t.evidence_url)]), el('td', { text: t.notes || '-' }), el('td', { class: 'small', text: t.created_by_nama || t.created_by || '-' }),
         el('td', {}, [
           el('button', { class: 'btn btn-sm btn-outline-primary me-1', type: 'button', text: 'Edit', onclick: () => formEdit('topup', t) }),
           el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', text: 'Hapus', onclick: () => hapus('Hapus top up ini? Saldo kartu ikut dikurangi.', `/api/flazz/topup/${encodeURIComponent(t.id)}`) }),
@@ -500,7 +500,7 @@ export async function renderFlazzRiwayat(view) {
         el('td', { text: fmtDateId(tglKey(t.date)) }), el('td', { text: kn(t.card_id) }),
         el('td', { text: [supirNama(t.driver_id), platOf(t.vehicle_id)].filter(Boolean).join(' / ') || '-' }), el('td', { class: 'text-end', text: rp(t.amount) }),
         el('td', {}, [tautan(t.evidence_url)]), el('td', { text: t.notes || '-' }),
-        el('td', { class: 'small', text: t.source === 'MANUAL' ? (t.created_by || '-') : 'laporan' }),
+        el('td', { class: 'small', text: t.source === 'MANUAL' ? (t.created_by_nama || t.created_by || '-') : 'laporan' }),
         el('td', {}, t.source === 'MANUAL' ? [
           el('button', { class: 'btn btn-sm btn-outline-primary me-1', type: 'button', text: 'Edit', onclick: () => formEdit('tol', t) }),
           el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', text: 'Hapus', onclick: () => hapus('Hapus catatan tol ini? Saldo kartu ikut dikembalikan.', `/api/flazz/tol/${encodeURIComponent(t.id)}`) }),
