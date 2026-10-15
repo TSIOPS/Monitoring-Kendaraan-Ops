@@ -179,26 +179,106 @@ function renderTopbar(activeHash) {
         pengaturan.company_name ? el('div', { class: 'brand-company', text: pengaturan.company_name }) : null,
         el('div', { class: 'brand-title', text: pengaturan.app_name || 'Monitoring Kendaraan' }),
       ]),
-      el('a', {
-        class: 'user-info text-decoration-none',
-        href: '#/password',
-        title: 'Ganti password',
-        text: `${user.nama || user.username} · ${user.role}${user.cabang ? ' · ' + user.cabang : ''}`,
-      }),
-      el('a', { class: 'btn btn-outline-secondary btn-sm', href: '#/password', title: 'Ganti password', 'aria-label': 'Ganti password' }, [el('i', { class: 'bi bi-key', 'aria-hidden': 'true' })]),
-      el('button', { class: 'btn btn-outline-secondary btn-sm', id: 'btn-logout', text: 'Keluar' }),
+      tombolLonceng(warn),
+      menuPengguna(user),
     ]),
   );
-  const btn = document.getElementById('btn-logout');
   sinkronTinggiHeader();
-  btn.addEventListener('click', async () => {
-    try {
-      await post('/api/logout', {});
-    } catch (err) {
-      console.warn('logout ke server gagal, session lokal tetap dibersihkan:', err.message);
-    }
-    logout();
+}
+
+// Inisial avatar: dua huruf awal nama (atau username).
+export function inisial(nama) {
+  const kata = String(nama || '').trim().split(/\s+/).filter(Boolean);
+  if (!kata.length) return '?';
+  return ((kata[0][0] || '') + (kata.length > 1 ? kata[kata.length - 1][0] : (kata[0][1] || ''))).toUpperCase();
+}
+
+// Lonceng: jumlah Peringatan Dini (sama dengan badge Dashboard), klik ke Dashboard.
+function tombolLonceng(warn) {
+  return el('a', { class: 'btn btn-light btn-sm tombol-ikon position-relative', href: '#/dashboard', title: warn ? `${warn} peringatan` : 'Tidak ada peringatan', 'aria-label': 'Peringatan' }, [
+    el('i', { class: 'bi bi-bell', 'aria-hidden': 'true' }),
+    warn ? el('span', { class: 'badge rounded-pill bg-danger lonceng-badge', text: warn > 99 ? '99+' : String(warn) }) : null,
+  ].filter(Boolean));
+}
+
+async function keluar() {
+  try {
+    await post('/api/logout', {});
+  } catch (err) {
+    console.warn('logout ke server gagal, session lokal tetap dibersihkan:', err.message);
+  }
+  logout();
+}
+
+function tampilProfil(user) {
+  const tutup = () => latar.remove();
+  const baris = (label, nilai) => el('div', { class: 'd-flex justify-content-between gap-3 py-1 border-bottom' }, [
+    el('span', { class: 'text-muted', text: label }), el('span', { class: 'fw-semibold text-end', text: nilai || '-' }),
+  ]);
+  const latar = el('div', { class: 'popup-latar', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Profil' }, [
+    el('div', { class: 'popup-kotak' }, [
+      el('div', { class: 'd-flex align-items-center gap-3 mb-3' }, [
+        el('span', { class: 'avatar avatar-besar', text: inisial(user.nama || user.username) }),
+        el('div', {}, [el('div', { class: 'h6 mb-0', text: user.nama || user.username }), el('div', { class: 'small text-muted', text: user.role })]),
+      ]),
+      baris('Username', user.username),
+      baris('Role', user.role),
+      baris('Warehouse', user.cabang || 'Semua warehouse'),
+      el('div', { class: 'd-flex justify-content-end gap-2 mt-3' }, [
+        el('a', { class: 'btn btn-outline-primary btn-sm', href: '#/password', text: 'Ganti Password', onclick: tutup }),
+        el('button', { class: 'btn btn-secondary btn-sm', type: 'button', text: 'Tutup', onclick: tutup }),
+      ]),
+    ]),
+  ]);
+  latar.addEventListener('click', (e) => { if (e.target === latar) tutup(); });
+  document.body.appendChild(latar);
+}
+
+// Satu pendengar global (topbar digambar ulang tiap pindah halaman): klik di luar / Esc menutup menu.
+function tutupMenuPengguna(e) {
+  document.querySelectorAll('.menu-pengguna:not(.d-none)').forEach((m) => {
+    if (e?.type === 'click' && m.parentElement?.contains(e.target)) return;
+    m.classList.add('d-none');
+    m.parentElement?.querySelector('.tombol-avatar')?.setAttribute('aria-expanded', 'false');
   });
+}
+document.addEventListener('click', tutupMenuPengguna);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') tutupMenuPengguna(e); });
+
+// Menu pengguna: avatar + panah; isi: nama aplikasi & identitas, Profil, Ganti Password, Keluar.
+function menuPengguna(user) {
+  const item = (ikon, teks, aksi, href) => el(href ? 'a' : 'button', {
+    class: 'menu-item', role: 'menuitem', ...(href ? { href } : { type: 'button' }),
+  }, [el('span', { text: teks }), el('i', { class: `bi ${ikon}`, 'aria-hidden': 'true' })]);
+  const iProfil = item('bi-person', 'Profil');
+  const iPass = item('bi-key', 'Ganti Password', null, '#/password');
+  const iKeluar = item('bi-box-arrow-right', 'Keluar');
+  const panel = el('div', { class: 'menu-pengguna d-none', role: 'menu' }, [
+    el('div', { class: 'menu-judul', text: pengaturan.app_name || 'Monitoring Kendaraan' }),
+    el('div', { class: 'menu-identitas' }, [
+      el('div', { class: 'fw-semibold', text: user.nama || user.username }),
+      el('div', { class: 'small text-muted', text: `${user.role}${user.cabang ? ' · ' + user.cabang : ''}` }),
+    ]),
+    iProfil, iPass,
+    el('div', { class: 'menu-pemisah' }),
+    el('div', { class: 'menu-judul', text: 'Aksi' }),
+    iKeluar,
+  ]);
+  const tombol = el('button', { type: 'button', class: 'btn btn-light btn-sm tombol-avatar', 'aria-haspopup': 'menu', 'aria-expanded': 'false', title: user.nama || user.username }, [
+    el('span', { class: 'avatar', text: inisial(user.nama || user.username) }),
+    el('i', { class: 'bi bi-caret-down-fill small', 'aria-hidden': 'true' }),
+  ]);
+  const wadah = el('div', { class: 'position-relative' }, [tombol, panel]);
+  const tutup = () => { panel.classList.add('d-none'); tombol.setAttribute('aria-expanded', 'false'); };
+  tombol.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const buka = panel.classList.toggle('d-none') === false;
+    tombol.setAttribute('aria-expanded', String(buka));
+  });
+  iProfil.addEventListener('click', () => { tutup(); tampilProfil(user); });
+  iPass.addEventListener('click', tutup);
+  iKeluar.addEventListener('click', () => { tutup(); keluar(); });
+  return wadah;
 }
 
 registerRoute('#/login', async () => ({ render: renderLogin }), { guard: false });
