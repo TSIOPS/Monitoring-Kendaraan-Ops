@@ -57,3 +57,12 @@ describe('autoRefresh', () => {
     expect(baru).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('perluMuatUlang (modul beda versi setelah deploy)', () => {
+  it('mengenali galat modul lama / gagal unduh, bukan galat biasa', async () => {
+    const { perluMuatUlang } = await import('../../static/js/router.js');
+    expect(perluMuatUlang(new SyntaxError("The requested module '../ui.js' does not provide an export named 'autoRefresh'"))).toBe(true);
+    expect(perluMuatUlang(new TypeError('Failed to fetch dynamically imported module: https://x/js/pages/jalur.js'))).toBe(true);
+    expect(perluMuatUlang(new Error('Akses ditolak'))).toBe(false);
+  });
+});

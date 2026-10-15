@@ -26,6 +26,12 @@ export function matchRoute(hash) {
   return routes.find((r) => r.regex.test(path)) || null;
 }
 
+// Galat khas modul ES beda versi / modul baru gagal diunduh setelah deploy.
+export function perluMuatUlang(err) {
+  const m = String(err?.message || '');
+  return /does not provide an export named|Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed/i.test(m);
+}
+
 async function run(hash) {
   const view = document.getElementById('view');
   if (!view) return;
@@ -60,10 +66,23 @@ async function run(hash) {
   try {
     const page = await found.loader();
     await page.render(view);
+    try { sessionStorage.removeItem('muat-ulang-versi'); } catch { /* abaikan */ }
   } catch (err) {
+    // Aplikasi versi baru sudah dipasang saat halaman ini masih terbuka: modul lama di memori
+    // tidak cocok dengan modul halaman yang baru. Muat ulang sekali agar semua modul seragam.
+    if (perluMuatUlang(err)) {
+      const kunci = 'muat-ulang-versi';
+      let sudah = null;
+      try { sudah = sessionStorage.getItem(kunci); } catch { /* abaikan */ }
+      if (sudah !== hash) {
+        try { sessionStorage.setItem(kunci, hash); } catch { /* abaikan */ }
+        window.location.reload();
+        return;
+      }
+    }
     const box = document.createElement('div');
     box.className = 'alert alert-danger';
-    box.textContent = err.message || 'Halaman gagal dimuat.';
+    box.textContent = perluMuatUlang(err) ? 'Aplikasi baru saja diperbarui. Tekan Ctrl+F5 (atau tutup & buka lagi aplikasinya) untuk memuat versi terbaru.' : (err.message || 'Halaman gagal dimuat.');
     view.replaceChildren(box);
   }
 }
