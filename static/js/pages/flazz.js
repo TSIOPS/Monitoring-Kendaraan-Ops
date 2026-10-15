@@ -1,6 +1,6 @@
 import { del, get, post, put } from '../api.js';
 import { getUser } from '../store.js';
-import { confirmDialog, el, fmtDateId, fmtNum, toast, labelDari, petaMaster } from '../ui.js';
+import { confirmDialog, el, fmtDateId, fmtNum, toast, labelDari, petaMaster, pratinjauFoto } from '../ui.js';
 import { kompresGambar, namaAman, tanggalWib } from './input.js';
 
 // Halaman Flazz (M9): List, Top Up, Pengembalian & Rekonsiliasi, Riwayat.
@@ -281,7 +281,7 @@ export async function renderFlazzTopup(view) {
       el('div', { class: 'col-md-3' }, [baris('Nominal top up', nominal)]),
       el('div', { class: 'col-md-3' }, [baris('Tanggal top up', tanggal)]),
       el('div', { class: 'col-md-6' }, [baris('Catatan', catatan)]),
-      el('div', { class: 'col-md-6' }, [baris('Foto bukti (opsional)', foto)]),
+      el('div', { class: 'col-md-6' }, [baris('Foto bukti (opsional)', el('div', {}, [foto, pratinjauFoto(foto)]))]),
     ]),
     simpan,
   ]);
@@ -448,16 +448,19 @@ export async function renderFlazzRiwayat(view) {
     const nominal = el('input', { type: 'number', min: '1', class: 'form-control form-control-sm', value: String(row.amount) });
     const tanggal = el('input', { type: 'date', class: 'form-control form-control-sm', value: tglKey(row.date) });
     const catatan = el('input', { class: 'form-control form-control-sm', value: row.notes || '' });
+    // Top up: foto bukti bisa ditambah/diganti (kosongkan bila tidak diganti).
+    const foto = jenis === 'topup' ? el('input', { type: 'file', accept: 'image/*', class: 'form-control form-control-sm' }) : null;
     editBox.replaceChildren(el('div', { class: 'border rounded p-2 mb-3' }, [
       el('div', { class: 'fw-bold mb-2', text: `Edit ${jenis === 'topup' ? 'top up' : 'tol'} — ${namaKartu(kartuMap().get(row.card_id))}` }),
       el('div', { class: 'row g-2' }, [
         el('div', { class: 'col-md-3' }, [baris('Nominal', nominal)]),
         el('div', { class: 'col-md-3' }, [baris('Tanggal', tanggal)]),
         el('div', { class: 'col-md-6' }, [baris('Catatan', catatan)]),
+        foto ? el('div', { class: 'col-md-6' }, [baris(row.evidence_url ? 'Ganti foto bukti (opsional)' : 'Foto bukti (opsional)', el('div', {}, [foto, pratinjauFoto(foto, row.evidence_url || '')]))]) : null,
       ]),
       el('div', { class: 'd-flex gap-2' }, [
         el('button', { class: 'btn btn-sm btn-primary', type: 'button', text: 'Simpan', onclick: () => aman(async () => {
-          await put(`/api/flazz/${jenis}/${encodeURIComponent(row.id)}`, { amount: Number(nominal.value), date: tanggal.value, notes: catatan.value.trim() });
+          await put(`/api/flazz/${jenis}/${encodeURIComponent(row.id)}`, { amount: Number(nominal.value), date: tanggal.value, notes: catatan.value.trim(), ...(foto ? await bacaFoto(foto) : {}) });
           toast('Perubahan disimpan.', 'success');
           editBox.replaceChildren();
           await muatUlang();

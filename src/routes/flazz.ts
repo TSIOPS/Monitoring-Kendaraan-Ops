@@ -13,6 +13,7 @@ import { jsonSnip } from './master';
 import { bumpMasterRev, invalidateDashwarn } from '../logic/master-cache';
 import { CardBalanceError } from '../db/flazz';
 import type { CardPatch, FlazzCardRow } from '../db/flazz';
+import { extractStorageKey } from '../db/storage';
 import {
   isCardUsable,
   isValidFlazzDate,
@@ -315,7 +316,9 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const b = await readJson(c);
     const date = b.date !== undefined ? validateDate(b.date, 'Tanggal top up') : undefined;
     const amount = b.amount !== undefined ? validateAmount(b.amount, false, 'Nominal top up') : undefined;
-    const evidenceUrl = b.evidence_url !== undefined ? validateEvidence(b.evidence_url) : undefined;
+    // Foto bukti baru (opsional) menggantikan bukti lama.
+    const buktiBaru = await uploadBukti(c, u, b, 'Flazz_TopUp');
+    const evidenceUrl = buktiBaru || (b.evidence_url !== undefined ? validateEvidence(b.evidence_url) : undefined);
     const delta = ledgerBalanceDelta('TOPUP', 'UPDATE', Number(row.amount) || 0, amount);
     if (delta) {
       try {
@@ -338,6 +341,10 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
         try { await deps.flazz.adjustBalance(card.id, -delta); } catch { /* rollback best-effort */ }
       }
       throw e;
+    }
+    if (buktiBaru && row.evidence_url) {
+      const oldKey = extractStorageKey(String(row.evidence_url));
+      if (oldKey) { try { await deps.deleteEvidence(c.env as Env, oldKey); } catch { /* file lama boleh tertinggal */ } }
     }
     await audit(c, { action: 'UPDATE', modul: 'flazz', keterangan: 'Top up ' + row.id, data_sebelum: jsonSnip(row), data_sesudah: jsonSnip(patch) });
     await afterWrite(u);

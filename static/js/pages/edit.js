@@ -2,7 +2,7 @@ import { get, put } from '../api.js';
 import { getRouteParam } from '../router.js';
 import { el, fmtNum, toast, pratinjauFoto } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
-import { hitungLiter, kompresGambar, namaAman, opsiBbm, pesanDigitKm, THUMB_KUALITAS, THUMB_LEBAR } from './input.js';
+import { hitungLiter, kompresGambar, namaAman, opsiBbm, pesanDigitKm, STRUK_KUALITAS, STRUK_LEBAR, THUMB_KUALITAS, THUMB_LEBAR } from './input.js';
 
 // Edit transaksi lengkap (M11), setara alur edit GAS: tanggal, supir, KM, bar,
 // liter, pembayaran (grup 1 & 2), dan foto odometer. Kendaraan tetap terkunci.
@@ -136,6 +136,8 @@ export async function renderEdit(view) {
   isiOpsi(jenisBbm, bbmOpsi, '— pilih jenis BBM —');
   const fotoAwal = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
   const fotoAkhir = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
+  const fotoStrukBbm = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
+  const fotoStrukTol = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
 
   const metode = el('select', { class: 'form-select' }, [
     el('option', { value: 'TUNAI', text: 'Tunai' }),
@@ -210,6 +212,10 @@ export async function renderEdit(view) {
       kol(6, baris('Foto odometer awal', el('div', {}, [fotoAwal, pratinjauFoto(fotoAwal, trx.foto_odo_awal || trx.foto_odo_awal_thumb)]), 'Kosongkan bila tidak diganti.')),
       kol(6, baris('Foto odometer akhir', el('div', {}, [fotoAkhir, pratinjauFoto(fotoAkhir, trx.foto_odo_akhir || trx.foto_odo_akhir_thumb)]), 'Kosongkan bila tidak diganti.')),
     ]),
+    el('div', { class: 'row' }, [
+      kol(6, baris('Foto struk BBM (opsional)', el('div', {}, [fotoStrukBbm, pratinjauFoto(fotoStrukBbm, trx.foto_struk_bbm || trx.foto_struk_bbm_thumb)]), trx.foto_struk_bbm ? 'Kosongkan bila tidak diganti.' : 'Belum ada struk; tambahkan bila ada.')),
+      kol(6, baris('Foto struk / bukti tol (opsional)', el('div', {}, [fotoStrukTol, pratinjauFoto(fotoStrukTol, trx.foto_struk_toll || trx.foto_struk_toll_thumb)]), trx.foto_struk_toll ? 'Kosongkan bila tidak diganti.' : 'Belum ada bukti; tambahkan bila ada.')),
+    ]),
     el('h3', { class: 'h6 mt-2', text: 'Pembayaran' }),
     el('div', { class: 'row' }, [
       kol(3, baris('Jenis BBM', jenisBbm)),
@@ -267,6 +273,12 @@ export async function renderEdit(view) {
         body.foto_odo_akhir = await kompresGambar(fotoAkhir.files[0]);
         body.foto_odo_akhir_thumb = await kompresGambar(fotoAkhir.files[0], THUMB_LEBAR, THUMB_KUALITAS);
         body.foto_odo_akhir_name = namaAman(fotoAkhir.files[0].name);
+      }
+      for (const [slot, input] of [['struk_bbm', fotoStrukBbm], ['struk_toll', fotoStrukTol]]) {
+        if (!(input.files && input.files[0])) continue;
+        body['foto_' + slot] = await kompresGambar(input.files[0], STRUK_LEBAR, STRUK_KUALITAS);
+        body['foto_' + slot + '_thumb'] = await kompresGambar(input.files[0], THUMB_LEBAR, THUMB_KUALITAS);
+        body['foto_' + slot + '_name'] = namaAman(input.files[0].name);
       }
       const res = await put(`/api/laporan/${encodeURIComponent(id)}`, body);
       toast(res.msg || 'Transaksi diperbarui.', 'success');

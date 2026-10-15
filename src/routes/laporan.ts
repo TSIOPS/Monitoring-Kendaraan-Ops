@@ -144,6 +144,24 @@ export function driverKedua(nama2: unknown, nama1: unknown): string {
   return d2 && d2.toLowerCase() !== String(nama1 ?? '').trim().toLowerCase() ? d2 : '';
 }
 
+// Foto struk BBM / tol (opsional): body.foto_<slot> (base64), _name, _thumb -> URL Storage.
+const SLOT_STRUK = [
+  { slot: 'struk_bbm', folder: 'Struk_BBM', label: 'struk BBM' },
+  { slot: 'struk_toll', folder: 'Struk_Tol', label: 'struk tol' },
+] as const;
+async function unggahStruk(deps: AppDeps, env: Env, cabang: string, body: Record<string, any>, s: typeof SLOT_STRUK[number]): Promise<string> {
+  const data = body['foto_' + s.slot];
+  if (!data) return '';
+  try {
+    const { ext, contentType } = extOf(body['foto_' + s.slot + '_name'] ?? s.slot + '.jpg');
+    const up = await deps.uploadEvidence(env, { branch: cabang, folder: s.folder, bytes: decodeBase64(data), ext, contentType });
+    await unggahThumb(deps, env, up.key, body['foto_' + s.slot + '_thumb']);
+    return up.url;
+  } catch (e) {
+    throw new HttpError(422, 'Upload foto ' + s.label + ' gagal: ' + (e as Error).message, 'UNPROCESSABLE');
+  }
+}
+
 export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   const app = new Hono<{ Bindings: Env }>();
 
@@ -151,7 +169,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   app.post('/photos', requireUser(deps), async (c) => {
     const u = c.get('user');
     const body = await readJson(c);
-    const files: Record<string, string> = { odo_awal: '', odo_akhir: '' };
+    const files: Record<string, string> = { odo_awal: '', odo_akhir: '', struk_bbm: '', struk_toll: '' };
     if (body.foto_odo_awal) {
       try {
         const bytes = decodeBase64(body.foto_odo_awal);
@@ -174,6 +192,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
         throw new HttpError(422, 'Upload foto KM akhir gagal: ' + (e as Error).message, 'UNPROCESSABLE');
       }
     }
+    for (const s of SLOT_STRUK) files[s.slot] = await unggahStruk(deps, c.env as Env, u.cabang, body, s);
     return c.json(okPayload({
       files,
       km_awal: L.num(body.km_awal_val),
@@ -624,6 +643,16 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       } catch (e) {
         throw new HttpError(422, 'Upload foto odometer akhir gagal: ' + (e as Error).message, 'UNPROCESSABLE');
       }
+    }
+
+    // Struk BBM / tol: tambah atau ganti (file lama dihapus setelah upload baru berhasil).
+    for (const s of SLOT_STRUK) {
+      const url = await unggahStruk(deps, c.env as Env, u.cabang, p, s);
+      if (!url) continue;
+      const kolom = s.slot === 'struk_bbm' ? 'foto_struk_bbm' : 'foto_struk_toll';
+      const oldKey = extractStorageKey(String(old[kolom] ?? ''));
+      if (oldKey) await hapusFotoDanThumb(deps, c.env as Env, oldKey);
+      patch[kolom] = url;
     }
 
     await deps.laporan.update(id, patch);

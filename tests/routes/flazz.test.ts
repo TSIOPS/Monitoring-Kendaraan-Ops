@@ -44,9 +44,9 @@ function setup(init: { cards?: FlazzCardRow[]; topups?: FlazzTopupRow[]; tols?: 
     if (init.fail === 'insertTol') repo.insertTol = boom;
     if (init.fail === 'updateReconciliation') repo.updateReconciliation = boom;
   }
-  const { deps, kv, audits } = makeDeps({ master: master.repo, flazz: flz.repo });
+  const { deps, kv, audits, storage } = makeDeps({ master: master.repo, flazz: flz.repo });
   const app = buildApp(fakeEnv() as any, deps);
-  return { app, kv, audits, flz };
+  return { app, kv, audits, flz, storage };
 }
 
 const body = (o: unknown = {}) => JSON.stringify(o);
@@ -163,6 +163,18 @@ describe('/api/flazz/topup', () => {
     expect(res.status).toBe(200);
     expect(flz.state.cards[0]!.last_balance).toBe(700000);
     expect(flz.state.topups[0]!.amount).toBe(300000);
+  });
+
+  it('update dengan foto bukti baru: bukti diganti, file lama dihapus', async () => {
+    const lama = 'http://storage.local/storage/v1/object/public/foto/CBG-A/Flazz_TopUp/lama.jpg';
+    const { app, kv, flz, storage } = setup({ cards: [card()], topups: [topup({ evidence_url: lama })] });
+    storage.files.set('CBG-A/Flazz_TopUp/lama.jpg', new Uint8Array([1]));
+    const tok = await loginAs(kv, PIC);
+    const res = await put(app, '/api/flazz/topup/TOP-1', tok, { foto_bukti: 'data:image/jpeg;base64,AAAA', foto_bukti_name: 'baru.jpg' });
+    expect(res.status).toBe(200);
+    expect(flz.state.topups[0]!.evidence_url).toContain('/Flazz_TopUp/');
+    expect(flz.state.topups[0]!.evidence_url).not.toBe(lama);
+    expect(storage.files.has('CBG-A/Flazz_TopUp/lama.jpg')).toBe(false);
   });
 
   it('delete soft-delete dan mengurangi saldo', async () => {

@@ -145,6 +145,24 @@ describe('POST /api/laporan (save)', () => {
 });
 
 describe('POST /api/laporan/photos', () => {
+  it('struk BBM & tol opsional: diunggah ke folder Struk_BBM/Struk_Tol beserta thumbnail', async () => {
+    const { app, kv, storage } = setup();
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan/photos', tok, {
+      foto_struk_bbm: 'data:image/jpeg;base64,AAAA', foto_struk_bbm_name: 's.jpg', foto_struk_bbm_thumb: 'data:image/jpeg;base64,AA==',
+      foto_struk_toll: 'data:image/jpeg;base64,BBBB', foto_struk_toll_name: 't.jpg',
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.files.struk_bbm).toContain('/Struk_BBM/');
+    expect(body.files.struk_toll).toContain('/Struk_Tol/');
+    expect(body.files.odo_awal).toBe('');
+    expect([...storage.files.keys()].some((k) => k.startsWith('thumb/') && k.includes('Struk_BBM'))).toBe(true);
+    // Tanpa struk tetap berhasil (belum diwajibkan).
+    const kosong = await post(app, '/api/laporan/photos', tok, {});
+    expect(((await kosong.json()) as any).files).toMatchObject({ struk_bbm: '', struk_toll: '' });
+  });
+
   it('mengunggah 2 foto dan mengembalikan URL + echo km', async () => {
     const { app, kv, storage } = setup();
     const tok = await loginAs(kv, PIC);

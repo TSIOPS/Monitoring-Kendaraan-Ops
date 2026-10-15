@@ -7,6 +7,9 @@ const MAKS_LEBAR = 1280;
 const KUALITAS_JPEG = 0.7;
 // Thumbnail untuk daftar & galeri (hemat egress).
 export const THUMB_LEBAR = 320;
+// Struk berisi teks: lebar 1024 px & kualitas 60% tetap terbaca, lebih hemat Storage.
+export const STRUK_LEBAR = 1024;
+export const STRUK_KUALITAS = 0.6;
 export const THUMB_KUALITAS = 0.6;
 
 // KM wajib 5-6 digit (sama dengan server); kendaraan yang odometernya memang < 10.000
@@ -282,10 +285,13 @@ export async function renderInput(view) {
   const infoJalur = el('div', { class: 'form-text' });
   const infoBar = el('div', { class: 'form-text mb-3' });
 
-  const serverData = { files: { odo_awal: '', odo_akhir: '' }, km_awal: '', km_akhir: '' };
+  const serverData = { files: { odo_awal: '', odo_akhir: '', struk_bbm: '', struk_toll: '' }, km_awal: '', km_akhir: '' };
   const alertBox = el('div', { class: 'alert alert-danger d-none' });
   const fotoAwal = el('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'form-control' });
   const fotoAkhir = el('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'form-control' });
+  // Struk BBM & tol: opsional dulu (masa sosialisasi ke PIC).
+  const fotoStrukBbm = el('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'form-control' });
+  const fotoStrukTol = el('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'form-control' });
   const submit = el('button', { class: 'btn btn-primary', type: 'submit', text: 'Simpan Laporan' });
   const batal = el('button', { class: 'btn btn-outline-secondary', type: 'button', text: 'Batal' });
   let formDiubah = false;
@@ -378,13 +384,19 @@ export async function renderInput(view) {
         el('div', { class: 'col-md-3' }, [baris('Liter BBM', satuan(f.liter_bbm, '', 'L'), 'Otomatis: biaya ÷ harga per liter')]),
         el('div', { class: 'col-md-3' }, [baris('Metode pembayaran', f.metode_pembayaran)]),
       ]),
-      el('div', { class: 'row' }, [el('div', { class: 'col-md-6' }, [baris('Kartu Flazz (BBM)', f.flazz_card_id)])]),
+      el('div', { class: 'row' }, [
+        el('div', { class: 'col-md-6' }, [baris('Kartu Flazz (BBM)', f.flazz_card_id)]),
+        el('div', { class: 'col-md-6' }, [baris('Foto struk BBM (opsional)', el('div', {}, [fotoStrukBbm, pratinjauFoto(fotoStrukBbm)]), 'Foto struk SPBU bila membeli BBM.')]),
+      ]),
     ]),
     seksi('Tol', [
       el('div', { class: 'row' }, [
         el('div', { class: 'col-md-4' }, [baris('Biaya tol', satuan(f.biaya_toll, 'Rp'))]),
         el('div', { class: 'col-md-4' }, [baris('Metode tol', f.metode_toll)]),
         el('div', { class: 'col-md-4' }, [baris('Kartu Flazz (tol)', f.flazz_card_id_toll)]),
+      ]),
+      el('div', { class: 'row' }, [
+        el('div', { class: 'col-md-6' }, [baris('Foto struk / bukti tol (opsional)', el('div', {}, [fotoStrukTol, pratinjauFoto(fotoStrukTol)]), 'Struk gerbang tol atau tangkapan layar saldo bila ada.')]),
       ]),
     ]),
     el('div', {}, [grup2Toggle]),
@@ -555,6 +567,12 @@ export async function renderInput(view) {
           fotoBody.foto_odo_akhir_thumb = await kompresGambar(fotoAkhir.files[0], THUMB_LEBAR, THUMB_KUALITAS);
           fotoBody.foto_odo_akhir_name = namaAman(fotoAkhir.files[0].name);
         }
+        for (const [slot, input] of [['struk_bbm', fotoStrukBbm], ['struk_toll', fotoStrukTol]]) {
+          if (!(input.files && input.files[0])) continue;
+          fotoBody['foto_' + slot] = await kompresGambar(input.files[0], STRUK_LEBAR, STRUK_KUALITAS);
+          fotoBody['foto_' + slot + '_thumb'] = await kompresGambar(input.files[0], THUMB_LEBAR, THUMB_KUALITAS);
+          fotoBody['foto_' + slot + '_name'] = namaAman(input.files[0].name);
+        }
 
         if (Object.keys(fotoBody).length) {
           fotoBody.km_awal_val = values.km_awal;
@@ -562,11 +580,12 @@ export async function renderInput(view) {
           const up = await post('/api/laporan/photos', fotoBody);
           serverData.files.odo_awal = up.files?.odo_awal || '';
           serverData.files.odo_akhir = up.files?.odo_akhir || '';
+          serverData.files.struk_bbm = up.files?.struk_bbm || '';
+          serverData.files.struk_toll = up.files?.struk_toll || '';
           serverData.km_awal = String(up.km_awal ?? '');
           serverData.km_akhir = String(up.km_akhir ?? '');
           fotoSudahTerunggah = true;
-          fotoAwal.disabled = true;
-          fotoAkhir.disabled = true;
+          for (const x of [fotoAwal, fotoAkhir, fotoStrukBbm, fotoStrukTol]) x.disabled = true;
           fotoAwal.closest('.mb-3').classList.add('text-muted');
           fotoAkhir.closest('.mb-3').classList.add('text-muted');
         }
