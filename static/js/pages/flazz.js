@@ -102,8 +102,8 @@ function isiOpsi(select, items, placeholder) {
 }
 
 function tabel(kolom, barisList) {
-  return el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm align-middle' }, [
-    el('thead', {}, [el('tr', {}, kolom.map((t) => el('th', { text: t })))]),
+  return el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm table-hover align-middle' }, [
+    el('thead', { class: 'thead-hijau' }, [el('tr', {}, kolom.map((t) => el('th', { class: 'text-nowrap', text: t })))]),
     el('tbody', {}, barisList),
   ])]);
 }
@@ -524,20 +524,30 @@ export async function renderFlazzRiwayat(view) {
       ])));
     } else {
       const list = filterKartu(data.recons).filter((r) => dalam(r.date));
-      konten = tabel(['Tanggal', 'Kartu', 'Pemegang', 'Saldo awal', 'Top up', 'BBM+Tol', 'Saldo sistem', 'Saldo fisik', 'Selisih', 'Status', 'Catatan', 'Oleh', 'Aksi'],
+      // Angka tanpa "Rp" berulang (satuan di judul); kartu + pemegang + catatan dalam satu sel.
+      const angka = (v, kelas = '') => el('td', { class: `text-end text-nowrap ${kelas}`, text: fmtNum(n(v)) });
+      konten = tabel(['Tanggal', 'Kartu / Pemegang', 'Saldo awal', 'Top up', 'BBM + Tol', 'Saldo sistem', 'Saldo fisik', 'Selisih', 'Status', 'Oleh', ...(isSuper() ? [''] : [])],
         list.map((r) => el('tr', {}, [
-          el('td', { text: fmtDateId(r.date) }), el('td', { text: kn(r.card_id) }), el('td', { text: supirNama(r.driver_id) || '-' }),
-          el('td', { class: 'text-end', text: rp(r.opening_balance) }), el('td', { class: 'text-end', text: rp(r.total_topup) }),
-          el('td', { class: 'text-end', text: rp(n(r.total_bbm_flazz) + n(r.total_tol)) }), el('td', { class: 'text-end', text: rp(r.flazz_balance) }),
-          el('td', { class: 'text-end', text: rp(r.actual_balance) }), el('td', { class: 'text-end', text: rp(r.difference) }),
-          el('td', {}, [el('span', { class: `badge-status ${r.reconciliation_status === 'SESUAI' ? 'badge-ef-baik' : 'badge-ef-waspada'}`, text: r.reconciliation_status })]),
-          el('td', { text: r.notes || '-' }), el('td', { text: r.reconciled_by || '-' }),
-          el('td', {}, isSuper() ? [el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', text: 'Hapus',
-            onclick: () => hapus('Hapus rekonsiliasi ini? Saldo kartu kembali ke saldo sistem sebelum rekonsiliasi dan kartu kembali SEDANG_DIGUNAKAN.', `/api/flazz/reconciliation/${encodeURIComponent(r.id)}`) })] : []),
+          el('td', { class: 'text-nowrap', text: fmtDateId(r.date) }),
+          el('td', {}, [
+            el('div', { class: 'fw-semibold text-nowrap', text: kn(r.card_id) }),
+            el('div', { class: 'small text-muted', text: supirNama(r.driver_id) || '-' }),
+            r.notes ? el('div', { class: 'small fst-italic text-muted', text: r.notes }) : null,
+          ]),
+          angka(r.opening_balance), angka(r.total_topup), angka(n(r.total_bbm_flazz) + n(r.total_tol)),
+          angka(r.flazz_balance, 'fw-semibold'), angka(r.actual_balance, 'fw-semibold'),
+          angka(r.difference, n(r.difference) !== 0 ? 'text-danger fw-bold' : 'text-muted'),
+          el('td', { class: 'text-center' }, [el('span', { class: `badge-status ${r.reconciliation_status === 'SESUAI' ? 'badge-ef-baik' : 'badge-ef-waspada'}`, text: r.reconciliation_status === 'PERLU_PEMERIKSAAN' ? 'PERIKSA' : r.reconciliation_status })]),
+          el('td', { class: 'small', text: r.reconciled_by || '-' }),
+          ...(isSuper() ? [el('td', { class: 'text-center' }, [el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', title: 'Hapus rekonsiliasi', 'aria-label': 'Hapus rekonsiliasi',
+            onclick: () => hapus('Hapus rekonsiliasi ini? Saldo kartu kembali ke saldo sistem sebelum rekonsiliasi dan kartu kembali SEDANG_DIGUNAKAN.', `/api/flazz/reconciliation/${encodeURIComponent(r.id)}`) }, [el('i', { class: 'bi bi-trash', 'aria-hidden': 'true' })])])] : []),
         ])));
     }
     for (const [k, b] of Object.entries(tombolTab)) b.className = `btn btn-sm ${k === tab ? 'btn-secondary' : 'btn-outline-secondary'}`;
-    isi.replaceChildren(konten.querySelector('tbody').children.length ? konten : el('div', { class: 'text-muted', text: 'Tidak ada data pada rentang ini.' }));
+    const adaData = konten.querySelector('tbody').children.length;
+    isi.replaceChildren(...(adaData
+      ? [tab === 'recon' ? el('div', { class: 'small text-muted mb-1', text: 'Nominal dalam Rupiah.' }) : null, konten].filter(Boolean)
+      : [el('div', { class: 'text-muted', text: 'Tidak ada data pada rentang ini.' })]));
   }
 
   const tabs = [['topup', 'Top Up'], ['tol', 'Tol'], ['bbm', 'BBM Flazz'], ['usage', 'Penyerahan'], ['recon', 'Rekonsiliasi']];
