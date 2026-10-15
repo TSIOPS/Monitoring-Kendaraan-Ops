@@ -639,3 +639,9 @@ body.tanpa-sidebar .sidebar, body.tanpa-sidebar .sidebar-latar { display: none; 
 .menu-item:hover, .menu-item:focus-visible { background: #f1f5f2; color: #212529; outline: none; }
 .menu-item .bi { font-size: 1.05rem; color: #6c757d; }
 .menu-pemisah { border-top: 1px solid #eef0f2; margin: 0.35rem 0; }
+
+/* Panel notifikasi lonceng. */
+.panel-lonceng { position: absolute; right: 0; top: calc(100% + 0.4rem); width: min(22rem, calc(100vw - 1.5rem)); max-height: 70vh; overflow: auto; background: #fff; border: 1px solid #e3e6ea; border-radius: 0.5rem; box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.12); z-index: 1050; }
+.lonceng-item { display: block; padding: 0.5rem 1rem; color: #212529; text-decoration: none; border-bottom: 1px solid #f1f3f5; }
+.lonceng-item:hover, .lonceng-item:focus-visible { background: #f1f5f2; color: #212529; outline: none; }
+@media (max-width: 640px) { .panel-lonceng { position: fixed; left: 0.75rem; right: 0.75rem; top: var(--tinggi-topbar, 58px); width: auto; } }

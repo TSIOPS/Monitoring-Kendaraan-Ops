@@ -4,6 +4,7 @@ import { ensureSession, registerRoute, startRouter } from './router.js';
 import { el } from './ui.js';
 import { renderLogin } from './pages/login.js';
 import { daftarkanServiceWorker, mulaiBanner } from './notifikasi.js';
+import { mulaiLonceng, tombolLonceng } from './lonceng.js';
 
 // Sidebar mengikuti GAS: grup dapat dilipat; Pengaturan hanya SUPERADMIN.
 // juga: rute lain yang ikut menyalakan item (mis. halaman edit).
@@ -179,7 +180,7 @@ function renderTopbar(activeHash) {
         pengaturan.company_name ? el('div', { class: 'brand-company', text: pengaturan.company_name }) : null,
         el('div', { class: 'brand-title', text: pengaturan.app_name || 'Monitoring Kendaraan' }),
       ]),
-      tombolLonceng(warn),
+      tombolLonceng(),
       menuPengguna(user),
     ]),
   );
@@ -191,14 +192,6 @@ export function inisial(nama) {
   const kata = String(nama || '').trim().split(/\s+/).filter(Boolean);
   if (!kata.length) return '?';
   return ((kata[0][0] || '') + (kata.length > 1 ? kata[kata.length - 1][0] : (kata[0][1] || ''))).toUpperCase();
-}
-
-// Lonceng: jumlah Peringatan Dini (sama dengan badge Dashboard), klik ke Dashboard.
-function tombolLonceng(warn) {
-  return el('a', { class: 'btn btn-light btn-sm tombol-ikon position-relative', href: '#/dashboard', title: warn ? `${warn} peringatan` : 'Tidak ada peringatan', 'aria-label': 'Peringatan' }, [
-    el('i', { class: 'bi bi-bell', 'aria-hidden': 'true' }),
-    warn ? el('span', { class: 'badge rounded-pill bg-danger lonceng-badge', text: warn > 99 ? '99+' : String(warn) }) : null,
-  ].filter(Boolean));
 }
 
 async function keluar() {
@@ -385,6 +378,7 @@ async function boot() {
   muatPengaturan();
   // Banner tugas hari ini (kuning sepanjang hari, merah + pop-up mulai 16:30) & service worker push.
   mulaiBanner();
+  mulaiLonceng();
   daftarkanServiceWorker();
 
   if (!user) {
