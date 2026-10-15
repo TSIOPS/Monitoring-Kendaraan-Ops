@@ -529,10 +529,11 @@ export async function renderFlazzRiwayat(view) {
       konten = tabel(['Tanggal', 'Kartu / Pemegang', 'Saldo awal', 'Top up', 'BBM + Tol', 'Saldo sistem', 'Saldo fisik', 'Selisih', 'Status', 'Oleh', ...(isSuper() ? [''] : [])],
         list.map((r) => el('tr', {}, [
           el('td', { class: 'text-nowrap', text: fmtDateId(r.date) }),
-          el('td', {}, [
-            el('div', { class: 'fw-semibold text-nowrap', text: kn(r.card_id) }),
+          // Lebar dibatasi: catatan panjang turun baris, tidak mendorong kolom angka keluar layar.
+          el('td', { class: 'sel-kartu-rekon' }, [
+            el('div', { class: 'fw-semibold', text: kn(r.card_id) }),
             el('div', { class: 'small text-muted', text: supirNama(r.driver_id) || '-' }),
-            r.notes ? el('div', { class: 'small fst-italic text-muted', text: r.notes }) : null,
+            r.notes ? el('div', { class: 'small fst-italic text-muted text-break', title: r.notes, text: r.notes }) : null,
           ]),
           angka(r.opening_balance), angka(r.total_topup), angka(n(r.total_bbm_flazz) + n(r.total_tol)),
           angka(r.flazz_balance, 'fw-semibold'), angka(r.actual_balance, 'fw-semibold'),
@@ -544,6 +545,7 @@ export async function renderFlazzRiwayat(view) {
         ])));
     }
     for (const [k, b] of Object.entries(tombolTab)) b.className = `btn btn-sm ${k === tab ? 'btn-secondary' : 'btn-outline-secondary'}`;
+    if (tab === 'recon') konten.querySelector('table')?.classList.add('tabel-rekon');
     const adaData = konten.querySelector('tbody').children.length;
     isi.replaceChildren(...(adaData
       ? [tab === 'recon' ? el('div', { class: 'small text-muted mb-1', text: 'Nominal dalam Rupiah.' }) : null, konten].filter(Boolean)
