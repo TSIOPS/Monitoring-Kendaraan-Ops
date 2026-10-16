@@ -7,3 +7,4 @@ dist/
 # export data GAS untuk migrasi (berisi hash password & data pribadi)
 migrasi/
 *.xlsx
+scripts/_tmp/
