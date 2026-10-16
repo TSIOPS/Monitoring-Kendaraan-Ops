@@ -65,7 +65,43 @@ export async function segarkanBanner(paksa = false) {
   }
 }
 
+// Nada pengingat (Web Audio, tanpa file): "ding-dong" naik tiga nada, diulang dua kali.
+// Browser hanya mengizinkan suara setelah pengguna pernah mengetuk/klik halaman, jadi
+// AudioContext dibuka pada interaksi pertama.
+let audioCtx = null;
+function bukaAudio() {
+  try {
+    audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch { /* perangkat tanpa Web Audio */ }
+}
+if (typeof document !== 'undefined') {
+  ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => document.addEventListener(ev, bukaAudio, { passive: true }));
+}
+
+export const NADA_PENGINGAT = [[659, 0], [784, 0.22], [988, 0.44], [659, 1.1], [784, 1.32], [988, 1.54]];
+
+export function bunyiPengingat() {
+  bukaAudio();
+  if (!audioCtx) return false;
+  const t0 = audioCtx.currentTime + 0.05;
+  for (const [frek, mulai] of NADA_PENGINGAT) {
+    const osc = audioCtx.createOscillator();
+    const vol = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = frek;
+    vol.gain.setValueAtTime(0.0001, t0 + mulai);
+    vol.gain.exponentialRampToValueAtTime(0.35, t0 + mulai + 0.02);
+    vol.gain.exponentialRampToValueAtTime(0.0001, t0 + mulai + 0.5);
+    osc.connect(vol).connect(audioCtx.destination);
+    osc.start(t0 + mulai);
+    osc.stop(t0 + mulai + 0.55);
+  }
+  return true;
+}
+
 function tampilPopup(teks, t) {
+  bunyiPengingat();
   const tutup = () => latar.remove();
   const daftar = (t.item || []).slice(0, 8).map((i) => el('li', {}, [
     `${i.plat_nomor} — ${i.nama_driver}: `,
@@ -99,6 +135,8 @@ export function mulaiBanner() {
 
 export async function daftarkanServiceWorker() {
   if (!('serviceWorker' in navigator)) return null;
+  // Push masuk saat aplikasi terbuka -> bunyikan nada pengingat.
+  navigator.serviceWorker.addEventListener('message', (e) => { if (e.data?.type === 'bunyi-pengingat') bunyiPengingat(); });
   try {
     return await navigator.serviceWorker.register('/sw.js');
   } catch {

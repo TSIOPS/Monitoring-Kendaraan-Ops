@@ -25,8 +25,13 @@ self.addEventListener('push', (event) => {
       tag: 'tugas-harian',
       renotify: true,
       requireInteraction: true,
+      // Bunyi & getar bawaan perangkat (browser tidak mendukung file suara sendiri).
+      silent: false,
+      vibrate: [400, 200, 400, 200, 400],
       data: { url },
     });
+    // Aplikasi yang sedang terbuka ikut membunyikan nada pengingat.
+    for (const c of await self.clients.matchAll({ type: 'window', includeUncontrolled: true })) c.postMessage({ type: 'bunyi-pengingat' });
   })());
 });
 

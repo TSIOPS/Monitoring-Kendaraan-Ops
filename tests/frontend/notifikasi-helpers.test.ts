@@ -21,3 +21,14 @@ describe('notifikasi', () => {
     expect(perluPasangDulu('Mozilla/5.0 (Linux; Android 14)', false)).toBe(false);
   });
 });
+
+describe('nada pengingat', () => {
+  it('enam nada dalam ~2 detik; tanpa Web Audio tidak error', async () => {
+    const { NADA_PENGINGAT, bunyiPengingat } = await import('../../static/js/notifikasi.js');
+    expect(NADA_PENGINGAT).toHaveLength(6);
+    expect(Math.max(...NADA_PENGINGAT.map((n: number[]) => Number(n[1])))).toBeLessThan(2);
+    (globalThis as any).window = {};
+    expect(bunyiPengingat()).toBe(false);
+    delete (globalThis as any).window;
+  });
+});
