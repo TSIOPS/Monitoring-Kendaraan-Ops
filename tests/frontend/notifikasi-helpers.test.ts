@@ -32,3 +32,18 @@ describe('nada pengingat', () => {
     delete (globalThis as any).window;
   });
 });
+
+describe('suara yang diucapkan', () => {
+  it('kalimat dari ringkasan tugas; kosong bila tidak ada tugas', async () => {
+    const { kalimatPengingat } = await import('../../static/js/notifikasi.js');
+    expect(kalimatPengingat({ laporan: 3, rekonsiliasi: 2 })).toBe('Perhatian. Hari ini masih ada 3 laporan dan 2 rekonsiliasi yang belum selesai. Segera selesaikan sebelum jam lima sore.');
+    expect(kalimatPengingat({ laporan: 0, rekonsiliasi: 1 })).toContain('masih ada 1 rekonsiliasi yang');
+    expect(kalimatPengingat({ laporan: 0, rekonsiliasi: 0 })).toBe('');
+  });
+  it('memilih suara bahasa Indonesia (Google lebih dulu)', async () => {
+    const { pilihSuaraId } = await import('../../static/js/notifikasi.js');
+    const v = [{ name: 'Microsoft David', lang: 'en-US' }, { name: 'Microsoft Andika', lang: 'id-ID' }, { name: 'Google Bahasa Indonesia', lang: 'id-ID' }];
+    expect(pilihSuaraId(v)!.name).toBe('Google Bahasa Indonesia');
+    expect(pilihSuaraId([{ name: 'X', lang: 'en-US' }])).toBeNull();
+  });
+});

@@ -81,7 +81,53 @@ if (typeof document !== 'undefined') {
 
 export const NADA_PENGINGAT = [[659, 0], [784, 0.22], [988, 0.44], [659, 1.1], [784, 1.32], [988, 1.54]];
 
-export function bunyiPengingat() {
+// Kalimat yang diucapkan (bahasa Indonesia), dari ringkasan tugas hari ini.
+export function kalimatPengingat(t) {
+  const bagian = [];
+  if (t?.laporan) bagian.push(`${t.laporan} laporan`);
+  if (t?.rekonsiliasi) bagian.push(`${t.rekonsiliasi} rekonsiliasi`);
+  if (!bagian.length) return '';
+  return `Perhatian. Hari ini masih ada ${bagian.join(' dan ')} yang belum selesai. Segera selesaikan sebelum jam lima sore.`;
+}
+export const KALIMAT_CONTOH = 'Perhatian. Hari ini masih ada dua laporan dan satu rekonsiliasi yang belum selesai. Segera selesaikan sebelum jam lima sore.';
+
+// Suara bahasa Indonesia bila tersedia di perangkat (Google / Microsoft), selain itu suara bawaan.
+export function pilihSuaraId(daftar) {
+  const id = (daftar || []).filter((v) => /^id([-_]|$)/i.test(String(v.lang || '')));
+  return id.find((v) => /google/i.test(v.name)) || id[0] || null;
+}
+
+// Chrome memuat daftar suara secara asinkron; panggil sekali agar siap saat dibutuhkan.
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+  window.speechSynthesis.getVoices();
+  window.speechSynthesis.addEventListener?.('voiceschanged', () => window.speechSynthesis.getVoices());
+}
+
+export function ucapkan(teks) {
+  try {
+    const ss = window.speechSynthesis;
+    if (!ss || !teks) return false;
+    const u = new SpeechSynthesisUtterance(teks);
+    u.lang = 'id-ID';
+    u.rate = 0.95;
+    const suara = pilihSuaraId(ss.getVoices());
+    if (suara) u.voice = suara;
+    ss.cancel();
+    ss.speak(u);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Nada "ding-dong" lalu kalimat diucapkan (bila ada).
+export function bunyiPengingat(kalimat = '') {
+  const nada = nadaPengingat();
+  if (kalimat) setTimeout(() => ucapkan(kalimat), nada ? 2100 : 0);
+  return nada || (kalimat ? Boolean(window.speechSynthesis) : false);
+}
+
+function nadaPengingat() {
   bukaAudio();
   if (!audioCtx) return false;
   const t0 = audioCtx.currentTime + 0.05;
@@ -101,7 +147,7 @@ export function bunyiPengingat() {
 }
 
 function tampilPopup(teks, t) {
-  bunyiPengingat();
+  bunyiPengingat(kalimatPengingat(t));
   const tutup = () => latar.remove();
   const daftar = (t.item || []).slice(0, 8).map((i) => el('li', {}, [
     `${i.plat_nomor} — ${i.nama_driver}: `,
@@ -136,7 +182,11 @@ export function mulaiBanner() {
 export async function daftarkanServiceWorker() {
   if (!('serviceWorker' in navigator)) return null;
   // Push masuk saat aplikasi terbuka -> bunyikan nada pengingat.
-  navigator.serviceWorker.addEventListener('message', (e) => { if (e.data?.type === 'bunyi-pengingat') bunyiPengingat(); });
+  navigator.serviceWorker.addEventListener('message', async (e) => {
+    if (e.data?.type !== 'bunyi-pengingat') return;
+    await segarkanBanner(true);
+    bunyiPengingat(kalimatPengingat(cache) || 'Ada pengingat dari aplikasi Monitoring Kendaraan.');
+  });
   try {
     return await navigator.serviceWorker.register('/sw.js');
   } catch {
