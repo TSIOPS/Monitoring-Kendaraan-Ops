@@ -89,7 +89,7 @@ export function kalimatPengingat(t) {
   if (!bagian.length) return '';
   return `Perhatian. Hari ini masih ada ${bagian.join(' dan ')} yang belum selesai. Segera selesaikan sebelum jam lima sore.`;
 }
-export const KALIMAT_CONTOH = 'Perhatian. Hari ini masih ada dua laporan dan satu rekonsiliasi yang belum selesai. Segera selesaikan sebelum jam lima sore.';
+export const KALIMAT_SEMUA_SELESAI = 'Semua laporan dan rekonsiliasi hari ini sudah selesai. Terima kasih.';
 
 // Suara bahasa Indonesia bila tersedia di perangkat (Google / Microsoft), selain itu suara bawaan.
 export function pilihSuaraId(daftar) {
@@ -179,14 +179,16 @@ export function mulaiBanner() {
 
 // ── Web Push ────────────────────────────────────────────────────────────────
 
+// Ambil tugas hari ini terbaru lalu bunyikan nada + kalimat dengan angka sebenarnya.
+export async function bunyiTugasSekarang() {
+  await segarkanBanner(true);
+  return bunyiPengingat(kalimatPengingat(cache) || KALIMAT_SEMUA_SELESAI);
+}
+
 export async function daftarkanServiceWorker() {
   if (!('serviceWorker' in navigator)) return null;
   // Push masuk saat aplikasi terbuka -> bunyikan nada pengingat.
-  navigator.serviceWorker.addEventListener('message', async (e) => {
-    if (e.data?.type !== 'bunyi-pengingat') return;
-    await segarkanBanner(true);
-    bunyiPengingat(kalimatPengingat(cache) || 'Ada pengingat dari aplikasi Monitoring Kendaraan.');
-  });
+  navigator.serviceWorker.addEventListener('message', (e) => { if (e.data?.type === 'bunyi-pengingat') bunyiTugasSekarang(); });
   try {
     return await navigator.serviceWorker.register('/sw.js');
   } catch {

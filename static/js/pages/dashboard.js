@@ -1,7 +1,7 @@
 import { get, post } from '../api.js';
 import { getUser, setJumlahPeringatan } from '../store.js';
 import { autoRefresh, confirmDialog, el, fmtDateId, fmtNum, labelDari, petaMaster, toast } from '../ui.js';
-import { aktifkanNotifikasi, bunyiPengingat, KALIMAT_CONTOH, matikanNotifikasi, segarkanBanner, statusNotifikasi, tesNotifikasi } from '../notifikasi.js';
+import { aktifkanNotifikasi, bunyiTugasSekarang, matikanNotifikasi, segarkanBanner, statusNotifikasi, tesNotifikasi } from '../notifikasi.js';
 
 // ── Helper murni (diuji) ────────────────────────────────────────────────────
 
@@ -278,7 +278,7 @@ export async function renderDashboard(view) {
       el('span', { class: 'small text-muted flex-fill', text: teks }),
       st === 'belum' ? tombol('Aktifkan reminder', 'btn-primary', async () => { await aktifkanNotifikasi(); toast('Reminder aktif.', 'success'); }) : null,
       st === 'aktif' ? tombol('Kirim tes', 'btn-outline-primary', async () => { const r = await tesNotifikasi(); toast(r.msg, 'success'); }) : null,
-      tombol('Tes suara', 'btn-outline-secondary', async () => { if (!bunyiPengingat(KALIMAT_CONTOH)) toast('Perangkat ini tidak mendukung suara.', 'error'); }),
+      tombol('Tes suara', 'btn-outline-secondary', async () => { if (!(await bunyiTugasSekarang())) toast('Perangkat ini tidak mendukung suara.', 'error'); }),
       st === 'aktif' ? tombol('Matikan', 'btn-outline-secondary', async () => { await matikanNotifikasi(); toast('Reminder dimatikan.', 'success'); }) : null,
     ].filter(Boolean));
   }
