@@ -11,7 +11,9 @@
   },
   // Foto bukti (odometer, struk, top up) disajikan lewat /foto/<kunci>.
   "r2_buckets": [
-    { "binding": "FOTO", "bucket_name": "monitoring-foto" }
+    { "binding": "FOTO", "bucket_name": "monitoring-foto" },
+    // Backup harian database (src/backup.ts), privat.
+    { "binding": "BACKUP", "bucket_name": "monitoring-backup" }
   ],
   "kv_namespaces": [
     { "binding": "SESSION_KV", "id": "4f4ecbcfe4f34e78bf5db8cfdfc1f435" }
@@ -20,6 +22,6 @@
     "SUPABASE_URL": "https://jscpogjdquwcbglavurd.supabase.co",
     "VAPID_PUBLIC_KEY": "BDv6druYCAio168ZghIDx7IBIiTM4e_cA11lfJXfsR8MSAoRRhkEL3cxHzy2Btzo3x_DDcyvvAcpdRgB5LOCSA4"
   },
-  // Pengingat laporan/rekonsiliasi: 09:30 UTC = 16:30 WIB setiap hari.
-  "triggers": { "crons": ["30 9 * * *"] }
+  // 09:30 UTC = 16:30 WIB: pengingat laporan/rekonsiliasi. 19:00 UTC = 02:00 WIB: backup harian.
+  "triggers": { "crons": ["30 9 * * *", "0 19 * * *"] }
 }
