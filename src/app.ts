@@ -21,6 +21,7 @@ import { flazzRoutes } from './routes/flazz';
 import { jalurRoutes } from './routes/jalur';
 import { pushRoutes } from './routes/push';
 import { fotoRoutes, salinFotoRoutes } from './routes/foto';
+import { denganHeaderKeamanan } from './utils/keamanan';
 
 export function buildDeps(env: Env, overrides: Partial<AppDeps> = {}): AppDeps {
   return {
@@ -46,11 +47,11 @@ export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bin
 
   const app = new Hono<{ Bindings: Env }>();
 
-  app.use('/api/*', async (c, next) => {
+  // Tanpa header CORS: aplikasi & API satu origin, jadi situs lain tidak boleh memanggil API.
+  // Header keamanan (CSP, anti-iframe, nosniff, HSTS) dipasang di semua respons.
+  app.use('*', async (c, next) => {
     await next();
-    c.header('Access-Control-Allow-Origin', c.req.header('Origin') ?? '');
-    c.header('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-    c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    c.res = denganHeaderKeamanan(c.res);
   });
 
   app.on('OPTIONS', '*', (c) => c.body(null, 204));

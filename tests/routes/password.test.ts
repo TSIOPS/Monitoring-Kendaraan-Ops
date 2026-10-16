@@ -43,3 +43,31 @@ describe('POST /api/password (ganti password sendiri)', () => {
     expect((await ganti({ password_lama: 'lama123', password_baru: 'lama123' })).status).toBe(400);
   });
 });
+
+describe('keamanan sesi & hash', () => {
+  it('login dengan hash lama mengganti hash ke PBKDF2', async () => {
+    const { iteratedHash } = await import('../../src/auth/password');
+    const { memMaster, makeDeps, fakeEnv } = await import('../helpers');
+    const { buildApp } = await import('../../src/app');
+    const salt = 'abcd1234abcd1234';
+    const lama = `${salt}$10$${await iteratedHash(salt, 'rahasia1', 10)}`;
+    const m = memMaster({ pengguna: [{ user_id: 'U-9', username: 'budi', nama: 'Budi', role: 'PIC CABANG', kode_cabang: 'CBG-A', status: 'Aktif', password: lama }] });
+    const { deps } = makeDeps({ master: m.repo, findByUsername: async (u: string) => (m.state.pengguna.find((p) => p.username === u) as any) ?? null });
+    const app = buildApp(fakeEnv() as any, deps);
+    const res = await app.request('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'budi', password: 'rahasia1' }) });
+    expect(res.status).toBe(200);
+    expect(m.state.pengguna[0]!.password.startsWith('pbkdf2$')).toBe(true);
+  });
+
+  it('cabutSesiPengguna mencabut sesi lain, sesi yang sedang dipakai tetap', async () => {
+    const { createSession, resolveSession, cabutSesiPengguna } = await import('../../src/auth/sessions');
+    const { makeDeps } = await import('../helpers');
+    const { kv } = makeDeps();
+    const u = { user_id: 'U-1', username: 'a', nama: 'A', role: 'PIC CABANG', cabang: 'X', exp: 0 };
+    const t1 = await createSession(kv, u);
+    const t2 = await createSession(kv, u);
+    expect(await cabutSesiPengguna(kv, 'U-1', t2)).toBe(1);
+    expect(await resolveSession(kv, t1)).toBeNull();
+    expect(await resolveSession(kv, t2)).not.toBeNull();
+  });
+});

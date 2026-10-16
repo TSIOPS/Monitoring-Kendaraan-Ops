@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import type { AppDeps } from '../deps';
-import { hashPassword, verifyPassword } from '../auth/password';
+import { hashPassword, perluRehash, verifyPassword } from '../auth/password';
 import { checkRate, resetRate } from '../auth/rateLimit';
-import { createSession, destroySession, resolveSession } from '../auth/sessions';
+import { cabutSesiPengguna, createSession, destroySession, resolveSession } from '../auth/sessions';
 import { requireUser } from '../auth/middleware';
 import { errPayload, okPayload, reqIp } from '../utils/http';
 
@@ -41,6 +41,15 @@ export function authRoutes(deps: AppDeps): Hono {
     }
 
     await resetRate(deps.kv, `login:${username}`);
+    // Hash lama (warisan GAS) diganti PBKDF2 begitu password terbukti benar; gagal simpan tidak menggagalkan login.
+    if (perluRehash(user.password)) {
+      try {
+        const akun = await deps.master.findPenggunaById(user.user_id);
+        if (akun) await deps.master.updatePengguna({ ...akun, password: await hashPassword(password) });
+      } catch (e) {
+        console.warn('rehash password gagal:', (e as Error).message);
+      }
+    }
     const sessionUser = {
       user_id: user.user_id,
       username: user.username,
@@ -109,9 +118,12 @@ export function authRoutes(deps: AppDeps): Hono {
       return c.json(errPayload('Password lama salah.', 'FORBIDDEN'), 403);
     }
     await deps.master.updatePengguna({ ...akun, password: await hashPassword(baru) });
+    // Perangkat lain yang masih login dengan password lama dikeluarkan; sesi ini tetap.
+    const auth = c.req.header('Authorization') ?? '';
+    await cabutSesiPengguna(deps.kv, u.user_id, auth.startsWith('Bearer ') ? auth.slice(7).trim() : '');
     await resetRate(deps.kv, `pwd:${u.user_id}`);
     await deps.recordAudit({ user_id: u.user_id, username: u.username, action: 'GANTI_PASSWORD', modul: 'auth', keterangan: 'Ganti password sendiri', ip: reqIp(c) });
-    return c.json(okPayload({ msg: 'Password berhasil diganti. Gunakan password baru saat login berikutnya.' }));
+    return c.json(okPayload({ msg: 'Password berhasil diganti. Perangkat lain yang masih login otomatis dikeluarkan.' }));
   });
 
   app.get('/session', requireUser(deps), (c) => {

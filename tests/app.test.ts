@@ -24,17 +24,20 @@ describe('buildApp', () => {
     expect(await res.text()).toBe('static:not-found');
   });
 
-  it('menambahkan header CORS pada respon api', async () => {
+  it('tanpa CORS untuk origin lain; header keamanan terpasang', async () => {
     const app = buildApp(fakeEnv(), makeDeps().deps);
     const res = await app.request(
       '/api/health',
       { method: 'GET', headers: { Origin: 'http://localhost:8787' } },
       fakeEnv(),
     );
-    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:8787');
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
+    expect(res.headers.get('Content-Security-Policy')).toContain("frame-ancestors 'none'");
+    expect(res.headers.get('X-Frame-Options')).toBe('DENY');
+    expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
   });
 
-  it('OPTIONS preflight dikembalikan 204 + header CORS', async () => {
+  it('OPTIONS preflight 204 tanpa izin CORS', async () => {
     const app = buildApp(fakeEnv(), makeDeps().deps);
     const res = await app.request(
       '/api/login',
@@ -45,6 +48,6 @@ describe('buildApp', () => {
       fakeEnv(),
     );
     expect(res.status).toBe(204);
-    expect(res.headers.get('Access-Control-Allow-Methods')).toContain('POST');
+    expect(res.headers.get('Access-Control-Allow-Methods')).toBeNull();
   });
 });

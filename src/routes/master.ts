@@ -5,6 +5,7 @@ import type { SessionUser } from '../deps';
 import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
 import { hashPassword } from '../auth/password';
+import { cabutSesiPengguna } from '../auth/sessions';
 import { errPayload, HttpError, okPayload, reqIp } from '../utils/http';
 import { bumpMasterRev, CACHE_TTL_DETIK, getMasterRev, masterCacheKey } from '../logic/master-cache';
 import { defaultOilIntervalKm, getMasterPayload } from '../logic/master';
@@ -321,6 +322,8 @@ export function masterRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const password = String((body as any)?.password ?? '');
     const newPassword = password ? await hashPassword(password) : current.password;
     await deps.master.updatePengguna({ ...current, username: uname, password: newPassword, nama, role, kode_cabang: cabang });
+    // Password direset admin, atau role/warehouse berubah: sesi lama pengguna itu dicabut.
+    if (password || role !== current.role || cabang !== String(current.kode_cabang ?? '')) await cabutSesiPengguna(deps.kv, userId);
     await audit(c, { action: 'EDIT', modul: 'pengguna', keterangan: 'Update user ' + userId });
     await bumpMasterRev(deps.kv);
     return c.json(okPayload({ msg: 'Pengguna Berhasil Diupdate' }));
@@ -403,6 +406,8 @@ async function setStatus(c: Ctx, deps: AppDeps, status: string, audit: (c: Ctx, 
     if (active <= 1) throw new HttpError(409, 'Tidak bisa menonaktifkan SUPERADMIN aktif terakhir', 'CONFLICT');
   }
   await deps.master.setPenggunaStatus(userId, status);
+  // Akun dinonaktifkan: semua sesinya langsung tidak berlaku.
+  if (status === 'Non-Aktif') await cabutSesiPengguna(deps.kv, userId);
   await audit(c, { action: 'DELETE', modul: 'pengguna', keterangan: (status === 'Aktif' ? 'Aktifkan ' : 'Nonaktifkan ') + userId });
   await bumpMasterRev(deps.kv);
   const msg = status === 'Aktif' ? 'Pengguna Berhasil Diaktifkan Kembali' : 'Pengguna Berhasil Dinonaktifkan';
