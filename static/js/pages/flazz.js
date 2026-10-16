@@ -511,11 +511,12 @@ export async function renderFlazzRiwayat(view) {
         ] : [el('span', { class: 'small text-muted', text: 'dari laporan' })]),
       ])));
     } else if (tab === 'bbm') {
-      const list = filterKartu(data.bbmFlazz).filter((b) => dalam(b.tanggal));
-      konten = tabel(['Tanggal', 'Kartu', 'Supir / Kendaraan', 'Biaya', 'Bukti', 'Aksi'], list.map((b) => el('tr', {}, [
+      // Hanya pembelian BBM; tol dari laporan sudah tampil di tab Tol (tidak dihitung dua kali).
+      const list = filterKartu(data.bbmFlazz).filter((b) => dalam(b.tanggal) && n(b.amount) > 0);
+      konten = tabel(['Tanggal', 'Kartu', 'Supir / Kendaraan', 'Biaya BBM', 'Bukti', 'Aksi'], list.map((b) => el('tr', {}, [
         el('td', { text: fmtDateId(b.tanggal) }), el('td', { text: kn(b.card_id) }),
         el('td', { text: [b.driver, b.vehicle].filter(Boolean).join(' / ') || '-' }),
-        el('td', { class: 'text-end', text: rp(n(b.amount) + n(b.toll_amount)) }), el('td', {}, [tautan(b.evidence)]),
+        el('td', { class: 'text-end', text: rp(b.amount) }), el('td', {}, [tautan(b.evidence)]),
         el('td', {}, n(b.amount) <= 0 ? [] : sudahDirekon(b, data.recons) ? [el('span', { class: 'small text-muted', title: 'Hapus rekonsiliasi kartunya dulu bila perlu dikoreksi.' }, [el('i', { class: 'bi bi-lock me-1', 'aria-hidden': 'true' }), 'Sudah direkon'])] : [el('button', { class: 'btn btn-sm btn-outline-warning', type: 'button', text: 'Lepas Flazz',
           onclick: () => hapus('Lepas pembayaran BBM Flazz dari laporan ini? Nominal tetap tercatat sebagai tunai dan saldo kartu dikembalikan.', `/api/laporan/${encodeURIComponent(b.transaction_id)}/flazz`) })]),
       ])));
