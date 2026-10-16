@@ -1,0 +1,9 @@
+# Header keamanan untuk aset statis (halaman, JS, CSS). Harus sama dengan src/utils/keamanan.ts
+# (dicek tests/keamanan-headers.test.ts). Respons dari Worker (API, /foto) diberi header oleh kode.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' data: https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.supabase.co https://drive.google.com https://*.googleusercontent.com; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), geolocation=(), microphone=(), payment=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
