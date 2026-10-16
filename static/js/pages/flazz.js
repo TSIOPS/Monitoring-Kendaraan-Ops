@@ -284,7 +284,7 @@ export async function renderFlazzTopup(view) {
       el('div', { class: 'col-md-3' }, [baris('Nominal top up', nominal)]),
       el('div', { class: 'col-md-3' }, [baris('Tanggal top up', tanggal)]),
       el('div', { class: 'col-md-6' }, [baris('Catatan', catatan)]),
-      el('div', { class: 'col-md-6' }, [baris('Foto bukti (opsional)', el('div', {}, [foto, pratinjauFoto(foto)]))]),
+      el('div', { class: 'col-md-6' }, [baris('Foto bukti top up (wajib)', el('div', {}, [foto, pratinjauFoto(foto)]))]),
     ]),
     simpan,
   ]);
@@ -294,6 +294,7 @@ export async function renderFlazzTopup(view) {
     const err = [];
     if (!kartu.value) err.push('Pilih kartu.');
     if (!(Number(nominal.value) > 0)) err.push('Nominal top up harus lebih dari 0.');
+    if (!(foto.files && foto.files[0])) err.push('Foto bukti top up wajib diupload.');
     if (err.length) {
       alertBox.textContent = err.join(' ');
       alertBox.classList.remove('d-none');

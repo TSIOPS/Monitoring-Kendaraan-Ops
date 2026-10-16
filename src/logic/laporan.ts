@@ -388,6 +388,17 @@ export function pesanDigitKm(label: string, km: number, kmRujukan: number | null
   return '';
 }
 
+// Bukti wajib (sejak 16/10/2026, setelah sosialisasi PIC): struk BBM bila ada biaya BBM,
+// struk/bukti tol bila ada biaya tol (kartu 1 + kartu 2).
+export const MSG_STRUK_BBM = 'Foto struk BBM wajib diupload karena ada biaya BBM.';
+export const MSG_STRUK_TOL = 'Foto struk / bukti tol wajib diupload karena ada biaya tol (e-toll tanpa struk: foto cetak cek pengeluaran kartu).';
+export function cekBuktiWajib(p: { biaya_bbm?: unknown; biaya_bbm_2?: unknown; biaya_toll?: unknown; biaya_toll_2?: unknown }, files: { struk_bbm?: unknown; struk_toll?: unknown }): string[] {
+  const err: string[] = [];
+  if (num(p.biaya_bbm) + num(p.biaya_bbm_2) > 0 && !String(files.struk_bbm ?? '').trim()) err.push(MSG_STRUK_BBM);
+  if (num(p.biaya_toll) + num(p.biaya_toll_2) > 0 && !String(files.struk_toll ?? '').trim()) err.push(MSG_STRUK_TOL);
+  return err;
+}
+
 export function buildOdoWarning(kmAwalBaru: number, prevKmAkhir: number, prevTanggal: string): string {
   const selisih = kmAwalBaru - prevKmAkhir;
   const tgl = formatDateId(prevTanggal);

@@ -28,7 +28,7 @@ const saveBody = (over: Record<string, unknown> = {}) => ({
   km_awal_broken: false, km_akhir_broken: false, km_tanpa_estimasi: false,
   bar_awal: '8', bar_akhir: '4', liter_bbm: 10, biaya_bbm: 120000, biaya_toll: 0,
   metode_pembayaran: 'TUNAI', flazz_card_id: '', metode_toll: '', flazz_card_id_toll: '',
-  serverData: { files: { odo_awal: 'https://x/storage/v1/object/public/foto/a.jpg', odo_akhir: '' }, km_awal: '1000', km_akhir: '1100' },
+  serverData: { files: { odo_awal: 'https://x/storage/v1/object/public/foto/a.jpg', odo_akhir: '', struk_bbm: '/foto/X/Struk_BBM/s.jpg', struk_toll: '/foto/X/Struk_Tol/t.jpg' }, km_awal: '1000', km_akhir: '1100' },
   ...over,
 });
 
@@ -86,6 +86,20 @@ describe('POST /api/laporan (save)', () => {
     const lebih = await post(app, '/api/laporan', tok, saveBody({ km_awal_confirmed: '14100', km_akhir_confirmed: '1420000' }));
     expect(((await lebih.json()) as any).message).toContain('KM akhir maksimal 6 digit');
     expect(lap.state.rows).toHaveLength(1);
+  });
+
+  it('bukti wajib: biaya BBM tanpa struk / biaya tol tanpa bukti -> 400; tanpa biaya tidak wajib', async () => {
+    const { app, kv, lap } = setup();
+    const tok = await loginAs(kv, PIC);
+    const tanpa = { files: { odo_awal: 'https://x/storage/v1/object/public/foto/a.jpg', odo_akhir: '' }, km_awal: '1000', km_akhir: '1100' };
+    const r1 = await post(app, '/api/laporan', tok, saveBody({ serverData: tanpa }));
+    expect(r1.status).toBe(400);
+    expect(((await r1.json()) as any).message).toContain('struk BBM wajib');
+    const r2 = await post(app, '/api/laporan', tok, saveBody({ biaya_bbm: 0, biaya_toll: 15000, serverData: { ...tanpa, files: { ...tanpa.files, struk_bbm: '' } } }));
+    expect(((await r2.json()) as any).message).toContain('bukti tol wajib');
+    expect(lap.state.rows).toHaveLength(0);
+    const r3 = await post(app, '/api/laporan', tok, saveBody({ biaya_bbm: 0, liter_bbm: 0, biaya_toll: 0, serverData: tanpa }));
+    expect(r3.status).toBe(200);
   });
 
   it('gate jalur 409 dengan pesan verbatim', async () => {

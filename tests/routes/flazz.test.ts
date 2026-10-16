@@ -150,7 +150,7 @@ describe('/api/flazz/topup', () => {
   it('create menaikkan saldo, mencatat created_by dan audit', async () => {
     const { app, kv, audits, flz } = setup({ cards: [card()] });
     const tok = await loginAs(kv, PIC);
-    const res = await post(app, '/api/flazz/topup', tok, { card_id: 'FLZ-1', date: '2026-09-01', amount: 250000 });
+    const res = await post(app, '/api/flazz/topup', tok, { card_id: 'FLZ-1', date: '2026-09-01', amount: 250000, evidence_url: 'https://bukti.example/a.jpg' });
     expect(res.status).toBe(200);
     expect(flz.state.cards[0]!.last_balance).toBe(750000);
     expect(flz.state.topups[0]).toMatchObject({ amount: 250000, created_by: 'pic' });
@@ -162,6 +162,14 @@ describe('/api/flazz/topup', () => {
     const res = await app.request('/api/flazz/dashboard', { headers: headers(await loginAs(kv, PIC)) });
     const b = (await res.json()) as any;
     expect(b.topups[0]).toMatchObject({ created_by: 'pic', created_by_nama: 'Pic Lengkap' });
+  });
+
+  it('top up tanpa foto bukti -> 400', async () => {
+    const { app, kv, flz } = setup({ cards: [card()] });
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/flazz/topup', tok, { card_id: 'FLZ-1', date: '2026-09-01', amount: 250000 });
+    expect(res.status).toBe(400);
+    expect(flz.state.cards[0]!.last_balance).toBe(500000);
   });
 
   it('update hanya menyesuaikan delta', async () => {
@@ -204,7 +212,7 @@ describe('/api/flazz/topup', () => {
   it('insert topup gagal -> saldo dikembalikan', async () => {
     const { app, kv, flz } = setup({ cards: [card()], fail: 'insertTopup' });
     const tok = await loginAs(kv, PIC);
-    expect((await post(app, '/api/flazz/topup', tok, { card_id: 'FLZ-1', date: '2026-09-01', amount: 100000 })).status).toBe(500);
+    expect((await post(app, '/api/flazz/topup', tok, { card_id: 'FLZ-1', date: '2026-09-01', amount: 100000, evidence_url: 'https://bukti.example/a.jpg' })).status).toBe(500);
     expect(flz.state.cards[0]!.last_balance).toBe(500000);
   });
 

@@ -296,6 +296,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const storeMetodeBbm = L.storeMetodeBbm(biayaBbm, metodeBbm);
     const serverData = p.serverData && typeof p.serverData === 'object' ? p.serverData : {};
     const sfiles = serverData.files && typeof serverData.files === 'object' ? serverData.files : {};
+    const kurangBukti = L.cekBuktiWajib(p, sfiles);
+    if (kurangBukti.length) throw new HttpError(400, kurangBukti.join(' '), 'BAD_REQUEST');
 
     const dupKey: L.DuplicateKey = {
       vehicle_id: vehicleId,

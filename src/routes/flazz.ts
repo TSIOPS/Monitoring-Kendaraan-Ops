@@ -291,6 +291,7 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const date = validateDate(b.date, 'Tanggal top up');
     const amount = validateAmount(b.amount, false, 'Nominal top up');
     const evidenceUrl = (await uploadBukti(c, u, b, 'Flazz_TopUp')) || validateEvidence(b.evidence_url);
+    if (!evidenceUrl) throw new HttpError(400, 'Foto bukti top up wajib diupload.', 'BAD_REQUEST');
     await deps.flazz.adjustBalance(card.id, amount);
     let row;
     try {

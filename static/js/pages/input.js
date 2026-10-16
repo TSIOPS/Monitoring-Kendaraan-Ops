@@ -53,6 +53,11 @@ export function validateForm(v) {
 
   // Liter dihitung dari biaya / harga jenis BBM (seperti calcLiter GAS); tanpa jenis, liter kosong.
   const biayaTotal = Number(v.biaya_bbm || 0) + Number(v.biaya_bbm_2 || 0);
+  // Bukti wajib (sama dengan server): struk BBM bila ada biaya BBM, bukti tol bila ada biaya tol.
+  if (v.ada_struk_bbm === false && biayaTotal > 0) err.push('Foto struk BBM wajib diupload karena ada biaya BBM.');
+  if (v.ada_struk_tol === false && Number(v.biaya_toll || 0) + Number(v.biaya_toll_2 || 0) > 0) {
+    err.push('Foto struk / bukti tol wajib diupload karena ada biaya tol.');
+  }
   if (v.harga_bbm !== undefined && biayaTotal > 0 && !(Number(v.harga_bbm) > 0)) {
     err.push('Pilih jenis BBM agar liter terhitung.');
   }
@@ -386,7 +391,7 @@ export async function renderInput(view) {
       ]),
       el('div', { class: 'row' }, [
         el('div', { class: 'col-md-6' }, [baris('Kartu Flazz (BBM)', f.flazz_card_id)]),
-        el('div', { class: 'col-md-6' }, [baris('Foto struk BBM (opsional)', el('div', {}, [fotoStrukBbm, pratinjauFoto(fotoStrukBbm)]), 'Foto struk SPBU bila membeli BBM.')]),
+        el('div', { class: 'col-md-6' }, [baris('Foto struk BBM (wajib bila beli BBM)', el('div', {}, [fotoStrukBbm, pratinjauFoto(fotoStrukBbm)]), 'Foto struk SPBU bila membeli BBM.')]),
       ]),
     ]),
     seksi('Tol', [
@@ -396,7 +401,7 @@ export async function renderInput(view) {
         el('div', { class: 'col-md-4' }, [baris('Kartu Flazz (tol)', f.flazz_card_id_toll)]),
       ]),
       el('div', { class: 'row' }, [
-        el('div', { class: 'col-md-6' }, [baris('Foto struk / bukti tol (opsional)', el('div', {}, [fotoStrukTol, pratinjauFoto(fotoStrukTol)]), 'Lebih dari satu struk: susun lalu foto sekaligus dalam 1 foto, dan isi total di Biaya tol. E-toll tanpa struk: foto hasil cetak cek pengeluaran kartu.')]),
+        el('div', { class: 'col-md-6' }, [baris('Foto struk / bukti tol (wajib bila bayar tol)', el('div', {}, [fotoStrukTol, pratinjauFoto(fotoStrukTol)]), 'Lebih dari satu struk: susun lalu foto sekaligus dalam 1 foto, dan isi total di Biaya tol. E-toll tanpa struk: foto hasil cetak cek pengeluaran kartu.')]),
       ]),
     ]),
     el('div', {}, [grup2Toggle]),
@@ -543,6 +548,8 @@ export async function renderInput(view) {
       biaya_toll_2: f.biaya_toll_2.value,
     };
 
+    values.ada_struk_bbm = Boolean(fotoStrukBbm.files?.[0] || serverData.files.struk_bbm);
+    values.ada_struk_tol = Boolean(fotoStrukTol.files?.[0] || serverData.files.struk_toll);
     const err = validateForm(values);
     if (err.length) {
       alertBox.textContent = err.join(' ');

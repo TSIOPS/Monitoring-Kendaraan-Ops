@@ -211,7 +211,7 @@ describe('alur penuh: jalur -> laporan -> rekon dua kartu', () => {
 
     const lap = await req(app, 'POST', '/api/laporan', tok, {
       vehicle_id: 'V-1', tanggal: '2026-10-06', nama_supir: 'Supir A', km_awal_confirmed: '1000', km_akhir_confirmed: '1100',
-      bar_awal: '8', bar_akhir: '4', liter_bbm: 10, biaya_bbm: 100000, biaya_toll: 0, metode_pembayaran: 'TUNAI', serverData: { files: {} },
+      bar_awal: '8', bar_akhir: '4', liter_bbm: 10, biaya_bbm: 100000, biaya_toll: 0, metode_pembayaran: 'TUNAI', serverData: { files: { struk_bbm: '/foto/X/Struk_BBM/s.jpg' } },
     });
     expect(lap.status).toBe(200);
     expect(rows[0]!.status).toBe('SUDAH_LAPORAN');

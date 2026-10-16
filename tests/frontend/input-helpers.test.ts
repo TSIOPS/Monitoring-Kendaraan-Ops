@@ -220,3 +220,12 @@ describe('digit KM', () => {
     expect(err.join(' ')).not.toContain('digit');
   });
 });
+
+describe('bukti wajib di form', () => {
+  it('struk BBM & bukti tol wajib bila ada biayanya', () => {
+    const e = validateForm({ ...DASAR, biaya_bbm: '100000', harga_bbm: 10000, biaya_toll: '15000', ada_struk_bbm: false, ada_struk_tol: false }).join(' ');
+    expect(e).toContain('struk BBM wajib');
+    expect(e).toContain('bukti tol wajib');
+    expect(validateForm({ ...DASAR, biaya_bbm: '', biaya_toll: '', ada_struk_bbm: false, ada_struk_tol: false }).join(' ')).not.toContain('wajib diupload');
+  });
+});
