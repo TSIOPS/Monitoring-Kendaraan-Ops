@@ -9,4 +9,8 @@ export interface Env {
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_JWK?: string;
   VAPID_SUBJECT?: string;
+  // Foto bukti (Cloudflare R2). Tanpa binding ini foto tetap ke Supabase Storage.
+  FOTO?: R2Bucket;
+  // Token sekali pakai untuk salin foto lama Supabase -> R2 (POST /api/admin/salin-foto).
+  MIGRASI_TOKEN?: string;
 }

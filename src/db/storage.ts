@@ -72,7 +72,15 @@ function safeBranch(branch: string): string {
   return b || 'TANPA-CABANG';
 }
 
+// URL foto di R2: relatif terhadap aplikasi, disajikan route GET /foto/*.
+export const R2_PREFIX = '/foto/';
+
 export async function uploadEvidenceStorage(env: Env, opts: UploadEvidenceOpts): Promise<StorageUploadResult> {
+  if (env.FOTO) {
+    const key = opts.key || `${safeBranch(opts.branch)}/${opts.folder}/${crypto.randomUUID()}.${opts.ext}`;
+    await env.FOTO.put(key, opts.bytes, { httpMetadata: { contentType: opts.contentType, cacheControl: `public, max-age=${CACHE_FOTO}, immutable` } });
+    return { url: R2_PREFIX + key, key };
+  }
   const sb = getSupabase(env);
   await ensureFotoBucket(env);
   const key = opts.key || `${safeBranch(opts.branch)}/${opts.folder}/${crypto.randomUUID()}.${opts.ext}`;
@@ -82,14 +90,18 @@ export async function uploadEvidenceStorage(env: Env, opts: UploadEvidenceOpts):
   return { url, key };
 }
 
+// Kunci objek sama di R2 & Supabase (hasil salin), jadi hapus di keduanya.
 export async function deleteEvidenceStorage(env: Env, key: string): Promise<void> {
   if (!key) return;
+  if (env.FOTO) await env.FOTO.delete(key);
   const sb = getSupabase(env);
   const { error } = await sb.storage.from(FOTO_BUCKET).remove([key]);
   if (error && !/not found/i.test(error.message ?? '')) throw new Error(`Storage delete: ${error.message}`);
 }
 
 export function extractStorageKey(url: string): string {
-  const m = /\/object\/public\/[^/]+\/(.+)$/.exec(String(url || ''));
+  const s = String(url || '').split('?')[0] ?? '';
+  if (s.startsWith(R2_PREFIX)) return s.slice(R2_PREFIX.length);
+  const m = /\/object\/public\/[^/]+\/(.+)$/.exec(s);
   return m?.[1] ?? '';
 }

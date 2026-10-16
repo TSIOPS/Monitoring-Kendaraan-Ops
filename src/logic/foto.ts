@@ -12,7 +12,8 @@ export function thumbKeyOf(key: string): string {
 // URL publik foto penuh di bucket "foto" -> URL thumbnail-nya; URL lain dikembalikan apa adanya.
 export function thumbUrlOf(url: string): string {
   const s = String(url || '').split('?')[0] ?? '';
-  const m = /^(.*\/storage\/v1\/object\/public\/foto\/)(.+)$/.exec(s);
+  // R2 (/foto/<kunci>) atau Supabase (.../object/public/foto/<kunci>).
+  const m = /^(\/foto\/)(.+)$/.exec(s) ?? /^(.*\/storage\/v1\/object\/public\/foto\/)(.+)$/.exec(s);
   if (!m) return s;
   return m[1] + thumbKeyOf(m[2]!);
 }

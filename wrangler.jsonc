@@ -9,6 +9,10 @@
     "directory": "./static",
     "binding": "ASSETS"
   },
+  // Foto bukti (odometer, struk, top up) disajikan lewat /foto/<kunci>.
+  "r2_buckets": [
+    { "binding": "FOTO", "bucket_name": "monitoring-foto" }
+  ],
   "kv_namespaces": [
     { "binding": "SESSION_KV", "id": "4f4ecbcfe4f34e78bf5db8cfdfc1f435" }
   ],

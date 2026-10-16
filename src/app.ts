@@ -20,6 +20,7 @@ import { laporanRoutes, dashboardRoutes } from './routes/laporan';
 import { flazzRoutes } from './routes/flazz';
 import { jalurRoutes } from './routes/jalur';
 import { pushRoutes } from './routes/push';
+import { fotoRoutes, salinFotoRoutes } from './routes/foto';
 
 export function buildDeps(env: Env, overrides: Partial<AppDeps> = {}): AppDeps {
   return {
@@ -72,6 +73,8 @@ export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bin
   app.route('/api', pushRoutes(deps));
   app.route('/api/laporan', laporanRoutes(deps));
   app.route('/api/dashboard', dashboardRoutes(deps));
+  app.route('/api/admin', salinFotoRoutes());
+  app.route('/foto', fotoRoutes());
 
   app.all('/*', (c) => env.ASSETS.fetch(c.req.raw));
 
