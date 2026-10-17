@@ -108,3 +108,12 @@ describe('rute push & pengingat terjadwal', () => {
     expect(await kv.get('push:c')).toBeNull();
   });
 });
+
+describe('jam tutup WIB', () => {
+  it('Sabtu & Minggu 16:00, hari kerja 17:00', async () => {
+    const { jamTutupWib } = await import('../../src/logic/tugas');
+    expect(jamTutupWib(Date.parse('2026-10-17T08:30:00Z'))).toBe('16:00');
+    expect(jamTutupWib(Date.parse('2026-10-18T08:30:00Z'))).toBe('16:00');
+    expect(jamTutupWib(Date.parse('2026-10-19T09:30:00Z'))).toBe('17:00');
+  });
+});

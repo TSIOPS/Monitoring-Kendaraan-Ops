@@ -255,7 +255,7 @@ export async function renderDashboard(view) {
 
   // Reminder: pengingat otomatis 16:30 WIB walau aplikasi tertutup (Web Push).
   const isiNotif = el('div', { class: 'd-flex flex-wrap align-items-center gap-2' });
-  const panelNotif = kartuPanel('Reminder (pengingat 16:30)', null, isiNotif);
+  const panelNotif = kartuPanel('Reminder (16:30 hari kerja, 15:30 Sabtu-Minggu)', null, isiNotif);
   async function gambarNotif() {
     const st = await statusNotifikasi().catch(() => 'tidak-didukung');
     const tombol = (teks, kelas, aksi) => {
@@ -267,8 +267,8 @@ export async function renderDashboard(view) {
       return b;
     };
     const teks = {
-      aktif: 'Aktif di perangkat ini. Pukul 16:30 WIB Anda akan menerima pengingat bila masih ada laporan/rekonsiliasi yang belum selesai.',
-      belum: 'Belum aktif di perangkat ini. Aktifkan agar reminder 16:30 muncul walau aplikasi tertutup.',
+      aktif: 'Aktif di perangkat ini. Pukul 16:30 WIB (Sabtu-Minggu 15:30) Anda akan menerima pengingat bila masih ada laporan/rekonsiliasi yang belum selesai.',
+      belum: 'Belum aktif di perangkat ini. Aktifkan agar reminder muncul walau aplikasi tertutup.',
       ditolak: 'Izin notifikasi diblokir. Buka pengaturan situs di browser, izinkan Notifikasi, lalu muat ulang halaman.',
       'pasang-dulu': 'Di iPhone/iPad: ketuk tombol Bagikan lalu "Tambahkan ke Layar Utama", buka aplikasi dari ikon tersebut, lalu aktifkan reminder.',
       'tidak-didukung': 'Browser ini tidak mendukung notifikasi. Gunakan Chrome/Edge terbaru.',

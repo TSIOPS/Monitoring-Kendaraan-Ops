@@ -44,6 +44,12 @@ export function ringkasTugas(rows: JalurFull[], tanggal: string, cabang = ''): R
   };
 }
 
+// Jam tutup operasional WIB: Senin-Jumat 17:00, Sabtu & Minggu 16:00.
+export function jamTutupWib(ms = Date.now()): string {
+  const hari = new Date(ms + 7 * 3600_000).getUTCDay();
+  return hari === 0 || hari === 6 ? '16:00' : '17:00';
+}
+
 export function teksTugas(r: Pick<RingkasanTugas, 'laporan' | 'rekonsiliasi'>): string {
   const bagian = [];
   if (r.laporan) bagian.push(`${r.laporan} laporan`);

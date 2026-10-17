@@ -22,6 +22,7 @@
     "SUPABASE_URL": "https://jscpogjdquwcbglavurd.supabase.co",
     "VAPID_PUBLIC_KEY": "BDv6druYCAio168ZghIDx7IBIiTM4e_cA11lfJXfsR8MSAoRRhkEL3cxHzy2Btzo3x_DDcyvvAcpdRgB5LOCSA4"
   },
-  // 09:30 UTC = 16:30 WIB: pengingat laporan/rekonsiliasi. 19:00 UTC = 02:00 WIB: backup harian.
-  "triggers": { "crons": ["30 9 * * *", "0 19 * * *"] }
+  // Pengingat laporan/rekonsiliasi 30 menit sebelum tutup: Senin-Jumat 09:30 UTC = 16:30 WIB,
+  // Sabtu-Minggu 08:30 UTC = 15:30 WIB. 19:00 UTC = 02:00 WIB: backup harian.
+  "triggers": { "crons": ["30 9 * * MON-FRI", "30 8 * * SAT,SUN", "0 19 * * *"] }
 }

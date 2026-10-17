@@ -36,7 +36,7 @@ describe('nada pengingat', () => {
 describe('suara yang diucapkan', () => {
   it('kalimat dari ringkasan tugas; kosong bila tidak ada tugas', async () => {
     const { kalimatPengingat } = await import('../../static/js/notifikasi.js');
-    expect(kalimatPengingat({ laporan: 3, rekonsiliasi: 2 })).toBe('Perhatian. Hari ini masih ada 3 laporan dan 2 rekonsiliasi yang belum selesai. Segera selesaikan sebelum jam lima sore.');
+    expect(kalimatPengingat({ laporan: 3, rekonsiliasi: 2 }, new Date('2026-10-16T05:00:00Z'))).toBe('Perhatian. Hari ini masih ada 3 laporan dan 2 rekonsiliasi yang belum selesai. Segera selesaikan sebelum jam lima sore.');
     expect(kalimatPengingat({ laporan: 0, rekonsiliasi: 1 })).toContain('masih ada 1 rekonsiliasi yang');
     expect(kalimatPengingat({ laporan: 0, rekonsiliasi: 0 })).toBe('');
   });
@@ -45,5 +45,21 @@ describe('suara yang diucapkan', () => {
     const v = [{ name: 'Microsoft David', lang: 'en-US' }, { name: 'Microsoft Andika', lang: 'id-ID' }, { name: 'Google Bahasa Indonesia', lang: 'id-ID' }];
     expect(pilihSuaraId(v)!.name).toBe('Google Bahasa Indonesia');
     expect(pilihSuaraId([{ name: 'X', lang: 'en-US' }])).toBeNull();
+  });
+});
+
+describe('jam operasional akhir pekan', () => {
+  it('Senin-Jumat tutup 17:00 (pengingat 16:30); Sabtu-Minggu 16:00 (pengingat 15:30)', async () => {
+    const { jamOperasional, menitPeringatan, kalimatPengingat } = await import('../../static/js/notifikasi.js');
+    const jumat = new Date('2026-10-16T05:00:00Z');
+    const sabtu = new Date('2026-10-17T05:00:00Z');
+    const minggu = new Date('2026-10-18T05:00:00Z');
+    expect(jamOperasional(jumat).jam).toBe('17:00');
+    expect(menitPeringatan(jumat)).toBe(16 * 60 + 30);
+    expect(jamOperasional(sabtu).jam).toBe('16:00');
+    expect(menitPeringatan(minggu)).toBe(15 * 60 + 30);
+    // Sabtu 23:30 UTC = Minggu 06:30 WIB -> tetap akhir pekan; Minggu 17:30 UTC = Senin 00:30 WIB -> hari kerja.
+    expect(jamOperasional(new Date('2026-10-18T17:30:00Z')).jam).toBe('17:00');
+    expect(kalimatPengingat({ laporan: 1, rekonsiliasi: 0 })).toMatch(/jam (lima|empat) sore\.$/);
   });
 });

@@ -6,7 +6,7 @@ import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
 import { HttpError, okPayload } from '../utils/http';
 import { todayWib } from '../logic/jalur';
-import { ringkasTugas, teksTugas } from '../logic/tugas';
+import { jamTutupWib, ringkasTugas, teksTugas } from '../logic/tugas';
 import { hashEndpoint, kirimPush, type VapidKunci } from '../push/webpush';
 
 type Ctx = Context<{ Bindings: Env; Variables: AuthVars }>;
@@ -105,7 +105,7 @@ export function pushRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       return c.json(okPayload({ judul: '✅ Tes notifikasi berhasil', isi: ringkas ? `Hari ini: ${ringkas}.` : 'Tidak ada laporan/rekonsiliasi tertunda hari ini.', url: '/#/dashboard' }));
     }
     return c.json(okPayload({
-      judul: '⚠️ Selesaikan sebelum 17:00',
+      judul: `⚠️ Selesaikan sebelum ${jamTutupWib()}`,
       isi: ringkas ? `Hari ini ${ringkas}. Segera input laporan / rekonsiliasi.` : 'Semua laporan & rekonsiliasi hari ini sudah selesai.',
       url: '/#/dashboard',
     }));

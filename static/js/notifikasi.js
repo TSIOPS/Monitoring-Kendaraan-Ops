@@ -11,7 +11,23 @@ export function menitWib(d = new Date()) {
   return h * 60 + m;
 }
 
-export const MENIT_PERINGATAN = 16 * 60 + 30; // 16:30 WIB
+export const MENIT_PERINGATAN = 16 * 60 + 30; // 16:30 WIB (Senin-Jumat)
+
+// Jam operasional: Senin-Jumat sampai 17:00, Sabtu & Minggu sampai 16:00 (WIB).
+// Pengingat muncul 30 menit sebelum jam tutup.
+export function hariWib(d = new Date()) {
+  const n = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Jakarta', weekday: 'short' }).format(d);
+  return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(n);
+}
+export function jamOperasional(d = new Date()) {
+  const akhirPekan = [0, 6].includes(hariWib(d));
+  return akhirPekan
+    ? { tutup: 16 * 60, jam: '16:00', pengingat: '15:30', kata: 'jam empat sore' }
+    : { tutup: 17 * 60, jam: '17:00', pengingat: '16:30', kata: 'jam lima sore' };
+}
+export function menitPeringatan(d = new Date()) {
+  return jamOperasional(d).tutup - 30;
+}
 
 export function teksTugas(t) {
   const bagian = [];
@@ -51,13 +67,14 @@ export async function segarkanBanner(paksa = false) {
   }
   const teks = teksTugas(cache);
   if (!teks) { slot.replaceChildren(); return; }
-  const akhir = menitWib() >= MENIT_PERINGATAN;
+  const jo = jamOperasional();
+  const akhir = menitWib() >= menitPeringatan();
   slot.replaceChildren(el('div', { class: `banner-tugas ${akhir ? 'banner-tugas-akhir' : ''}`, role: 'status' }, [
     el('i', { class: `bi ${akhir ? 'bi-alarm' : 'bi-info-circle'} me-2`, 'aria-hidden': 'true' }),
-    el('span', { text: akhir ? `Segera selesaikan sebelum 17:00 — hari ini ${teks}.` : `Hari ini: ${teks}.` }),
+    el('span', { text: akhir ? `Segera selesaikan sebelum ${jo.jam} — hari ini ${teks}.` : `Hari ini: ${teks}.` }),
     el('a', { href: '#/jalur', class: 'ms-2 fw-bold', text: 'Lihat jalur' }),
   ]));
-  // Pop-up sekali per hari setelah 16:30.
+  // Pop-up sekali per hari, 30 menit sebelum jam tutup (16:30 hari kerja, 15:30 akhir pekan).
   const kunci = `tugas-popup:${cache.tanggal}`;
   if (akhir && !simpan.get(kunci)) {
     simpan.set(kunci, '1');
@@ -82,12 +99,12 @@ if (typeof document !== 'undefined') {
 export const NADA_PENGINGAT = [[659, 0], [784, 0.22], [988, 0.44], [659, 1.1], [784, 1.32], [988, 1.54]];
 
 // Kalimat yang diucapkan (bahasa Indonesia), dari ringkasan tugas hari ini.
-export function kalimatPengingat(t) {
+export function kalimatPengingat(t, d = new Date()) {
   const bagian = [];
   if (t?.laporan) bagian.push(`${t.laporan} laporan`);
   if (t?.rekonsiliasi) bagian.push(`${t.rekonsiliasi} rekonsiliasi`);
   if (!bagian.length) return '';
-  return `Perhatian. Hari ini masih ada ${bagian.join(' dan ')} yang belum selesai. Segera selesaikan sebelum jam lima sore.`;
+  return `Perhatian. Hari ini masih ada ${bagian.join(' dan ')} yang belum selesai. Segera selesaikan sebelum ${jamOperasional(d).kata}.`;
 }
 export const KALIMAT_SEMUA_SELESAI = 'Semua laporan dan rekonsiliasi hari ini sudah selesai. Terima kasih.';
 
@@ -155,8 +172,8 @@ function tampilPopup(teks, t) {
   ]));
   const latar = el('div', { class: 'popup-latar', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Pengingat tugas' }, [
     el('div', { class: 'popup-kotak' }, [
-      el('div', { class: 'h5 text-danger fw-bold mb-2' }, [el('i', { class: 'bi bi-alarm me-2', 'aria-hidden': 'true' }), 'Pengingat 16:30']),
-      el('p', { class: 'mb-2', text: `Hari ini ${teks}. Jam operasional berakhir pukul 17:00.` }),
+      el('div', { class: 'h5 text-danger fw-bold mb-2' }, [el('i', { class: 'bi bi-alarm me-2', 'aria-hidden': 'true' }), `Pengingat ${jamOperasional().pengingat}`]),
+      el('p', { class: 'mb-2', text: `Hari ini ${teks}. Jam operasional berakhir pukul ${jamOperasional().jam}.` }),
       daftar.length ? el('ul', { class: 'small mb-3' }, daftar) : null,
       el('div', { class: 'd-flex gap-2 justify-content-end' }, [
         el('button', { class: 'btn btn-outline-secondary', type: 'button', text: 'Tutup', onclick: tutup }),
