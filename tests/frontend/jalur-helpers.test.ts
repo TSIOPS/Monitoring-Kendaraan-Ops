@@ -32,11 +32,11 @@ describe('teksDokumen', () => {
 
 describe('badgeDokumenRingkasan (seperti jalurPajakBadge GAS)', () => {
   it('teks dan warna per status', () => {
-    expect(badgeDokumenRingkasan('AMAN', 71, 'Pajak')).toEqual({ text: 'Pajak habis dalam 71 hari', kelas: 'bg-success' });
-    expect(badgeDokumenRingkasan('WASPADA', 40, 'KIR')).toEqual({ text: 'KIR habis dalam 40 hari', kelas: 'bg-warning text-dark' });
-    expect(badgeDokumenRingkasan('KRITIS', 29, 'KIR')).toEqual({ text: 'KIR habis dalam 29 hari', kelas: 'bg-danger' });
-    expect(badgeDokumenRingkasan('LEWAT', -5, 'Pajak 5 Tahun')).toEqual({ text: 'Pajak 5 Tahun lewat 5 hari', kelas: 'bg-dark' });
-    expect(badgeDokumenRingkasan('TIDAK_ADA', null, 'Pajak')).toEqual({ text: 'Pajak -', kelas: 'bg-secondary' });
+    expect(badgeDokumenRingkasan('AMAN', 120)).toEqual({ text: '120 hari', kelas: 'bg-success' });
+    expect(badgeDokumenRingkasan('WASPADA', 40)).toEqual({ text: '40 hari', kelas: 'bg-warning text-dark' });
+    expect(badgeDokumenRingkasan('KRITIS', 20)).toEqual({ text: '20 hari', kelas: 'bg-danger' });
+    expect(badgeDokumenRingkasan('LEWAT', -5)).toEqual({ text: 'Lewat 5 hari', kelas: 'bg-dark' });
+    expect(badgeDokumenRingkasan('TIDAK_ADA', null)).toEqual({ text: '-', kelas: 'bg-secondary' });
   });
 });
 

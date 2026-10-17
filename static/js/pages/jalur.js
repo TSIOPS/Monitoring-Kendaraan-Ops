@@ -17,11 +17,12 @@ export function teksDokumen(status, sisaHari) {
 }
 
 // Badge dokumen pada ringkasan jalur, sama seperti jalurPajakBadge GAS.
-export function badgeDokumenRingkasan(status, sisaHari, label) {
-  if (status === 'TIDAK_ADA' || sisaHari === null || sisaHari === undefined) return { text: `${label} -`, kelas: 'bg-secondary' };
-  if (status === 'LEWAT') return { text: `${label} lewat ${Math.abs(Number(sisaHari))} hari`, kelas: 'bg-dark' };
+// Teks ringkas (jenis dokumen sudah ada di judul kolom): "120 hari", "Lewat 5 hari", "-".
+export function badgeDokumenRingkasan(status, sisaHari) {
+  if (status === 'TIDAK_ADA' || sisaHari === null || sisaHari === undefined) return { text: '-', kelas: 'bg-secondary' };
+  if (status === 'LEWAT') return { text: `Lewat ${Math.abs(Number(sisaHari))} hari`, kelas: 'bg-dark' };
   const kelas = status === 'KRITIS' ? 'bg-danger' : status === 'WASPADA' ? 'bg-warning text-dark' : 'bg-success';
-  return { text: `${label} habis dalam ${sisaHari} hari`, kelas };
+  return { text: `${sisaHari} hari`, kelas };
 }
 
 // Baris form buat jalur yang lengkap (driver, kendaraan, rute) beserta pesan untuk yang tidak lengkap.
@@ -515,9 +516,8 @@ export async function renderJalurRingkasan(view) {
             : [j.flazz_card_name || j.flazz_card_name_2 || '-']),
           el('td', {}, [dok(j.status_pajak, j.sisa_hari_pajak, 'Pajak')]),
           el('td', {}, [dok(j.status_pajak_5, j.sisa_hari_pajak_5, 'Pajak 5 Tahun')]),
-          el('td', {}, [j.jenis_kendaraan === 'Mobil'
-            ? dok(j.status_kir, j.sisa_hari_kir, 'KIR')
-            : el('span', { class: 'badge bg-light text-muted fw-normal border', text: 'N/A' })]),
+          // KIR hanya untuk mobil; motor dikosongkan.
+          el('td', {}, j.jenis_kendaraan === 'Mobil' ? [dok(j.status_kir, j.sisa_hari_kir, 'KIR')] : []),
         ]))),
       ])]));
       shot.classList.remove('d-none');
