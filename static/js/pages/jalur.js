@@ -1,7 +1,7 @@
 import { del, get, post, put } from '../api.js';
 import { getRouteParam } from '../router.js';
 import { getUser } from '../store.js';
-import { autoRefresh, confirmDialog, el, fmtDateId, toast } from '../ui.js';
+import { autoRefresh, confirmDialog, el, fmtDateId, toast, grupAksi, tombolIkon } from '../ui.js';
 import { tanggalWib } from './input.js';
 
 // Halaman Jalur Pengiriman (M8): daftar, buat, edit, ringkasan.
@@ -144,8 +144,7 @@ export async function renderJalurList(view) {
       el('td', {}, [badge(teksDokumen(j.status_pajak, j.sisa_hari_pajak), KELAS_DOKUMEN[j.status_pajak])]),
       el('td', { class: 'small', text: j.created_by || '-' }),
       el('td', {}, [
-        el('a', { class: 'btn btn-sm btn-outline-primary me-1', href: `#/jalur/edit/${encodeURIComponent(j.id)}`, text: 'Edit' }),
-        el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', text: 'Hapus', onclick: () => hapus(j) }),
+        grupAksi([tombolIkon('edit', 'Edit jalur', `#/jalur/edit/${encodeURIComponent(j.id)}`), tombolIkon('hapus', 'Hapus jalur', () => hapus(j))]),
       ]),
     ])));
     hasil.replaceChildren(el('div', { class: 'table-wrap' }, [
@@ -275,10 +274,10 @@ export async function renderJalurBuat(view) {
         el('div', { class: 'col-md-3' }, [baris('Kartu etoll 1', b.f.etoll_card_id)]),
         el('div', { class: 'col-md-3' }, [baris('Kartu etoll 2', b.f.etoll_card_id_2)]),
         el('div', { class: 'col-md-2 d-flex align-items-end mb-3' }, [
-          el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', text: 'Hapus baris', onclick: () => {
+          el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', title: 'Hapus baris', 'aria-label': 'Hapus baris', onclick: () => {
             daftar = daftar.filter((x) => x !== item);
             item.node.remove();
-          } }),
+          } }, [el('i', { class: 'bi bi-trash', 'aria-hidden': 'true' })]),
         ]),
       ]),
     ]);

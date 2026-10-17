@@ -155,3 +155,25 @@ export function autoRefresh(view, muat, { ms = 30_000, sibuk = () => false } = {
   window.addEventListener('hashchange', () => { if (!masihDiHalaman()) berhenti(); });
   return berhenti;
 }
+
+// Tombol aksi berupa ikon (label di title/tooltip & aria-label). Beri `href` untuk tautan.
+// Jenis umum: edit, hapus, nonaktif, aktif, lepas, oli, lihat.
+export const IKON_AKSI = {
+  edit: ['bi-pencil', 'btn-outline-primary'],
+  hapus: ['bi-trash', 'btn-outline-danger'],
+  nonaktif: ['bi-slash-circle', 'btn-outline-danger'],
+  aktif: ['bi-check-circle', 'btn-outline-success'],
+  lepas: ['bi-credit-card-2-back', 'btn-outline-warning'],
+  oli: ['bi-droplet', 'btn-outline-secondary'],
+  lihat: ['bi-image', 'btn-outline-secondary'],
+};
+export function tombolIkon(jenis, judul, aksi) {
+  const [ikon, kelas] = IKON_AKSI[jenis] || ['bi-three-dots', 'btn-outline-secondary'];
+  const attrs = { class: `btn btn-sm ${kelas}`, title: judul, 'aria-label': judul };
+  const node = typeof aksi === 'string'
+    ? el('a', { ...attrs, href: aksi })
+    : el('button', { ...attrs, type: 'button', onclick: aksi });
+  node.appendChild(el('i', { class: `bi ${ikon}`, 'aria-hidden': 'true' }));
+  return node;
+}
+export const grupAksi = (tombol) => el('div', { class: 'aksi-ikon' }, tombol.filter(Boolean));

@@ -55,3 +55,12 @@ describe('labelDari / petaMaster', () => {
     expect(labelDari('X', petaMaster(null).supir)).toBe('X');
   });
 });
+
+describe('tombolIkon', () => {
+  it('ikon & kelas per jenis aksi', async () => {
+    const { IKON_AKSI } = await import('../../static/js/ui.js');
+    expect(IKON_AKSI.edit).toEqual(['bi-pencil', 'btn-outline-primary']);
+    expect(IKON_AKSI.hapus![0]).toBe('bi-trash');
+    expect(IKON_AKSI.nonaktif![0]).toBe('bi-slash-circle');
+  });
+});

@@ -120,7 +120,7 @@ export async function renderDashboard(view) {
   }
   function itemOli(r) {
     const bisaReset = isSuper || (user.role === 'PIC CABANG' && String(r.cabang) === String(user.cabang));
-    const tombol = bisaReset ? el('button', { class: 'btn btn-sm btn-outline-success ms-2', type: 'button', text: 'Oli Diganti' }) : null;
+    const tombol = bisaReset ? el('button', { class: 'btn btn-sm btn-outline-success ms-2', type: 'button', title: 'Tandai oli sudah diganti', 'aria-label': 'Tandai oli sudah diganti' }, [el('i', { class: 'bi bi-droplet-fill', 'aria-hidden': 'true' })]) : null;
     tombol?.addEventListener('click', async () => {
       if (!confirmDialog('Tandai oli kendaraan ini sudah diganti? Baseline akan di-set ke odometer saat ini.')) return;
       tombol.disabled = true;

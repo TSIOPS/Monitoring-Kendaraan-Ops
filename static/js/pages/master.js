@@ -1,6 +1,6 @@
 import { del, get, post, put } from '../api.js';
 import { getUser } from '../store.js';
-import { confirmDialog, el, fmtDateId, fmtNum, toast } from '../ui.js';
+import { confirmDialog, el, fmtDateId, fmtNum, toast, grupAksi, tombolIkon } from '../ui.js';
 
 // Halaman Data Master (M10). Satu pembangun tabel + form dipakai semua tab;
 // tiap entitas hanya mendeskripsikan kolom, field, dan endpoint (API M2/M5, field GAS).
@@ -88,7 +88,7 @@ function entitas(m) {
       ],
       simpan: (v, row) => (row ? put('/api/master/kendaraan', { ...bodyKendaraan(v), edit_id: row.vehicle_id }) : post('/api/master/kendaraan', bodyKendaraan(v))),
       hapus: (row) => ({ tanya: `Hapus kendaraan ${row.plat_nomor}?`, jalan: () => del(`/api/master/kendaraan/${encodeURIComponent(row.vehicle_id)}`) }),
-      ekstra: (row) => [{ label: 'Reset oli', tanya: `Set baseline ganti oli ${row.plat_nomor} ke KM odometer terakhir?`, jalan: () => post(`/api/master/kendaraan/${encodeURIComponent(row.vehicle_id)}/reset-oli`, {}) }],
+      ekstra: (row) => [{ label: 'Reset oli', ikon: 'oli', tanya: `Set baseline ganti oli ${row.plat_nomor} ke KM odometer terakhir?`, jalan: () => post(`/api/master/kendaraan/${encodeURIComponent(row.vehicle_id)}/reset-oli`, {}) }],
     },
     cabang: {
       label: 'Warehouse', boleh: isSuper(), list: () => m.cabang, key: (c) => c.kode,
@@ -320,11 +320,11 @@ export async function renderMaster(view) {
       const bukanMilik = !isSuper() && e.cabangOf && String(e.cabangOf(r)) !== String(getUser()?.cabang || '');
       return el('tr', {}, [
         ...e.kolom.map(([, fn, kelas]) => el('td', { class: kelas ? kelas(r) : '', text: String(fn(r) ?? '-') })),
-        bukanMilik ? el('td', { class: 'small text-muted', text: 'Kendaraan bersama (dikelola pemilik)' }) : el('td', { class: 'text-nowrap' }, [
-          el('button', { class: 'btn btn-sm btn-outline-primary me-1', type: 'button', text: 'Edit', onclick: () => bukaForm(r) }),
-          ...(e.ekstra ? e.ekstra(r).map((x) => el('button', { class: 'btn btn-sm btn-outline-secondary me-1', type: 'button', text: x.label, onclick: () => aksi(x) })) : []),
-          el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', text: h.label || 'Hapus', onclick: () => aksi(h) }),
-        ]),
+        bukanMilik ? el('td', { class: 'small text-muted', text: 'Kendaraan bersama (dikelola pemilik)' }) : el('td', { class: 'text-nowrap' }, [grupAksi([
+          tombolIkon('edit', 'Edit', () => bukaForm(r)),
+          ...(e.ekstra ? e.ekstra(r).map((x) => tombolIkon(x.ikon || 'lainnya', x.label, () => aksi(x))) : []),
+          tombolIkon(h.label === 'Nonaktifkan' ? 'nonaktif' : h.label === 'Aktifkan' ? 'aktif' : 'hapus', h.label || 'Hapus', () => aksi(h)),
+        ])]),
       ]);
     });
     isi.replaceChildren(
