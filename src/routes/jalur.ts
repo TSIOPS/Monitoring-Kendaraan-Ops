@@ -73,14 +73,29 @@ export async function recomputeJalurForCard(deps: AppDeps, cardId: string): Prom
   if (!str(cardId)) return null;
   const card = await deps.flazz.findCardById(cardId);
   const ids = [...new Set([str(cardId), card?.id ?? ''].filter(Boolean))];
-  const jalur = J.latestJalurForCard(await deps.jalur.listForCards(ids), cardId);
+  const semua = await deps.jalur.listForCards(ids);
+  const jalur = J.latestJalurForCard(semua, cardId);
   if (!jalur) return null;
+  const reconCache = new Map<string, Awaited<ReturnType<typeof deps.flazz.listReconciliations>>>();
+  const reconMaxUntuk = async (cards: string[]) => {
+    const recons = [];
+    for (const cid of cards) {
+      if (!reconCache.has(cid)) reconCache.set(cid, await deps.flazz.listReconciliations({ cardId: cid }));
+      recons.push(...reconCache.get(cid)!);
+    }
+    return J.reconMaxTglByCard(recons);
+  };
   const cards = J.cardsOf(jalur);
-  const recons = [];
-  for (const cid of cards) recons.push(...await deps.flazz.listReconciliations({ cardId: cid }));
-  const status = J.jalurFinalStatus(jalur.laporan_id, cards, jalur.tanggal, J.reconMaxTglByCard(recons));
+  const status = J.jalurFinalStatus(jalur.laporan_id, cards, jalur.tanggal, await reconMaxUntuk(cards));
   if ((str(jalur.status) || J.STATUS_BELUM) !== status) {
     await deps.jalur.update(jalur.id, { status, updated_at: new Date().toISOString() });
+  }
+  // Jalur lama kartu ini (mis. diinput mundur tanggal) yang sudah dilaporkan ikut tuntas bila
+  // kartunya sudah direkon pada/setelah tanggal jalurnya. Hanya naik status, tidak menurunkan.
+  for (const j of semua) {
+    if (j.id === jalur.id || str(j.is_deleted) === '1' || str(j.status) !== J.STATUS_LAPORAN) continue;
+    const st = J.jalurFinalStatus(j.laporan_id, J.cardsOf(j), j.tanggal, await reconMaxUntuk(J.cardsOf(j)));
+    if (st === J.STATUS_SELESAI) await deps.jalur.update(j.id, { status: st, updated_at: new Date().toISOString() });
   }
   return status;
 }

@@ -109,6 +109,18 @@ describe('POST /api/flazz/reconciliation (model GAS)', () => {
     expect(flz.state.reconciliations[0]).toMatchObject({ opening_balance: 500000, flazz_balance: 600000, reconciliation_status: 'SESUAI' });
   });
 
+  it('jalur lama kartu yang sama (diinput mundur tanggal) ikut SELESAI setelah rekon', async () => {
+    const j = (id: string, tanggal: string, created_at: string, laporan_id: string) => ({ id, tanggal, created_at, nama_driver: 'Supir A', vehicle_id: 'V-1', kode_cabang: 'CBG-A', status: 'SUDAH_LAPORAN', laporan_id, flazz_card_id: 'FLZ-A' });
+    const { app, kv, lap } = setup({
+      rows: [], usage: [usage({ ref_type: 'JALUR', ref_id: 'J-BARU' })],
+      jalur: [j('J-BARU', '2026-10-07', '2026-10-07T04:00:00.000Z', 'TRX-B'), j('J-LAMA', '2026-10-06', '2026-10-07T08:48:00.000Z', 'TRX-L'),
+        { ...j('J-KOSONG', '2026-10-05', '2026-10-05T01:00:00.000Z', ''), status: 'BELUM_DIISI' }],
+    });
+    expect((await req(app, 'POST', '/api/flazz/reconciliation', await loginAs(kv, PIC), { card_id: 'FLZ-A', actual_balance: 600000 })).status).toBe(200);
+    const st = Object.fromEntries(lap.state.jalur.map((x: any) => [x.id, x.status]));
+    expect(st).toEqual({ 'J-BARU': 'SELESAI', 'J-LAMA': 'SELESAI', 'J-KOSONG': 'BELUM_DIISI' });
+  });
+
   it('saldo fisik tidak valid -> 400', async () => {
     const { app, kv } = setup();
     expect((await req(app, 'POST', '/api/flazz/reconciliation', await loginAs(kv, PIC), { card_id: 'FLZ-A', actual_balance: -1 })).status).toBe(400);
