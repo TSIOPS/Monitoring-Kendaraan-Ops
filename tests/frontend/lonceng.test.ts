@@ -13,7 +13,7 @@ describe('lonceng: susunNotifikasi', () => {
       { item: [{ plat_nomor: 'D 8561 FI', nama_driver: 'Agus', perlu: ['LAPORAN', 'REKONSILIASI'] }, { plat_nomor: 'D 2', nama_driver: 'Budi', perlu: ['REKONSILIASI'] }] },
     );
     expect(list.map((x) => [x.grup, x.href])).toEqual([
-      ['Tugas hari ini', '#/input'], ['Tugas hari ini', '#/flazz/rekon'],
+      ['Tugas belum selesai', '#/input'], ['Tugas belum selesai', '#/flazz/rekon'],
       ['Pajak & KIR', '#/dashboard'], ['Saldo etoll rendah', '#/flazz/topup'], ['Ganti oli', '#/dashboard'],
     ]);
     expect(list[0]!.ket).toBe('Belum laporan & rekonsiliasi');

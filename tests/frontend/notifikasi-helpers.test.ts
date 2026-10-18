@@ -36,8 +36,9 @@ describe('nada pengingat', () => {
 describe('suara yang diucapkan', () => {
   it('kalimat dari ringkasan tugas; kosong bila tidak ada tugas', async () => {
     const { kalimatPengingat } = await import('../../static/js/notifikasi.js');
-    expect(kalimatPengingat({ laporan: 3, rekonsiliasi: 2 }, new Date('2026-10-16T05:00:00Z'))).toBe('Perhatian. Hari ini masih ada 3 laporan dan 2 rekonsiliasi yang belum selesai. Segera selesaikan sebelum jam lima sore.');
-    expect(kalimatPengingat({ laporan: 0, rekonsiliasi: 1 })).toContain('masih ada 1 rekonsiliasi yang');
+    expect(kalimatPengingat({ laporan: 3, rekonsiliasi: 2 }, new Date('2026-10-16T05:00:00Z'))).toBe('Perhatian. Masih ada 3 laporan dan 2 rekonsiliasi yang belum selesai. Segera selesaikan sebelum jam lima sore.');
+    expect(kalimatPengingat({ laporan: 2, rekonsiliasi: 0, tertunggak: 1 }, new Date('2026-10-16T05:00:00Z'))).toBe('Perhatian. Masih ada 2 laporan yang belum selesai, termasuk 1 jalur dari hari sebelumnya. Segera selesaikan sebelum jam lima sore.');
+    expect(kalimatPengingat({ laporan: 0, rekonsiliasi: 1 })).toContain('Masih ada 1 rekonsiliasi yang');
     expect(kalimatPengingat({ laporan: 0, rekonsiliasi: 0 })).toBe('');
   });
   it('memilih suara bahasa Indonesia (Google lebih dulu)', async () => {

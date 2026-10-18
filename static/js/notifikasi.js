@@ -33,7 +33,8 @@ export function teksTugas(t) {
   const bagian = [];
   if (t?.laporan) bagian.push(`${t.laporan} laporan`);
   if (t?.rekonsiliasi) bagian.push(`${t.rekonsiliasi} rekonsiliasi`);
-  return bagian.length ? `${bagian.join(' & ')} belum selesai` : '';
+  if (!bagian.length) return '';
+  return `${bagian.join(' & ')} belum selesai` + (t.tertunggak ? ` (${t.tertunggak} jalur dari hari sebelumnya)` : '');
 }
 
 // Applic. server key VAPID (base64url) -> Uint8Array untuk pushManager.subscribe.
@@ -104,7 +105,8 @@ export function kalimatPengingat(t, d = new Date()) {
   if (t?.laporan) bagian.push(`${t.laporan} laporan`);
   if (t?.rekonsiliasi) bagian.push(`${t.rekonsiliasi} rekonsiliasi`);
   if (!bagian.length) return '';
-  return `Perhatian. Hari ini masih ada ${bagian.join(' dan ')} yang belum selesai. Segera selesaikan sebelum ${jamOperasional(d).kata}.`;
+  const tunggak = t.tertunggak ? `, termasuk ${t.tertunggak} jalur dari hari sebelumnya` : '';
+  return `Perhatian. Masih ada ${bagian.join(' dan ')} yang belum selesai${tunggak}. Segera selesaikan sebelum ${jamOperasional(d).kata}.`;
 }
 export const KALIMAT_SEMUA_SELESAI = 'Semua laporan dan rekonsiliasi hari ini sudah selesai. Terima kasih.';
 
@@ -167,7 +169,7 @@ function tampilPopup(teks, t) {
   bunyiPengingat(kalimatPengingat(t));
   const tutup = () => latar.remove();
   const daftar = (t.item || []).slice(0, 8).map((i) => el('li', {}, [
-    `${i.plat_nomor} — ${i.nama_driver}: `,
+    `${i.tanggal && t.tanggal && i.tanggal < t.tanggal ? `[${i.tanggal.slice(8, 10)}/${i.tanggal.slice(5, 7)}] ` : ''}${i.plat_nomor} — ${i.nama_driver}: `,
     el('strong', { text: i.perlu.map((p) => (p === 'LAPORAN' ? 'laporan' : 'rekonsiliasi')).join(' & ') }),
   ]));
   const latar = el('div', { class: 'popup-latar', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Pengingat tugas' }, [

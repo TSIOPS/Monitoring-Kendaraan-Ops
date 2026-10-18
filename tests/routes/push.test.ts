@@ -32,10 +32,13 @@ describe('ringkasTugas', () => {
       jalur({ id: 'D', status: 'SUDAH_LAPORAN' }),
       jalur({ id: 'E', flazz_card_id: 'FLZ-3', status: 'SELESAI' }),
       jalur({ id: 'F', tanggal: '2026-10-06' }),
+      jalur({ id: 'G', tanggal: '2026-09-20' }),
+      jalur({ id: 'H', tanggal: '2026-10-08' }),
     ], HARI);
-    expect([r.laporan, r.rekonsiliasi]).toEqual([2, 2]);
-    expect(r.item.map((i) => i.jalur_id).sort()).toEqual(['A', 'B', 'C']);
-    expect(teksTugas(r)).toBe('2 laporan & 2 rekonsiliasi belum selesai');
+    // F (kemarin) ikut sebagai tertunggak; G (> 7 hari) & H (besok) tidak.
+    expect([r.laporan, r.rekonsiliasi, r.tertunggak]).toEqual([3, 2, 1]);
+    expect(r.item.map((i) => i.jalur_id)).toEqual(['F', 'A', 'B', 'C']);
+    expect(teksTugas(r)).toBe('3 laporan & 2 rekonsiliasi belum selesai (1 jalur dari hari sebelumnya)');
     expect(teksTugas({ laporan: 0, rekonsiliasi: 0 })).toBe('');
   });
 });

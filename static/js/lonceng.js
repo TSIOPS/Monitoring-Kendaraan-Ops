@@ -14,10 +14,12 @@ const KELAS_STATUS = { LEWAT: 'text-bg-danger', KRITIS: 'text-bg-warning', WASPA
 export function susunNotifikasi(warn, tugas) {
   const out = [];
   for (const t of tugas?.item || []) {
+    const lewat = Boolean(t.tanggal && tugas.tanggal && t.tanggal < tugas.tanggal);
     const perlu = (t.perlu || []).map((p) => (p === 'LAPORAN' ? 'laporan' : 'rekonsiliasi')).join(' & ');
     out.push({
-      grup: 'Tugas hari ini', judul: `${t.plat_nomor} — ${t.nama_driver}`, ket: `Belum ${perlu}`,
-      badge: 'Hari ini', kelas: 'text-bg-danger',
+      grup: 'Tugas belum selesai', judul: `${t.plat_nomor} — ${t.nama_driver}`,
+      ket: `Belum ${perlu}` + (lewat ? ` · jalur ${t.tanggal.slice(8, 10)}/${t.tanggal.slice(5, 7)}` : ''),
+      badge: lewat ? 'Tertunggak' : 'Hari ini', kelas: lewat ? 'text-bg-dark' : 'text-bg-danger',
       href: (t.perlu || []).includes('LAPORAN') ? '#/input' : '#/flazz/rekon',
     });
   }

@@ -6,7 +6,7 @@ import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
 import { HttpError, okPayload } from '../utils/http';
 import { todayWib } from '../logic/jalur';
-import { jamTutupWib, ringkasTugas, teksTugas } from '../logic/tugas';
+import { awalRentangTugas, jamTutupWib, ringkasTugas, teksTugas } from '../logic/tugas';
 import { hashEndpoint, kirimPush, type VapidKunci } from '../push/webpush';
 
 type Ctx = Context<{ Bindings: Env; Variables: AuthVars }>;
@@ -28,11 +28,11 @@ export function vapidDariEnv(env: Env | undefined): VapidKunci | null {
 
 const isSuper = (u: Pick<SessionUser, 'role'>) => String(u.role).toUpperCase() === 'SUPERADMIN';
 
-// Tugas hari ini dalam cakupan pengguna (PIC: cabangnya; SUPERADMIN: semua).
+// Tugas hari ini + tertunggak 7 hari terakhir dalam cakupan pengguna (PIC: cabangnya; SUPERADMIN: semua).
 export async function tugasUntuk(deps: AppDeps, u: Pick<SessionUser, 'role' | 'cabang'>, tanggal = todayWib()) {
   const cabang = isSuper(u) ? '' : String(u.cabang || '');
   if (!isSuper(u) && !cabang) return ringkasTugas([], tanggal);
-  const rows = await deps.jalur.listForDate(tanggal, cabang || null);
+  const rows = await deps.jalur.listRange(awalRentangTugas(tanggal), tanggal, cabang || null);
   return ringkasTugas(rows, tanggal, cabang);
 }
 
