@@ -37,9 +37,19 @@ export function validateEdit(v) {
 // Body PUT. KM hanya dikirim bila berubah: server menandai km_sumber = AKTUAL setiap kali
 // KM dikirim, dan transaksi ESTIMASI tidak boleh berubah diam-diam (spec M11).
 // Jenis BBM transaksi lama ditebak dari harga per liter (biaya / liter), seperti calcEditLiter GAS.
+// Jenis BBM tidak disimpan di laporan; ditebak dari liter tersimpan (dibulatkan 2 desimal):
+// pilih jenis yang liter hitungannya (biaya / harga) paling dekat, selisih maks 0,01 L.
 export function tebakJenisBbm(opsi, biayaTotal, liter) {
-  const harga = Number(liter) > 0 ? Number(biayaTotal) / Number(liter) : 0;
-  return opsi.find((o) => harga > 0 && Math.abs(o.harga - harga) < 1)?.value || '';
+  const l = Number(liter);
+  const b = Number(biayaTotal);
+  if (!(l > 0) || !(b > 0)) return '';
+  let terbaik = null;
+  for (const o of opsi) {
+    if (!(o.harga > 0)) continue;
+    const selisih = Math.abs(b / o.harga - l);
+    if (selisih <= 0.0101 && (!terbaik || selisih < terbaik.selisih)) terbaik = { value: o.value, selisih };
+  }
+  return terbaik?.value || '';
 }
 
 export function bodyEdit(trx, v) {

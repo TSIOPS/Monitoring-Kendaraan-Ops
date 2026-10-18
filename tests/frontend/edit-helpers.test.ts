@@ -47,4 +47,12 @@ describe('tebakJenisBbm', () => {
     expect(tebakJenisBbm(opsi, 68000, 10)).toBe('B2');
     expect(tebakJenisBbm(opsi, 0, 0)).toBe('');
   });
+  it('liter yang dibulatkan 2 desimal tetap dikenali (harga tidak habis dibagi)', async () => {
+    const { tebakJenisBbm } = await import('../../static/js/pages/edit.js');
+    const opsi = [{ value: 'PERTALITE', harga: 10000 }, { value: 'PERTAMAX', harga: 12500 }, { value: 'DEX', harga: 13300 }];
+    expect(tebakJenisBbm(opsi, 40000, 3.01)).toBe('DEX');
+    expect(tebakJenisBbm(opsi, 40000, 3.2)).toBe('PERTAMAX');
+    expect(tebakJenisBbm(opsi, 40000, 4)).toBe('PERTALITE');
+    expect(tebakJenisBbm(opsi, 40000, 3.7)).toBe('');
+  });
 });
