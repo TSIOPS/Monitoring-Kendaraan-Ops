@@ -69,6 +69,16 @@ async function cardLookup(deps: AppDeps) {
 
 // Hitung ulang status jalur TERBARU yang memakai kartu ini (port recomputeJalurStatus).
 // Dipanggil setelah rekonsiliasi dibuat, diubah, atau dihapus.
+// Kartu etoll yang masih diserahkan (DIBERIKAN, belum direkonsiliasi) tidak boleh dipakai di
+// jalur lain. Mengembalikan pesan penolakan, atau '' bila kartu bebas.
+export async function pesanKartuDipakai(deps: AppDeps, cardId: string, nama: string, kecualiJalurId = ''): Promise<string> {
+  const aktif = (await deps.flazz.listUsages([cardId])).find((x) => x.status === 'DIBERIKAN' && !(x.ref_type === 'JALUR' && x.ref_id === kecualiJalurId));
+  if (!aktif) return '';
+  const jalur = aktif.ref_type === 'JALUR' ? (await deps.jalur.listForCards([cardId])).find((j) => j.id === aktif.ref_id) : null;
+  return 'Kartu etoll "' + (nama || cardId) + '" masih dipakai ' + (aktif.driver_id || '-') + (jalur ? ' (jalur ' + J.tgl10(jalur.tanggal) + ')' : '') +
+    ' dan belum direkonsiliasi. Rekonsiliasi kartu itu dulu sebelum dipakai lagi.';
+}
+
 export async function recomputeJalurForCard(deps: AppDeps, cardId: string): Promise<string | null> {
   if (!str(cardId)) return null;
   const card = await deps.flazz.findCardById(cardId);
@@ -230,6 +240,17 @@ export function jalurRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
         status: J.STATUS_BELUM, laporan_id: '',
       });
     }
+    // Kartu sedang dipakai / dipilih dua kali dalam satu simpan -> ditolak sebelum menulis apa pun.
+    const kartuBaru: string[] = [];
+    for (const j of baru) {
+      for (const [cid, nama] of [[j.flazz_card_id, j.flazz_card_name], [j.flazz_card_id_2, j.flazz_card_name_2]] as Array<[string, string]>) {
+        if (!cid) continue;
+        if (kartuBaru.includes(canonicalCardId(cid))) throw new HttpError(409, 'Jalur baru diblokir: kartu etoll "' + (nama || cid) + '" dipilih lebih dari sekali.', 'CONFLICT');
+        kartuBaru.push(canonicalCardId(cid));
+        const pesan = await pesanKartuDipakai(deps, cid, nama);
+        if (pesan) throw new HttpError(409, 'Jalur baru diblokir: ' + pesan, 'CONFLICT');
+      }
+    }
     await deps.jalur.insertMany(baru);
 
     // Serahkan kartu etoll ke driver setelah baris tertulis (port autoCreateFlazzUsage).
@@ -327,6 +348,11 @@ export function jalurRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const { kembalikan, serahkan } = J.cardDiff(oldCards, newCards);
     // Kartu lama yang dikembalikan juga wajib cabang PIC (kaskade mengubah status kartu).
     for (const cid of kembalikan) assertFlazzAccess(u, card(cid)?.branch_id ?? '');
+    // Kartu yang baru dipasang ke jalur ini tidak boleh masih dipakai jalur lain.
+    for (const cid of serahkan) {
+      const pesan = await pesanKartuDipakai(deps, cid, card(cid)?.card_name ?? '', old.id);
+      if (pesan) throw new HttpError(409, pesan, 'CONFLICT');
+    }
 
     // Gate: kendaraan BARU harus lolos gate yang sama seperti saat membuat jalur.
     const tanggalBaru = p.tanggal !== undefined ? J.tgl10(p.tanggal) : J.tgl10(old.tanggal);

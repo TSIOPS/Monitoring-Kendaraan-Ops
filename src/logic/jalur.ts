@@ -113,7 +113,7 @@ export function findBlockers(rows: JalurFull[], vehicleIds: string[], tanggal: s
 
 // Gate per DRIVER (Driver 1 & Driver 2), aturan tuntas sama dengan gate kendaraan:
 // jalur terakhir driver di tanggal SEBELUMNYA harus tuntas, dan driver tidak boleh
-// punya jalur belum tuntas di tanggal yang sama (jalur tuntas tidak memblokir). excludeId = jalur yang sedang diedit.
+// punya jalur belum tuntas di tanggal yang sama atau sesudahnya (jalur tuntas tidak memblokir). excludeId = jalur yang sedang diedit.
 const punyaDriver = (r: JalurFull, id: string) => str(r.driver_id) === id || str(r.driver2_id) === id;
 const namaDriverDi = (r: JalurFull, id: string) => (str(r.driver_id) === id ? str(r.nama_driver) : str(r.nama_driver2)) || id;
 
@@ -127,6 +127,13 @@ export function findDriverBlockers(rows: JalurFull[], driverIds: string[], tangg
     const hariSama = milik.find((r) => tgl10(r.tanggal) === input && (str(r.status) || STATUS_BELUM) !== statusTuntas(r));
     if (hariSama) {
       pesan.push('Driver ' + namaDriverDi(hariSama, id) + ' sudah terjadwal pada ' + input + ' (kendaraan ' + (hariSama.plat_nomor || hariSama.vehicle_id) + ').');
+      continue;
+    }
+    // Input mundur tanggal: jalur driver yang bertanggal LEBIH BARU dan belum tuntas juga memblokir.
+    const sesudah = milik.find((r) => tgl10(r.tanggal) > input && (str(r.status) || STATUS_BELUM) !== statusTuntas(r));
+    if (sesudah) {
+      pesan.push('Driver ' + namaDriverDi(sesudah, id) + ' masih punya jalur ' + tgl10(sesudah.tanggal) + ' (' + (sesudah.plat_nomor || sesudah.vehicle_id) +
+        ', status ' + (sesudah.status || STATUS_BELUM) + ') yang belum selesai. Selesaikan dulu sebelum membuat jalur tanggal sebelumnya.');
       continue;
     }
     const sebelum = milik.filter((r) => tgl10(r.tanggal) < input)

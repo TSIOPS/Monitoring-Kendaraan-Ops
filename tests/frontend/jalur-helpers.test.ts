@@ -68,3 +68,12 @@ describe('autofillDariDriver (jalurAutofillFromDriver GAS)', () => {
     expect(autofillDariDriver(undefined, ['V-1'], cards)).toEqual({ vehicle_id: '', etoll_card_id: '', pesan: '' });
   });
 });
+
+describe('kartuSedangDipakai', () => {
+  it('kartu SEDANG_DIGUNAKAN tidak bisa dipilih, kecuali milik jalur yang diedit', async () => {
+    const { kartuSedangDipakai } = await import('../../static/js/pages/jalur.js');
+    expect(kartuSedangDipakai({ id: 'F1', status: 'SEDANG_DIGUNAKAN' })).toBe(true);
+    expect(kartuSedangDipakai({ id: 'F1', status: 'SEDANG_DIGUNAKAN' }, ['F1'])).toBe(false);
+    expect(kartuSedangDipakai({ id: 'F2', status: 'TERSEDIA' })).toBe(false);
+  });
+});

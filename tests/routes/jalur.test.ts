@@ -111,16 +111,26 @@ describe('POST /api/jalur', () => {
     expect(((await res.json()) as any).message).toContain('Harap rekonsiliasi saldo flazz terlebih dahulu.');
   });
 
-  it('kartu masih dipegang -> tetap tersimpan dengan warnings, usage tidak digandakan', async () => {
-    const { app, kv, flz } = setup({
+  it('kartu masih dipakai jalur lain (belum direkon) -> 409, jalur tidak tersimpan', async () => {
+    const { app, kv, flz, rows } = setup({
       cards: [kartu()],
       usage: [{ id: 'U-1', date: '', card_id: 'FLZ-A', driver_id: 'Lama', vehicle_id: 'V-2', usage_type: 'PRIMARY', primary_card_id: '', backup_card_id: '', reason: '', opening_balance: 0, used_at: '', returned_at: '', status: 'DIBERIKAN', created_by: '', created_at: '', ref_type: 'JALUR', ref_id: 'J-lama' }],
+      jalur: [jalurRow({ id: 'J-lama', tanggal: '2026-10-07', driver_id: 'S-9', nama_driver: 'Lama', vehicle_id: 'V-2', flazz_card_id: 'FLZ-A', status: 'SUDAH_LAPORAN' })],
     });
     const tok = await loginAs(kv, PIC);
     const res = await req(app, 'POST', '/api/jalur', tok, { tanggal: '2026-10-06', rows: [baris({ etoll_card_id: 'FLZ-A' })] });
-    expect(res.status).toBe(200);
-    expect(((await res.json()) as any).warnings).toEqual(['Kartu etoll "Kartu A" masih dipakai (belum dikembalikan) untuk Supir A. Proses admin sebelumnya belum selesai.']);
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as any).message).toBe('Jalur baru diblokir: Kartu etoll "Kartu A" masih dipakai Lama (jalur 2026-10-07) dan belum direkonsiliasi. Rekonsiliasi kartu itu dulu sebelum dipakai lagi.');
+    expect(rows).toHaveLength(1);
     expect(flz.state.usage).toHaveLength(1);
+  });
+
+  it('kartu yang sama dipilih dua kali dalam satu simpan -> 409', async () => {
+    const { app, kv } = setup({ cards: [kartu()] });
+    const tok = await loginAs(kv, PIC);
+    const res = await req(app, 'POST', '/api/jalur', tok, { tanggal: '2026-10-06', rows: [baris({ etoll_card_id: 'FLZ-A' }), baris({ driver_id: 'S-2', vehicle_id: 'V-2', etoll_card_id: 'FLZ-A' })] });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as any).message).toContain('dipilih lebih dari sekali');
   });
 });
 

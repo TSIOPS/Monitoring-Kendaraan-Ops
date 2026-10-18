@@ -54,7 +54,11 @@ const isSuper = () => String(getUser()?.role || '').toUpperCase() === 'SUPERADMI
 
 function isiOpsi(select, items, placeholder) {
   select.replaceChildren(el('option', { value: '', text: placeholder }));
-  for (const it of items) select.appendChild(el('option', { value: String(it.value), text: String(it.label) }));
+  for (const it of items) {
+    const o = el('option', { value: String(it.value), text: String(it.label) });
+    if (it.disabled) o.disabled = true;
+    select.appendChild(o);
+  }
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -207,6 +211,11 @@ export function autofillDariDriver(driver, vehicleIds, cards) {
   };
 }
 
+// Kartu berstatus SEDANG_DIGUNAKAN (belum direkonsiliasi) kecuali kartu milik jalur yang diedit.
+export function kartuSedangDipakai(card, milikJalurIni = []) {
+  return String(card?.status || '').toUpperCase() === 'SEDANG_DIGUNAKAN' && !milikJalurIni.includes(String(card.id));
+}
+
 // ── Form baris (buat & edit) ───────────────────────────────────────────────
 function formBaris(master, cabang, nilai = {}) {
   const drv = (placeholder) => {
@@ -223,7 +232,13 @@ function formBaris(master, cabang, nilai = {}) {
     etoll_card_id_2: el('select', { class: 'form-select form-select-sm' }),
   };
   isiOpsi(f.vehicle_id, opsiCabang(master.vehicles, cabang, 'cabang').map((v) => ({ value: v.vehicle_id, label: `${v.plat_nomor} — ${v.nama}` })), '— kendaraan —');
-  const kartu = opsiCabang(master.cards, cabang, 'branch_id').map((c) => ({ value: c.id, label: c.card_name || c.card_number || c.id }));
+  // Kartu yang masih dipakai jalur lain (belum direkon) tidak bisa dipilih; kartu milik jalur yang sedang diedit tetap bisa.
+  const milikJalurIni = [nilai.etoll_card_id, nilai.etoll_card_id_2].filter(Boolean).map(String);
+  const kartu = opsiCabang(master.cards, cabang, 'branch_id').map((c) => {
+    const sibuk = kartuSedangDipakai(c, milikJalurIni);
+    const nama = c.card_name || c.card_number || c.id;
+    return { value: c.id, label: sibuk ? `${nama} — sedang dipakai${c.driver_id ? ' ' + c.driver_id : ''}` : nama, disabled: sibuk };
+  });
   isiOpsi(f.etoll_card_id, kartu, '— tanpa kartu etoll —');
   isiOpsi(f.etoll_card_id_2, kartu, '— tanpa kartu kedua —');
   for (const [k, ctl] of Object.entries(f)) if (nilai[k] !== undefined) ctl.value = String(nilai[k] ?? '');
@@ -231,7 +246,7 @@ function formBaris(master, cabang, nilai = {}) {
   f.driver_id.addEventListener('change', () => {
     const driver = master.drivers.find((d) => String(d.id) === f.driver_id.value);
     const ids = Array.from(f.vehicle_id.options).map((o) => o.value);
-    const kartuDaftar = master.cards.filter((c) => Array.from(f.etoll_card_id.options).some((o) => o.value === String(c.id)));
+    const kartuDaftar = master.cards.filter((c) => Array.from(f.etoll_card_id.options).some((o) => o.value === String(c.id) && !o.disabled));
     const a = autofillDariDriver(driver, ids, kartuDaftar);
     if (a.vehicle_id) f.vehicle_id.value = a.vehicle_id;
     if (a.etoll_card_id) {
