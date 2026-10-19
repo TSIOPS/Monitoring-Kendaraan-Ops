@@ -11,7 +11,7 @@ untuk setiap perubahan kode di repo ini.
   - sebelum menyatakan selesai → `superpowers:verification-before-completion`
 - Rencana disimpan di `docs/superpowers/plans/YYYY-MM-DD-<nama>.md`, spesifikasi di `docs/superpowers/specs/`.
 - Rencana perbaikan aktif: [docs/superpowers/plans/2026-10-19-perbaikan-keamanan-ux.md](docs/superpowers/plans/2026-10-19-perbaikan-keamanan-ux.md),
-  [docs/superpowers/plans/2026-10-19-role-management.md](docs/superpowers/plans/2026-10-19-role-management.md) (Task 7–11 belum).
+  [docs/superpowers/plans/2026-10-19-role-management.md](docs/superpowers/plans/2026-10-19-role-management.md) (selesai).
 
 ## 2. Setiap perubahan WAJIB memperbarui dokumentasi Markdown
 Setelah perubahan apa pun (kode, skema DB, konfigurasi):
@@ -59,5 +59,8 @@ Jangan klaim "selesai" tanpa output kedua perintah di atas.
   tanpa DOM) — lihat pola di `tests/frontend/*-helpers.test.ts`.
 - Query DB lewat builder supabase-js (`eq`/`in`/…); **jangan** memasukkan input user ke pola `ilike`/`like`
   atau string filter `.or()` tanpa escape.
-- Setiap cek akses di server: PIC CABANG dibatasi ke cabangnya; SUPERADMIN-only untuk pengguna/pengaturan/reset.
+- Setiap cek akses di server: PIC CABANG dibatasi ke cabangnya; MANAGEMENT baca semua cabang tapi tidak bisa menulis
+  (penjaga di `requireUser` — cakupan baca pakai `lihatSemuaCabang()`, cek tulis tetap `isSuper()`); SUPERADMIN-only
+  untuk pengguna/pengaturan/reset/audit. Pakai helper `src/auth/peran.ts` / `static/js/peran.js`, jangan bandingkan
+  string role langsung.
 - Commit kecil per tugas, pesan gaya `fix(area): …` / `feat(area): …` dalam Bahasa Indonesia.

@@ -1000,11 +1000,11 @@ git commit -m "feat(ui): halaman read-only untuk role MANAGEMENT"
 
 **Files:** `README.md`, `CLAUDE.md`, `CHANGELOG.md`
 
-- [ ] **Step 1: README.md** — tambah bagian "Role pengguna" (SUPERADMIN / MANAGEMENT / PIC CABANG, ringkas seperti
+- [x] **Step 1: README.md** — tambah bagian "Role pengguna" (SUPERADMIN / MANAGEMENT / PIC CABANG, ringkas seperti
   tabel di spesifikasi) dan catatan keamanan: "MANAGEMENT read-only; semua metode non-GET ditolak di `requireUser`
   kecuali `/api/password` dan `/api/push/{langganan,berhenti,tes}`". Di tabel API, tambahkan kolom akses MANAGEMENT
   pada baris `GET /api/master` ("semua cabang, tanpa pengguna").
-- [ ] **Step 2: CLAUDE.md §6** — ganti butir cek akses menjadi:
+- [x] **Step 2: CLAUDE.md §6** — ganti butir cek akses menjadi:
   `- Setiap cek akses di server: PIC CABANG dibatasi ke cabangnya; MANAGEMENT baca semua cabang tapi tidak bisa menulis (penjaga di requireUser — cakupan baca pakai lihatSemuaCabang(), cek tulis tetap isSuper()); SUPERADMIN-only untuk pengguna/pengaturan/reset/audit.`
-- [ ] **Step 3: CHANGELOG** — entri ringkasan fitur role MANAGEMENT (Fitur), file utama.
-- [ ] **Step 4:** Commit `docs: role MANAGEMENT di README dan CLAUDE.md`.
+- [x] **Step 3: CHANGELOG** — entri ringkasan fitur role MANAGEMENT (Fitur), file utama.
+- [x] **Step 4:** Commit `docs: role MANAGEMENT di README dan CLAUDE.md`.

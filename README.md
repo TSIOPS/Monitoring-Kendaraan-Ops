@@ -27,8 +27,21 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 | `npm test` | vitest |
 | `npm run typecheck` | tsc --noEmit |
 
+## Role pengguna
+| Role | Cakupan data | Bisa mengubah data | Khusus |
+|---|---|---|---|
+| `SUPERADMIN` | semua warehouse (+ filter) | ya, semua | kelola pengguna, pengaturan, kosongkan data, Audit Log, hapus rekonsiliasi |
+| `MANAGEMENT` | semua warehouse (+ filter) | **tidak** (hanya lihat) | Perbandingan Pengeluaran; Data Master tanpa daftar pengguna |
+| `PIC CABANG` | warehouse sendiri | ya, warehouse sendiri | wajib punya warehouse |
+
+Akun `MANAGEMENT` dibuat SUPERADMIN lewat Data Master → Pengguna (warehouse otomatis kosong). Helper role ada di
+`src/auth/peran.ts` (server) dan `static/js/peran.js` (frontend).
+
 ## Catatan keamanan
 - Role/cabang tidak pernah dari client; dicek `requireUser`.
+- `MANAGEMENT` read-only: semua metode non-GET dari sesi MANAGEMENT ditolak 403 di `requireUser`, kecuali
+  `/api/password` dan `/api/push/{langganan,berhenti,tes}` (milik akun sendiri). Cakupan baca memakai
+  `lihatSemuaCabang()`, cek tulis tetap `isSuper()`/cek cabang.
 - Rate limit login (KV): 5x/5mnt per input username, per akun hasil lookup, dan 30x/5mnt per IP; username berisi wildcard (`%`, `*`) ditolak dan `_` diperlakukan literal.
 - Hash password format kompatibel GAS (tidak perlu reset saat migrasi).
 - Sesi sliding 12 jam: diperpanjang saat dipakai hanya selama token masih terdaftar di daftar sesi pengguna (`sessu:`, belum dicabut), dan maksimal 7 hari sejak login; setelah itu wajib login ulang.
@@ -39,7 +52,7 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 | POST | `/api/login` | publik | login → session token (KV, 12 jam) |
 | POST | `/api/logout` | token | hapus session |
 | GET | `/api/health` | publik | health check |
-| GET | `/api/master` | role+cabang | payload master (cache KV 30 dtk) |
+| GET | `/api/master` | role+cabang (MANAGEMENT: semua cabang, tanpa daftar pengguna) | payload master (cache KV 30 dtk) |
 | POST/PUT/DELETE | `/api/master/cabang` | PIC (cabang sendiri), SUPERADMIN semua | CRUD cabang (soft-delete) |
 | POST/PUT/DELETE | `/api/master/kendaraan` | PIC (cabang sendiri), SUPERADMIN semua | CRUD kendaraan |
 | POST/PUT/DELETE | `/api/master/supir` | PIC (cabang sendiri), SUPERADMIN semua | CRUD supir |
