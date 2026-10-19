@@ -183,7 +183,8 @@ body {
 }
 
 .badge-ef-baik { background: var(--warna-ok); }
-.badge-ef-waspada { background: var(--warna-oval); }
+/* Kontras: teks putih di oranye #fd7e14 hanya ~2.9:1 → pakai oranye gelap (≥4.5:1). */
+.badge-ef-waspada { background: #b35900; }
 .badge-ef-buruk { background: var(--warna-bahaya); }
 .badge-ef-kurang-data { background: var(--warna-abu); }
 
@@ -577,6 +578,7 @@ body.tanpa-sidebar .sidebar, body.tanpa-sidebar .sidebar-latar { display: none; 
     top: 0;
     left: 0;
     height: 100vh;
+    height: 100dvh; /* tinggi layar sebenarnya di HP (bilah alamat tidak memotong menu bawah) */
     z-index: 1050;
     margin-left: 0 !important;
     transform: translateX(-100%);
@@ -667,3 +669,19 @@ body.tanpa-sidebar .sidebar, body.tanpa-sidebar .sidebar-latar { display: none; 
 .lonceng-item { display: block; padding: 0.5rem 1rem; color: #212529; text-decoration: none; border-bottom: 1px solid #f1f3f5; }
 .lonceng-item:hover, .lonceng-item:focus-visible { background: #f1f5f2; color: #212529; outline: none; }
 @media (max-width: 640px) { .panel-lonceng { position: fixed; left: 0.75rem; right: 0.75rem; top: var(--tinggi-topbar, 58px); width: auto; } }
+
+/* iOS memperbesar layar bila font input < 16px. Basis html 15px, jadi paksa 16px di layar sentuh. */
+@media (max-width: 991.98px) {
+  .form-control, .form-select, .form-control-sm, .form-select-sm { font-size: 16px; }
+}
+
+/* Target sentuh minimal 44px di perangkat sentuh (WCAG 2.5.5 / Apple HIG). */
+@media (pointer: coarse) {
+  .aksi-ikon { gap: 0.5rem; }
+  .aksi-ikon .btn, .btn-sm { min-width: 44px; min-height: 44px; }
+}
+
+/* Kontras dashboard: hijau gelap (~6,6:1 dengan putih) untuk kartu sambutan & ringkasan;
+   teks sekunder putih 85% tetap ≥4.5:1 di atasnya (text-white-50 hanya ~2:1). */
+.bg-utama-gelap { background-color: var(--warna-utama-gelap) !important; }
+.teks-putih-redup { color: rgba(255, 255, 255, 0.85); }

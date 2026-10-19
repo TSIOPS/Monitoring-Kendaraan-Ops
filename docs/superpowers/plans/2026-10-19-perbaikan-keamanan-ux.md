@@ -1011,7 +1011,7 @@ export function toast(message, kind = 'info') {
 
 **Files:** Modify `static/css/app.css`
 
-- [ ] **Step 1:** Tambahkan di akhir `app.css`:
+- [x] **Step 1:** Tambahkan di akhir `app.css`:
 
 ```css
 /* iOS memperbesar layar bila font input < 16px. Basis html 15px, jadi paksa 16px di layar sentuh. */
@@ -1031,9 +1031,11 @@ export function toast(message, kind = 'info') {
 
 Ganti `height: 100vh` pada aturan sidebar mobile (sekitar `app.css:557`) menjadi `height: 100vh; height: 100dvh;`.
 
-- [ ] **Step 2:** Di `static/js/pages/dashboard.js`, ganti kelas `badge bg-warning` → `badge text-bg-warning`, `bg-info` dengan teks putih → `text-bg-info` (Bootstrap memilih warna teks kontras). Cari: `grep -n "bg-warning\|bg-info\|text-white-50" static/js/pages/dashboard.js`.
-- [ ] **Step 3:** Verifikasi di DevTools (iPhone SE, 375px): tap input tidak zoom; ikon aksi di tabel ≥44px; cek kontras badge di Lighthouse Accessibility.
-- [ ] **Step 4: Commit** `fix(css): font input 16px, target sentuh 44px, kontras badge`.
+  - Penyimpangan: `.badge-ef-waspada` diubah di tempat (baris aslinya), bukan ditambah duplikat di akhir; aturan sidebar mobile ada di `@media (max-width: 991.98px) .sidebar` (~`app.css:580`).
+- [x] **Step 2:** Di `static/js/pages/dashboard.js`, ganti kelas `badge bg-warning` → `badge text-bg-warning`, `bg-info` dengan teks putih → `text-bg-info` (Bootstrap memilih warna teks kontras). Cari: `grep -n "bg-warning\|bg-info\|text-white-50" static/js/pages/dashboard.js`.
+  - `KARTU_KELAS` → `text-bg-warning`/`text-bg-success`; kotak ringkasan Flazz → `text-bg-success`/`text-bg-info`, label tidak lagi `text-white-50`. Putih di hijau utama `#208b3a` hanya ~4,4:1, jadi kartu sambutan & kotak "Total Kartu Aktif" memakai kelas baru `.bg-utama-gelap` (`#176b2c`, ~6,6:1) dan tanggal sambutan `.teks-putih-redup` (putih 85%, ≥4,5:1).
+- [ ] **Step 3:** Verifikasi di DevTools (iPhone SE, 375px): tap input tidak zoom; ikon aksi di tabel ≥44px; cek kontras badge di Lighthouse Accessibility. (manual — belum)
+- [x] **Step 4: Commit** `fix(css): font input 16px, target sentuh 44px, kontras badge`.
 
 ### Task 14: Perbaiki regex badge "Selisih ODO"
 

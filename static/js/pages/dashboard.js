@@ -61,7 +61,8 @@ const rp = (n) => `Rp ${fmtNum(n)}`;
 const WARN_KELAS = { LEWAT: 'text-bg-danger', KRITIS: 'text-bg-warning', WASPADA: 'text-bg-info' };
 const OLI_KELAS = { GANTI_OLI: 'text-bg-danger', WASPADA: 'text-bg-warning' };
 const LABEL_DOK = { PAJAK: 'Pajak', PAJAK5: 'Pajak 5th', KIR: 'KIR' };
-const KARTU_KELAS = { SEDANG_DIGUNAKAN: 'bg-warning', TERSEDIA: 'bg-success' };
+// text-bg-*: Bootstrap memilih warna teks yang kontras (teks gelap di kuning).
+const KARTU_KELAS = { SEDANG_DIGUNAKAN: 'text-bg-warning', TERSEDIA: 'text-bg-success' };
 
 const kartuPanel = (judul, aksi, isi) => el('div', { class: 'panel' }, [
   el('div', { class: 'd-flex justify-content-between align-items-center flex-wrap gap-2 mb-3' }, [el('h2', { class: 'h6 fw-bold mb-0' }, judul), aksi]),
@@ -76,9 +77,10 @@ export async function renderDashboard(view) {
   const isSuper = user.role === 'SUPERADMIN';
 
   const tanggal = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Jakarta' });
-  const salam = el('div', { class: 'rounded-3 bg-primary text-white p-4 mb-3 shadow-sm' }, [
+  // Hijau gelap + teks putih penuh: teks kecil di hijau utama (#208b3a) hanya ~4,4:1, text-white-50 ~2:1.
+  const salam = el('div', { class: 'rounded-3 bg-utama-gelap text-white p-4 mb-3 shadow-sm' }, [
     el('div', { class: 'h4 fw-bold mb-1', text: `${sapaan(jamWib())}${user.nama ? ', ' + user.nama : ''}!` }),
-    el('div', { class: 'text-white-50', text: tanggal }),
+    el('div', { class: 'teks-putih-redup', text: tanggal }),
   ]);
 
   const akses = [
@@ -200,8 +202,9 @@ export async function renderDashboard(view) {
       const data = await get('/api/flazz/dashboard');
       const cards = data.cards || [];
       const r = ringkasKartu(cards, data.topups);
-      const kotak = (kelas, label, nilai) => el('div', { class: 'col-md-4' }, [el('div', { class: `rounded-3 ${kelas} text-white p-3 h-100` }, [
-        el('div', { class: 'small text-white-50', text: label }), el('div', { class: 'h5 fw-bold mb-0', text: nilai }),
+      // kelas berisi latar + warna teks (text-bg-* memilih teks kontras); label tidak lagi text-white-50 (kontras ~2:1).
+      const kotak = (kelas, label, nilai) => el('div', { class: 'col-md-4' }, [el('div', { class: `rounded-3 ${kelas} p-3 h-100` }, [
+        el('div', { class: 'small fw-semibold', text: label }), el('div', { class: 'h5 fw-bold mb-0', text: nilai }),
       ])]);
       isiKartu.className = '';
       isiKartu.replaceChildren(...[
@@ -210,9 +213,9 @@ export async function renderDashboard(view) {
           el('a', { href: '#/flazz/rekon', class: 'alert-link', text: 'Rekonsiliasi Flazz' }), ' hari ini.',
         ]) : null,
         el('div', { class: 'row g-3 mb-3' }, [
-          kotak('bg-primary', 'Total Kartu Aktif', `${r.aktif} dari ${r.total}`),
-          kotak('bg-success', 'Total Saldo (Seluruh Kartu)', rp(r.saldo)),
-          kotak('bg-info', 'Top Up Terakhir', r.topupTerakhir ? `${rp(r.topupTerakhir.amount)} (${fmtDateId(r.topupTerakhir.date)})` : '-'),
+          kotak('bg-utama-gelap text-white', 'Total Kartu Aktif', `${r.aktif} dari ${r.total}`),
+          kotak('text-bg-success', 'Total Saldo (Seluruh Kartu)', rp(r.saldo)),
+          kotak('text-bg-info', 'Top Up Terakhir', r.topupTerakhir ? `${rp(r.topupTerakhir.amount)} (${fmtDateId(r.topupTerakhir.date)})` : '-'),
         ]),
         el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-hover align-middle' }, [
           el('thead', { class: 'table-light' }, [el('tr', {}, ['Nomor Kartu', 'Tipe', 'Driver/Kendaraan', 'Saldo Terakhir', 'Status'].map((h) => el('th', { text: h })))]),
