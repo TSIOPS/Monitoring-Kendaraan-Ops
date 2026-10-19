@@ -399,7 +399,7 @@ git commit -m "fix(laporan): pesan SUDAH_DILAPORKAN saat kirim ulang setelah res
 - Modify: `src/auth/sessions.ts` (`resolveSession`)
 - Test: `tests/sessions.test.ts`
 
-- [ ] **Step 1: Tulis tes gagal**
+- [x] **Step 1: Tulis tes gagal**
 
 ```ts
 import { createSession, resolveSession, SESSION_TTL_SECONDS } from '../src/auth/sessions';
@@ -429,9 +429,9 @@ it('sesi yang dipakai sebelum separuh TTL tidak ditulis ulang', async () => {
 
 (Gunakan helper KV memori yang ada di `tests/sessions.test.ts`/`tests/helpers.ts`; namai `memKv` sesuai yang tersedia di sana.)
 
-- [ ] **Step 2: Jalankan, pastikan gagal** — Run: `npx vitest run tests/sessions.test.ts` → FAIL (exp tidak berubah).
+- [x] **Step 2: Jalankan, pastikan gagal** — Run: `npx vitest run tests/sessions.test.ts` → FAIL (exp tidak berubah).
 
-- [ ] **Step 3: Implementasi** — ganti `resolveSession`:
+- [x] **Step 3: Implementasi** — ganti `resolveSession`:
 
 ```ts
 // Sesi diperpanjang (sliding) bila sudah lewat separuh umur: PIC yang login pagi tidak
@@ -461,9 +461,9 @@ export async function resolveSession(kv: KVStore, token: string | null, now: () 
 
 Catatan keamanan: pencabutan sesi (`cabutSesiPengguna`) tetap berfungsi karena daftar token ikut diperpanjang.
 
-- [ ] **Step 4: Jalankan** — Run: `npx vitest run tests/sessions.test.ts tests/auth-routes.test.ts tests/routes/password.test.ts` → PASS.
+- [x] **Step 4: Jalankan** — Run: `npx vitest run tests/sessions.test.ts tests/auth-routes.test.ts tests/routes/password.test.ts` → PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/auth/sessions.ts tests/sessions.test.ts

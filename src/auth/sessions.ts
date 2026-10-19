@@ -20,14 +20,26 @@ export async function createSession(kv: KVStore, user: SessionUser, now: () => n
   return token;
 }
 
+// Sesi diperpanjang (sliding) bila sudah lewat separuh umur: PIC yang login pagi tidak
+// terlempar di tengah input sore. Ditulis ulang paling banyak sekali per separuh TTL agar KV hemat.
 export async function resolveSession(kv: KVStore, token: string | null, now: () => number = Date.now): Promise<SessionUser | null> {
   if (!token) return null;
   const raw = await kv.get(`session:${token}`);
   if (!raw) return null;
   const s = JSON.parse(raw as string) as SessionUser;
-  if (now() > s.exp) {
+  const t = now();
+  if (t > s.exp) {
     await kv.delete(`session:${token}`);
     return null;
+  }
+  const ttlMs = SESSION_TTL_SECONDS * 1000;
+  if (s.exp - t < ttlMs / 2) {
+    s.exp = t + ttlMs;
+    await kv.put(`session:${token}`, JSON.stringify(s), { expirationTtl: SESSION_TTL_SECONDS });
+    if (s.user_id) {
+      const daftar = await kv.get(kunciDaftar(s.user_id), 'json');
+      if (Array.isArray(daftar)) await kv.put(kunciDaftar(s.user_id), JSON.stringify(daftar), { expirationTtl: SESSION_TTL_SECONDS });
+    }
   }
   return s;
 }
