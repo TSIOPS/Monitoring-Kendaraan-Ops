@@ -310,9 +310,10 @@ export async function renderInput(view) {
   const alertBox = el('div', { class: 'alert alert-danger d-none' });
   const fotoAwal = el('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'form-control' });
   const fotoAkhir = el('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'form-control' });
-  // Struk BBM & tol: opsional dulu (masa sosialisasi ke PIC).
-  const fotoStrukBbm = el('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'form-control' });
-  const fotoStrukTol = el('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'form-control' });
+  // Struk BBM & tol: opsional dulu (masa sosialisasi ke PIC). Tanpa `capture`: struk boleh dipilih
+  // dari galeri (sering difoto lebih dulu di SPBU); odometer tetap kamera langsung (anti-kecurangan).
+  const fotoStrukBbm = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
+  const fotoStrukTol = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
   const submit = el('button', { class: 'btn btn-primary', type: 'submit', text: 'Simpan Laporan' });
   const batal = el('button', { class: 'btn btn-outline-secondary', type: 'button', text: 'Batal' });
   let formDiubah = false;

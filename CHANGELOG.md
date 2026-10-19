@@ -3,6 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-10-19
+- **UX** — Foto struk BBM & tol di Input Laporan kini bisa dipilih dari galeri (atribut `capture` dihapus); foto odometer tetap wajib dari kamera langsung — `static/js/pages/input.js`
 - **UX** — Input nominal rupiah (biaya BBM/tol kartu 1 & 2 di Input & Edit Laporan, nominal top up, saldo fisik rekonsiliasi, edit riwayat Flazz) kini memunculkan keyboard angka dan teks bantu terformat di bawahnya ("= Rp 150.000") agar 150.000 vs 1.500.000 mudah dibedakan; teks ikut terisi saat draft dipulihkan — `static/js/ui.js`, `static/js/pages/input.js`, `static/js/pages/edit.js`, `static/js/pages/flazz.js`
 - **UX** — Badge "Selisih ODO" di Riwayat Transaksi kini menampilkan angkanya (mis. "Selisih ODO +150 KM"); regex lama kehilangan backslash (`[d.,]`) sehingga tidak pernah cocok — `static/js/pages/transaksi.js`
 - **Aksesibilitas** — CSS mobile: font input 16px di layar ≤991px (iOS tidak lagi zoom saat tap input), tombol kecil & ikon aksi minimal 44px di perangkat sentuh, sidebar HP memakai `100dvh`; kontras diperbaiki untuk badge "Waspada" (oranye gelap), badge status kartu & kotak ringkasan Flazz di dashboard (`text-bg-*`), serta kartu sambutan dashboard (hijau gelap, teks tanggal putih 85% menggantikan `text-white-50`) — `static/css/app.css`, `static/js/pages/dashboard.js`

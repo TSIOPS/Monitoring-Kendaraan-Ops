@@ -1116,8 +1116,9 @@ export function bantuRupiah(input) {
 
 **Files:** Modify `static/js/pages/input.js:298-299` (dan input struk di `edit.js` bila ada `capture`)
 
-- [ ] **Step 1:** Hapus `capture: 'environment'` dari `fotoStrukBbm` dan `fotoStrukTol` (odometer tetap kamera langsung sebagai anti-kecurangan).
-- [ ] **Step 2: Commit** `fix(input): foto struk bisa dipilih dari galeri`.
+- [x] **Step 1:** Hapus `capture: 'environment'` dari `fotoStrukBbm` dan `fotoStrukTol` (odometer tetap kamera langsung sebagai anti-kecurangan).
+  - `edit.js` tidak memakai `capture` (tidak diubah).
+- [x] **Step 2: Commit** `fix(input): foto struk bisa dipilih dari galeri`.
 
 ### Gerbang Fase 3
 - [ ] `npm test && npm run typecheck` hijau
