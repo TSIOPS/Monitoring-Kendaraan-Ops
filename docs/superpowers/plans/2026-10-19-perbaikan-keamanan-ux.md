@@ -860,7 +860,7 @@ export function renderLogin(view) {
 
 **Files:** Modify `static/js/pages/input.js` (`muatSupirJalur`)
 
-- [ ] **Step 1: Implementasi**
+- [x] **Step 1: Implementasi**
 
 ```js
   async function muatSupirJalur() {
@@ -880,8 +880,8 @@ export function renderLogin(view) {
     // ...sisa fungsi tetap
 ```
 
-- [ ] **Step 2: Verifikasi manual** (DevTools → Offline → ganti tanggal): muncul teks merah + "Coba lagi", tidak ada tautan "Buat jalur".
-- [ ] **Step 3: Commit** `fix(input): galat muat jalur dengan tombol coba lagi`.
+- [ ] **Step 2: Verifikasi manual** (manual — belum) (DevTools → Offline → ganti tanggal): muncul teks merah + "Coba lagi", tidak ada tautan "Buat jalur".
+- [x] **Step 3: Commit** `fix(input): galat muat jalur dengan tombol coba lagi`.
 
 ### Gerbang Fase 2
 - [ ] `npm test && npm run typecheck` hijau

@@ -467,7 +467,13 @@ export async function renderInput(view) {
       const data = await get(`/api/jalur/drivers?tanggal=${encodeURIComponent(f.tanggal.value)}`);
       jalurDrivers = Array.isArray(data.list) ? data.list : [];
     } catch (err) {
-      toast(err.message, 'error');
+      // Galat jaringan/server bukan berarti "tidak ada jalur": tampilkan galat + Coba lagi,
+      // tanpa tautan "Buat jalur" yang memicu jalur ganda.
+      isiOpsi(f.nama_supir, [], '— gagal memuat jalur —');
+      const ulang = el('button', { type: 'button', class: 'btn btn-sm btn-outline-danger ms-2', text: 'Coba lagi' });
+      ulang.addEventListener('click', async () => { await muatSupirJalur(); await onSupirChange(); });
+      infoJalur.replaceChildren(el('span', { class: 'text-danger', role: 'alert' }, [`Gagal memuat jalur: ${err.message}`, ulang]));
+      return;
     }
     isiOpsi(f.nama_supir, opsiSupirJalur(jalurDrivers), jalurDrivers.length ? '— pilih supir dari jalur —' : '— tidak ada jalur —');
     infoJalur.replaceChildren(
