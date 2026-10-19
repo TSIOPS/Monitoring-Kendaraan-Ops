@@ -43,6 +43,8 @@ export async function request(method, path, body, { timeoutMs = BATAS_WAKTU_MS }
   try {
     payload = await res.json();
   } catch {
+    // Batas waktu habis saat body masih dibaca (sinyal lemah): laporkan sebagai TIMEOUT.
+    if (ctrl.signal.aborted) throw new ApiError(WAKTU_HABIS, 0, 'TIMEOUT');
     // Halaman error proxy/Cloudflare/captive portal: bukan tanda sesi tidak sah — sesi dipertahankan.
     throw new ApiError(RESPON_GAGAL, res.status, 'BAD_RESPONSE');
   } finally {

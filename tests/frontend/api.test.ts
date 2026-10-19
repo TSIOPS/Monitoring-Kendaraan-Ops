@@ -111,6 +111,23 @@ describe('request', () => {
       vi.useRealTimers();
     }
   });
+
+  it('timeout saat membaca body respons dilaporkan TIMEOUT, bukan BAD_RESPONSE', async () => {
+    vi.useFakeTimers();
+    try {
+      stubFetch(async (_u, init) => ({
+        ok: true,
+        status: 200,
+        json: () => new Promise((_r, rej) => init?.signal?.addEventListener('abort', () => rej(new DOMException('aborted', 'AbortError')))),
+      }) as unknown as Response);
+      const p = request('GET', '/api/master').catch((e) => e as ApiError);
+      await vi.advanceTimersByTimeAsync(31_000);
+      const err = await p;
+      expect(err.error).toBe('TIMEOUT');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('post', () => {

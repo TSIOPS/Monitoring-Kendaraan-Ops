@@ -1,6 +1,6 @@
 import { getJumlahPeringatan, getUser, logout, onPeringatanChange } from './store.js';
 import { get, post } from './api.js';
-import { ensureSession, registerRoute, startRouter } from './router.js';
+import { bolehTinggalkanHalaman, ensureSession, pasangPenjagaKeluar, registerRoute, startRouter } from './router.js';
 import { el } from './ui.js';
 import { renderLogin } from './pages/login.js';
 import { daftarkanServiceWorker, mulaiBanner } from './notifikasi.js';
@@ -195,6 +195,10 @@ export function inisial(nama) {
 }
 
 async function keluar() {
+  // Form belum disimpan: tanya dulu sebelum logout (batal = tetap di form, masih login).
+  // Setelah setuju penjaga dilepas agar router tidak bertanya dua kali. Draft tetap tersimpan.
+  if (!bolehTinggalkanHalaman()) return;
+  pasangPenjagaKeluar(null);
   try {
     await post('/api/logout', {});
   } catch (err) {

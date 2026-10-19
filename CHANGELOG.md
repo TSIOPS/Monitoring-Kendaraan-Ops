@@ -3,6 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-10-19
+- **UX** — Perbaikan hasil code-review: menu Keluar kini menanyakan dulu bila ada form belum disimpan (Batal = tetap di form dan tetap login; draft tetap tersimpan), dan batas waktu yang habis saat respons masih dibaca dilaporkan sebagai `TIMEOUT`, bukan "jawaban tidak dapat dibaca" — `static/js/app.js`, `static/js/api.js`
 - **UX** — Perbaikan hasil code-review draft Input Laporan: draft dibaca saat render dan penyimpanan ditahan sampai pemulihan selesai, sehingga ketukan selama jalur dimuat tidak lagi menimpa draft lama dengan form kosong; field berdefault (tanggal, metode bayar/tol, jenis BBM) tidak dihitung sebagai isi — `static/js/draft.js`, `static/js/pages/input.js`
 - **Keamanan** — Perbaikan hasil code-review sesi sliding: sesi hanya diperpanjang bila token masih tercantum di daftar `sessu:` (salinan KV basi tidak bisa menghidupkan kembali sesi yang sudah dicabut), daftar `sessu:` tidak lagi ditulis ulang saat perpanjangan (tidak menimpa token baru), dan ada batas umur mutlak 7 hari sejak login (`mulai`); daftar `sessu:` kini ber-TTL 7 hari. Sesi lama tanpa `mulai` tidak diperpanjang — `src/auth/sessions.ts`, `src/deps.ts`
 - **UX** — Gagal memuat jalur di Input Laporan kini tampil sebagai galat merah dengan tombol "Coba lagi", bukan "Belum ada jalur … Buat jalur" yang menyesatkan dan memicu jalur ganda — `static/js/pages/input.js`

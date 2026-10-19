@@ -891,6 +891,7 @@ export function renderLogin(view) {
 - [ ] CHANGELOG (UX + Keamanan) diperbarui
   - Perbaikan hasil code-review: sesi sliding hanya diperpanjang bila token masih di `sessu:`, `sessu:` tidak ditulis ulang di `resolveSession`, batas umur 7 hari (`SESSION_MAKS_MS`)
   - Perbaikan hasil code-review: draft Input dibaca sinkron saat render, simpan ditahan sampai pemulihan selesai; `simpanDraft(..., abaikan)` mengabaikan field berdefault
+  - Perbaikan hasil code-review: Keluar menghormati penjaga form belum disimpan; abort saat `res.json()` dilaporkan `TIMEOUT`
 
 ---
 
