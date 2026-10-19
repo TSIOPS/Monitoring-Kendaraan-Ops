@@ -683,12 +683,13 @@ git commit -m "feat(master): akun MANAGEMENT dan payload master read-only semua 
 
 ### Task 6: Gerbang `/security-review` (server)
 
-- [ ] **Step 1:** Jalankan `/security-review` atas perubahan Task 1–5. Fokus: tidak ada route tulis ber-sesi yang
+- [x] **Step 1:** Jalankan `/security-review` atas perubahan Task 1–5. Fokus: tidak ada route tulis ber-sesi yang
   lolos tanpa `requireUser`; daftar izin tidak bisa disalahgunakan (path persis, tanpa awalan); cek baca tidak
   melemahkan cek tulis PIC.
-- [ ] **Step 2:** Perbaiki temuan (TDD), atau catat alasan di CHANGELOG bila sengaja tidak diperbaiki.
-- [ ] **Step 3:** `npm test` + `npm run typecheck` hijau → centang, CHANGELOG (Keamanan: "Gerbang security-review role MANAGEMENT"), commit
+- [x] **Step 2:** Perbaiki temuan (TDD), atau catat alasan di CHANGELOG bila sengaja tidak diperbaiki.
+- [x] **Step 3:** `npm test` + `npm run typecheck` hijau → centang, CHANGELOG (Keamanan: "Gerbang security-review role MANAGEMENT"), commit
   `docs: gerbang security-review role MANAGEMENT`.
+> Catatan: security-review 2026-10-19 — tidak ada temuan (ambang >80%). Catatan rendah: langganan push menyimpan role saat berlangganan, sehingga MANAGEMENT yang diturunkan ke PIC tetap menerima jumlah tugas semua cabang sampai berlangganan ulang (hanya angka; perilaku sama dengan SUPERADMIN sebelumnya) — sengaja tidak diperbaiki.
 
 ---
 
