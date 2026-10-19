@@ -1,6 +1,6 @@
 import { del, get, post, put } from '../api.js';
 import { getUser } from '../store.js';
-import { autoRefresh, confirmDialog, el, fmtDateId, fmtNum, toast, labelDari, petaMaster, pratinjauFoto, grupAksi, tombolIkon } from '../ui.js';
+import { autoRefresh, confirmDialog, el, fmtDateId, fmtNum, toast, labelDari, petaMaster, pratinjauFoto, grupAksi, tombolIkon, tampilkanGalat } from '../ui.js';
 import { kompresGambar, namaAman, tanggalWib } from './input.js';
 
 // Halaman Flazz (M9): List, Top Up, Pengembalian & Rekonsiliasi, Riwayat.
@@ -296,8 +296,7 @@ export async function renderFlazzTopup(view) {
     if (!(Number(nominal.value) > 0)) err.push('Nominal top up harus lebih dari 0.');
     if (!(foto.files && foto.files[0])) err.push('Foto bukti top up wajib diupload.');
     if (err.length) {
-      alertBox.textContent = err.join(' ');
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, err.join(' '));
       return;
     }
     simpan.disabled = true;
@@ -308,8 +307,7 @@ export async function renderFlazzTopup(view) {
       toast(res.msg || 'Top Up berhasil dicatat dan saldo bertambah.', 'success');
       window.location.hash = '#/flazz/riwayat';
     } catch (e) {
-      alertBox.textContent = e.message;
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, e.message);
       simpan.disabled = false;
     }
   });
@@ -397,8 +395,7 @@ export async function renderFlazzRekon(view) {
     ev.preventDefault();
     alertBox.classList.add('d-none');
     if (!preview || fisik.value === '' || !(Number(fisik.value) >= 0)) {
-      alertBox.textContent = 'Pilih kartu dan isi saldo fisik.';
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, 'Pilih kartu dan isi saldo fisik.');
       return;
     }
     simpan.disabled = true;
@@ -409,8 +406,7 @@ export async function renderFlazzRekon(view) {
       toast(res.msg, 'success');
       window.location.hash = '#/flazz/riwayat';
     } catch (e) {
-      alertBox.textContent = e.message;
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, e.message);
       simpan.disabled = false;
     }
   });

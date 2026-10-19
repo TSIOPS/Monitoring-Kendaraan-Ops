@@ -903,7 +903,7 @@ export function renderLogin(view) {
 
 **Files:** Modify `static/js/ui.js`; pakai di `input.js`, `edit.js`, `jalur.js`, `flazz.js`, `master.js` (semua tempat `alertBox.classList.remove('d-none')`).
 
-- [ ] **Step 1: Implementasi** di `ui.js`:
+- [x] **Step 1: Implementasi** di `ui.js`:
 
 ```js
 // Galat form selalu di-scroll ke tengah layar dan diumumkan pembaca layar; tombol Simpan
@@ -918,12 +918,14 @@ export function tampilkanGalat(box, pesan) {
 }
 ```
 
-- [ ] **Step 2:** Ganti setiap pasangan
+- [x] **Step 2:** Ganti setiap pasangan
 `alertBox.textContent = X; alertBox.classList.remove('d-none');` → `tampilkanGalat(alertBox, X);`
 Cari dengan: `grep -n "classList.remove('d-none')" static/js/pages/*.js` dan ubah hanya yang menampilkan kotak galat (`alert-danger`).
+  - Diterapkan juga di `login.js` dan `password.js` (pola `alertBox` yang sama). Galat kirim laporan di `input.js` (isi dibangun `replaceChildren` + tautan Riwayat) memakai `tampilkanGalat(alertBox)` tanpa pesan. Ditambah tes `tampilkanGalat` dengan objek tiruan di `tests/frontend/ui.test.ts`.
 
-- [ ] **Step 3:** `npx vitest run tests/frontend` → PASS. Verifikasi manual: submit form input kosong di 375px → layar bergulir ke galat.
-- [ ] **Step 4: Commit** `fix(ui): galat form di-scroll ke layar dan diumumkan`.
+- [x] **Step 3:** `npx vitest run tests/frontend` → PASS.
+- [ ] Verifikasi manual: submit form input kosong di 375px → layar bergulir ke galat. (manual — belum)
+- [x] **Step 4: Commit** `fix(ui): galat form di-scroll ke layar dan diumumkan`.
 
 ### Task 11: Label terhubung ke input (`barisForm`)
 

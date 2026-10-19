@@ -64,3 +64,32 @@ describe('tombolIkon', () => {
     expect(IKON_AKSI.nonaktif![0]).toBe('bi-slash-circle');
   });
 });
+
+describe('tampilkanGalat', () => {
+  it('mengisi pesan, menampilkan kotak, memberi role alert, dan memfokuskan tanpa scroll ganda', async () => {
+    const { tampilkanGalat } = await import('../../static/js/ui.js');
+    const kelas = new Set(['alert', 'd-none']);
+    const attr: Record<string, string> = {};
+    const panggilan: string[] = [];
+    const box: any = {
+      textContent: '',
+      classList: { remove: (k: string) => kelas.delete(k) },
+      setAttribute: (k: string, v: string) => { attr[k] = v; },
+      scrollIntoView: () => panggilan.push('scroll'),
+      focus: (o: any) => panggilan.push(`focus:${o?.preventScroll}`),
+    };
+    tampilkanGalat(box, 'KM wajib diisi.');
+    expect(box.textContent).toBe('KM wajib diisi.');
+    expect(kelas.has('d-none')).toBe(false);
+    expect(attr.role).toBe('alert');
+    expect(attr.tabindex).toBe('-1');
+    expect(panggilan).toEqual(['scroll', 'focus:true']);
+  });
+
+  it('tanpa pesan: isi kotak yang sudah dibangun tidak ditimpa', async () => {
+    const { tampilkanGalat } = await import('../../static/js/ui.js');
+    const box: any = { textContent: 'isi lama', classList: { remove() {} }, setAttribute() {} };
+    tampilkanGalat(box);
+    expect(box.textContent).toBe('isi lama');
+  });
+});

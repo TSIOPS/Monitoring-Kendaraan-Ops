@@ -1,7 +1,7 @@
 import { del, get, post, put } from '../api.js';
 import { getRouteParam } from '../router.js';
 import { getUser } from '../store.js';
-import { autoRefresh, confirmDialog, el, fmtDateId, toast, grupAksi, tombolIkon } from '../ui.js';
+import { autoRefresh, confirmDialog, el, fmtDateId, toast, grupAksi, tombolIkon, tampilkanGalat } from '../ui.js';
 import { tanggalWib } from './input.js';
 
 // Halaman Jalur Pengiriman (M8): daftar, buat, edit, ringkasan.
@@ -328,8 +328,7 @@ export async function renderJalurBuat(view) {
     const { valid, err } = kumpulkanBaris(daftar.map((d) => d.ambil()));
     if (!tanggal.value) err.unshift('Tanggal pengiriman wajib diisi.');
     if (err.length) {
-      alertBox.textContent = err.join(' ');
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, err.join(' '));
       return;
     }
     simpan.disabled = true;
@@ -340,8 +339,7 @@ export async function renderJalurBuat(view) {
       for (const w of res.warnings || []) toast(w, 'error');
       window.location.hash = '#/jalur';
     } catch (e) {
-      alertBox.textContent = e.message || 'Gagal menyimpan jalur.';
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, e.message || 'Gagal menyimpan jalur.');
       simpan.disabled = false;
       simpan.textContent = 'Simpan Jalur';
     }
@@ -393,8 +391,7 @@ export async function renderJalurEdit(view) {
     const v = b.ambil();
     const { err } = kumpulkanBaris([v]);
     if (err.length) {
-      alertBox.textContent = err.join(' ').replace('Baris 1: ', '');
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, err.join(' ').replace('Baris 1: ', ''));
       return;
     }
     simpan.disabled = true;
@@ -403,8 +400,7 @@ export async function renderJalurEdit(view) {
       toast(res.msg || 'Jadwal diperbarui.', 'success');
       window.location.hash = '#/jalur';
     } catch (e) {
-      alertBox.textContent = e.message || 'Gagal memperbarui jalur.';
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, e.message || 'Gagal memperbarui jalur.');
       simpan.disabled = false;
     }
   });

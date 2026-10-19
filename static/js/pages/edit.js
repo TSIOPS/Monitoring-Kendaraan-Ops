@@ -1,6 +1,6 @@
 import { get, put } from '../api.js';
 import { getRouteParam, pasangPenjagaKeluar } from '../router.js';
-import { el, fmtNum, toast, pratinjauFoto } from '../ui.js';
+import { el, fmtNum, toast, pratinjauFoto, tampilkanGalat } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
 import { hitungLiter, kompresGambar, namaAman, opsiBbm, pesanDigitKm, STRUK_KUALITAS, STRUK_LEBAR, THUMB_KUALITAS, THUMB_LEBAR } from './input.js';
 
@@ -271,8 +271,7 @@ export async function renderEdit(view) {
     };
     const err = validateEdit(values);
     if (err.length) {
-      alertBox.textContent = err.join(' ');
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, err.join(' '));
       return;
     }
 
@@ -302,8 +301,7 @@ export async function renderEdit(view) {
       // replace: tombol Back tidak kembali ke form edit lama.
       location.replace('#/history');
     } catch (e) {
-      alertBox.textContent = e.message || 'Gagal memperbarui transaksi.';
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, e.message || 'Gagal memperbarui transaksi.');
       submit.disabled = false;
       submit.textContent = 'Simpan Perubahan';
     }

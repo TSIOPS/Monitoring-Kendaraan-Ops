@@ -58,6 +58,18 @@ export function toast(message, kind = 'info') {
   setTimeout(() => node.remove(), kind === 'error' ? 8000 : 4000);
 }
 
+// Galat form selalu di-scroll ke tengah layar dan diumumkan pembaca layar; tombol Simpan
+// ada di bawah form panjang, jadi galat di atas form sebelumnya tidak terlihat di HP.
+// Tanpa `pesan`: isi kotak yang sudah dibangun pemanggil (mis. pesan + tautan) dipertahankan.
+export function tampilkanGalat(box, pesan) {
+  if (pesan !== undefined) box.textContent = pesan;
+  box.setAttribute('role', 'alert');
+  box.setAttribute('tabindex', '-1');
+  box.classList.remove('d-none');
+  box.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+  box.focus?.({ preventScroll: true });
+}
+
 export function confirmDialog(message) {
   return window.confirm(message);
 }

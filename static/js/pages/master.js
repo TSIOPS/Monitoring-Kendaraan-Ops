@@ -1,6 +1,6 @@
 import { del, get, post, put } from '../api.js';
 import { getUser } from '../store.js';
-import { confirmDialog, el, fmtDateId, fmtNum, toast, grupAksi, tombolIkon } from '../ui.js';
+import { confirmDialog, el, fmtDateId, fmtNum, toast, grupAksi, tombolIkon, tampilkanGalat } from '../ui.js';
 
 // Halaman Data Master (M10). Satu pembangun tabel + form dipakai semua tab;
 // tiap entitas hanya mendeskripsikan kolom, field, dan endpoint (API M2/M5, field GAS).
@@ -277,8 +277,7 @@ export async function renderMaster(view) {
       for (const f of e.fields) values[f.key] = ctl[f.key].value;
       const err = fieldKosong(e.fields, values, isEdit);
       if (err.length) {
-        alertBox.textContent = err.join(' ');
-        alertBox.classList.remove('d-none');
+        tampilkanGalat(alertBox, err.join(' '));
         return;
       }
       simpan.disabled = true;
@@ -288,8 +287,7 @@ export async function renderMaster(view) {
         formBox.replaceChildren();
         await muatUlang();
       } catch (er) {
-        alertBox.textContent = er.message;
-        alertBox.classList.remove('d-none');
+        tampilkanGalat(alertBox, er.message);
         simpan.disabled = false;
       }
     });

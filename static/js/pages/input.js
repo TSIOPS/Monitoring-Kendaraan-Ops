@@ -1,5 +1,5 @@
 import { get, post, BATAS_WAKTU_FOTO_MS } from '../api.js';
-import { el, fmtDateId, fmtNum, pratinjauFoto, toast } from '../ui.js';
+import { el, fmtDateId, fmtNum, pratinjauFoto, toast, tampilkanGalat } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
 import { bacaDraft, hapusDraft, kunciDraft, simpanDraft } from '../draft.js';
 import { getUser } from '../store.js';
@@ -682,8 +682,7 @@ export async function renderInput(view) {
     values.ada_struk_tol = Boolean(fotoStrukTol.files?.[0] || serverData.files.struk_toll);
     const err = validateForm(values);
     if (err.length) {
-      alertBox.textContent = err.join(' ');
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, err.join(' '));
       return;
     }
 
@@ -757,7 +756,7 @@ export async function renderInput(view) {
             : null,
         ].filter(Boolean),
       );
-      alertBox.classList.remove('d-none'); // diganti tampilkanGalat(alertBox) pada Task 10
+      tampilkanGalat(alertBox);
       submit.disabled = false;
       batal.disabled = false;
       submit.textContent = 'Simpan Laporan';

@@ -1,6 +1,6 @@
 import { post } from '../api.js';
 import { getUser } from '../store.js';
-import { el, toast } from '../ui.js';
+import { el, toast, tampilkanGalat } from '../ui.js';
 
 export const PANJANG_MIN = 6;
 
@@ -42,8 +42,7 @@ export async function renderPassword(view) {
     alertBox.classList.add('d-none');
     const err = cekGantiPassword(lama.value, baru.value, ulang.value);
     if (err.length) {
-      alertBox.textContent = err.join(' ');
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, err.join(' '));
       return;
     }
     simpan.disabled = true;
@@ -54,8 +53,7 @@ export async function renderPassword(view) {
       for (const x of [lama, baru, ulang]) x.value = '';
       window.location.hash = '#/dashboard';
     } catch (e) {
-      alertBox.textContent = e.message || 'Gagal mengganti password.';
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, e.message || 'Gagal mengganti password.');
     } finally {
       simpan.disabled = false;
       simpan.textContent = 'Simpan Password';
