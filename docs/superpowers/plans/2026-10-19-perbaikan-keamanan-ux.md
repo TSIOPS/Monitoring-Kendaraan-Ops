@@ -1249,11 +1249,11 @@ export function aksiSekali(tombol, fn) {
 
 **Files:** Modify `static/js/pages/jalur.js` (form buat: ganti warehouse & tombol Batal; ringkasan)
 
-- [ ] **Step 1:** Saat warehouse diganti dan ada ≥1 baris terisi: `if (!confirmDialog('Ganti warehouse akan mengosongkan semua baris jalur. Lanjutkan?')) { wh.value = whSebelumnya; return; }`. Simpan `whSebelumnya` setiap perubahan yang disetujui.
-- [ ] **Step 2:** Pasang `pasangPenjagaKeluar` (Task 7) di form buat/edit jalur dengan flag kotor dari event `input`/`change`; tombol Batal cukup pindah hash.
-- [ ] **Step 3:** Tampilkan nomor baris pada kartu baris (`el('div', { class: 'small fw-bold text-muted', text: \`Jalur #${i + 1}\` })`) agar pesan galat "Baris N" bisa dicocokkan; beri kelas `border-danger` pada baris yang galat.
-- [ ] **Step 4:** Ringkasan: ganti tanggal ISO mentah dengan `fmtDateId(...)`. Cari: `grep -n "tanggal" static/js/pages/jalur.js | grep -v fmtDateId`.
-- [ ] **Step 5: Commit** `fix(jalur): konfirmasi buang baris, nomor baris, format tanggal`.
+- [x] **Step 1:** Saat warehouse diganti dan ada ≥1 baris terisi: `if (!confirmDialog('Ganti warehouse akan mengosongkan semua baris jalur. Lanjutkan?')) { wh.value = whSebelumnya; return; }`. Simpan `whSebelumnya` setiap perubahan yang disetujui.
+- [x] **Step 2:** Pasang `pasangPenjagaKeluar` (Task 7) di form buat/edit jalur dengan flag kotor dari event `input`/`change`; tombol Batal cukup pindah hash.
+- [x] **Step 3:** Tampilkan nomor baris pada kartu baris (`el('div', { class: 'small fw-bold text-muted', text: \`Jalur #${i + 1}\` })`) agar pesan galat "Baris N" bisa dicocokkan; beri kelas `border-danger` pada baris yang galat. (Pesan galat diubah jadi "Jalur #N: …" agar sama persis dengan label; indeks baris galat lewat helper `indeksBarisGalat`.)
+- [x] **Step 4:** Ringkasan: ganti tanggal ISO mentah dengan `fmtDateId(...)`. Cari: `grep -n "tanggal" static/js/pages/jalur.js | grep -v fmtDateId`.
+- [x] **Step 5: Commit** `fix(jalur): konfirmasi buang baris, nomor baris, format tanggal`.
 
 ### Task 21: Pagination berjendela
 

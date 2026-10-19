@@ -1,5 +1,5 @@
 import { del, get, post, put } from '../api.js';
-import { getRouteParam } from '../router.js';
+import { getRouteParam, pasangPenjagaKeluar } from '../router.js';
 import { getUser } from '../store.js';
 import { autoRefresh, confirmDialog, el, fmtDateId, toast, grupAksi, tombolIkon, tombolIkonSekali, tampilkanGalat, barisForm as baris } from '../ui.js';
 import { tanggalWib } from './input.js';
@@ -33,21 +33,26 @@ export function kumpulkanBaris(rows) {
     const kosong = !r.driver_id && !r.vehicle_id && !String(r.rute_tujuan || '').trim();
     if (kosong) return;
     if (!r.driver_id || !r.vehicle_id || !String(r.rute_tujuan || '').trim()) {
-      err.push(`Baris ${i + 1}: driver, kendaraan, dan rute wajib diisi.`);
+      err.push(`Jalur #${i + 1}: driver, kendaraan, dan rute wajib diisi.`);
       return;
     }
     if (r.driver2_id && r.driver2_id === r.driver_id) {
-      err.push(`Baris ${i + 1}: Driver 2 harus berbeda dari Driver 1.`);
+      err.push(`Jalur #${i + 1}: Driver 2 harus berbeda dari Driver 1.`);
       return;
     }
     if (r.etoll_card_id && r.etoll_card_id === r.etoll_card_id_2) {
-      err.push(`Baris ${i + 1}: kartu etoll ke-2 harus berbeda dari kartu etoll ke-1.`);
+      err.push(`Jalur #${i + 1}: kartu etoll ke-2 harus berbeda dari kartu etoll ke-1.`);
       return;
     }
     valid.push(r);
   });
   if (!valid.length && !err.length) err.push('Isi minimal satu baris jalur.');
   return { valid, err };
+}
+
+// Indeks (0-based) baris yang disebut pesan galat kumpulkanBaris ("Jalur #N: …"), untuk menandai kartunya.
+export function indeksBarisGalat(err) {
+  return (err || []).map((p) => /^Jalur #(\d+):/.exec(String(p))).filter(Boolean).map((m) => Number(m[1]) - 1);
 }
 
 const isSuper = () => String(getUser()?.role || '').toUpperCase() === 'SUPERADMIN';
@@ -275,11 +280,20 @@ export async function renderJalurBuat(view) {
   const wadah = el('div', {});
   let daftar = [];
 
+  // Nomor "Jalur #N" mengikuti urutan baris yang tersisa = nomor pada pesan galat kumpulkanBaris.
+  function nomori() {
+    daftar.forEach((d, i) => { d.judul.textContent = `Jalur #${i + 1}`; });
+  }
+  function tandaiGalat(indeks = []) {
+    daftar.forEach((d, i) => d.node.classList.toggle('border-danger', indeks.includes(i)));
+  }
+
   function tambahBaris() {
     const cabang = isSuper() ? wh.value : '';
     const b = formBaris(master, cabang);
-    const item = { ...b, node: null };
+    const item = { ...b, node: null, judul: el('div', { class: 'small fw-bold text-muted mb-1' }) };
     item.node = el('div', { class: 'border rounded p-2 mb-2' }, [
+      item.judul,
       el('div', { class: 'row g-2' }, [
         el('div', { class: 'col-md-4' }, [baris('Driver 1', b.f.driver_id)]),
         el('div', { class: 'col-md-4' }, [baris('Driver 2', b.f.driver2_id)]),
@@ -291,16 +305,27 @@ export async function renderJalurBuat(view) {
           el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', title: 'Hapus baris', 'aria-label': 'Hapus baris', onclick: () => {
             daftar = daftar.filter((x) => x !== item);
             item.node.remove();
+            tandaiGalat();
+            nomori();
           } }, [el('i', { class: 'bi bi-trash', 'aria-hidden': 'true' })]),
         ]),
       ]),
     ]);
     daftar.push(item);
     wadah.appendChild(item.node);
+    nomori();
   }
 
-  // Ganti warehouse mengosongkan baris karena pilihan driver/kendaraan/kartu ikut berubah.
+  // Ganti warehouse mengosongkan baris karena pilihan driver/kendaraan/kartu ikut berubah;
+  // bila sudah ada isian, tanya dulu agar tidak hilang tanpa sengaja.
+  let whSebelumnya = wh.value;
   wh.addEventListener('change', () => {
+    const adaIsi = daftar.some((d) => Object.values(d.ambil()).some(Boolean));
+    if (adaIsi && !confirmDialog('Ganti warehouse akan mengosongkan semua baris jalur. Lanjutkan?')) {
+      wh.value = whSebelumnya;
+      return;
+    }
+    whSebelumnya = wh.value;
     daftar = [];
     wadah.replaceChildren();
     tambahBaris();
@@ -320,11 +345,16 @@ export async function renderJalurBuat(view) {
       simpan,
     ]),
   ]);
+  let formDiubah = false;
+  form.addEventListener('input', () => { formDiubah = true; });
+  form.addEventListener('change', () => { formDiubah = true; });
+  pasangPenjagaKeluar(() => (formDiubah ? 'Jalur belum disimpan. Tinggalkan halaman?' : ''));
 
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     alertBox.classList.add('d-none');
     const { valid, err } = kumpulkanBaris(daftar.map((d) => d.ambil()));
+    tandaiGalat(indeksBarisGalat(err));
     if (!tanggal.value) err.unshift('Tanggal pengiriman wajib diisi.');
     if (err.length) {
       tampilkanGalat(alertBox, err.join(' '));
@@ -336,6 +366,7 @@ export async function renderJalurBuat(view) {
       const res = await post('/api/jalur', { tanggal: tanggal.value, rows: valid });
       toast(res.msg || 'Jalur tersimpan.', 'success');
       for (const w of res.warnings || []) toast(w, 'warning'); // jalur sudah tersimpan: peringatan, bukan galat
+      formDiubah = false; // sebelum pindah agar penjaga tidak bertanya
       window.location.hash = '#/jalur';
     } catch (e) {
       tampilkanGalat(alertBox, e.message || 'Gagal menyimpan jalur.');
@@ -383,6 +414,10 @@ export async function renderJalurEdit(view) {
     ]),
     el('div', { class: 'd-flex gap-2' }, [simpan, el('a', { class: 'btn btn-outline-secondary', href: '#/jalur', text: 'Batal' })]),
   ]);
+  let formDiubah = false;
+  form.addEventListener('input', () => { formDiubah = true; });
+  form.addEventListener('change', () => { formDiubah = true; });
+  pasangPenjagaKeluar(() => (formDiubah ? 'Perubahan jalur belum disimpan. Tinggalkan halaman?' : ''));
 
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -390,13 +425,14 @@ export async function renderJalurEdit(view) {
     const v = b.ambil();
     const { err } = kumpulkanBaris([v]);
     if (err.length) {
-      tampilkanGalat(alertBox, err.join(' ').replace('Baris 1: ', ''));
+      tampilkanGalat(alertBox, err.join(' ').replace('Jalur #1: ', ''));
       return;
     }
     simpan.disabled = true;
     try {
       const res = await put(`/api/jalur/${encodeURIComponent(id)}`, { tanggal: tanggal.value, ...v });
       toast(res.msg || 'Jadwal diperbarui.', 'success');
+      formDiubah = false; // sebelum pindah agar penjaga tidak bertanya
       window.location.hash = '#/jalur';
     } catch (e) {
       tampilkanGalat(alertBox, e.message || 'Gagal memperbarui jalur.');
@@ -497,7 +533,7 @@ export async function renderJalurRingkasan(view) {
 
   async function tampilkan() {
     const namaWh = isSuper() && wh.value ? wh.options[wh.selectedIndex]?.text : '';
-    infoTanggal.textContent = tanggal.value;
+    infoTanggal.textContent = fmtDateId(tanggal.value);
     infoWh.textContent = namaWh || '';
     barisWh.classList.toggle('d-none', !namaWh);
     shot.classList.add('d-none');
@@ -508,7 +544,7 @@ export async function renderJalurRingkasan(view) {
     try {
       const { list = [], created_by: pembuat = '' } = await get(`/api/jalur?${q}`);
       if (!list.length) {
-        kosong.textContent = `Belum ada jadwal pengiriman pada ${tanggal.value}.`;
+        kosong.textContent = `Belum ada jadwal pengiriman pada ${fmtDateId(tanggal.value)}.`;
         return;
       }
       kosong.className = 'd-none';
