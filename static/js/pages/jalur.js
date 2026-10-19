@@ -1,5 +1,5 @@
 import { del, get, post, put } from '../api.js';
-import { getRouteParam, pasangPenjagaKeluar } from '../router.js';
+import { getRouteParam, halamanMasihAktif, pasangPenjagaKeluar } from '../router.js';
 import { getUser } from '../store.js';
 import { autoRefresh, confirmDialog, el, fmtDateId, toast, grupAksi, tombolIkon, tombolIkonSekali, tampilkanGalat, barisForm as baris } from '../ui.js';
 import { tanggalWib } from './input.js';
@@ -271,14 +271,18 @@ function formBaris(master, cabang, nilai = {}) {
 
 // ── Buat ──────────────────────────────────────────────────────────────────
 export async function renderJalurBuat(view) {
+  const hashSaya = window.location.hash;
   view.replaceChildren(el('div', { class: 'text-muted', text: 'Memuat data master' }));
   let master;
   try {
     master = await muatMaster();
   } catch (err) {
+    if (!halamanMasihAktif(hashSaya)) return { ok: false };
     view.replaceChildren(el('div', { class: 'alert alert-danger', text: err.message }));
     return { ok: false };
   }
+  // Pengguna sudah pindah halaman selama master dimuat: jangan pasang penjaga/gambar di sana.
+  if (!halamanMasihAktif(hashSaya)) return { ok: false };
 
   const tanggal = el('input', { type: 'date', class: 'form-control', value: tanggalWib() });
   const wh = pilihWarehouse(master.cabang);
@@ -394,6 +398,7 @@ export async function renderJalurBuat(view) {
 
 // ── Edit ──────────────────────────────────────────────────────────────────
 export async function renderJalurEdit(view) {
+  const hashSaya = window.location.hash;
   const id = getRouteParam('id');
   view.replaceChildren(el('div', { class: 'text-muted', text: 'Memuat jalur' }));
   let master;
@@ -401,9 +406,12 @@ export async function renderJalurEdit(view) {
   try {
     [master, { jalur }] = await Promise.all([muatMaster(), get(`/api/jalur/${encodeURIComponent(id)}`)]);
   } catch (err) {
+    if (!halamanMasihAktif(hashSaya)) return { ok: false };
     view.replaceChildren(el('div', { class: 'alert alert-danger', text: err.message }));
     return { ok: false };
   }
+  // Pengguna sudah pindah halaman selama data dimuat: jangan pasang penjaga/gambar di sana.
+  if (!halamanMasihAktif(hashSaya)) return { ok: false };
 
   const b = formBaris(master, jalur.kode_cabang, {
     driver_id: jalur.driver_id, driver2_id: jalur.driver2_id, vehicle_id: jalur.vehicle_id,

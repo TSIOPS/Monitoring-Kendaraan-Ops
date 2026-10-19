@@ -55,6 +55,23 @@ describe('pesanPenjagaKeluar', () => {
   });
 });
 
+describe('halamanMasihAktif', () => {
+  it('benar hanya untuk hash yang sedang digambar router', async () => {
+    const { halamanMasihAktif, navigate } = await import('../../static/js/router.js');
+    const view = { replaceChildren: () => undefined, querySelector: () => null, contains: () => false };
+    vi.stubGlobal('window', { location: { hash: '#/login' } });
+    vi.stubGlobal('document', { getElementById: () => view, activeElement: null, title: '' });
+    try {
+      navigate('#/login'); // hash sama -> run('#/login') langsung
+      expect(halamanMasihAktif('#/login')).toBe(true);
+      expect(halamanMasihAktif('#/transaksi')).toBe(false);
+      await new Promise((r) => setTimeout(r, 0)); // biarkan render selesai sebelum global dilepas
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
 describe('tujuanSetelahLogin', () => {
   it('memakai rute tersimpan bila aman', () => {
     expect(tujuanSetelahLogin('#/input')).toBe('#/input');

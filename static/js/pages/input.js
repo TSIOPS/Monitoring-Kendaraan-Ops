@@ -3,7 +3,7 @@ import { el, fmtDateId, fmtNum, pratinjauFoto, toast, tampilkanGalat, barisForm 
 import { meteranBensin } from '../meteran.js';
 import { bacaDraft, hapusDraft, kunciDraft, simpanDraft } from '../draft.js';
 import { getUser } from '../store.js';
-import { navigate, pasangPenjagaKeluar } from '../router.js';
+import { halamanMasihAktif, navigate, pasangPenjagaKeluar } from '../router.js';
 
 // Setara compressPhoto GAS (1280 px, 70%) agar kapasitas Storage awet.
 const MAKS_LEBAR = 1280;
@@ -218,15 +218,19 @@ function opsiKartu(cards) {
 }
 
 export async function renderInput(view) {
+  const hashSaya = window.location.hash;
   view.replaceChildren(el('div', { class: 'text-muted', text: 'Memuat data master' }));
 
   let master;
   try {
     master = await get('/api/master');
   } catch (err) {
+    if (!halamanMasihAktif(hashSaya)) return { ok: false };
     view.replaceChildren(el('div', { class: 'alert alert-danger', text: err.message }));
     return { ok: false };
   }
+  // Pengguna sudah pindah halaman selama master dimuat: jangan pasang penjaga/gambar di sana.
+  if (!halamanMasihAktif(hashSaya)) return { ok: false };
 
   const vehicles = Array.isArray(master.vehicles) ? master.vehicles : [];
   const cards = Array.isArray(master.flazzCards) ? master.flazzCards : [];

@@ -1,5 +1,5 @@
 import { BATAS_WAKTU_FOTO_MS, get, put } from '../api.js';
-import { getRouteParam, pasangPenjagaKeluar } from '../router.js';
+import { getRouteParam, halamanMasihAktif, pasangPenjagaKeluar } from '../router.js';
 import { el, fmtNum, toast, pratinjauFoto, tampilkanGalat, barisForm as baris, bantuRupiah } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
 import { hitungLiter, kompresGambar, namaAman, opsiBbm, pesanDigitKm, STRUK_KUALITAS, STRUK_LEBAR, THUMB_KUALITAS, THUMB_LEBAR } from './input.js';
@@ -101,6 +101,7 @@ function pilihNilai(select, value, label) {
 }
 
 export async function renderEdit(view) {
+  const hashSaya = window.location.hash;
   const id = getRouteParam('id');
   if (!id) {
     window.location.hash = '#/history';
@@ -115,10 +116,13 @@ export async function renderEdit(view) {
   try {
     [{ transaksi: trx }, master] = await Promise.all([get(`/api/laporan/${encodeURIComponent(id)}`), get('/api/master')]);
   } catch (err) {
+    if (!halamanMasihAktif(hashSaya)) return { ok: false };
     const pesan = err.status === 404 ? 'Transaksi tidak ditemukan. Mungkin sudah dihapus.' : err.message;
     view.replaceChildren(el('div', { class: `alert ${err.status === 404 ? 'alert-warning' : 'alert-danger'}`, text: pesan }));
     return { ok: false };
   }
+  // Pengguna sudah pindah halaman selama data dimuat: jangan pasang penjaga/gambar di sana.
+  if (!halamanMasihAktif(hashSaya)) return { ok: false };
 
   const cards = Array.isArray(master.flazzCards) ? master.flazzCards : [];
   const kendaraan = (master.vehicles || []).find((v) => v.vehicle_id === trx.vehicle_id);

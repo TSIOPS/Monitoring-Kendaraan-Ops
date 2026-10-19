@@ -33,6 +33,13 @@ export function pesanPenjagaKeluar() {
   return penjagaKeluar ? (penjagaKeluar() || '') : '';
 }
 
+// Halaman yang memuat data lama (sinyal lemah) memeriksa ini setelah await: bila pengguna
+// sudah pindah halaman, halaman lama berhenti agar tidak memasang penjaga/menggambar di
+// halaman lain. hash = window.location.hash saat render dimulai.
+export function halamanMasihAktif(hash) {
+  return hashAktif === hash;
+}
+
 const KUNCI_TUJUAN = 'tujuan-login';
 
 // Hanya hash rute internal ('#/...') yang diterima — mencegah open redirect.
