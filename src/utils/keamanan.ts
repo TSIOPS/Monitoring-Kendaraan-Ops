@@ -30,3 +30,11 @@ export function denganHeaderKeamanan(res: Response): Response {
   for (const [k, v] of Object.entries(HEADER_KEAMANAN)) out.headers.set(k, v);
   return out;
 }
+
+// Username dipakai sebagai pola ILIKE (cocok tanpa beda huruf besar/kecil). Wildcard harus
+// dinetralkan: tanpa ini `admi_`, `admin%`, `%` cocok ke akun yang sama dan tiap variasi
+// mendapat jatah rate limit login sendiri. `%`/`*` (alias % di PostgREST) ditolak; `_` dan `\` di-escape.
+export function polaUsername(username: string): string | null {
+  if (/[%*]/.test(username)) return null;
+  return username.replace(/[\\_]/g, (ch) => '\\' + ch);
+}

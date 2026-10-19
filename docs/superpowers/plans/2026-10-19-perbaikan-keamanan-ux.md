@@ -44,7 +44,7 @@
 - Modify: `src/db/master.ts:238`
 - Test: `tests/keamanan-headers.test.ts` (tambah describe baru)
 
-- [ ] **Step 1: Tulis tes gagal**
+- [x] **Step 1: Tulis tes gagal**
 
 Tambahkan di akhir `tests/keamanan-headers.test.ts`:
 
@@ -67,12 +67,12 @@ describe('polaUsername', () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `npx vitest run tests/keamanan-headers.test.ts`
 Expected: FAIL — `polaUsername is not a function` / export tidak ada.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 Tambahkan di akhir `src/utils/keamanan.ts`:
 
@@ -113,12 +113,12 @@ Ubah `src/db/master.ts` (`findPenggunaByUsername`), tambah import `polaUsername`
         .ilike('username', pola).limit(1).maybeSingle();
 ```
 
-- [ ] **Step 4: Jalankan tes + typecheck**
+- [x] **Step 4: Jalankan tes + typecheck**
 
 Run: `npx vitest run tests/keamanan-headers.test.ts && npm run typecheck`
 Expected: PASS, tanpa error tsc.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/utils/keamanan.ts src/db/users.ts src/db/master.ts tests/keamanan-headers.test.ts
