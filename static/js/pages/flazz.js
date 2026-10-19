@@ -336,6 +336,9 @@ export async function renderFlazzRekon(view) {
   const alertBox = el('div', { class: 'alert alert-danger d-none' });
   const simpan = el('button', { class: 'btn btn-primary', type: 'submit', text: 'Selesaikan Rekonsiliasi' });
   let preview = null;
+  // Usulan tindakan hanya berlaku sampai user memilih sendiri.
+  let aksiDisentuh = false;
+  aksi.addEventListener('change', () => { aksiDisentuh = true; });
 
   function hitungSelisih() {
     if (!preview || fisik.value === '') {
@@ -345,23 +348,34 @@ export async function renderFlazzRekon(view) {
     const s = infoSelisih(preview.flazz_balance, fisik.value);
     selisih.className = `alert ${s.kelas} py-2`;
     selisih.textContent = s.teks;
-    aksi.value = s.aksi;
+    if (!aksiDisentuh) aksi.value = s.aksi;
   }
 
   kartu.addEventListener('change', async () => {
+    const diminta = kartu.value;
+    aksiDisentuh = false;
     preview = null;
     sistem.value = '';
     rincian.textContent = '';
     gate.className = 'alert d-none py-2';
     simpan.disabled = true;
     hitungSelisih();
-    if (!kartu.value) return;
+    if (!diminta) return;
+    gate.className = 'alert alert-secondary py-2';
+    gate.textContent = 'Memeriksa kartu…';
+    let hasil;
     try {
-      preview = await get(`/api/flazz/reconciliation/preview?card_id=${encodeURIComponent(kartu.value)}`);
+      hasil = await get(`/api/flazz/reconciliation/preview?card_id=${encodeURIComponent(diminta)}`);
     } catch (e) {
-      toast(e.message, 'error');
+      if (kartu.value !== diminta) return; // galat kartu lama diabaikan
+      gate.className = 'alert alert-danger py-2';
+      const ulang = el('button', { type: 'button', class: 'btn btn-sm btn-outline-danger ms-2', text: 'Coba lagi' });
+      ulang.addEventListener('click', () => kartu.dispatchEvent(new Event('change')));
+      gate.replaceChildren(`Gagal memeriksa kartu: ${e.message}`, ulang);
       return;
     }
+    if (kartu.value !== diminta) return; // respons kartu lama datang terlambat
+    preview = hasil;
     gate.className = `alert ${preview.eligible ? 'alert-success' : 'alert-danger'} py-2`;
     gate.textContent = preview.reason;
     simpan.disabled = !preview.eligible;
@@ -397,6 +411,9 @@ export async function renderFlazzRekon(view) {
       tampilkanGalat(alertBox, 'Pilih kartu dan isi saldo fisik.');
       return;
     }
+    const selisihRp = Number(fisik.value) - Number(preview.flazz_balance);
+    if (selisihRp !== 0 && aksi.value === 'ADJUST' &&
+        !confirmDialog(`Saldo kartu akan diubah dari ${rp(preview.flazz_balance)} menjadi ${rp(Number(fisik.value))}. Lanjutkan?`)) return;
     simpan.disabled = true;
     try {
       const res = await post('/api/flazz/reconciliation', {

@@ -1137,7 +1137,7 @@ export function bantuRupiah(input) {
 
 **Files:** Modify `static/js/pages/flazz.js:325-416`
 
-- [ ] **Step 1: Implementasi**
+- [x] **Step 1: Implementasi**
 
 ```js
   let aksiDisentuh = false;
@@ -1181,8 +1181,8 @@ Di submit, sebelum `post`:
         !confirmDialog(`Saldo kartu akan diubah dari ${rp(preview.flazz_balance)} menjadi ${rp(Number(fisik.value))}. Lanjutkan?`)) return;
 ```
 
-- [ ] **Step 2: Verifikasi manual:** pilih IGNORE → ubah saldo fisik → tetap IGNORE; ganti kartu cepat 2× → preview cocok dengan kartu terakhir.
-- [ ] **Step 3: Commit** `fix(flazz): rekon tidak menimpa pilihan tindakan; guard respons lama; konfirmasi penyesuaian`.
+- [ ] **Step 2: Verifikasi manual:** pilih IGNORE → ubah saldo fisik → tetap IGNORE; ganti kartu cepat 2× → preview cocok dengan kartu terakhir. (manual — belum)
+- [x] **Step 3: Commit** `fix(flazz): rekon tidak menimpa pilihan tindakan; guard respons lama; konfirmasi penyesuaian`.
 
 ### Task 18: Rekap — Unduh Excel memakai filter yang sedang ditampilkan
 
