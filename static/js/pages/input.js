@@ -1,6 +1,8 @@
 import { get, post, BATAS_WAKTU_FOTO_MS } from '../api.js';
 import { el, fmtNum, pratinjauFoto, toast } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
+import { bacaDraft, hapusDraft, kunciDraft, simpanDraft } from '../draft.js';
+import { getUser } from '../store.js';
 
 // Setara compressPhoto GAS (1280 px, 70%) agar kapasitas Storage awet.
 const MAKS_LEBAR = 1280;
@@ -513,7 +515,53 @@ export async function renderInput(view) {
     await onSupirChange();
   });
   f.nama_supir.addEventListener('change', onSupirChange);
-  muatSupirJalur();
+
+  // ── Draft otomatis ──
+  // Hanya nilai field (foto tidak bisa diserialisasi). Supir disimpan sebagai nama + kendaraan,
+  // bukan indeks opsi, karena indeks berubah saat daftar jalur dimuat ulang.
+  const KUNCI = kunciDraft('input', getUser()?.user_id);
+  const FIELD_DRAFT = ['tanggal', 'km_awal', 'km_akhir', 'bar_awal', 'bar_akhir', 'jenis_bbm', 'biaya_bbm', 'metode_pembayaran',
+    'flazz_card_id', 'biaya_toll', 'metode_toll', 'flazz_card_id_toll', 'biaya_bbm_2', 'flazz_card_id_2', 'biaya_toll_2', 'flazz_card_id_toll_2'];
+  const ambilNilai = () => {
+    const v = Object.fromEntries(FIELD_DRAFT.map((k) => [k, f[k].value]));
+    const j = jalurDrivers[Number(f.nama_supir.value)];
+    v.supir = j && f.nama_supir.value !== '' ? { nama_driver: j.nama_driver, vehicle_id: j.vehicle_id } : null;
+    v.km_awal_broken = f.km_awal_broken.checked;
+    v.km_akhir_broken = f.km_akhir_broken.checked;
+    return v;
+  };
+  let timerDraft = 0;
+  const simpanNanti = () => {
+    clearTimeout(timerDraft);
+    timerDraft = setTimeout(() => simpanDraft(localStorage, KUNCI, ambilNilai()), 600);
+  };
+  form.addEventListener('input', simpanNanti);
+  form.addEventListener('change', simpanNanti);
+  const bannerDraft = el('div', { class: 'alert alert-info d-none d-flex flex-wrap align-items-center gap-2', role: 'status' });
+  form.prepend(bannerDraft);
+
+  async function pulihkanDraft() {
+    const d = bacaDraft(localStorage, KUNCI);
+    if (!d) return;
+    const v = d.nilai;
+    if (v.tanggal && v.tanggal !== f.tanggal.value) { f.tanggal.value = v.tanggal; await muatSupirJalur(); }
+    if (v.supir) {
+      const idx = jalurDrivers.findIndex((x) => x.nama_driver === v.supir.nama_driver && x.vehicle_id === v.supir.vehicle_id);
+      if (idx > -1) { f.nama_supir.value = String(idx); await onSupirChange(); }
+    }
+    for (const k of FIELD_DRAFT) if (k !== 'tanggal' && v[k] !== undefined && v[k] !== '') f[k].value = v[k];
+    for (const k of ['km_awal_broken', 'km_akhir_broken']) if (v[k]) { f[k].checked = true; f[k].dispatchEvent(new Event('change')); }
+    if (v.biaya_bbm_2 || v.biaya_toll_2) bukaGrup2();
+    hitungUlangLiter();
+    formDiubah = true;
+    const jam = new Date(d.disimpan).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const buang = el('button', { type: 'button', class: 'btn btn-sm btn-outline-secondary ms-auto', text: 'Buang draft' });
+    buang.addEventListener('click', () => { hapusDraft(localStorage, KUNCI); window.location.reload(); });
+    bannerDraft.replaceChildren(el('span', { text: `Isian dari ${jam} dipulihkan. Foto perlu dipilih ulang.` }), buang);
+    bannerDraft.classList.remove('d-none');
+  }
+
+  muatSupirJalur().then(pulihkanDraft);
 
   let fotoSudahTerunggah = false;
 
@@ -599,6 +647,8 @@ export async function renderInput(view) {
       }
 
       await post('/api/laporan', buildPayload(values, serverData));
+      clearTimeout(timerDraft);
+      hapusDraft(localStorage, KUNCI);
       toast('Laporan tersimpan.', 'success');
       window.location.hash = '#/history';
     } catch (err) {

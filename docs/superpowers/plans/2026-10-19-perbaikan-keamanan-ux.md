@@ -479,7 +479,7 @@ git commit -m "feat(auth): sesi sliding diperpanjang saat aktif"
 - Modify: `static/js/pages/input.js`
 - Test: `tests/frontend/draft.test.ts`
 
-- [ ] **Step 1: Tulis tes gagal** — `tests/frontend/draft.test.ts`:
+- [x] **Step 1: Tulis tes gagal** — `tests/frontend/draft.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -524,9 +524,9 @@ describe('draft form', () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal** — Run: `npx vitest run tests/frontend/draft.test.ts` → FAIL (modul tidak ada).
+- [x] **Step 2: Jalankan, pastikan gagal** — Run: `npx vitest run tests/frontend/draft.test.ts` → FAIL (modul tidak ada).
 
-- [ ] **Step 3: Implementasi** — `static/js/draft.js`:
+- [x] **Step 3: Implementasi** — `static/js/draft.js`:
 
 ```js
 // Draft form di localStorage agar isian tidak hilang saat reload, tab dimatikan HP,
@@ -569,9 +569,9 @@ export function hapusDraft(storage, kunci) {
 }
 ```
 
-- [ ] **Step 4: Jalankan** — Run: `npx vitest run tests/frontend/draft.test.ts` → PASS.
+- [x] **Step 4: Jalankan** — Run: `npx vitest run tests/frontend/draft.test.ts` → PASS.
 
-- [ ] **Step 5: Integrasi di `static/js/pages/input.js`**
+- [x] **Step 5: Integrasi di `static/js/pages/input.js`**
 
 Import:
 
@@ -640,9 +640,9 @@ Setelah submit sukses (sebelum `toast('Laporan tersimpan.'…)`):
       hapusDraft(localStorage, KUNCI);
 ```
 
-- [ ] **Step 6: Verifikasi manual** (`npm run dev`, buka `#/input` di viewport 375px): isi KM & biaya → reload → banner "Isian dari HH:MM dipulihkan" muncul dan nilai kembali; "Buang draft" mengosongkan; simpan sukses → buka `#/input` lagi tanpa banner.
+- [ ] **Step 6: Verifikasi manual** (manual — belum) (`npm run dev`, buka `#/input` di viewport 375px): isi KM & biaya → reload → banner "Isian dari HH:MM dipulihkan" muncul dan nilai kembali; "Buang draft" mengosongkan; simpan sukses → buka `#/input` lagi tanpa banner.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add static/js/draft.js static/js/pages/input.js tests/frontend/draft.test.ts
