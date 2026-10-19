@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as XLSX from 'xlsx';
-import { bandingkan, bandingRentang, cekRentangBanding, daftarBulan, hariDalamBulan, jenisWarehouse, labelBulan, labelRentang, mundurSebulan, periodeLalu, susunExcelBanding, susunExcelRentang, teksDelta, teksDeltaPersen } from '../../static/js/pages/perbandingan.js';
+import { bandingDuaBulan, bandingkan, bandingRentang, cekPilihanBulan, cekRentangBanding, rentangBulan, susunExcelBulan, daftarBulan, hariDalamBulan, jenisWarehouse, labelBulan, labelRentang, mundurSebulan, periodeLalu, susunExcelBanding, susunExcelRentang, teksDelta, teksDeltaPersen } from '../../static/js/pages/perbandingan.js';
 import { bukuExcel } from '../../static/js/pages/rekap.js';
 
 const L = (o: Record<string, unknown>) => ({ kode_cabang: 'BDG', jenis: 'BBM', metode: 'TUNAI', amount: 0, ...o });
@@ -154,5 +154,45 @@ describe('bulan vs bulan: rentang tanggal', () => {
     expect(wb.Sheets['Per Warehouse']!.H2!.z).toBe('0.0"%"');
     const bebas = susunExcelRentang(bandingRentang(lines, cabangList, '2026-10-05', '2026-10-09', '2026-10-19'));
     expect(bebas[1]!.aoa[0]).toEqual(['No', 'Jenis', 'Warehouse', '5–9 Sep 2026 (Rp)', '5–9 Okt 2026 (Rp)', 'Selisih (Rp)', 'Selisih (%)']);
+  });
+});
+
+describe('bulan vs bulan: total sebulan', () => {
+  const lines = [
+    L({ tanggal: '2026-09-03', jenis: 'BBM', metode: 'ETOLL', amount: 300000 }),
+    L({ tanggal: '2026-09-28', jenis: 'TOL', metode: 'TUNAI', amount: 200000 }),
+    L({ tanggal: '2026-10-05', jenis: 'BBM', metode: 'TUNAI', amount: 450000 }),
+    L({ tanggal: '2026-10-25', amount: 999 }),
+    L({ tanggal: '2026-09-10', amount: 1000000, kode_cabang: 'GDGBDG' }),
+    L({ tanggal: '2026-10-02', amount: 500000, kode_cabang: 'CMS' }),
+  ];
+
+  it('rentang bulan: penuh vs berjalan s.d. hari ini; validasi pilihan', () => {
+    expect(rentangBulan('2026-09', '2026-10-19')).toMatchObject({ dari: '2026-09-01', sampai: '2026-09-30', berjalan: false, label: 'Sep 2026 (1–30)' });
+    expect(rentangBulan('2026-10', '2026-10-19')).toMatchObject({ sampai: '2026-10-19', berjalan: true, label: 'Okt 2026 (1–19, berjalan)' });
+    expect(cekPilihanBulan('2026-10', '2026-10', '2026-10-19')).toContain('berbeda');
+    expect(cekPilihanBulan('2026-09', '2026-11', '2026-10-19')).toContain('belum berjalan');
+    expect(cekPilihanBulan('2026-09', '2026-10', '2026-10-19')).toBe('');
+  });
+
+  it('total September penuh vs Oktober berjalan; selisih = Okt − Sep; proyeksi', () => {
+    const h = bandingDuaBulan(lines, cabangList, '2026-09', '2026-10', '2026-10-19');
+    expect(h.diabaikan).toBe(1);
+    const bdg = h.cabang.baris.find((w: any) => w.kode === 'BDG');
+    expect(bdg).toMatchObject({ a: 500000, b: 450000, delta: -50000, deltaPersen: -10 });
+    expect(bdg.proyeksi).toBeCloseTo((450000 / 19) * 31, 5);
+    expect(h.total).toMatchObject({ a: 1500000, b: 450000 });
+    // Bulan lampau vs bulan lampau: tanpa proyeksi.
+    expect(bandingDuaBulan(lines, cabangList, '2026-08', '2026-09', '2026-10-19').adaProyeksi).toBe(false);
+  });
+
+  it('Excel: kolom total kedua bulan, selisih, persen, proyeksi', () => {
+    const h = bandingDuaBulan(lines, cabangList, '2026-09', '2026-10', '2026-10-19');
+    const wb = XLSX.read(XLSX.write(bukuExcel(XLSX, susunExcelBulan(h)), { type: 'array', bookType: 'xlsx' }), { type: 'array', cellNF: true });
+    expect(wb.SheetNames).toEqual(['Ringkasan', 'Per Warehouse', 'Rinci']);
+    const m = XLSX.utils.sheet_to_json(wb.Sheets['Per Warehouse']!, { header: 1 }) as any[][];
+    expect(m[0]).toEqual(['No', 'Jenis', 'Warehouse', 'Sep 2026 (1–30) (Rp)', 'Okt 2026 (1–19, berjalan) (Rp)', 'Selisih (Rp)', 'Selisih (%)', 'Proyeksi Akhir Bulan (Rp)']);
+    expect(m[1]!.slice(0, 7)).toEqual([1, 'Cabang (Who)', 'Who Bandung', 500000, 450000, -50000, -10]);
+    expect(wb.Sheets['Per Warehouse']!.G2!.z).toBe('0.0"%"');
   });
 });
