@@ -1,5 +1,6 @@
 import { get, post } from './api.js';
 import { getUser } from './store.js';
+import { bolehTulis } from './peran.js';
 import { el } from './ui.js';
 import { adaFormTerbuka } from './router.js';
 
@@ -38,6 +39,12 @@ export function teksTugas(t) {
   return `${bagian.join(' & ')} belum selesai` + (t.tertunggak ? ` (${t.tertunggak} jalur dari hari sebelumnya)` : '');
 }
 
+// Teks banner tugas. Pengguna read-only (MANAGEMENT) hanya memantau: nada netral, tanpa perintah.
+export function teksBanner(teks, akhir, jam, boleh = true) {
+  if (!boleh) return `Pemantauan: hari ini ${teks} di cabang.`;
+  return akhir ? `Segera selesaikan sebelum ${jam} — hari ini ${teks}.` : `Hari ini: ${teks}.`;
+}
+
 // Applic. server key VAPID (base64url) -> Uint8Array untuk pushManager.subscribe.
 export function kunciKeBytes(b64url) {
   const pad = '='.repeat((4 - (b64url.length % 4)) % 4);
@@ -70,17 +77,19 @@ export async function segarkanBanner(paksa = false) {
   const teks = teksTugas(cache);
   if (!teks) { slot.replaceChildren(); return; }
   const jo = jamOperasional();
+  const boleh = bolehTulis(getUser()?.role);
   const akhir = menitWib() >= menitPeringatan();
   slot.replaceChildren(el('div', { class: `banner-tugas ${akhir ? 'banner-tugas-akhir' : ''}`, role: 'status' }, [
     el('i', { class: `bi ${akhir ? 'bi-alarm' : 'bi-info-circle'} me-2`, 'aria-hidden': 'true' }),
-    el('span', { text: akhir ? `Segera selesaikan sebelum ${jo.jam} — hari ini ${teks}.` : `Hari ini: ${teks}.` }),
+    el('span', { text: teksBanner(teks, akhir, jo.jam, boleh) }),
     el('a', { href: '#/jalur', class: 'ms-2 fw-bold', text: 'Lihat jalur' }),
   ]));
   // Pop-up sekali per hari, 30 menit sebelum jam tutup (16:30 hari kerja, 15:30 akhir pekan).
   const kunci = `tugas-popup:${cache.tanggal}`;
   // Form belum disimpan sedang terbuka: banner tetap tampil, pop-up ditunda (kunci belum
   // ditandai) sampai pindah halaman / form selesai.
-  if (akhir && !simpan.get(kunci) && !adaFormTerbuka()) {
+  // Pop-up + alarm hanya untuk yang bertugas menyelesaikan; read-only cukup melihat banner.
+  if (boleh && akhir && !simpan.get(kunci) && !adaFormTerbuka()) {
     simpan.set(kunci, '1');
     tampilPopup(teks, cache);
   }
@@ -212,7 +221,7 @@ export async function daftarkanServiceWorker() {
   // Push masuk saat aplikasi terbuka -> bunyikan nada pengingat.
   // Klik notifikasi saat aplikasi terbuka -> pindah lewat hashchange agar penjaga form ikut bertanya.
   navigator.serviceWorker.addEventListener('message', (e) => {
-    if (e.data?.type === 'bunyi-pengingat') bunyiTugasSekarang();
+    if (e.data?.type === 'bunyi-pengingat') { if (bolehTulis(getUser()?.role)) bunyiTugasSekarang(); }
     else if (e.data?.type === 'buka-url') {
       const hash = new URL(e.data.url, location.origin).hash || '#/dashboard';
       if (hash !== location.hash) location.hash = hash;

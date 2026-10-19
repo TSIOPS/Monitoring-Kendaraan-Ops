@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { kunciKeBytes, menitWib, MENIT_PERINGATAN, perluPasangDulu, teksTugas } from '../../static/js/notifikasi.js';
+import { kunciKeBytes, menitWib, MENIT_PERINGATAN, perluPasangDulu, teksTugas, teksBanner } from '../../static/js/notifikasi.js';
 
 describe('notifikasi', () => {
   it('menit WIB dan ambang 16:30', () => {
@@ -62,5 +62,19 @@ describe('jam operasional akhir pekan', () => {
     // Sabtu 23:30 UTC = Minggu 06:30 WIB -> tetap akhir pekan; Minggu 17:30 UTC = Senin 00:30 WIB -> hari kerja.
     expect(jamOperasional(new Date('2026-10-18T17:30:00Z')).jam).toBe('17:00');
     expect(kalimatPengingat({ laporan: 1, rekonsiliasi: 0 })).toMatch(/jam (lima|empat) sore\.$/);
+  });
+});
+
+describe('teksBanner', () => {
+  const teks = '3 laporan belum selesai';
+  it('pengguna yang bisa menulis: ajakan menyelesaikan', () => {
+    expect(teksBanner(teks, false, '17:00', true)).toBe('Hari ini: 3 laporan belum selesai.');
+    expect(teksBanner(teks, true, '17:00', true)).toBe('Segera selesaikan sebelum 17:00 — hari ini 3 laporan belum selesai.');
+  });
+  it('read-only: netral, tanpa perintah menyelesaikan', () => {
+    const t = teksBanner(teks, true, '17:00', false);
+    expect(t).toBe('Pemantauan: hari ini 3 laporan belum selesai di cabang.');
+    expect(teksBanner(teks, false, '17:00', false)).toBe(t);
+    expect(t).not.toMatch(/segera/i);
   });
 });

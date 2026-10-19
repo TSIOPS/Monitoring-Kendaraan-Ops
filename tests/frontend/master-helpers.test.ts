@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bodyKendaraan, bodyPengguna, fieldKosong, ROLE } from '../../static/js/pages/master.js';
+import { bodyKendaraan, bodyPengguna, fieldKosong, fieldTampil, teksCabangPengguna, ROLE } from '../../static/js/pages/master.js';
 
 describe('fieldKosong', () => {
   const fields = [
@@ -50,5 +50,22 @@ describe('pengguna MANAGEMENT', () => {
   it('bodyPengguna: warehouse dikosongkan untuk MANAGEMENT', () => {
     expect(bodyPengguna({ username: ' m ', nama: ' M ', role: 'MANAGEMENT', cabang: 'CBG-A', password: 'x' }, false))
       .toMatchObject({ username: 'm', nama: 'M', role: 'MANAGEMENT', cabang: '' });
+  });
+});
+
+describe('fieldTampil & teksCabangPengguna', () => {
+  const f = { key: 'cabang', tampil: (v: any) => v.role === 'PIC CABANG' };
+  it('field tanpa aturan selalu tampil; dengan aturan mengikuti nilai', () => {
+    expect(fieldTampil({ key: 'nama' }, {})).toBe(true);
+    expect(fieldTampil(f, { role: 'PIC CABANG' })).toBe(true);
+    expect(fieldTampil(f, { role: 'MANAGEMENT' })).toBe(false);
+    expect(fieldTampil(f, { role: 'SUPERADMIN' })).toBe(false);
+  });
+  it('kolom Warehouse pengguna: semua warehouse untuk non-PIC tanpa cabang', () => {
+    const nama = (k: string) => k;
+    expect(teksCabangPengguna({ role: 'MANAGEMENT', cabang: '' }, nama)).toBe('Semua warehouse');
+    expect(teksCabangPengguna({ role: 'SUPERADMIN', cabang: '' }, nama)).toBe('Semua warehouse');
+    expect(teksCabangPengguna({ role: 'PIC CABANG', cabang: '' }, nama)).toBe('-');
+    expect(teksCabangPengguna({ role: 'PIC CABANG', cabang: 'BDG' }, nama)).toBe('BDG');
   });
 });

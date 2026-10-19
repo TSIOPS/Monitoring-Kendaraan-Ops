@@ -987,10 +987,12 @@ git commit -m "feat(ui): halaman read-only untuk role MANAGEMENT"
 
 ### Task 10: Gerbang `/ui-ux-pro-max` dan `/code-review:code-review`
 
-- [ ] **Step 1:** `/ui-ux-pro-max` mode review (checklist §1–§3 + §8 Forms) atas Task 8–9.
-- [ ] **Step 2:** `/code-review:code-review` atas seluruh perubahan cabang (modul baru, lintas file).
-- [ ] **Step 3:** Perbaiki temuan (TDD) atau catat alasan di CHANGELOG.
-- [ ] **Step 4:** `npm test` + `npm run typecheck` hijau → centang, CHANGELOG, commit `docs: gerbang ui-ux & code-review role MANAGEMENT`.
+- [x] **Step 1:** `/ui-ux-pro-max` mode review (checklist §1–§3 + §8 Forms) atas Task 8–9.
+- [x] **Step 2:** `/code-review:code-review` atas seluruh perubahan cabang (modul baru, lintas file).
+- [x] **Step 3:** Perbaiki temuan (TDD) atau catat alasan di CHANGELOG.
+- [x] **Step 4:** `npm test` + `npm run typecheck` hijau → centang, CHANGELOG, commit `docs: gerbang ui-ux & code-review role MANAGEMENT`.
+
+> Catatan implementasi: diperbaiki H1 (Warehouse form Pengguna hanya tampil untuk PIC CABANG, `fieldTampil`), M1 (tanpa pop-up/alarm/suara untuk read-only, banner netral `teksBanner`, panel "Notifikasi pemantauan"), M2 (lonceng read-only ke #/jalur + kode cabang di keterangan), M3 (teks alert Flazz read-only), L1 (toast saat rute dilarang), L3 (kolom Warehouse "Semua warehouse"), L4 (kolom Aksi dan `bolehTulis` sekali per render), CR1-CR4 (isSuper dari peran.js di flazz/audit/pengaturan/routes master; tes management diperketat). Ditunda: L2 (penanda "Hanya lihat" global), L5 (tidak perlu), serta perapian pre-existing `src/routes/settings.ts`/`audit.ts` (cek role langsung) dan `laporan.ts` (`roleOf`/assert ganda) — perilaku sudah benar. Commit memakai pesan `fix(ui): temuan review ui-ux & code-review role MANAGEMENT`.
 
 ---
 

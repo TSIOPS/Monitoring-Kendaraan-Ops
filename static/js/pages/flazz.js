@@ -1,6 +1,6 @@
 import { BATAS_WAKTU_FOTO_MS, del, get, pesanTimeoutSimpan, post, put } from '../api.js';
 import { getUser } from '../store.js';
-import { bolehTulis, lihatSemuaCabang } from '../peran.js';
+import { bolehTulis, isSuper as superRole, lihatSemuaCabang } from '../peran.js';
 import { autoRefresh, confirmDialog, el, fmtDateId, fmtNum, toast, labelDari, petaMaster, pratinjauFoto, grupAksi, tombolIkon, tombolIkonSekali, aksiSekali, tampilkanGalat, barisForm as baris, bantuRupiah } from '../ui.js';
 import { kompresGambar, namaAman, tanggalWib } from './input.js';
 
@@ -91,7 +91,7 @@ export function infoSelisih(sistem, fisik) {
   return { kelas: 'alert-info', teks: `Selisih lebih Rp ${fmtNum(diff)}. Top up belum tercatat?`, aksi: 'ADJUST' };
 }
 
-const isSuper = () => String(getUser()?.role || '').toUpperCase() === 'SUPERADMIN';
+const isSuper = () => superRole(getUser()?.role);
 const lihatSemua = () => lihatSemuaCabang(getUser()?.role);
 const tulis = () => bolehTulis(getUser()?.role);
 const rp = (v) => 'Rp ' + fmtNum(v);

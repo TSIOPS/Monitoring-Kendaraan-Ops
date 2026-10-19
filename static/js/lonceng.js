@@ -20,9 +20,9 @@ export function susunNotifikasi(warn, tugas, boleh = true) {
     const perlu = (t.perlu || []).map((p) => (p === 'LAPORAN' ? 'laporan' : 'rekonsiliasi')).join(' & ');
     out.push({
       grup: 'Tugas belum selesai', judul: `${t.plat_nomor} — ${t.nama_driver}`,
-      ket: `Belum ${perlu}` + (lewat ? ` · jalur ${t.tanggal.slice(8, 10)}/${t.tanggal.slice(5, 7)}` : ''),
+      ket: `Belum ${perlu}` + (!boleh && t.kode_cabang ? ` · ${t.kode_cabang}` : '') + (lewat ? ` · jalur ${t.tanggal.slice(8, 10)}/${t.tanggal.slice(5, 7)}` : ''),
       badge: lewat ? 'Tertunggak' : 'Hari ini', kelas: lewat ? 'text-bg-dark' : 'text-bg-danger',
-      href: !boleh ? '#/flazz' : (t.perlu || []).includes('LAPORAN') ? '#/input' : '#/flazz/rekon',
+      href: !boleh ? '#/jalur' : (t.perlu || []).includes('LAPORAN') ? '#/input' : '#/flazz/rekon',
     });
   }
   for (const r of warn?.pajakKIR || []) {

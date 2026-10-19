@@ -25,6 +25,17 @@ export function teksOliMaster(v) {
   return baseline > 0 ? `${fmtNum(baseline)} / ${interval}` : `Belum diatur (interval ${interval})`;
 }
 
+// Field dengan aturan `tampil` hanya digambar bila aturannya terpenuhi (mis. Warehouse hanya untuk PIC CABANG).
+export function fieldTampil(f, values) {
+  return typeof f.tampil === 'function' ? Boolean(f.tampil(values)) : true;
+}
+
+// Teks kolom Warehouse tabel pengguna: role selain PIC CABANG melihat semua warehouse.
+export function teksCabangPengguna(p, namaCabang) {
+  if (p.cabang) return namaCabang(p.cabang);
+  return p.role === 'PIC CABANG' ? '-' : 'Semua warehouse';
+}
+
 export function fieldKosong(fields, values, isEdit) {
   return fields
     .filter((f) => (typeof f.wajib === 'function' ? f.wajib(values, isEdit) : f.wajib))
@@ -166,13 +177,13 @@ function entitas(m) {
     },
     pengguna: {
       label: 'Pengguna', boleh: isSuper(), list: () => m.pengguna, cabangOf: (p) => p.cabang, key: (p) => p.user_id,
-      kolom: [['Username', (p) => p.username], ['Nama', (p) => p.nama], ['Role', (p) => p.role], ['Warehouse', (p) => (p.cabang ? namaCabang(p.cabang) : '-')], ['Status', (p) => p.status]],
+      kolom: [['Username', (p) => p.username], ['Nama', (p) => p.nama], ['Role', (p) => p.role], ['Warehouse', (p) => teksCabangPengguna(p, namaCabang)], ['Status', (p) => p.status]],
       fields: [
         { key: 'username', label: 'Username', wajib: true, dari: (p) => p.username },
         { key: 'password', label: 'Password', type: 'password', wajib: (v, isEdit) => !isEdit, catatan: (isEdit) => (isEdit ? 'Kosongkan bila tidak diubah.' : ''), dari: () => '' },
         { key: 'nama', label: 'Nama lengkap', wajib: true, dari: (p) => p.nama },
         { key: 'role', label: 'Role', type: 'select', opsi: () => opsi(ROLE), awal: 'PIC CABANG', dari: (p) => p.role },
-        { key: 'cabang', label: 'Warehouse', type: 'select', wajib: (v) => v.role === 'PIC CABANG', opsi: cabangOpsi, dari: (p) => p.cabang },
+        { key: 'cabang', label: 'Warehouse', type: 'select', ikut: 'role', tampil: (v) => v.role === 'PIC CABANG', wajib: (v) => v.role === 'PIC CABANG', opsi: cabangOpsi, dari: (p) => p.cabang },
       ],
       simpan: (v, row) => (row ? put('/api/master/pengguna', { ...bodyPengguna(v, true), user_id: row.user_id }) : post('/api/master/pengguna', bodyPengguna(v, false))),
       hapus: (row) => (row.status === 'Aktif'
@@ -250,7 +261,8 @@ export async function renderMaster(view) {
     const alertBox = el('div', { class: 'alert alert-danger d-none py-2' });
     const grid = el('div', { class: 'row g-2' });
     const render = () => {
-      grid.replaceChildren(...e.fields.map((f) => {
+      for (const k of Object.keys(ctl)) delete ctl[k];
+      grid.replaceChildren(...e.fields.filter((f) => fieldTampil(f, values)).map((f) => {
         ctl[f.key] = kontrol(f, values[f.key], isEdit, values);
         ctl[f.key].addEventListener('change', () => {
           values[f.key] = ctl[f.key].value;
@@ -278,7 +290,8 @@ export async function renderMaster(view) {
     ]);
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
-      for (const f of e.fields) values[f.key] = ctl[f.key].value;
+      // Field yang disembunyikan (bukan PIC CABANG -> Warehouse) dikosongkan agar tidak ada nilai tertinggal.
+      for (const f of e.fields) values[f.key] = ctl[f.key] ? ctl[f.key].value : '';
       const err = fieldKosong(e.fields, values, isEdit);
       if (err.length) {
         tampilkanGalat(alertBox, err.join(' '));

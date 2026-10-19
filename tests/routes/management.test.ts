@@ -76,18 +76,26 @@ describe('penjaga tulis MANAGEMENT', () => {
 
   it('daftar izin tidak diblokir penjaga (ganti password sendiri)', async () => {
     const { app, kv } = setup();
-    // /api/password sendiri membalas 403 bila password lama salah — jadi yang dicek pesannya, bukan status.
-    const res = await req(app, 'POST', '/api/password', await loginAs(kv, MGR), { lama: 'x', baru: 'y' });
+    // Lolos penjaga lalu ditangani handler sendiri: akun uji tidak ada di repo master -> 403 dengan pesan handler (bukan pesan penjaga).
+    const res = await req(app, 'POST', '/api/password', await loginAs(kv, MGR), { password_lama: 'salah-salah', password_baru: 'PasswordBaru-12345' });
     const body = await res.json() as any;
-    expect(body.message ?? '').not.toContain('hanya dapat melihat data');
+    expect(res.status).toBe(403);
+    expect(body.message).toBe('Akun tidak ditemukan atau nonaktif.');
   });
 
   it('daftar izin: push/langganan dan push/berhenti tidak ditolak penjaga', async () => {
     const { app, kv } = setup();
     const tok = await loginAs(kv, MGR);
-    for (const p of ['/api/push/langganan', '/api/push/berhenti', '/api/push/tes']) {
-      const body = await (await req(app, 'POST', p, tok, {})).json() as any;
-      expect(body.message ?? '').not.toContain('hanya dapat melihat data');
+    const hasil: Record<string, [number, string]> = {
+      '/api/push/langganan': [400, 'Langganan notifikasi tidak valid.'],
+      '/api/push/berhenti': [200, 'Notifikasi dimatikan di perangkat ini.'],
+      '/api/push/tes': [503, 'Notifikasi belum dikonfigurasi di server.'],
+    };
+    for (const [p, [status, pesan]] of Object.entries(hasil)) {
+      const res = await req(app, 'POST', p, tok, {});
+      const body = await res.json() as any;
+      expect([p, res.status]).toEqual([p, status]);
+      expect(body.message ?? body.msg).toBe(pesan);
     }
   });
 
@@ -208,8 +216,7 @@ describe('MANAGEMENT membaca Flazz, jalur, tugas semua cabang', () => {
   it('GET /api/flazz/reconciliation/preview kartu cabang lain tidak 403 untuk MANAGEMENT, 403 untuk PIC', async () => {
     const { app, kv } = setup();
     const m = await req(app, 'GET', '/api/flazz/reconciliation/preview?card_id=FLZ-B', await loginAs(kv, MGR));
-    expect(m.status).not.toBe(403);
-    expect(m.status).toBeLessThan(500);
+    expect(m.status).toBe(200);
     expect((await req(app, 'GET', '/api/flazz/reconciliation/preview?card_id=FLZ-B', await loginAs(kv, PIC))).status).toBe(403);
   });
 

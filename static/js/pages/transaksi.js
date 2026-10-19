@@ -142,7 +142,7 @@ export function selisihOdo(row) {
   return el('div', {}, [el('span', { class: 'badge text-bg-danger', title: w, text: teksSelisihOdo(w) })]);
 }
 
-function barisTabel(r) {
+function barisTabel(r, boleh) {
   const liter = Number(r.isi_bbm) || 0;
   return el('tr', {}, [
     selKolom(fmtDateId(r.tanggal), 'text-nowrap'),
@@ -164,20 +164,21 @@ function barisTabel(r) {
     ]),
     selKonsumsi(r),
     el('td', { class: 'small' }, [String(r.user || '-')]),
-    bolehTulis(getUser()?.role) ? selAksi(r) : null,
+    boleh ? selAksi(r) : null,
   ]);
 }
 
 function panelTransaksi(rows, view, adaFilter = false) {
   const panel = el('div', { class: 'panel' });
   const gambar = () => {
+    const boleh = bolehTulis(getUser()?.role);
     const h = halaman(rows, halamanAktif, PER_HALAMAN);
     halamanAktif = h.aktif;
     const isi = rows.length
       ? el('div', { class: 'table-wrap' }, [
           el('table', { class: 'table table-bordered table-striped table-hover align-middle table-history' }, [
-            el('thead', { class: 'thead-hijau' }, [el('tr', {}, (bolehTulis(getUser()?.role) ? KOLOM : KOLOM.slice(0, -1)).map((t) => el('th', { class: 'text-center', text: t })))]),
-            el('tbody', {}, h.isi.map(barisTabel)),
+            el('thead', { class: 'thead-hijau' }, [el('tr', {}, KOLOM.filter((k) => k !== 'Aksi' || boleh).map((t) => el('th', { class: 'text-center', text: t })))]),
+            el('tbody', {}, h.isi.map((r) => barisTabel(r, boleh))),
           ]),
         ])
       : el('p', { class: 'text-muted', text: adaFilter ? 'Tidak ada transaksi yang cocok dengan filter.' : 'Belum ada transaksi.' });

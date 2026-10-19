@@ -6,7 +6,7 @@ import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
 import { hashPassword } from '../auth/password';
 import { cabutSesiPengguna } from '../auth/sessions';
-import { isSuper as superUser, PERAN_VALID } from '../auth/peran';
+import { isSuper, PERAN_VALID } from '../auth/peran';
 import { errPayload, HttpError, okPayload, reqIp } from '../utils/http';
 import { bumpMasterRev, CACHE_TTL_DETIK, getMasterRev, masterCacheKey } from '../logic/master-cache';
 import { defaultOilIntervalKm, getMasterPayload } from '../logic/master';
@@ -20,9 +20,6 @@ const MASTER_CACHE_TTL = CACHE_TTL_DETIK;
 
 type Ctx = Context<{ Bindings: Env; Variables: AuthVars }>;
 
-function isSuper(u: SessionUser): boolean {
-  return superUser(u);
-}
 function needSuper(u: SessionUser, action: string): void {
   if (!isSuper(u)) throw new HttpError(403, 'Akses ditolak: hanya SUPERADMIN yang dapat ' + action + '.', 'FORBIDDEN');
 }

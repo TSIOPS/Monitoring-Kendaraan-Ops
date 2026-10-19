@@ -1,6 +1,7 @@
 import { getUser, isLoggedIn, setUser, clearSession } from './store.js';
 import { ruteDilarang } from './peran.js';
 import { get } from './api.js';
+import { toast } from './ui.js';
 
 const routes = [];
 let params = {};
@@ -144,6 +145,7 @@ async function run(hash) {
 
   // MANAGEMENT read-only: rute input/edit/pengaturan dialihkan ke Dashboard (server tetap menolak tulis).
   if (found.guard && ruteDilarang(getUser()?.role, hash)) {
+    toast('Halaman ini tidak tersedia untuk akun MANAGEMENT (hanya lihat).', 'warning');
     window.location.replace('#/dashboard');
     return;
   }

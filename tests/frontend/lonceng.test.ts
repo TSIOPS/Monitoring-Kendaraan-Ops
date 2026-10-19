@@ -26,7 +26,13 @@ describe('lonceng: susunNotifikasi', () => {
       { item: [{ plat_nomor: 'D 1', nama_driver: 'A', perlu: ['LAPORAN'] }] },
       false,
     );
-    expect(list.map((x) => x.href)).toEqual(['#/flazz', '#/flazz']);
+    expect(list.map((x) => x.href)).toEqual(['#/jalur', '#/flazz']);
+  });
+  it('read-only: keterangan tugas memuat warehouse bila ada', () => {
+    const list = susunNotifikasi(null, { item: [{ plat_nomor: 'D 1', nama_driver: 'A', kode_cabang: 'BDG', perlu: ['LAPORAN'] }] }, false);
+    expect(list[0]!.ket).toBe('Belum laporan · BDG');
+    const biasa = susunNotifikasi(null, { item: [{ plat_nomor: 'D 1', nama_driver: 'A', kode_cabang: 'BDG', perlu: ['LAPORAN'] }] }, true);
+    expect(biasa[0]!.ket).toBe('Belum laporan');
   });
   it('tanpa data -> kosong', () => {
     expect(susunNotifikasi(null, null)).toEqual([]);

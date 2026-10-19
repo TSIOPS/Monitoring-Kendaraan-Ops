@@ -218,8 +218,9 @@ export async function renderDashboard(view) {
       isiKartu.className = '';
       isiKartu.replaceChildren(...[
         r.aktif > 0 ? el('div', { class: 'alert alert-warning' }, [
-          el('strong', { text: 'Peringatan! ' }), `Ada ${r.aktif} kartu Flazz berstatus "Sedang Digunakan". Jika fisik kartu sudah dikembalikan oleh supir ke Admin, Anda mungkin terlewat melakukan `,
-          (tulis ? el('a', { href: '#/flazz/rekon', class: 'alert-link', text: 'Rekonsiliasi Flazz' }) : 'Rekonsiliasi Flazz'), ' hari ini.',
+          el('strong', { text: 'Peringatan! ' }), ...(tulis
+            ? [`Ada ${r.aktif} kartu Flazz berstatus "Sedang Digunakan". Jika fisik kartu sudah dikembalikan oleh supir ke Admin, Anda mungkin terlewat melakukan `, el('a', { href: '#/flazz/rekon', class: 'alert-link', text: 'Rekonsiliasi Flazz' }), ' hari ini.']
+            : [`Ada ${r.aktif} kartu Flazz berstatus "Sedang Digunakan" — PIC cabang mungkin belum melakukan Rekonsiliasi Flazz hari ini.`]),
         ]) : null,
         el('div', { class: 'row g-3 mb-3' }, [
           kotak('bg-utama-gelap text-white', 'Total Kartu Aktif', `${r.aktif} dari ${r.total}`),
@@ -267,7 +268,7 @@ export async function renderDashboard(view) {
 
   // Reminder: pengingat otomatis 16:30 WIB walau aplikasi tertutup (Web Push).
   const isiNotif = el('div', { class: 'd-flex flex-wrap align-items-center gap-2' });
-  const panelNotif = kartuPanel('Reminder (16:30 hari kerja, 15:30 Sabtu-Minggu)', null, isiNotif);
+  const panelNotif = kartuPanel(tulis ? 'Reminder (16:30 hari kerja, 15:30 Sabtu-Minggu)' : 'Notifikasi pemantauan', null, isiNotif);
   async function gambarNotif() {
     const st = await statusNotifikasi().catch(() => 'tidak-didukung');
     const tombol = (teks, kelas, aksi) => {
@@ -279,8 +280,12 @@ export async function renderDashboard(view) {
       return b;
     };
     const teks = {
-      aktif: 'Aktif di perangkat ini. Pukul 16:30 WIB (Sabtu-Minggu 15:30) Anda akan menerima pengingat bila masih ada laporan/rekonsiliasi yang belum selesai.',
-      belum: 'Belum aktif di perangkat ini. Aktifkan agar reminder muncul walau aplikasi tertutup.',
+      aktif: tulis
+        ? 'Aktif di perangkat ini. Pukul 16:30 WIB (Sabtu-Minggu 15:30) Anda akan menerima pengingat bila masih ada laporan/rekonsiliasi yang belum selesai.'
+        : 'Aktif di perangkat ini. Pukul 16:30 WIB (Sabtu-Minggu 15:30) Anda akan menerima ringkasan laporan/rekonsiliasi yang belum selesai di cabang.',
+      belum: tulis
+        ? 'Belum aktif di perangkat ini. Aktifkan agar reminder muncul walau aplikasi tertutup.'
+        : 'Belum aktif di perangkat ini. Aktifkan agar ringkasan pemantauan muncul walau aplikasi tertutup.',
       ditolak: 'Izin notifikasi diblokir. Buka pengaturan situs di browser, izinkan Notifikasi, lalu muat ulang halaman.',
       'pasang-dulu': 'Di iPhone/iPad: ketuk tombol Bagikan lalu "Tambahkan ke Layar Utama", buka aplikasi dari ikon tersebut, lalu aktifkan reminder.',
       'tidak-didukung': 'Browser ini tidak mendukung notifikasi. Gunakan Chrome/Edge terbaru.',
@@ -290,7 +295,7 @@ export async function renderDashboard(view) {
       el('span', { class: 'small text-muted flex-fill', text: teks }),
       st === 'belum' ? tombol('Aktifkan reminder', 'btn-primary', async () => { await aktifkanNotifikasi(); toast('Reminder aktif.', 'success'); }) : null,
       st === 'aktif' ? tombol('Kirim tes', 'btn-outline-primary', async () => { const r = await tesNotifikasi(); toast(r.msg, 'success'); }) : null,
-      tombol('Tes suara', 'btn-outline-secondary', async () => { if (!(await bunyiTugasSekarang())) toast('Perangkat ini tidak mendukung suara.', 'error'); }),
+      tulis ? tombol('Tes suara', 'btn-outline-secondary', async () => { if (!(await bunyiTugasSekarang())) toast('Perangkat ini tidak mendukung suara.', 'error'); }) : null,
       st === 'aktif' ? tombol('Matikan', 'btn-outline-secondary', async () => { await matikanNotifikasi(); toast('Reminder dimatikan.', 'success'); }) : null,
     ].filter(Boolean));
   }

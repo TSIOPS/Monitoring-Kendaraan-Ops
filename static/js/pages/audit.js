@@ -1,5 +1,6 @@
 import { get } from '../api.js';
 import { getUser } from '../store.js';
+import { isSuper } from '../peran.js';
 import { el, fmtNum, halaman, navHalaman, toast, idUntukLabel } from '../ui.js';
 import { bukuExcel, muatSheetJS } from './rekap.js';
 import { tanggalWib } from './input.js';
@@ -76,7 +77,7 @@ export function susunExcelAudit(items, peta) {
 }
 
 export async function renderAudit(view) {
-  if (getUser()?.role !== 'SUPERADMIN') {
+  if (!isSuper(getUser()?.role)) {
     view.replaceChildren(el('div', { class: 'alert alert-warning', text: 'Halaman ini hanya untuk SUPERADMIN.' }));
     return { ok: false };
   }

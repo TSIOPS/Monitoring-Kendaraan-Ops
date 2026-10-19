@@ -1,5 +1,6 @@
 import { get, post, put } from '../api.js';
 import { getUser } from '../store.js';
+import { isSuper } from '../peran.js';
 import { el, toast, barisForm as baris, idUntukLabel } from '../ui.js';
 
 export const MAKS_LOGO = 10 * 1024 * 1024;
@@ -25,7 +26,7 @@ const bacaDataUrl = (file) => new Promise((resolve, reject) => {
 });
 
 export async function renderPengaturan(view, { onTersimpan } = {}) {
-  if (getUser()?.role !== 'SUPERADMIN') {
+  if (!isSuper(getUser()?.role)) {
     view.replaceChildren(el('div', { class: 'alert alert-warning', text: 'Halaman Pengaturan hanya untuk SUPERADMIN.' }));
     return { ok: false };
   }
