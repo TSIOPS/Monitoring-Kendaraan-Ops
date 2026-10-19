@@ -30,6 +30,8 @@ export interface SessionUser {
   role: string;
   cabang: string;
   exp: number;
+  // Waktu sesi dibuat (ms). Sesi lama tanpa `mulai` tidak diperpanjang (sliding).
+  mulai?: number;
 }
 
 export interface AuditEntry {
