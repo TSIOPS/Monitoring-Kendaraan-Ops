@@ -3,6 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-10-19
+- **UX** — Data Master, Dashboard, dan History Laporan read-only untuk MANAGEMENT: filter warehouse tampil, tombol tambah/edit/hapus/reset oli/lepas Flazz, panel Akses Cepat, dan tautan ke halaman input disembunyikan; form Pengguna punya role MANAGEMENT (warehouse tidak wajib, dikosongkan) — `static/js/pages/master.js`, `static/js/pages/dashboard.js`, `static/js/pages/transaksi.js`
 - **UX** — Menu sidebar per role: MANAGEMENT tidak melihat Buat Jalur, Input Laporan, Top Up, Rekonsiliasi, Pengaturan, dan Audit Log, tetapi melihat Perbandingan Pengeluaran; membuka rute input/edit/pengaturan lewat URL dialihkan ke Dashboard — `static/js/app.js`, `static/js/router.js`
 - **Fitur** — Helper role frontend `static/js/peran.js` (`isSuper`, `isManagement`, `lihatSemuaCabang`, `bolehTulis`, `ruteDilarang`, `saringMenu`) untuk menu, penjaga rute, dan tombol tulis role `MANAGEMENT` — `static/js/peran.js`
 - **Perbaikan** — Alur kerja: perubahan kini langsung di `main` dan langsung di-push ke `origin main` setelah tes/typecheck hijau (tanpa branch fitur/PR); branch `feat/role-management` sudah di-merge (fast-forward) ke `main` — `CLAUDE.md`

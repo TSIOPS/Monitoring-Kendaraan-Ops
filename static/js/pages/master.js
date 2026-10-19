@@ -1,4 +1,5 @@
 import { del, get, post, put } from '../api.js';
+import { bolehTulis, isSuper as superRole, lihatSemuaCabang } from '../peran.js';
 import { getUser } from '../store.js';
 import { confirmDialog, el, fmtDateId, fmtNum, toast, grupAksi, tombolIkon, tombolIkonSekali, tampilkanGalat, idUntukLabel } from '../ui.js';
 
@@ -9,9 +10,11 @@ const JENIS_KENDARAAN = [['Mobil', 'Mobil'], ['Motor', 'Motor']];
 const INDIKATOR = [['DIGITAL_BAR', 'Digital Bar'], ['ANALOG_JARUM', 'Analog / Jarum'], ['DIGITAL_ANGKA', 'Digital Angka'], ['TIDAK_ADA', 'Tidak Ada'], ['LAINNYA', 'Lainnya']];
 const TIPE_KARTU = [['BCA_FLAZZ', 'BCA Flazz'], ['MANDIRI_EMONEY', 'Mandiri E-Money'], ['BRI_BRIZZI', 'BRI Brizzi'], ['BNI_TAPCASH', 'BNI TapCash']];
 const PERAN_KARTU = [['UTAMA', 'Kartu Utama'], ['CADANGAN', 'Kartu Cadangan']];
-const ROLE = [['PIC CABANG', 'PIC CABANG'], ['SUPERADMIN', 'SUPERADMIN']];
+export const ROLE = [['PIC CABANG', 'PIC CABANG'], ['MANAGEMENT', 'MANAGEMENT'], ['SUPERADMIN', 'SUPERADMIN']];
 
-const isSuper = () => String(getUser()?.role || '').toUpperCase() === 'SUPERADMIN';
+const isSuper = () => superRole(getUser()?.role);
+const lihatSemua = () => lihatSemuaCabang(getUser()?.role);
+const tulis = () => bolehTulis(getUser()?.role);
 const opsi = (pairs) => pairs.map(([value, label]) => ({ value, label }));
 
 // Pesan field wajib yang kosong (validasi murah di klien; aturan lain di server).
@@ -43,7 +46,7 @@ export function bodyKendaraan(v) {
 }
 
 export function bodyPengguna(v, isEdit) {
-  const b = { username: v.username.trim(), nama: v.nama.trim(), role: v.role, cabang: v.role === 'SUPERADMIN' ? '' : v.cabang };
+  const b = { username: v.username.trim(), nama: v.nama.trim(), role: v.role, cabang: v.role === 'PIC CABANG' ? v.cabang : '' };
   // Saat edit, password kosong berarti tidak diubah.
   if (!isEdit || v.password) b.password = v.password;
   return b;
@@ -91,7 +94,7 @@ function entitas(m) {
       ekstra: (row) => [{ label: 'Reset oli', ikon: 'oli', tanya: `Set baseline ganti oli ${row.plat_nomor} ke KM odometer terakhir?`, jalan: () => post(`/api/master/kendaraan/${encodeURIComponent(row.vehicle_id)}/reset-oli`, {}) }],
     },
     cabang: {
-      label: 'Warehouse', boleh: isSuper(), list: () => m.cabang, key: (c) => c.kode,
+      label: 'Warehouse', boleh: lihatSemua(), list: () => m.cabang, key: (c) => c.kode,
       kolom: [['Kode', (c) => c.kode], ['Nama', (c) => c.nama], ['Lokasi', (c) => c.lokasi || '-']],
       fields: [
         { key: 'kode', label: 'Kode warehouse', wajib: true, kunciSaatEdit: true, dari: (c) => c.kode },
@@ -121,7 +124,7 @@ function entitas(m) {
       hapus: (row) => ({ tanya: `Hapus supir ${row.nama}?`, jalan: () => del(`/api/master/supir/${encodeURIComponent(row.id)}`) }),
     },
     bbm: {
-      label: 'BBM', boleh: isSuper(), list: () => m.bbm, key: (b) => b.id,
+      label: 'BBM', boleh: lihatSemua(), list: () => m.bbm, key: (b) => b.id,
       kolom: [['Jenis', (b) => b.jenis], ['Harga / liter', (b) => 'Rp ' + fmtNum(b.harga)], ['Warehouse', (b) => (b.kode_cabang ? namaCabang(b.kode_cabang) : 'Semua (global)')]],
       fields: [
         { key: 'jenis', label: 'Jenis BBM', wajib: true, dari: (b) => b.jenis },
@@ -169,7 +172,7 @@ function entitas(m) {
         { key: 'password', label: 'Password', type: 'password', wajib: (v, isEdit) => !isEdit, catatan: (isEdit) => (isEdit ? 'Kosongkan bila tidak diubah.' : ''), dari: () => '' },
         { key: 'nama', label: 'Nama lengkap', wajib: true, dari: (p) => p.nama },
         { key: 'role', label: 'Role', type: 'select', opsi: () => opsi(ROLE), awal: 'PIC CABANG', dari: (p) => p.role },
-        { key: 'cabang', label: 'Warehouse', type: 'select', wajib: (v) => v.role !== 'SUPERADMIN', opsi: cabangOpsi, dari: (p) => p.cabang },
+        { key: 'cabang', label: 'Warehouse', type: 'select', wajib: (v) => v.role === 'PIC CABANG', opsi: cabangOpsi, dari: (p) => p.cabang },
       ],
       simpan: (v, row) => (row ? put('/api/master/pengguna', { ...bodyPengguna(v, true), user_id: row.user_id }) : post('/api/master/pengguna', bodyPengguna(v, false))),
       hapus: (row) => (row.status === 'Aktif'
@@ -313,12 +316,15 @@ export async function renderMaster(view) {
     const q = cari.value.trim().toLowerCase();
     const rows = e.list().filter((r) => (!wh.value || !e.cabangOf || e.cabangOf(r) === wh.value) &&
       (!q || e.kolom.some(([, fn]) => String(fn(r) ?? '').toLowerCase().includes(q))));
+    const bolehUbah = tulis();
     const body = rows.map((r) => {
       const h = e.hapus(r);
       // Kendaraan bersama milik warehouse lain: PIC hanya memakai, pengelolaan oleh pemilik.
       const bukanMilik = !isSuper() && e.cabangOf && String(e.cabangOf(r)) !== String(getUser()?.cabang || '');
+      const sel = e.kolom.map(([, fn, kelas]) => el('td', { class: kelas ? kelas(r) : '', text: String(fn(r) ?? '-') }));
+      if (!bolehUbah) return el('tr', {}, sel);
       return el('tr', {}, [
-        ...e.kolom.map(([, fn, kelas]) => el('td', { class: kelas ? kelas(r) : '', text: String(fn(r) ?? '-') })),
+        ...sel,
         bukanMilik ? el('td', { class: 'small text-muted', text: 'Kendaraan bersama (dikelola pemilik)' }) : el('td', { class: 'text-nowrap' }, [grupAksi([
           tombolIkon('edit', 'Edit', () => bukaForm(r)),
           ...(e.ekstra ? e.ekstra(r).map((x) => tombolIkonSekali(x.ikon || 'lainnya', x.label, () => aksi(x))) : []),
@@ -329,11 +335,11 @@ export async function renderMaster(view) {
     isi.replaceChildren(
       el('div', { class: 'd-flex justify-content-between align-items-center mb-2' }, [
         el('div', { class: 'small text-muted', text: `${rows.length} data` }),
-        el('button', { class: 'btn btn-sm btn-success', type: 'button', text: `Tambah ${e.label}`, onclick: () => bukaForm(null) }),
+        bolehUbah ? el('button', { class: 'btn btn-sm btn-success', type: 'button', text: `Tambah ${e.label}`, onclick: () => bukaForm(null) }) : null,
       ]),
       rows.length
         ? el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm align-middle' }, [
-          el('thead', {}, [el('tr', {}, [...e.kolom.map(([t]) => el('th', { text: t })), el('th', { text: 'Aksi' })])]),
+          el('thead', {}, [el('tr', {}, [...e.kolom.map(([t]) => el('th', { text: t })), ...(bolehUbah ? [el('th', { text: 'Aksi' })] : [])])]),
           el('tbody', {}, body),
         ])])
         : el('div', { class: 'text-muted', text: 'Tidak ada data.' }),
@@ -350,7 +356,7 @@ export async function renderMaster(view) {
     el('h2', { 'data-judul-halaman': '', class: 'h6 mb-3', text: 'Data Master' }),
     barTab,
     el('div', { class: 'row g-2 mb-2' }, [
-      isSuper() ? el('div', { class: 'col-md-3' }, [wh]) : null,
+      lihatSemua() ? el('div', { class: 'col-md-3' }, [wh]) : null,
       el('div', { class: 'col-md-3' }, [cari]),
     ]),
     formBox,

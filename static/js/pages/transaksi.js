@@ -1,5 +1,6 @@
 import { get, del } from '../api.js';
 import { getUser } from '../store.js';
+import { bolehTulis, lihatSemuaCabang } from '../peran.js';
 import { el, fmtNum, fmtDateId, toast, spinner, confirmDialog, halaman, navHalaman, idUntukLabel } from '../ui.js';
 
 const PER_HALAMAN = 10;
@@ -163,7 +164,7 @@ function barisTabel(r) {
     ]),
     selKonsumsi(r),
     el('td', { class: 'small' }, [String(r.user || '-')]),
-    selAksi(r),
+    bolehTulis(getUser()?.role) ? selAksi(r) : null,
   ]);
 }
 
@@ -175,7 +176,7 @@ function panelTransaksi(rows, view, adaFilter = false) {
     const isi = rows.length
       ? el('div', { class: 'table-wrap' }, [
           el('table', { class: 'table table-bordered table-striped table-hover align-middle table-history' }, [
-            el('thead', { class: 'thead-hijau' }, [el('tr', {}, KOLOM.map((t) => el('th', { class: 'text-center', text: t })))]),
+            el('thead', { class: 'thead-hijau' }, [el('tr', {}, (bolehTulis(getUser()?.role) ? KOLOM : KOLOM.slice(0, -1)).map((t) => el('th', { class: 'text-center', text: t })))]),
             el('tbody', {}, h.isi.map(barisTabel)),
           ]),
         ])
@@ -286,7 +287,7 @@ function panelFilter(master, isSuper, view, penginput) {
 
 export async function renderHistory(view) {
   spinner(view, 'Memuat riwayat laporan');
-  const isSuper = getUser()?.role === 'SUPERADMIN';
+  const lihatSemua = lihatSemuaCabang(getUser()?.role);
   let data;
   let master;
   try {
@@ -304,7 +305,7 @@ export async function renderHistory(view) {
 
   view.replaceChildren(
     el('div', {}, [
-      panelFilter(master, isSuper, view, opsiPengguna(semua)),
+      panelFilter(master, lihatSemua, view, opsiPengguna(semua)),
       panelStatistik(monthly),
       panelTransaksi(transactions, view, adaFilter),
     ]),

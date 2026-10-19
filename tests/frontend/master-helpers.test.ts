@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bodyKendaraan, bodyPengguna, fieldKosong } from '../../static/js/pages/master.js';
+import { bodyKendaraan, bodyPengguna, fieldKosong, ROLE } from '../../static/js/pages/master.js';
 
 describe('fieldKosong', () => {
   const fields = [
@@ -40,5 +40,15 @@ describe('teksOliMaster', () => {
     const { teksOliMaster } = await import('../../static/js/pages/master.js');
     expect(teksOliMaster({ km_terakhir_ganti_oli: 0, interval_ganti_oli_km: 3000 })).toBe('Belum diatur (interval 3.000)');
     expect(teksOliMaster({ km_terakhir_ganti_oli: 90646, interval_ganti_oli_km: 5000 })).toBe('90.646 / 5.000');
+  });
+});
+
+describe('pengguna MANAGEMENT', () => {
+  it('opsi role memuat MANAGEMENT', () => {
+    expect(ROLE.map(([v]) => v)).toEqual(['PIC CABANG', 'MANAGEMENT', 'SUPERADMIN']);
+  });
+  it('bodyPengguna: warehouse dikosongkan untuk MANAGEMENT', () => {
+    expect(bodyPengguna({ username: ' m ', nama: ' M ', role: 'MANAGEMENT', cabang: 'CBG-A', password: 'x' }, false))
+      .toMatchObject({ username: 'm', nama: 'M', role: 'MANAGEMENT', cabang: '' });
   });
 });

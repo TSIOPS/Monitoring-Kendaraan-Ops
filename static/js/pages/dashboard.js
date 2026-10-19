@@ -1,5 +1,6 @@
 import { get, post } from '../api.js';
 import { getUser, setJumlahPeringatan } from '../store.js';
+import { bolehTulis, isSuper as superRole, lihatSemuaCabang } from '../peran.js';
 import { autoRefresh, confirmDialog, el, fmtDateId, fmtNum, labelDari, petaMaster, toast } from '../ui.js';
 import { aktifkanNotifikasi, bunyiTugasSekarang, matikanNotifikasi, segarkanBanner, statusNotifikasi, tesNotifikasi } from '../notifikasi.js';
 
@@ -74,7 +75,9 @@ const badgeCabang = (kode, isSuper) => (isSuper && kode ? el('span', { class: 'b
 
 export async function renderDashboard(view) {
   const user = getUser() || {};
-  const isSuper = user.role === 'SUPERADMIN';
+  const isSuper = superRole(user.role);
+  const semua = lihatSemuaCabang(user.role);
+  const tulis = bolehTulis(user.role);
 
   const tanggal = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Jakarta' });
   // Hijau gelap + teks putih penuh: teks kecil di hijau utama (#208b3a) hanya ~4,4:1, text-white-50 ~2:1.
@@ -105,7 +108,7 @@ export async function renderDashboard(view) {
 
   function itemPajak(r) {
     return el('a', { class: 'list-group-item list-group-item-action', href: '#/jalur' }, [
-      el('div', { class: 'fw-bold' }, [`${r.plat_nomor} - ${r.nama_kendaraan}`, badgeCabang(r.cabang, isSuper)]),
+      el('div', { class: 'fw-bold' }, [`${r.plat_nomor} - ${r.nama_kendaraan}`, badgeCabang(r.cabang, semua)]),
       el('div', { class: 'small text-muted' }, r.alerts.map((a) => el('div', {}, [
         el('span', { class: `badge ${WARN_KELAS[a.status] || 'text-bg-secondary'}`, text: a.status }),
         ` ${LABEL_DOK[a.tipe] || a.tipe}${a.sisa_hari != null ? ` | sisa ${a.sisa_hari} hari` : ''}${a.tanggal ? ` | ${a.tanggal}` : ''}`,
@@ -114,16 +117,20 @@ export async function renderDashboard(view) {
   }
   function itemSaldo(c) {
     const masked = samarkanNomor(c.card_number);
-    return el('a', { class: 'list-group-item list-group-item-action d-flex justify-content-between align-items-center', href: '#/flazz/topup' }, [
+    const isiItem = [
       el('div', {}, [
-        el('div', { class: 'fw-bold' }, [c.card_name || masked, badgeCabang(c.cabang, isSuper)]),
+        el('div', { class: 'fw-bold' }, [c.card_name || masked, badgeCabang(c.cabang, semua)]),
         el('div', { class: 'small text-muted', text: `${masked}${c.card_type ? ' | ' + c.card_type : ''}` }),
       ]),
       el('div', { class: 'text-danger fw-bold', text: rp(c.last_balance) }),
-    ]);
+    ];
+    // MANAGEMENT read-only: tanpa tautan ke halaman top up.
+    return tulis
+      ? el('a', { class: 'list-group-item list-group-item-action d-flex justify-content-between align-items-center', href: '#/flazz/topup' }, isiItem)
+      : el('div', { class: 'list-group-item d-flex justify-content-between align-items-center' }, isiItem);
   }
   function itemOli(r) {
-    const bisaReset = isSuper || (user.role === 'PIC CABANG' && String(r.cabang) === String(user.cabang));
+    const bisaReset = tulis && (isSuper || (user.role === 'PIC CABANG' && String(r.cabang) === String(user.cabang)));
     const tombol = bisaReset ? el('button', { class: 'btn btn-sm btn-outline-success ms-2', type: 'button', title: 'Tandai oli sudah diganti', 'aria-label': 'Tandai oli sudah diganti' }, [el('i', { class: 'bi bi-droplet-fill', 'aria-hidden': 'true' })]) : null;
     tombol?.addEventListener('click', async () => {
       if (!confirmDialog('Tandai oli kendaraan ini sudah diganti? Baseline akan di-set ke odometer saat ini.')) return;
@@ -139,7 +146,7 @@ export async function renderDashboard(view) {
     });
     return el('div', { class: 'list-group-item d-flex justify-content-between align-items-center' }, [
       el('div', {}, [
-        el('div', { class: 'fw-bold' }, [`${r.plat_nomor} - ${r.nama_kendaraan}`, badgeCabang(r.cabang, isSuper)]),
+        el('div', { class: 'fw-bold' }, [`${r.plat_nomor} - ${r.nama_kendaraan}`, badgeCabang(r.cabang, semua)]),
         el('div', { class: 'small text-muted' }, [
           el('span', { class: `badge ${OLI_KELAS[r.status] || 'text-bg-secondary'}`, text: r.status }),
           ` ${teksOli(r)} | tempuh ${r.tempuh_km} KM`,
@@ -150,7 +157,7 @@ export async function renderDashboard(view) {
   }
   function itemOdo(r) {
     return el('div', { class: 'list-group-item' }, [
-      el('div', { class: 'fw-bold' }, [`${r.plat_nomor} - ${r.nama_kendaraan}`, badgeCabang(r.cabang, isSuper)]),
+      el('div', { class: 'fw-bold' }, [`${r.plat_nomor} - ${r.nama_kendaraan}`, badgeCabang(r.cabang, semua)]),
       el('div', { class: 'small text-muted' }, [
         el('span', { class: 'badge text-bg-warning', text: 'ESTIMASI' }),
         ' KM trip terakhir dihitung dari estimasi, odometer belum terbaca normal — mohon segera diperbaiki.',
@@ -163,7 +170,7 @@ export async function renderDashboard(view) {
 
   function gambarWarn() {
     if (!cacheWarn) return;
-    const w = saringPeringatan(cacheWarn, isSuper ? pilihCabang.value : '');
+    const w = saringPeringatan(cacheWarn, semua ? pilihCabang.value : '');
     jumlahWarn.textContent = String(w.total);
     setJumlahPeringatan(w.total);
     isiWarn.className = 'row';
@@ -212,7 +219,7 @@ export async function renderDashboard(view) {
       isiKartu.replaceChildren(...[
         r.aktif > 0 ? el('div', { class: 'alert alert-warning' }, [
           el('strong', { text: 'Peringatan! ' }), `Ada ${r.aktif} kartu Flazz berstatus "Sedang Digunakan". Jika fisik kartu sudah dikembalikan oleh supir ke Admin, Anda mungkin terlewat melakukan `,
-          el('a', { href: '#/flazz/rekon', class: 'alert-link', text: 'Rekonsiliasi Flazz' }), ' hari ini.',
+          (tulis ? el('a', { href: '#/flazz/rekon', class: 'alert-link', text: 'Rekonsiliasi Flazz' }) : 'Rekonsiliasi Flazz'), ' hari ini.',
         ]) : null,
         el('div', { class: 'row g-3 mb-3' }, [
           kotak('bg-utama-gelap text-white', 'Total Kartu Aktif', `${r.aktif} dari ${r.total}`),
@@ -290,13 +297,13 @@ export async function renderDashboard(view) {
   gambarNotif();
   segarkanBanner(true);
 
-  view.replaceChildren(salam, aksesCepat, panelNotif, panelWarn, panelKartu, panelGaleri);
+  view.replaceChildren(...[salam, tulis ? aksesCepat : null, panelNotif, panelWarn, panelKartu, panelGaleri].filter(Boolean));
 
   try {
     const master = await get('/api/master');
     peta = petaMaster(master);
     const cabang = Array.isArray(master.cabangList) ? master.cabangList : [];
-    if (isSuper && cabang.length > 1) {
+    if (semua && cabang.length > 1) {
       cabang.forEach((c) => pilihCabang.appendChild(el('option', { value: c.kode, text: c.nama || c.kode })));
       pilihCabang.classList.remove('d-none');
     }

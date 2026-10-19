@@ -858,8 +858,10 @@ git commit -m "feat(ui): menu dan rute sesuai role MANAGEMENT"
 **Files:**
 - Modify: `static/js/pages/dashboard.js`, `transaksi.js`, `jalur.js`, `flazz.js`, `master.js`, `performa.js`, `rekap.js`, `perbandingan.js`
 - Test: `tests/frontend/master-helpers.test.ts`
+> Catatan implementasi: Task 9 dikerjakan dalam dua commit (A: master/dashboard/transaksi, B: jalur/flazz/performa/rekap/perbandingan). Penyimpangan kecil: di `transaksi.js` parameter `panelFilter` tetap bernama `isSuper` (variabel `semua` sudah dipakai untuk daftar transaksi), dan `view.replaceChildren` di dashboard memfilter `null` karena DOM asli mengubah null menjadi teks.
 
-- [ ] **Step 1: Tes yang gagal untuk form pengguna** (tambahkan di `tests/frontend/master-helpers.test.ts`)
+
+- [x] **Step 1: Tes yang gagal untuk form pengguna** (tambahkan di `tests/frontend/master-helpers.test.ts`)
 
 Tambahkan `ROLE` ke impor yang sudah ada di baris 2 (`import { bodyKendaraan, bodyPengguna, fieldKosong, ROLE } from …`), lalu:
 
@@ -877,7 +879,7 @@ describe('pengguna MANAGEMENT', () => {
 
 Run: `npx vitest run tests/frontend/master-helpers.test.ts` → FAIL (`ROLE` tidak diekspor / cabang tidak kosong).
 
-- [ ] **Step 2: `static/js/pages/master.js`**
+- [x] **Step 2: `static/js/pages/master.js`**
 
 ```js
 import { bolehTulis, isSuper as superRole, lihatSemuaCabang } from '../peran.js';
@@ -909,7 +911,7 @@ const tulis = () => bolehTulis(getUser()?.role);
 
 Run tes master-helpers → PASS.
 
-- [ ] **Step 3: `static/js/pages/dashboard.js`**
+- [x] **Step 3: `static/js/pages/dashboard.js`**
 
 ```js
 import { bolehTulis, isSuper as superRole, lihatSemuaCabang } from '../peran.js';
@@ -924,7 +926,7 @@ const tulis = bolehTulis(user.role);
 - Kartu saldo rendah (117): bila `!tulis` pakai `el('div', { class: 'list-group-item d-flex justify-content-between align-items-center' }, …)` alih-alih tautan ke `#/flazz/topup`.
 - Tautan "Rekonsiliasi Flazz" di banner tugas (215): bila `!tulis`, tampilkan teks biasa `'Rekonsiliasi Flazz'` tanpa `<a>`.
 
-- [ ] **Step 4: `static/js/pages/transaksi.js`**
+- [x] **Step 4: `static/js/pages/transaksi.js`**
 
 ```js
 import { bolehTulis, lihatSemuaCabang } from '../peran.js';
