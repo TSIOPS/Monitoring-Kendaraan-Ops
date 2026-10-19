@@ -231,7 +231,7 @@ git commit -m "fix(auth): rate limit login per akun dan per IP"
 - Modify: `static/js/api.js`
 - Test: `tests/frontend/api.test.ts`
 
-- [ ] **Step 1: Tulis tes gagal** (tambahkan di `describe('request', …)`; import `getToken` dari store):
+- [x] **Step 1: Tulis tes gagal** (tambahkan di `describe('request', …)`; import `getToken` dari store):
 
 ```ts
   it('respons non-JSON (mis. halaman 502 Cloudflare) tidak menghapus sesi', async () => {
@@ -260,12 +260,12 @@ git commit -m "fix(auth): rate limit login per akun dan per IP"
   });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `npx vitest run tests/frontend/api.test.ts`
 Expected: FAIL — token terhapus; tes timeout menggantung/FAIL.
 
-- [ ] **Step 3: Implementasi** — ganti isi `request()` di `static/js/api.js`:
+- [x] **Step 3: Implementasi** — ganti isi `request()` di `static/js/api.js`:
 
 ```js
 const WAKTU_HABIS = 'Server tidak merespons. Periksa sinyal lalu coba lagi.';
@@ -305,7 +305,7 @@ export function post(path, body, opsi) {
 }
 ```
 
-- [ ] **Step 4: Pakai batas waktu foto di input & edit**
+- [x] **Step 4: Pakai batas waktu foto di input & edit**
 
 Di `static/js/pages/input.js` (baris `const up = await post('/api/laporan/photos', fotoBody);`) dan pemanggilan unggah foto yang sama di `static/js/pages/edit.js`:
 
@@ -315,12 +315,12 @@ import { get, post, BATAS_WAKTU_FOTO_MS } from '../api.js';
 const up = await post('/api/laporan/photos', fotoBody, { timeoutMs: BATAS_WAKTU_FOTO_MS });
 ```
 
-- [ ] **Step 5: Jalankan tes**
+- [x] **Step 5: Jalankan tes**
 
 Run: `npx vitest run tests/frontend`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add static/js/api.js static/js/pages/input.js static/js/pages/edit.js tests/frontend/api.test.ts

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, post, request } from '../../static/js/api.js';
-import { setToken, clearSession } from '../../static/js/store.js';
+import { setToken, clearSession, getToken } from '../../static/js/store.js';
 
 class MemoryStorage {
   private map = new Map<string, string>();
@@ -84,11 +84,32 @@ describe('request', () => {
     expect(err.message).toBe('Tidak dapat terhubung ke server. Periksa koneksi Anda.');
   });
 
-  it('menghapus session bila respons bukan JSON', async () => {
-    stubFetch(async () => new Response('<html>502</html>', { status: 502 }));
-    setToken('T9');
-    await request('GET', '/api/laporan').catch(() => undefined);
-    expect(localStorage.getItem('m6.token')).toBeNull();
+  it('respons non-JSON (mis. halaman 502 Cloudflare) tidak menghapus sesi', async () => {
+    setToken('T-LAMA');
+    stubFetch(async () => new Response('<html>502 Bad Gateway</html>', { status: 502 }));
+    const err = await request('GET', '/api/master').catch((e) => e as ApiError);
+    expect(err.error).toBe('BAD_RESPONSE');
+    expect(getToken()).toBe('T-LAMA');
+  });
+
+  it('401 tetap menghapus sesi', async () => {
+    setToken('T-LAMA');
+    stubFetch(async () => json({ success: false, error: 'UNAUTHORIZED', message: 'sesi tidak valid' }, 401));
+    await request('GET', '/api/master').catch(() => null);
+    expect(getToken()).toBe('');
+  });
+
+  it('request yang menggantung dibatalkan dengan galat TIMEOUT', async () => {
+    vi.useFakeTimers();
+    try {
+      stubFetch((_u, init) => new Promise((_r, rej) => init?.signal?.addEventListener('abort', () => rej(new DOMException('aborted', 'AbortError')))));
+      const p = request('GET', '/api/master').catch((e) => e as ApiError);
+      await vi.advanceTimersByTimeAsync(31_000);
+      const err = await p;
+      expect(err.error).toBe('TIMEOUT');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

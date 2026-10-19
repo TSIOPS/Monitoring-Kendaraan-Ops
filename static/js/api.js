@@ -19,14 +19,23 @@ function headerToken() {
   return headers;
 }
 
-export async function request(method, path, body) {
-  const init = { method, headers: headerToken() };
+const WAKTU_HABIS = 'Server tidak merespons. Periksa sinyal lalu coba lagi.';
+// Unggah foto (base64 besar) di sinyal lemah butuh waktu lebih lama.
+export const BATAS_WAKTU_MS = 30_000;
+export const BATAS_WAKTU_FOTO_MS = 120_000;
+
+export async function request(method, path, body, { timeoutMs = BATAS_WAKTU_MS } = {}) {
+  const ctrl = new AbortController();
+  const init = { method, headers: headerToken(), signal: ctrl.signal };
   if (body !== undefined) init.body = JSON.stringify(body);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
 
   let res;
   try {
     res = await fetch(path, init);
-  } catch {
+  } catch (e) {
+    clearTimeout(timer);
+    if (e?.name === 'AbortError') throw new ApiError(WAKTU_HABIS, 0, 'TIMEOUT');
     throw new ApiError(JARINGAN_GAGAL, 0, 'NETWORK');
   }
 
@@ -34,8 +43,10 @@ export async function request(method, path, body) {
   try {
     payload = await res.json();
   } catch {
-    clearSession();
+    // Halaman error proxy/Cloudflare/captive portal: bukan tanda sesi tidak sah — sesi dipertahankan.
     throw new ApiError(RESPON_GAGAL, res.status, 'BAD_RESPONSE');
+  } finally {
+    clearTimeout(timer);
   }
 
   if (!res.ok || payload?.success === false) {
@@ -57,8 +68,8 @@ export function get(path) {
   return request('GET', path);
 }
 
-export function post(path, body) {
-  return request('POST', path, body);
+export function post(path, body, opsi) {
+  return request('POST', path, body, opsi);
 }
 
 export function put(path, body) {

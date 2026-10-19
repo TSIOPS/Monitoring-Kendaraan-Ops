@@ -1,4 +1,4 @@
-import { get, post } from '../api.js';
+import { get, post, BATAS_WAKTU_FOTO_MS } from '../api.js';
 import { el, fmtNum, pratinjauFoto, toast } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
 
@@ -584,7 +584,7 @@ export async function renderInput(view) {
         if (Object.keys(fotoBody).length) {
           fotoBody.km_awal_val = values.km_awal;
           fotoBody.km_akhir_val = values.km_akhir;
-          const up = await post('/api/laporan/photos', fotoBody);
+          const up = await post('/api/laporan/photos', fotoBody, { timeoutMs: BATAS_WAKTU_FOTO_MS });
           serverData.files.odo_awal = up.files?.odo_awal || '';
           serverData.files.odo_akhir = up.files?.odo_akhir || '';
           serverData.files.struk_bbm = up.files?.struk_bbm || '';
