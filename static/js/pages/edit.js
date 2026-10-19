@@ -1,5 +1,5 @@
 import { get, put } from '../api.js';
-import { getRouteParam } from '../router.js';
+import { getRouteParam, pasangPenjagaKeluar } from '../router.js';
 import { el, fmtNum, toast, pratinjauFoto } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
 import { hitungLiter, kompresGambar, namaAman, opsiBbm, pesanDigitKm, STRUK_KUALITAS, STRUK_LEBAR, THUMB_KUALITAS, THUMB_LEBAR } from './input.js';
@@ -252,6 +252,12 @@ export async function renderEdit(view) {
     ]),
   ]);
 
+  // Penjaga keluar: tautan Batal, menu, dan tombol Back ditanya bila ada perubahan belum disimpan.
+  let formDiubah = false;
+  form.addEventListener('input', () => { formDiubah = true; });
+  form.addEventListener('change', () => { formDiubah = true; });
+  pasangPenjagaKeluar(() => (formDiubah ? 'Perubahan belum disimpan. Tinggalkan halaman?' : ''));
+
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     alertBox.classList.add('d-none');
@@ -292,7 +298,9 @@ export async function renderEdit(view) {
       }
       const res = await put(`/api/laporan/${encodeURIComponent(id)}`, body);
       toast(res.msg || 'Transaksi diperbarui.', 'success');
-      window.location.hash = '#/history';
+      formDiubah = false; // sebelum pindah agar penjaga tidak bertanya
+      // replace: tombol Back tidak kembali ke form edit lama.
+      location.replace('#/history');
     } catch (e) {
       alertBox.textContent = e.message || 'Gagal memperbarui transaksi.';
       alertBox.classList.remove('d-none');

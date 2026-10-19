@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { matchRoute, registerRoute } from '../../static/js/router.js';
+import { describe, expect, it, vi } from 'vitest';
+import { matchRoute, putuskanKeluar, registerRoute } from '../../static/js/router.js';
 
 const loader = async () => ({ render: () => undefined });
 
@@ -23,5 +23,20 @@ describe('matchRoute', () => {
 
   it('mengembalikan null untuk route tak dikenal', () => {
     expect(matchRoute('#/tidak-ada')).toBeNull();
+  });
+});
+
+describe('putuskanKeluar', () => {
+  it('tanpa penjaga: boleh pindah', () => {
+    expect(putuskanKeluar(null, () => false)).toBe(true);
+  });
+  it('penjaga tidak memberi pesan: boleh pindah tanpa bertanya', () => {
+    const tanya = vi.fn(() => false);
+    expect(putuskanKeluar(() => '', tanya)).toBe(true);
+    expect(tanya).not.toHaveBeenCalled();
+  });
+  it('penjaga memberi pesan: ikut jawaban konfirmasi', () => {
+    expect(putuskanKeluar(() => 'Belum disimpan', () => true)).toBe(true);
+    expect(putuskanKeluar(() => 'Belum disimpan', () => false)).toBe(false);
   });
 });

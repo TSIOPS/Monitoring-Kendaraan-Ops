@@ -658,7 +658,7 @@ git commit -m "feat(input): draft otomatis form laporan (dipulihkan setelah relo
 - Modify: `static/js/app.js` (terima pesan dari SW)
 - Test: `tests/frontend/router.test.ts`
 
-- [ ] **Step 1: Tulis tes gagal** (helper murni):
+- [x] **Step 1: Tulis tes gagal** (helper murni):
 
 ```ts
 import { putuskanKeluar } from '../../static/js/router.js';
@@ -681,9 +681,9 @@ describe('putuskanKeluar', () => {
 
 (Tambahkan `vi` ke import vitest di file tes.)
 
-- [ ] **Step 2: Jalankan, pastikan gagal** — Run: `npx vitest run tests/frontend/router.test.ts` → FAIL.
+- [x] **Step 2: Jalankan, pastikan gagal** — Run: `npx vitest run tests/frontend/router.test.ts` → FAIL.
 
-- [ ] **Step 3: Implementasi di `static/js/router.js`**
+- [x] **Step 3: Implementasi di `static/js/router.js`**
 
 ```js
 let penjagaKeluar = null;
@@ -733,7 +733,7 @@ Di awal `run(hash)` (setelah `if (!view) return;`):
   hashAktif = hash;
 ```
 
-- [ ] **Step 4: Pasang di input.js** (setelah `formDiubah` didefinisikan):
+- [x] **Step 4: Pasang di input.js** (setelah `formDiubah` didefinisikan):
 
 ```js
 import { pasangPenjagaKeluar } from '../router.js';
@@ -745,7 +745,7 @@ Tombol Batal tidak perlu confirm sendiri lagi — ganti handler menjadi `window.
 
 Pasang hal yang sama di `static/js/pages/edit.js` (pesan: `'Perubahan belum disimpan. Tinggalkan halaman?'`), dengan flag kotor dari event `input`/`change` pada form edit; set `false` setelah simpan sukses. Ganti pindah halaman setelah simpan dengan `location.replace('#/history')` agar tombol Back tidak kembali ke form edit lama.
 
-- [ ] **Step 5: Notifikasi push tidak memaksa navigasi** — `static/sw.js` notificationclick:
+- [x] **Step 5: Notifikasi push tidak memaksa navigasi** — `static/sw.js` notificationclick:
 
 ```js
     for (const c of semua) {
@@ -769,7 +769,7 @@ navigator.serviceWorker?.addEventListener('message', (ev) => {
 });
 ```
 
-- [ ] **Step 6: Popup 16:30 & banner** — di `static/js/notifikasi.js`, tautan "Lihat jalur" sudah berupa `href="#/jalur"` sehingga otomatis lewat penjaga. Tambahan: jangan buka popup saat penjaga aktif. Ekspor dari router `export function adaFormTerbuka() { return Boolean(penjagaKeluar && penjagaKeluar()); }`, lalu di `tampilPopup` awal fungsi:
+- [x] **Step 6: Popup 16:30 & banner** — di `static/js/notifikasi.js`, tautan "Lihat jalur" sudah berupa `href="#/jalur"` sehingga otomatis lewat penjaga. Tambahan: jangan buka popup saat penjaga aktif. Ekspor dari router `export function adaFormTerbuka() { return Boolean(penjagaKeluar && penjagaKeluar()); }`, lalu di `tampilPopup` awal fungsi:
 
 ```js
 import { adaFormTerbuka } from './router.js';
@@ -777,11 +777,11 @@ import { adaFormTerbuka } from './router.js';
   if (adaFormTerbuka()) return; // banner tetap tampil; popup ditunda sampai form selesai
 ```
 
-- [ ] **Step 7: Jalankan tes** — Run: `npx vitest run tests/frontend` → PASS.
+- [x] **Step 7: Jalankan tes** — Run: `npx vitest run tests/frontend` → PASS.
 
-- [ ] **Step 8: Verifikasi manual:** isi form input → klik menu Dashboard → muncul konfirmasi; Batal → tetap di form dengan isian utuh; tombol Back HP → konfirmasi yang sama; reload → dialog browser "tinggalkan situs?".
+- [ ] **Step 8: Verifikasi manual:** (manual — belum) isi form input → klik menu Dashboard → muncul konfirmasi; Batal → tetap di form dengan isian utuh; tombol Back HP → konfirmasi yang sama; reload → dialog browser "tinggalkan situs?".
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add static/js/router.js static/js/pages/input.js static/js/pages/edit.js static/sw.js static/js/app.js static/js/notifikasi.js tests/frontend/router.test.ts

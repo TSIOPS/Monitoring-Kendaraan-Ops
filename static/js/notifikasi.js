@@ -1,6 +1,7 @@
 import { get, post } from './api.js';
 import { getUser } from './store.js';
 import { el } from './ui.js';
+import { adaFormTerbuka } from './router.js';
 
 // ── Helper murni (diuji) ────────────────────────────────────────────────────
 
@@ -77,7 +78,9 @@ export async function segarkanBanner(paksa = false) {
   ]));
   // Pop-up sekali per hari, 30 menit sebelum jam tutup (16:30 hari kerja, 15:30 akhir pekan).
   const kunci = `tugas-popup:${cache.tanggal}`;
-  if (akhir && !simpan.get(kunci)) {
+  // Form belum disimpan sedang terbuka: banner tetap tampil, pop-up ditunda (kunci belum
+  // ditandai) sampai pindah halaman / form selesai.
+  if (akhir && !simpan.get(kunci) && !adaFormTerbuka()) {
     simpan.set(kunci, '1');
     tampilPopup(teks, cache);
   }
@@ -207,7 +210,14 @@ export async function bunyiTugasSekarang() {
 export async function daftarkanServiceWorker() {
   if (!('serviceWorker' in navigator)) return null;
   // Push masuk saat aplikasi terbuka -> bunyikan nada pengingat.
-  navigator.serviceWorker.addEventListener('message', (e) => { if (e.data?.type === 'bunyi-pengingat') bunyiTugasSekarang(); });
+  // Klik notifikasi saat aplikasi terbuka -> pindah lewat hashchange agar penjaga form ikut bertanya.
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    if (e.data?.type === 'bunyi-pengingat') bunyiTugasSekarang();
+    else if (e.data?.type === 'buka-url') {
+      const hash = new URL(e.data.url, location.origin).hash || '#/dashboard';
+      if (hash !== location.hash) location.hash = hash;
+    }
+  });
   try {
     return await navigator.serviceWorker.register('/sw.js');
   } catch {

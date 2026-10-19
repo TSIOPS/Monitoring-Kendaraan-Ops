@@ -3,6 +3,7 @@ import { el, fmtNum, pratinjauFoto, toast } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
 import { bacaDraft, hapusDraft, kunciDraft, simpanDraft } from '../draft.js';
 import { getUser } from '../store.js';
+import { pasangPenjagaKeluar } from '../router.js';
 
 // Setara compressPhoto GAS (1280 px, 70%) agar kapasitas Storage awet.
 const MAKS_LEBAR = 1280;
@@ -422,10 +423,9 @@ export async function renderInput(view) {
 
   form.addEventListener('input', () => { formDiubah = true; });
   form.addEventListener('change', () => { formDiubah = true; });
-  batal.addEventListener('click', () => {
-    if (formDiubah && !window.confirm('Batalkan input laporan? Data yang sudah diisi tidak disimpan.')) return;
-    window.location.hash = '#/history';
-  });
+  pasangPenjagaKeluar(() => (formDiubah ? 'Laporan belum disimpan. Tinggalkan halaman? (Isian tetap tersimpan sebagai draft.)' : ''));
+  // Konfirmasi ditangani penjaga router.
+  batal.addEventListener('click', () => { window.location.hash = '#/history'; });
 
   // Tidak ada prefill dari laporan terakhir: bar bensin adalah bacaan fisik saat ini
   // (GAS pun tidak mengisinya), dan biaya/metode/kartu BBM lama rawan terbawa
@@ -556,7 +556,12 @@ export async function renderInput(view) {
     formDiubah = true;
     const jam = new Date(d.disimpan).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     const buang = el('button', { type: 'button', class: 'btn btn-sm btn-outline-secondary ms-auto', text: 'Buang draft' });
-    buang.addEventListener('click', () => { hapusDraft(localStorage, KUNCI); window.location.reload(); });
+    buang.addEventListener('click', () => {
+      clearTimeout(timerDraft);
+      hapusDraft(localStorage, KUNCI);
+      formDiubah = false; // isian sengaja dibuang: reload tanpa dialog "tinggalkan situs?"
+      window.location.reload();
+    });
     bannerDraft.replaceChildren(el('span', { text: `Isian dari ${jam} dipulihkan. Foto perlu dipilih ulang.` }), buang);
     bannerDraft.classList.remove('d-none');
   }
@@ -649,6 +654,7 @@ export async function renderInput(view) {
       await post('/api/laporan', buildPayload(values, serverData));
       clearTimeout(timerDraft);
       hapusDraft(localStorage, KUNCI);
+      formDiubah = false; // sebelum pindah hash agar penjaga tidak bertanya
       toast('Laporan tersimpan.', 'success');
       window.location.hash = '#/history';
     } catch (err) {

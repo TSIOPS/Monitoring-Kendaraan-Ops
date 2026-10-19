@@ -3,6 +3,29 @@ import { get } from './api.js';
 
 const routes = [];
 let params = {};
+let penjagaKeluar = null;
+let hashAktif = '';
+let abaikanHashBerikut = false;
+
+// Halaman dengan form memasang penjaga: fungsi yang mengembalikan pesan konfirmasi
+// bila ada isian belum disimpan ('' = aman). Dilepas otomatis setiap ganti halaman.
+export function pasangPenjagaKeluar(fn) {
+  penjagaKeluar = fn;
+}
+
+export function putuskanKeluar(penjaga, tanya = (m) => window.confirm(m)) {
+  const pesan = penjaga ? penjaga() : '';
+  return !pesan || tanya(pesan);
+}
+
+export function bolehTinggalkanHalaman() {
+  return putuskanKeluar(penjagaKeluar);
+}
+
+// Ada form berisi isian belum disimpan di halaman aktif (dipakai untuk menunda pop-up).
+export function adaFormTerbuka() {
+  return Boolean(penjagaKeluar && penjagaKeluar());
+}
 
 export function registerRoute(pattern, loader, options = {}) {
   const names = [];
@@ -35,6 +58,8 @@ export function perluMuatUlang(err) {
 async function run(hash) {
   const view = document.getElementById('view');
   if (!view) return;
+  penjagaKeluar = null;
+  hashAktif = hash;
 
   const found = matchRoute(hash);
   if (!found) {
@@ -87,6 +112,8 @@ async function run(hash) {
   }
 }
 
+// Hash sama = gambar ulang halaman aktif atas permintaan halaman itu sendiri, tidak lewat
+// penjaga; hash berbeda lewat hashchange sehingga penjaga ikut bertanya.
 export function navigate(hash) {
   if (window.location.hash === hash) {
     run(hash);
@@ -96,7 +123,18 @@ export function navigate(hash) {
 }
 
 export function startRouter() {
-  window.addEventListener('hashchange', () => run(window.location.hash));
+  window.addEventListener('hashchange', () => {
+    if (abaikanHashBerikut) { abaikanHashBerikut = false; return; }
+    if (!putuskanKeluar(penjagaKeluar)) {
+      abaikanHashBerikut = true;
+      window.location.hash = hashAktif; // batal pindah: kembalikan hash, halaman tidak digambar ulang
+      return;
+    }
+    run(window.location.hash);
+  });
+  window.addEventListener('beforeunload', (ev) => {
+    if (penjagaKeluar && penjagaKeluar()) { ev.preventDefault(); ev.returnValue = ''; }
+  });
   run(window.location.hash);
 }
 
