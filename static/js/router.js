@@ -1,4 +1,5 @@
-import { isLoggedIn, setUser, clearSession } from './store.js';
+import { getUser, isLoggedIn, setUser, clearSession } from './store.js';
+import { ruteDilarang } from './peran.js';
 import { get } from './api.js';
 
 const routes = [];
@@ -138,6 +139,12 @@ async function run(hash) {
 
   if (found.guard && !isLoggedIn()) {
     keLogin(hash);
+    return;
+  }
+
+  // MANAGEMENT read-only: rute input/edit/pengaturan dialihkan ke Dashboard (server tetap menolak tulis).
+  if (found.guard && ruteDilarang(getUser()?.role, hash)) {
+    window.location.replace('#/dashboard');
     return;
   }
 

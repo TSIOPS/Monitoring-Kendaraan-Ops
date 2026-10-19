@@ -2,18 +2,23 @@ import { getJumlahPeringatan, getUser, logout, onPeringatanChange } from './stor
 import { get, post } from './api.js';
 import { ensureSession, pasangPenjagaKeluar, pesanPenjagaKeluar, registerRoute, startRouter } from './router.js';
 import { el } from './ui.js';
+import { saringMenu } from './peran.js';
 import { renderLogin } from './pages/login.js';
 import { daftarkanServiceWorker, mulaiBanner } from './notifikasi.js';
 import { mulaiLonceng, tombolLonceng } from './lonceng.js';
 
-// Sidebar mengikuti GAS: grup dapat dilipat; Pengaturan hanya SUPERADMIN.
+// Sidebar mengikuti GAS: grup dapat dilipat; item ber-`peran` hanya tampil untuk role tersebut.
 // juga: rute lain yang ikut menyalakan item (mis. halaman edit).
+const TULIS = ['SUPERADMIN', 'PIC CABANG']; // bukan MANAGEMENT
+const PANTAU = ['SUPERADMIN', 'MANAGEMENT'];
+const SUPER = ['SUPERADMIN'];
+
 const NAV = [
   { hash: '#/dashboard', label: 'Dashboard', ikon: 'bi-speedometer2', badge: true },
   {
     label: 'Jalur Pengiriman',
     items: [
-      { hash: '#/jalur/buat', label: 'Buat Jalur', ikon: 'bi-calendar-plus' },
+      { hash: '#/jalur/buat', label: 'Buat Jalur', ikon: 'bi-calendar-plus', peran: TULIS },
       { hash: '#/jalur', label: 'Daftar Jalur', ikon: 'bi-list-ul', juga: ['#/jalur/edit'] },
       { hash: '#/jalur/ringkasan', label: 'Ringkasan Jalur', ikon: 'bi-clipboard-data' },
     ],
@@ -21,19 +26,19 @@ const NAV = [
   {
     label: 'Laporan Operasional Kendaraan',
     items: [
-      { hash: '#/input', label: 'Input Laporan', ikon: 'bi-pencil-square' },
+      { hash: '#/input', label: 'Input Laporan', ikon: 'bi-pencil-square', peran: TULIS },
       { hash: '#/history', label: 'History Laporan', ikon: 'bi-clock-history', juga: ['#/edit', '#/transaksi'] },
       { hash: '#/galeri', label: 'Galeri Foto', ikon: 'bi-images' },
       { hash: '#/performa', label: 'Performa Kendaraan', ikon: 'bi-graph-up' },
       { hash: '#/rekap', label: 'Rekap Pengeluaran', ikon: 'bi-cash-stack' },
-      { hash: '#/perbandingan', label: 'Perbandingan Pengeluaran', ikon: 'bi-bar-chart-line', superOnly: true },
+      { hash: '#/perbandingan', label: 'Perbandingan Pengeluaran', ikon: 'bi-bar-chart-line', peran: PANTAU },
     ],
   },
   {
     label: 'Kartu Flazz',
     items: [
-      { hash: '#/flazz/topup', label: 'Top Up', ikon: 'bi-plus-circle' },
-      { hash: '#/flazz/rekon', label: 'Rekonsiliasi', ikon: 'bi-check2-all' },
+      { hash: '#/flazz/topup', label: 'Top Up', ikon: 'bi-plus-circle', peran: TULIS },
+      { hash: '#/flazz/rekon', label: 'Rekonsiliasi', ikon: 'bi-check2-all', peran: TULIS },
       { hash: '#/flazz', label: 'Daftar Kartu', ikon: 'bi-credit-card-2-front' },
       { hash: '#/flazz/riwayat', label: 'Riwayat', ikon: 'bi-journal-text' },
     ],
@@ -42,8 +47,8 @@ const NAV = [
     label: 'Konfigurasi',
     items: [
       { hash: '#/master', label: 'Data Master', ikon: 'bi-database' },
-      { hash: '#/pengaturan', label: 'Pengaturan', ikon: 'bi-sliders', superOnly: true },
-      { hash: '#/audit', label: 'Audit Log', ikon: 'bi-shield-check', superOnly: true },
+      { hash: '#/pengaturan', label: 'Pengaturan', ikon: 'bi-sliders', peran: SUPER },
+      { hash: '#/audit', label: 'Audit Log', ikon: 'bi-shield-check', peran: SUPER },
     ],
   },
 ];
@@ -81,10 +86,7 @@ async function muatPengaturan() {
 }
 
 export function navUntuk(role) {
-  return NAV.map((item) => {
-    if (!item.items) return item;
-    return { ...item, items: item.items.filter((it) => !it.superOnly || role === 'SUPERADMIN') };
-  }).filter((item) => !item.items || item.items.length);
+  return saringMenu(NAV, role);
 }
 
 // Item aktif: hash sama persis, atau hash termasuk daftar "juga" (awalan rute).

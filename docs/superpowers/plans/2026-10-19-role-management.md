@@ -799,7 +799,7 @@ git commit -m "feat(frontend): helper peran termasuk MANAGEMENT"
 - Modify: `static/js/app.js:9-87`
 - Modify: `static/js/router.js:1, ≈140`
 
-- [ ] **Step 1: Ubah `NAV` di `static/js/app.js`** — ganti `superOnly: true` dengan daftar `peran`:
+- [x] **Step 1: Ubah `NAV` di `static/js/app.js`** — ganti `superOnly: true` dengan daftar `peran`:
 
 ```js
 import { saringMenu } from './peran.js';
@@ -824,7 +824,7 @@ export function navUntuk(role) {
 }
 ```
 
-- [ ] **Step 2: Penjaga rute di `static/js/router.js`**
+- [x] **Step 2: Penjaga rute di `static/js/router.js`**
 
 ```js
 import { getUser, isLoggedIn, setUser, clearSession } from './store.js';
@@ -841,10 +841,10 @@ Di `run(hash)`, tepat setelah blok `if (found.guard && !isLoggedIn()) { … }`:
   }
 ```
 
-- [ ] **Step 3: Verifikasi** — `npm test` hijau (tes router lama tetap lolos; `ruteDilarang` sudah dites di Task 7),
+- [x] **Step 3: Verifikasi** — `npm test` hijau (tes router lama tetap lolos; `ruteDilarang` sudah dites di Task 7),
   `npm run typecheck` bersih.
 
-- [ ] **Step 4: Centang, CHANGELOG (UX), commit**
+- [x] **Step 4: Centang, CHANGELOG (UX), commit**
 
 ```bash
 git add static/js/app.js static/js/router.js docs/superpowers/plans/2026-10-19-role-management.md CHANGELOG.md
