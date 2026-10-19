@@ -1188,7 +1188,7 @@ Di submit, sebelum `post`:
 
 **Files:** Modify `static/js/pages/rekap.js:286-316`
 
-- [ ] **Step 1: Implementasi**
+- [x] **Step 1: Implementasi**
 
 ```js
   let filterDimuat = { dari: '', sampai: '', wh: '' };
@@ -1201,7 +1201,7 @@ Di submit, sebelum `post`:
 ```
 
 Tambahan: jika `dari.value !== filterDimuat.dari || sampai.value !== filterDimuat.sampai || (isSuper && wh.value !== filterDimuat.wh)` tampilkan `toast('Filter belum diterapkan — file berisi periode yang sedang ditampilkan.', 'warning')`.
-- [ ] **Step 2: Commit** `fix(rekap): unduh Excel sesuai periode yang ditampilkan`.
+- [x] **Step 2: Commit** `fix(rekap): unduh Excel sesuai periode yang ditampilkan`.
 
 ### Task 19: Cegah klik ganda pada aksi hapus/simpan baris (`aksiSekali`)
 

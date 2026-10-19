@@ -194,6 +194,8 @@ export async function renderRekap(view) {
   const isi = el('div', {});
   const tab = { aktif: 'kartu' };
   let lines = [];
+  // Filter yang menghasilkan `lines` saat ini; Excel mengikuti data yang tampil, bukan isian filter terbaru.
+  let filterDimuat = { dari: '', sampai: '', wh: '' };
   let nomor = 1;
   const filterJenis = el('select', { class: 'form-select form-select-sm', style: 'width:auto', 'aria-label': 'Filter jenis' }, [
     el('option', { value: '', text: 'Semua jenis' }), el('option', { value: 'BBM', text: 'BBM' }), el('option', { value: 'TOL', text: 'Tol' }),
@@ -291,6 +293,7 @@ export async function renderRekap(view) {
       const q = new URLSearchParams({ dari: dari.value, sampai: sampai.value });
       if (isSuper && wh.value) q.set('cabang', wh.value);
       ({ lines = [] } = await get(`/api/laporan/rekap-pengeluaran?${q}`));
+      filterDimuat = { dari: dari.value, sampai: sampai.value, wh: isSuper ? wh.value : String(getUser()?.cabang || '') };
       nomor = 1;
       gambarRingkasan();
       gambarTab();
@@ -303,12 +306,15 @@ export async function renderRekap(view) {
   tombol.addEventListener('click', muat);
   unduh.addEventListener('click', async () => {
     if (!lines.length) { toast('Tidak ada data untuk diunduh.', 'error'); return; }
+    if (dari.value !== filterDimuat.dari || sampai.value !== filterDimuat.sampai || (isSuper && wh.value !== filterDimuat.wh)) {
+      toast('Filter belum diterapkan — file berisi periode yang sedang ditampilkan.', 'warning');
+    }
     unduh.disabled = true;
     try {
       const XLSX = await muatSheetJS();
-      const kodeWh = isSuper ? wh.value : String(getUser()?.cabang || '');
-      const sheets = susunExcel(lines, { dari: dari.value, sampai: sampai.value, warehouse: kodeWh ? namaCabang[kodeWh] || kodeWh : 'Semua Warehouse', namaCabang });
-      XLSX.writeFile(bukuExcel(XLSX, sheets), `rekap-pengeluaran-${dari.value}_${sampai.value}${kodeWh ? '-' + kodeWh : ''}.xlsx`);
+      const { dari: d, sampai: s, wh: kodeWh } = filterDimuat;
+      const sheets = susunExcel(lines, { dari: d, sampai: s, warehouse: kodeWh ? namaCabang[kodeWh] || kodeWh : 'Semua Warehouse', namaCabang });
+      XLSX.writeFile(bukuExcel(XLSX, sheets), `rekap-pengeluaran-${d}_${s}${kodeWh ? '-' + kodeWh : ''}.xlsx`);
     } catch (err) {
       toast(err.message || 'Gagal membuat file Excel.', 'error');
     } finally {
