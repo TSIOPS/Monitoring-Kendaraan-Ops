@@ -582,7 +582,7 @@ git commit -m "feat(flazz,jalur): MANAGEMENT membaca kartu, jalur, dan tugas sem
 - Modify: `src/routes/master.ts:22-27, 286-296, 309-327`
 - Test: `tests/routes/management.test.ts`
 
-- [ ] **Step 1: Tambah tes yang gagal**
+- [x] **Step 1: Tambah tes yang gagal**
 
 ```ts
 describe('master untuk MANAGEMENT', () => {
@@ -630,9 +630,9 @@ describe('master untuk MANAGEMENT', () => {
 Bila `makeDeps` tidak mengembalikan `masterState` untuk repo master yang dioper lewat `over`, ubah `setup()` agar
 mengembalikan `masterState: master.state` dari `memMaster(...)` dan pakai itu.
 
-- [ ] **Step 2: Jalankan, pastikan gagal** → FAIL (cabangList hanya kosong; role MANAGEMENT ditolak 400).
+- [x] **Step 2: Jalankan, pastikan gagal** → FAIL (cabangList hanya kosong; role MANAGEMENT ditolak 400).
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 `src/logic/master.ts`:
 
@@ -668,14 +668,16 @@ Pakai `kodeCabang` (bukan `cabang`) di `insertPengguna`/`updatePengguna`, di `js
 pencabutan sesi (`cabang !== String(current.kode_cabang ?? '')` → `kodeCabang !== …`). SUPERADMIN tetap menyimpan
 nilai yang dikirim klien seperti sekarang (perilaku lama tidak berubah).
 
-- [ ] **Step 4: Jalankan** → PASS; `npm test` hijau; `npm run typecheck` bersih.
+- [x] **Step 4: Jalankan** → PASS; `npm test` hijau; `npm run typecheck` bersih.
 
-- [ ] **Step 5: Centang, CHANGELOG (Fitur), commit**
+- [x] **Step 5: Centang, CHANGELOG (Fitur), commit**
 
 ```bash
 git add src/logic/master.ts src/routes/master.ts tests/routes/management.test.ts docs/superpowers/plans/2026-10-19-role-management.md CHANGELOG.md
 git commit -m "feat(master): akun MANAGEMENT dan payload master read-only semua cabang"
 ```
+
+> Catatan implementasi: `setup()` di `tests/routes/management.test.ts` kini mengembalikan `masterState`; tes tambahan: SUPERADMIN terakhir tidak bisa diturunkan ke MANAGEMENT (409), MANAGEMENT tidak bisa mengelola pengguna (403), dan unit test `getMasterPayload` MANAGEMENT. Tes ditulis bersamaan dengan implementasi (tidak diverifikasi merah dulu). Tes pencabutan sesi saat ganti role tidak ditambah (tidak ada pola yang ada).
 
 ---
 

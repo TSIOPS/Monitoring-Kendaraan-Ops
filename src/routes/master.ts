@@ -6,6 +6,7 @@ import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
 import { hashPassword } from '../auth/password';
 import { cabutSesiPengguna } from '../auth/sessions';
+import { isSuper as superUser, PERAN_VALID } from '../auth/peran';
 import { errPayload, HttpError, okPayload, reqIp } from '../utils/http';
 import { bumpMasterRev, CACHE_TTL_DETIK, getMasterRev, masterCacheKey } from '../logic/master-cache';
 import { defaultOilIntervalKm, getMasterPayload } from '../logic/master';
@@ -20,7 +21,7 @@ const MASTER_CACHE_TTL = CACHE_TTL_DETIK;
 type Ctx = Context<{ Bindings: Env; Variables: AuthVars }>;
 
 function isSuper(u: SessionUser): boolean {
-  return u.role === 'SUPERADMIN';
+  return superUser(u);
 }
 function needSuper(u: SessionUser, action: string): void {
   if (!isSuper(u)) throw new HttpError(403, 'Akses ditolak: hanya SUPERADMIN yang dapat ' + action + '.', 'FORBIDDEN');
@@ -288,12 +289,14 @@ export function masterRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     if (!uname) return c.json(errPayload('Username wajib diisi', 'BAD_REQUEST'), 400);
     if (!nama) return c.json(errPayload('Nama wajib diisi', 'BAD_REQUEST'), 400);
     if (!password) return c.json(errPayload('Password wajib diisi', 'BAD_REQUEST'), 400);
-    if (role !== 'SUPERADMIN' && role !== 'PIC CABANG') return c.json(errPayload('Role tidak valid', 'BAD_REQUEST'), 400);
+    if (!(PERAN_VALID as readonly string[]).includes(role)) return c.json(errPayload('Role tidak valid', 'BAD_REQUEST'), 400);
     if (role === 'PIC CABANG' && !cabang) return c.json(errPayload('Warehouse wajib diisi untuk PIC CABANG', 'BAD_REQUEST'), 400);
+    // Hanya PIC yang terikat warehouse; MANAGEMENT selalu tanpa warehouse.
+    const kodeCabang = role === 'MANAGEMENT' ? '' : cabang;
     if (await deps.master.findPenggunaByUsername(uname)) return c.json(errPayload('Username sudah terpakai', 'CONFLICT'), 409);
     const id = newId('U-');
-    await deps.master.insertPengguna({ user_id: id, username: uname, password: await hashPassword(password), nama, role, kode_cabang: cabang, status: 'Aktif' });
-    await audit(c, { action: 'CREATE', modul: 'pengguna', keterangan: 'Pengguna ' + uname, data_sesudah: jsonSnip({ user_id: id, username: uname, nama, role, cabang }) });
+    await deps.master.insertPengguna({ user_id: id, username: uname, password: await hashPassword(password), nama, role, kode_cabang: kodeCabang, status: 'Aktif' });
+    await audit(c, { action: 'CREATE', modul: 'pengguna', keterangan: 'Pengguna ' + uname, data_sesudah: jsonSnip({ user_id: id, username: uname, nama, role, cabang: kodeCabang }) });
     await bumpMasterRev(deps.kv);
     return c.json(okPayload({ msg: 'Pengguna Berhasil Ditambahkan' }));
   });
@@ -311,8 +314,10 @@ export function masterRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     if (!current) throw new HttpError(404, 'Pengguna tidak ditemukan', 'NOT_FOUND');
     if (!uname) return c.json(errPayload('Username wajib diisi', 'BAD_REQUEST'), 400);
     if (!nama) return c.json(errPayload('Nama wajib diisi', 'BAD_REQUEST'), 400);
-    if (role !== 'SUPERADMIN' && role !== 'PIC CABANG') return c.json(errPayload('Role tidak valid', 'BAD_REQUEST'), 400);
+    if (!(PERAN_VALID as readonly string[]).includes(role)) return c.json(errPayload('Role tidak valid', 'BAD_REQUEST'), 400);
     if (role === 'PIC CABANG' && !cabang) return c.json(errPayload('Warehouse wajib diisi untuk PIC CABANG', 'BAD_REQUEST'), 400);
+    // Hanya PIC yang terikat warehouse; MANAGEMENT selalu tanpa warehouse.
+    const kodeCabang = role === 'MANAGEMENT' ? '' : cabang;
     const dup = await deps.master.findPenggunaByUsername(uname);
     if (dup && dup.user_id !== userId) return c.json(errPayload('Username sudah terpakai', 'CONFLICT'), 409);
     if (String(u.username) === String(current.username) && current.role === 'SUPERADMIN' && role !== 'SUPERADMIN') {
@@ -321,9 +326,9 @@ export function masterRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     }
     const password = String((body as any)?.password ?? '');
     const newPassword = password ? await hashPassword(password) : current.password;
-    await deps.master.updatePengguna({ ...current, username: uname, password: newPassword, nama, role, kode_cabang: cabang });
+    await deps.master.updatePengguna({ ...current, username: uname, password: newPassword, nama, role, kode_cabang: kodeCabang });
     // Password direset admin, atau role/warehouse berubah: sesi lama pengguna itu dicabut.
-    if (password || role !== current.role || cabang !== String(current.kode_cabang ?? '')) await cabutSesiPengguna(deps.kv, userId);
+    if (password || role !== current.role || kodeCabang !== String(current.kode_cabang ?? '')) await cabutSesiPengguna(deps.kv, userId);
     await audit(c, { action: 'EDIT', modul: 'pengguna', keterangan: 'Update user ' + userId });
     await bumpMasterRev(deps.kv);
     return c.json(okPayload({ msg: 'Pengguna Berhasil Diupdate' }));

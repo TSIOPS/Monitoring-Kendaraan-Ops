@@ -3,6 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-10-19
+- **Fitur** — SUPERADMIN dapat membuat/mengubah akun `MANAGEMENT` (warehouse selalu dikosongkan); `GET /api/master` untuk MANAGEMENT berisi data semua cabang tanpa daftar pengguna; Audit Log & status reset tetap khusus SUPERADMIN — `src/logic/master.ts`, `src/routes/master.ts`
 - **Fitur** — Role `MANAGEMENT` membaca kartu, top up, tol, rekonsiliasi Flazz, jalur pengiriman, dan tugas notifikasi semua cabang (filter `branch_id`/`cabang` opsional); cek tulis tidak berubah — `src/routes/flazz.ts`, `src/routes/jalur.ts`, `src/routes/push.ts`
 - **Fitur** — Role `MANAGEMENT` membaca laporan, dashboard, performa, rekap pengeluaran, dan peringatan semua cabang (filter `?cabang=` seperti SUPERADMIN); cek tulis tetap khusus SUPERADMIN/PIC — `src/routes/laporan.ts`, `src/logic/warnings.ts`
 - **Keamanan** — Penjaga tulis terpusat untuk role `MANAGEMENT`: semua metode non-GET dari sesi MANAGEMENT ditolak 403 di `requireUser` ("Akses ditolak: akun MANAGEMENT hanya dapat melihat data."), kecuali `/api/password` dan `/api/push/{langganan,berhenti,tes}` — `src/auth/middleware.ts`, `tests/routes/management.test.ts`

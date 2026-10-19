@@ -1,5 +1,6 @@
 import type { MasterAllRaw } from '../db/master';
 import { bolehPakai, daftarCabangBersama } from './kendaraan-bersama';
+import { isSuper as superUser, lihatSemuaCabang } from '../auth/peran';
 
 export interface MasterUserCtx {
   role: string;
@@ -33,10 +34,10 @@ export function getMasterPayload(
   user: MasterUserCtx,
   lastKmSumber?: Record<string, string>,
 ): MasterPayload {
-  const isSuper = user.role === 'SUPERADMIN';
+  const semua = lihatSemuaCabang(user); // cakupan baca: SUPERADMIN & MANAGEMENT
   const lastSumber = lastKmSumber || {};
 
-  const cabangList = isSuper
+  const cabangList = semua
     ? raw.cabang
         .filter((c) => c.status === 'Aktif')
         // lokasi ikut agar form edit tidak mengosongkannya (bug GAS, spec M10 D1).
@@ -49,7 +50,7 @@ export function getMasterPayload(
 
   const vehicles = raw.kendaraan
     .filter((v) => v.status === 'Aktif')
-    .filter((v) => isSuper || bolehPakai(String(user.cabang || ''), v))
+    .filter((v) => semua || bolehPakai(String(user.cabang || ''), v))
     .map((v) => {
       const jenis = v.jenis_kendaraan || 'Mobil';
       const indikator = v.jenis_indikator || 'DIGITAL_BAR';
@@ -80,10 +81,10 @@ export function getMasterPayload(
 
   const drivers = raw.supir
     .filter((s) => s.status === 'Aktif')
-    .filter((s) => isSuper || s.kode_cabang === user.cabang)
+    .filter((s) => semua || s.kode_cabang === user.cabang)
     .map((s) => ({ id: s.supir_id, nama: s.nama_supir, cabang: s.kode_cabang, default_vehicle_id: s.default_vehicle_id || '' }));
 
-  const bbmList = isSuper
+  const bbmList = semua
     ? raw.bbm
         .filter((b) => b.status === 'Aktif')
         .map((b) => ({ id: b.bbm_id, jenis: b.jenis_bbm, harga: b.harga_per_liter, kode_cabang: b.kode_cabang || '' }))
@@ -114,13 +115,13 @@ export function getMasterPayload(
 
   const flazzCards = (() => {
     const hasCabang = Boolean(user.cabang);
-    const list = isSuper || hasCabang ? raw.flazzCard : [];
+    const list = semua || hasCabang ? raw.flazzCard : [];
     return list
-      .filter((card) => isSuper || String(card.branch_id) === String(user.cabang))
+      .filter((card) => semua || String(card.branch_id) === String(user.cabang))
       .map((c) => ({ ...c }));
   })();
 
-  const penggunaList = isSuper
+  const penggunaList = superUser(user)
     ? raw.pengguna.map((u) => ({
         user_id: u.user_id,
         username: u.username,

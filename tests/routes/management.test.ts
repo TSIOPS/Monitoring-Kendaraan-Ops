@@ -47,7 +47,7 @@ export function setup() {
   const flz = memFlazz({ cards: [kartu(), kartu({ id: 'FLZ-B', card_number: '0999', branch_id: 'CBG-B' })] });
   const out = makeDeps({ master: master.repo, laporan: lap.repo, jalur: jalur.repo, flazz: flz.repo });
   const app = buildApp(fakeEnv() as any, out.deps);
-  return { app, ...out };
+  return { app, ...out, masterState: master.state };
 }
 
 const req = (app: ReturnType<typeof buildApp>, method: string, path: string, tok: string, body?: unknown) =>
@@ -238,5 +238,58 @@ describe('MANAGEMENT membaca Flazz, jalur, tugas semua cabang', () => {
     deps.jalur.listRange = async (a: string, b: string, cab: string | null) => { cabangArg = cab; return asli(a, b, cab); };
     await tugasUntuk(deps, { role: 'MANAGEMENT', cabang: '' }, '2026-10-01');
     expect(cabangArg).toBeNull();
+  });
+});
+
+describe('master untuk MANAGEMENT', () => {
+  it('GET /api/master: semua cabang, kendaraan semua cabang, tanpa daftar pengguna', async () => {
+    const { app, kv } = setup();
+    const body = await (await req(app, 'GET', '/api/master', await loginAs(kv, MGR))).json() as any;
+    expect(body.cabangList.map((c: any) => c.kode).sort()).toEqual(['CBG-A', 'CBG-B']);
+    expect(body.vehicles.map((v: any) => v.vehicle_id).sort()).toEqual(['V-1', 'V-9']);
+    expect(body.penggunaList).toEqual([]);
+  });
+
+  it('GET /api/audit dan /api/settings/reset-status tetap 403', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, MGR);
+    expect((await req(app, 'GET', '/api/audit', tok)).status).toBe(403);
+    expect((await req(app, 'GET', '/api/settings/reset-status', tok)).status).toBe(403);
+  });
+
+  it('SUPERADMIN membuat akun MANAGEMENT; cabang dikosongkan', async () => {
+    const { app, kv, masterState } = setup();
+    const tok = await loginAs(kv, SUPER);
+    const res = await req(app, 'POST', '/api/master/pengguna', tok, { username: 'mgr', nama: 'Manajer', password: 'Rahasia#2026', role: 'MANAGEMENT', cabang: 'CBG-A' });
+    expect(res.status).toBe(200);
+    expect(masterState.pengguna.find((p) => p.username === 'mgr')).toMatchObject({ role: 'MANAGEMENT', kode_cabang: '' });
+  });
+
+  it('PUT pengguna ke MANAGEMENT tanpa cabang diterima', async () => {
+    const { app, kv, masterState } = setup();
+    const tok = await loginAs(kv, SUPER);
+    await req(app, 'POST', '/api/master/pengguna', tok, { username: 'pic2', nama: 'Pic 2', password: 'Rahasia#2026', role: 'PIC CABANG', cabang: 'CBG-A' });
+    const id = masterState.pengguna.find((p) => p.username === 'pic2')!.user_id;
+    const res = await req(app, 'PUT', '/api/master/pengguna', tok, { user_id: id, username: 'pic2', nama: 'Pic 2', role: 'MANAGEMENT', cabang: '' });
+    expect(res.status).toBe(200);
+    expect(masterState.pengguna.find((p) => p.user_id === id)).toMatchObject({ role: 'MANAGEMENT', kode_cabang: '' });
+  });
+
+  it('role lain tetap ditolak', async () => {
+    const { app, kv } = setup();
+    const res = await req(app, 'POST', '/api/master/pengguna', await loginAs(kv, SUPER), { username: 'x', nama: 'X', password: 'Rahasia#2026', role: 'DIREKTUR', cabang: '' });
+    expect(res.status).toBe(400);
+  });
+
+  it('SUPERADMIN aktif terakhir tidak bisa diturunkan ke MANAGEMENT (409)', async () => {
+    const { app, kv } = setup();
+    const res = await req(app, 'PUT', '/api/master/pengguna', await loginAs(kv, SUPER), { user_id: 'U-S', username: 'super', nama: 'Super', role: 'MANAGEMENT', cabang: '' });
+    expect(res.status).toBe(409);
+  });
+
+  it('MANAGEMENT tidak boleh mengelola pengguna (403)', async () => {
+    const { app, kv } = setup();
+    const res = await req(app, 'POST', '/api/master/pengguna', await loginAs(kv, MGR), { username: 'y', nama: 'Y', password: 'Rahasia#2026', role: 'MANAGEMENT', cabang: '' });
+    expect(res.status).toBe(403);
   });
 });

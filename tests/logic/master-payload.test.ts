@@ -111,3 +111,15 @@ describe('getMasterPayload', () => {
     expect(p2.vehicles.find((v: any) => v.vehicle_id === 'V-2')?.odo_estimasi_terakhir).toBe(false);
   });
 });
+describe('getMasterPayload MANAGEMENT', () => {
+  it('sama dengan SUPERADMIN untuk data master, tetapi penggunaList kosong', () => {
+    const sup = getMasterPayload(sampleRaw(), { role: 'SUPERADMIN', cabang: '' }, {});
+    const mgr = getMasterPayload(sampleRaw(), { role: 'MANAGEMENT', cabang: '' }, {});
+    expect(mgr.vehicles).toEqual(sup.vehicles);
+    expect(mgr.drivers).toEqual(sup.drivers);
+    expect(mgr.cabangList).toEqual(sup.cabangList);
+    expect(mgr.bbmList).toEqual(sup.bbmList);
+    expect(mgr.flazzCards).toEqual(sup.flazzCards);
+    expect(mgr.penggunaList).toEqual([]);
+  });
+});
