@@ -67,6 +67,25 @@ export function barisForm(label, kontrol, catatan = '', kelas = 'mb-3') {
   ]);
 }
 
+// "= Rp 150.000" untuk nominal valid; kosong bila kosong/bukan angka.
+export function teksRupiah(nilai) {
+  const n = Number(nilai);
+  if (nilai === '' || nilai === null || nilai === undefined || !Number.isFinite(n)) return '';
+  return `= Rp ${n.toLocaleString('id-ID', { maximumFractionDigits: 0 })}`;
+}
+
+// Teks bantu di bawah input nominal agar 150.000 vs 1.500.000 mudah dibedakan. Mengembalikan
+// elemen teks; pemanggil menaruhnya setelah input/input-group. Isi diperbarui pada event
+// 'input' — nilai yang diisi lewat kode perlu dispatchEvent(new Event('input')).
+export function bantuRupiah(input) {
+  input.setAttribute('inputmode', 'numeric');
+  const teks = el('div', { class: 'form-text fw-semibold', 'aria-live': 'polite' });
+  const segar = () => { teks.textContent = teksRupiah(input.value); };
+  input.addEventListener('input', segar);
+  segar();
+  return teks;
+}
+
 // Pemanggil lama memakai nama kelas Bootstrap ('danger'); semua dipetakan ke gaya toast yang ada.
 const PETA_JENIS = { danger: 'error', warning: 'warning', error: 'error', success: 'success', info: 'info' };
 export const jenisToast = (kind) => PETA_JENIS[kind] || 'info';

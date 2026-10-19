@@ -1,6 +1,6 @@
 import { del, get, post, put } from '../api.js';
 import { getUser } from '../store.js';
-import { autoRefresh, confirmDialog, el, fmtDateId, fmtNum, toast, labelDari, petaMaster, pratinjauFoto, grupAksi, tombolIkon, tampilkanGalat, barisForm as baris } from '../ui.js';
+import { autoRefresh, confirmDialog, el, fmtDateId, fmtNum, toast, labelDari, petaMaster, pratinjauFoto, grupAksi, tombolIkon, tampilkanGalat, barisForm as baris, bantuRupiah } from '../ui.js';
 import { kompresGambar, namaAman, tanggalWib } from './input.js';
 
 // Halaman Flazz (M9): List, Top Up, Pengembalian & Rekonsiliasi, Riwayat.
@@ -280,7 +280,7 @@ export async function renderFlazzTopup(view) {
     alertBox,
     el('div', { class: 'row g-2' }, [
       el('div', { class: 'col-md-6' }, [baris('Kartu', kartu)]),
-      el('div', { class: 'col-md-3' }, [baris('Nominal top up', nominal)]),
+      el('div', { class: 'col-md-3' }, [baris('Nominal top up', el('div', {}, [nominal, bantuRupiah(nominal)]))]),
       el('div', { class: 'col-md-3' }, [baris('Tanggal top up', tanggal)]),
       el('div', { class: 'col-md-6' }, [baris('Catatan', catatan)]),
       el('div', { class: 'col-md-6' }, [baris('Foto bukti top up (wajib)', el('div', {}, [foto, pratinjauFoto(foto)]))]),
@@ -378,7 +378,7 @@ export async function renderFlazzRekon(view) {
     gate,
     el('div', { class: 'row g-2' }, [
       el('div', { class: 'col-md-6' }, [baris('Saldo di sistem (hitung otomatis)', sistem), rincian]),
-      el('div', { class: 'col-md-6' }, [baris('Saldo fisik / cek asli', fisik)]),
+      el('div', { class: 'col-md-6' }, [baris('Saldo fisik / cek asli', el('div', {}, [fisik, bantuRupiah(fisik)]))]),
     ]),
     selisih,
     el('div', { class: 'row g-2' }, [
@@ -452,7 +452,7 @@ export async function renderFlazzRiwayat(view) {
     editBox.replaceChildren(el('div', { class: 'border rounded p-2 mb-3' }, [
       el('div', { class: 'fw-bold mb-2', text: `Edit ${jenis === 'topup' ? 'top up' : 'tol'} — ${namaKartu(kartuMap().get(row.card_id))}` }),
       el('div', { class: 'row g-2' }, [
-        el('div', { class: 'col-md-3' }, [baris('Nominal', nominal)]),
+        el('div', { class: 'col-md-3' }, [baris('Nominal', el('div', {}, [nominal, bantuRupiah(nominal)]))]),
         el('div', { class: 'col-md-3' }, [baris('Tanggal', tanggal)]),
         el('div', { class: 'col-md-6' }, [baris('Catatan', catatan)]),
         foto ? el('div', { class: 'col-md-6' }, [baris(row.evidence_url ? 'Ganti foto bukti (opsional)' : 'Foto bukti (opsional)', el('div', {}, [foto, pratinjauFoto(foto, row.evidence_url || '')]))]) : null,

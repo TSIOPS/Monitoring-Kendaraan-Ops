@@ -1076,7 +1076,7 @@ Tes pakai `teksSelisihOdo`. **Step 3:** PASS. **Step 4: Commit** `fix(history): 
 
 **Files:** Modify `static/js/ui.js`, `static/js/pages/input.js`, `edit.js`, `flazz.js`; Test `tests/frontend/ui.test.ts`
 
-- [ ] **Step 1: Tes gagal**
+- [x] **Step 1: Tes gagal**
 
 ```ts
 import { teksRupiah } from '../../static/js/ui.js';
@@ -1087,7 +1087,7 @@ it('teksRupiah memformat nominal id-ID', () => {
 });
 ```
 
-- [ ] **Step 2: Implementasi** di `ui.js`:
+- [x] **Step 2: Implementasi** di `ui.js`:
 
 ```js
 export function teksRupiah(nilai) {
@@ -1107,8 +1107,10 @@ export function bantuRupiah(input) {
 }
 ```
 
-- [ ] **Step 3:** Di `input.js`, bungkus field rupiah: `baris('Biaya BBM', bantuRupiah(satuan(f.biaya_bbm, 'Rp')))` — catatan: `bantuRupiah` menerima elemen input; untuk input-group buat `const g = satuan(f.biaya_bbm,'Rp'); f.biaya_bbm.setAttribute('inputmode','numeric');` lalu tempel `teks` di bawah `g`. Terapkan pada `biaya_bbm`, `biaya_toll`, `biaya_bbm_2`, `biaya_toll_2`, dan field nominal top up / saldo fisik di `flazz.js`, field biaya di `edit.js`.
-- [ ] **Step 4:** PASS + verifikasi manual. **Step 5: Commit** `feat(form): bantu baca nominal rupiah`.
+- [x] **Step 3:** Di `input.js`, bungkus field rupiah: `baris('Biaya BBM', bantuRupiah(satuan(f.biaya_bbm, 'Rp')))` — catatan: `bantuRupiah` menerima elemen input; untuk input-group buat `const g = satuan(f.biaya_bbm,'Rp'); f.biaya_bbm.setAttribute('inputmode','numeric');` lalu tempel `teks` di bawah `g`. Terapkan pada `biaya_bbm`, `biaya_toll`, `biaya_bbm_2`, `biaya_toll_2`, dan field nominal top up / saldo fisik di `flazz.js`, field biaya di `edit.js`.
+  - Penyimpangan: `bantuRupiah(input)` **mengembalikan elemen teks** (tidak membungkus input); pemanggil menyusun `baris(label, el('div', {}, [inputAtauInputGroup, bantuRupiah(input)]))` — `barisForm` tetap mengarahkan label ke input di dalam pembungkus. `teksRupiah` juga mengembalikan '' untuk `undefined`. Diterapkan juga pada nominal di form edit riwayat top up/tol Flazz. Pemulihan draft di `input.js` men-dispatch `input` (tidak bubble, jadi tidak memicu simpan draft) pada 4 field biaya agar teks bantu ikut segar.
+- [x] **Step 4:** PASS. **Step 5: Commit** `feat(form): bantu baca nominal rupiah`.
+- [ ] Verifikasi manual: ketik 150000 di Biaya BBM → "= Rp 150.000" muncul; keyboard angka di HP; pulihkan draft → teks bantu terisi. (manual — belum)
 
 ### Task 16: Foto struk boleh dari galeri
 

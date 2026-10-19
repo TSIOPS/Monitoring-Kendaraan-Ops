@@ -1,5 +1,5 @@
 import { get, post, BATAS_WAKTU_FOTO_MS } from '../api.js';
-import { el, fmtDateId, fmtNum, pratinjauFoto, toast, tampilkanGalat, barisForm as baris } from '../ui.js';
+import { el, fmtDateId, fmtNum, pratinjauFoto, toast, tampilkanGalat, barisForm as baris, bantuRupiah } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
 import { bacaDraft, hapusDraft, kunciDraft, simpanDraft } from '../draft.js';
 import { getUser } from '../store.js';
@@ -324,9 +324,9 @@ export async function renderInput(view) {
     el('div', { class: 'form-section-title', text: 'Pengeluaran kartu ke-2' }),
     el('div', { class: 'form-text mb-2', text: 'Dipakai saat satu kartu tidak cukup. Bila nominal diisi tanpa kartu, biaya itu dicatat sebagai tunai.' }),
     el('div', { class: 'row' }, [
-      el('div', { class: 'col-md-3' }, [baris('Nominal BBM (kartu 2)', f.biaya_bbm_2)]),
+      el('div', { class: 'col-md-3' }, [baris('Nominal BBM (kartu 2)', el('div', {}, [f.biaya_bbm_2, bantuRupiah(f.biaya_bbm_2)]))]),
       el('div', { class: 'col-md-3' }, [baris('Kartu Flazz BBM (kartu 2)', f.flazz_card_id_2)]),
-      el('div', { class: 'col-md-3' }, [baris('Nominal tol (kartu 2)', f.biaya_toll_2)]),
+      el('div', { class: 'col-md-3' }, [baris('Nominal tol (kartu 2)', el('div', {}, [f.biaya_toll_2, bantuRupiah(f.biaya_toll_2)]))]),
       el('div', { class: 'col-md-3' }, [baris('Kartu Flazz tol (kartu 2)', f.flazz_card_id_toll_2)]),
     ]),
   ]);
@@ -394,7 +394,7 @@ export async function renderInput(view) {
     seksi('Pembelian BBM', [
       el('div', { class: 'row' }, [
         el('div', { class: 'col-md-3' }, [baris('Jenis BBM', f.jenis_bbm)]),
-        el('div', { class: 'col-md-3' }, [baris('Biaya BBM', satuan(f.biaya_bbm, 'Rp'))]),
+        el('div', { class: 'col-md-3' }, [baris('Biaya BBM', el('div', {}, [satuan(f.biaya_bbm, 'Rp'), bantuRupiah(f.biaya_bbm)]))]),
         el('div', { class: 'col-md-3' }, [baris('Liter BBM', satuan(f.liter_bbm, '', 'L'), 'Otomatis: biaya ÷ harga per liter')]),
         el('div', { class: 'col-md-3' }, [baris('Metode pembayaran', f.metode_pembayaran)]),
       ]),
@@ -405,7 +405,7 @@ export async function renderInput(view) {
     ]),
     seksi('Tol', [
       el('div', { class: 'row' }, [
-        el('div', { class: 'col-md-4' }, [baris('Biaya tol', satuan(f.biaya_toll, 'Rp'))]),
+        el('div', { class: 'col-md-4' }, [baris('Biaya tol', el('div', {}, [satuan(f.biaya_toll, 'Rp'), bantuRupiah(f.biaya_toll)]))]),
         el('div', { class: 'col-md-4' }, [baris('Metode tol', f.metode_toll)]),
         el('div', { class: 'col-md-4' }, [baris('Kartu Flazz (tol)', f.flazz_card_id_toll)]),
       ]),
@@ -619,6 +619,8 @@ export async function renderInput(view) {
       else catatanSupir.textContent = ` Supir ${v.supir.nama_driver} tidak lagi punya jalur BELUM DIISI pada tanggal ini — pilih ulang.`;
     }
     for (const k of FIELD_DRAFT) if (k !== 'tanggal' && v[k] !== undefined && v[k] !== '') f[k].value = v[k];
+    // Teks bantu rupiah hanya diperbarui lewat event 'input' (tidak bubble: tidak memicu simpan draft).
+    for (const k of ['biaya_bbm', 'biaya_toll', 'biaya_bbm_2', 'biaya_toll_2']) f[k].dispatchEvent(new Event('input'));
     for (const k of ['km_awal_broken', 'km_akhir_broken']) if (v[k]) { f[k].checked = true; f[k].dispatchEvent(new Event('change')); }
     if (v.biaya_bbm_2 || v.biaya_toll_2) bukaGrup2();
     hitungUlangLiter();

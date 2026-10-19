@@ -118,3 +118,15 @@ describe('jenisToast', () => {
     expect(jenisToast(undefined)).toBe('info');
   });
 });
+
+describe('teksRupiah', () => {
+  it('teksRupiah memformat nominal id-ID', async () => {
+    const { teksRupiah } = await import('../../static/js/ui.js');
+    expect(teksRupiah('150000')).toBe('= Rp 150.000');
+    expect(teksRupiah('1500000')).toBe('= Rp 1.500.000');
+    expect(teksRupiah('')).toBe('');
+    expect(teksRupiah('abc')).toBe('');
+    expect(teksRupiah(null)).toBe('');
+    expect(teksRupiah(undefined)).toBe('');
+  });
+});

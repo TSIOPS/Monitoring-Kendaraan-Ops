@@ -1,6 +1,6 @@
 import { get, put } from '../api.js';
 import { getRouteParam, pasangPenjagaKeluar } from '../router.js';
-import { el, fmtNum, toast, pratinjauFoto, tampilkanGalat, barisForm as baris } from '../ui.js';
+import { el, fmtNum, toast, pratinjauFoto, tampilkanGalat, barisForm as baris, bantuRupiah } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
 import { hitungLiter, kompresGambar, namaAman, opsiBbm, pesanDigitKm, STRUK_KUALITAS, STRUK_LEBAR, THUMB_KUALITAS, THUMB_LEBAR } from './input.js';
 
@@ -223,21 +223,21 @@ export async function renderEdit(view) {
     el('h3', { class: 'h6 mt-2', text: 'Pembayaran' }),
     el('div', { class: 'row' }, [
       kol(3, baris('Jenis BBM', jenisBbm)),
-      kol(3, baris('Biaya BBM', biayaBbm, 'Kosongkan/0 bila tidak membeli BBM.')),
+      kol(3, baris('Biaya BBM', el('div', {}, [biayaBbm, bantuRupiah(biayaBbm)]), 'Kosongkan/0 bila tidak membeli BBM.')),
       kol(3, baris('Metode pembayaran', metode)),
       kol(3, baris('Kartu Flazz (BBM)', kartu)),
     ]),
     el('div', { class: 'row' }, [
-      kol(4, baris('Biaya tol', biayaTol)),
+      kol(4, baris('Biaya tol', el('div', {}, [biayaTol, bantuRupiah(biayaTol)]))),
       kol(4, baris('Metode tol', metodeTol)),
       kol(4, baris('Kartu Flazz (tol)', kartuTol)),
     ]),
     el('h3', { class: 'h6 mt-2', text: 'Kartu ke-2 (opsional)' }),
     el('div', { class: 'form-text mb-2', text: 'Isi bila laporan memakai 2 kartu. Nominal tanpa kartu dihitung sebagai tunai.' }),
     el('div', { class: 'row' }, [
-      kol(3, baris('Biaya BBM (kartu 2)', biayaBbm2)),
+      kol(3, baris('Biaya BBM (kartu 2)', el('div', {}, [biayaBbm2, bantuRupiah(biayaBbm2)]))),
       kol(3, baris('Kartu Flazz BBM (kartu 2)', kartu2)),
-      kol(3, baris('Biaya tol (kartu 2)', biayaTol2)),
+      kol(3, baris('Biaya tol (kartu 2)', el('div', {}, [biayaTol2, bantuRupiah(biayaTol2)]))),
       kol(3, baris('Kartu Flazz tol (kartu 2)', kartuTol2)),
     ]),
     el('div', { class: 'd-flex gap-2' }, [
