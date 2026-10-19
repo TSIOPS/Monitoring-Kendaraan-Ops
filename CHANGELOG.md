@@ -3,6 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-10-19
+- **UX/Keamanan** — Setelah login pengguna kembali ke halaman yang tadi dibuka (rute disimpan per tab; hanya hash rute internal `#/...` yang diterima sehingga tidak bisa dipakai open redirect); halaman login tidak ditampilkan lagi saat sudah masuk, dan login memakai `location.replace` agar Back tidak kembali ke form login — `static/js/router.js`, `static/js/pages/login.js`
 - **UX** — Konfirmasi sebelum meninggalkan form Input/Edit yang belum disimpan (menu, Batal, tombol Back, reload/tutup tab, klik notifikasi push); simpan Edit kini memakai `location.replace` agar Back tidak kembali ke form lama; pop-up pengingat 16:30 ditunda selama form belum disimpan terbuka — `static/js/router.js`, `static/js/pages/input.js`, `static/js/pages/edit.js`, `static/sw.js`, `static/js/notifikasi.js`
 - **UX** — Form Input Laporan kini menyimpan draft otomatis (per pengguna, 24 jam, tanpa foto) dan memulihkannya setelah reload/sesi habis dengan banner "Isian dari HH:MM dipulihkan" + tombol "Buang draft"; draft dihapus setelah simpan sukses — `static/js/draft.js`, `static/js/pages/input.js`
 - **Keamanan** — Sesi kini sliding: diperpanjang 12 jam penuh saat dipakai setelah lewat separuh umur (ditulis ulang maks sekali per 6 jam), daftar token pengguna ikut diperpanjang sehingga pencabutan sesi tetap berfungsi — `src/auth/sessions.ts`

@@ -27,6 +27,26 @@ export function adaFormTerbuka() {
   return Boolean(penjagaKeluar && penjagaKeluar());
 }
 
+const KUNCI_TUJUAN = 'tujuan-login';
+
+// Hanya hash rute internal ('#/...') yang diterima — mencegah open redirect.
+export function tujuanSetelahLogin(simpanan) {
+  const s = String(simpanan || '');
+  return /^#\/[\w\-/%.]*$/.test(s) && s !== '#/login' ? s : '#/dashboard';
+}
+
+// Ke halaman login sambil mengingat rute yang sedang dibuka (per tab).
+function keLogin(hashSekarang) {
+  try { if (hashSekarang && hashSekarang !== '#/login') sessionStorage.setItem(KUNCI_TUJUAN, hashSekarang); } catch { /* abaikan */ }
+  window.location.hash = '#/login';
+}
+
+export function ambilTujuanLogin() {
+  let s = '';
+  try { s = sessionStorage.getItem(KUNCI_TUJUAN) || ''; sessionStorage.removeItem(KUNCI_TUJUAN); } catch { /* abaikan */ }
+  return tujuanSetelahLogin(s);
+}
+
 export function registerRoute(pattern, loader, options = {}) {
   const names = [];
   // matchRoute membuang '#' dari hash, jadi pola juga harus tanpa '#'.
@@ -76,7 +96,7 @@ async function run(hash) {
   }
 
   if (found.guard && !isLoggedIn()) {
-    window.location.hash = '#/login';
+    keLogin(hash);
     return;
   }
 
@@ -140,7 +160,7 @@ export function startRouter() {
 
 export async function ensureSession() {
   if (!isLoggedIn()) {
-    window.location.hash = '#/login';
+    keLogin(window.location.hash);
     return null;
   }
   try {
@@ -150,7 +170,7 @@ export async function ensureSession() {
     return user;
   } catch (err) {
     if (err.status === 401) clearSession();
-    window.location.hash = '#/login';
+    keLogin(window.location.hash);
     return null;
   }
 }

@@ -795,7 +795,7 @@ git commit -m "feat(router): konfirmasi sebelum meninggalkan form yang belum dis
 - Modify: `static/js/pages/login.js`
 - Test: `tests/frontend/router.test.ts`
 
-- [ ] **Step 1: Tulis tes gagal**
+- [x] **Step 1: Tulis tes gagal**
 
 ```ts
 import { tujuanSetelahLogin } from '../../static/js/router.js';
@@ -814,9 +814,9 @@ describe('tujuanSetelahLogin', () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal.**
+- [x] **Step 2: Jalankan, pastikan gagal.**
 
-- [ ] **Step 3: Implementasi** di `router.js`:
+- [x] **Step 3: Implementasi** di `router.js`:
 
 ```js
 const KUNCI_TUJUAN = 'tujuan-login';
@@ -854,7 +854,7 @@ export function renderLogin(view) {
       location.replace(ambilTujuanLogin()); // replace: tombol Back tidak kembali ke form login
 ```
 
-- [ ] **Step 4: Jalankan tes** → PASS. **Step 5: Commit** `fix(login): kembali ke halaman tujuan setelah login`.
+- [x] **Step 4: Jalankan tes** → PASS. **Step 5: Commit** `fix(login): kembali ke halaman tujuan setelah login`.
 
 ### Task 9: Gagal memuat jalur ditampilkan sebagai galat + Coba lagi (bukan "tidak ada jalur")
 
