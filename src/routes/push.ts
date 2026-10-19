@@ -4,6 +4,7 @@ import type { Env } from '../env';
 import type { AppDeps, SessionUser } from '../deps';
 import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
+import { lihatSemuaCabang } from '../auth/peran';
 import { HttpError, okPayload } from '../utils/http';
 import { todayWib } from '../logic/jalur';
 import { awalRentangTugas, jamTutupWib, ringkasTugas, teksTugas } from '../logic/tugas';
@@ -26,12 +27,12 @@ export function vapidDariEnv(env: Env | undefined): VapidKunci | null {
   }
 }
 
-const isSuper = (u: Pick<SessionUser, 'role'>) => String(u.role).toUpperCase() === 'SUPERADMIN';
 
-// Tugas hari ini + tertunggak 7 hari terakhir dalam cakupan pengguna (PIC: cabangnya; SUPERADMIN: semua).
+// Tugas hari ini + tertunggak 7 hari terakhir dalam cakupan pengguna (PIC: cabangnya; SUPERADMIN & MANAGEMENT: semua).
 export async function tugasUntuk(deps: AppDeps, u: Pick<SessionUser, 'role' | 'cabang'>, tanggal = todayWib()) {
-  const cabang = isSuper(u) ? '' : String(u.cabang || '');
-  if (!isSuper(u) && !cabang) return ringkasTugas([], tanggal);
+  const semua = lihatSemuaCabang(u);
+  const cabang = semua ? '' : String(u.cabang || '');
+  if (!semua && !cabang) return ringkasTugas([], tanggal);
   const rows = await deps.jalur.listRange(awalRentangTugas(tanggal), tanggal, cabang || null);
   return ringkasTugas(rows, tanggal, cabang);
 }
@@ -131,7 +132,7 @@ export async function kirimPengingatHarian(deps: AppDeps, kvDaftar: KvDaftar, va
 
   const cache = new Map<string, number>();
   const hitung = async (s: Langganan) => {
-    const kunci = isSuper(s) ? '*' : s.cabang;
+    const kunci = lihatSemuaCabang(s) ? '*' : s.cabang;
     if (!cache.has(kunci)) {
       const t = await tugasUntuk(deps, { role: s.role, cabang: s.cabang }, tanggal);
       cache.set(kunci, t.laporan + t.rekonsiliasi);

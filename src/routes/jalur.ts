@@ -11,17 +11,16 @@ import { canonicalCardId } from '../logic/laporan';
 import type { FlazzCardRow } from '../db/flazz';
 import * as J from '../logic/jalur';
 import { bolehPakai, isBersama } from '../logic/kendaraan-bersama';
+import { isSuper, lihatSemuaCabang, normalPeran } from '../auth/peran';
 
 // Port JalurOps.js (GAS terbaru). Spec: docs/superpowers/specs/2026-10-06-m8-jalur-pengiriman-design.md
 
 type Ctx = Context<{ Bindings: Env; Variables: AuthVars }>;
 
-const roleOf = (u: SessionUser) => String(u.role || '').toUpperCase();
-const isSuper = (u: SessionUser) => roleOf(u) === 'SUPERADMIN';
 const str = (v: unknown) => String(v ?? '').trim();
 
 function assertMasterAccess(u: SessionUser): void {
-  if (roleOf(u) !== 'SUPERADMIN' && roleOf(u) !== 'PIC CABANG') {
+  if (normalPeran(u) !== 'SUPERADMIN' && normalPeran(u) !== 'PIC CABANG') {
     throw new HttpError(403, 'Akses ditolak: peran tidak dikenali.', 'FORBIDDEN');
   }
 }
@@ -55,9 +54,9 @@ async function readJson(c: Ctx): Promise<Record<string, any>> {
   }
 }
 
-// Cabang yang boleh dilihat: PIC = cabangnya; SUPERADMIN = ?cabang= atau semua (null).
+// Cabang yang boleh dilihat: PIC = cabangnya; SUPERADMIN & MANAGEMENT = ?cabang= atau semua (null).
 function scopeCabang(u: SessionUser, query: string | undefined): string | null {
-  if (isSuper(u)) return str(query) || null;
+  if (lihatSemuaCabang(u)) return str(query) || null;
   return str(u.cabang);
 }
 
@@ -121,7 +120,7 @@ export function jalurRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const akhir = J.tgl10(c.req.query('tanggal_akhir')) || tanggal;
     if (!tanggal) throw new HttpError(400, 'Tanggal wajib diisi.', 'BAD_REQUEST');
     const cabang = scopeCabang(u, c.req.query('cabang'));
-    if (!isSuper(u) && !cabang) return c.json(okPayload({ list: [], created_by: '' }));
+    if (!lihatSemuaCabang(u) && !cabang) return c.json(okPayload({ list: [], created_by: '' }));
 
     const [rows, all] = await Promise.all([deps.jalur.listRange(tanggal, akhir, cabang), deps.master.listAll()]);
     const kendaraan = new Map(all.kendaraan.map((k) => [k.vehicle_id, k]));
@@ -153,7 +152,7 @@ export function jalurRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const tanggal = J.tgl10(c.req.query('tanggal'));
     if (!tanggal) return c.json(okPayload({ list: [] }));
     const cabang = scopeCabang(u, c.req.query('cabang'));
-    if (!isSuper(u) && !cabang) return c.json(okPayload({ list: [] }));
+    if (!lihatSemuaCabang(u) && !cabang) return c.json(okPayload({ list: [] }));
     const rows = await deps.jalur.listForDate(tanggal, cabang);
     return c.json(okPayload({ list: J.driversForDate(rows, tanggal, cabang) }));
   });
@@ -163,7 +162,7 @@ export function jalurRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const u = c.get('user');
     const j = await deps.jalur.findById(c.req.param('id') ?? '');
     if (!j || str(j.is_deleted) === '1') throw new HttpError(404, 'Jadwal tidak ditemukan.', 'NOT_FOUND');
-    assertOwnWarehouse(u, j.kode_cabang, 'Jadwal pengiriman');
+    if (!lihatSemuaCabang(u)) assertOwnWarehouse(u, j.kode_cabang, 'Jadwal pengiriman');
     return c.json(okPayload({ jalur: { ...j, tanggal: J.tgl10(j.tanggal), status: j.status || J.STATUS_BELUM } }));
   });
 

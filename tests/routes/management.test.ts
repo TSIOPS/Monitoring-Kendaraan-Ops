@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { buildApp } from '../../src/app';
 import { authHeaders, fakeEnv, laporanRow, loginAs, makeDeps, memFlazz, memJalur, memLaporan, memMaster, VEHICLE_ROW } from '../helpers';
 import { bolehTulisManagement } from '../../src/auth/middleware';
+import { tugasUntuk } from '../../src/routes/push';
 import type { SessionUser } from '../../src/deps';
 import type { FlazzCardRow } from '../../src/db/flazz';
 import type { JalurFull } from '../../src/logic/jalur';
@@ -166,5 +167,76 @@ describe('MANAGEMENT membaca laporan semua cabang', () => {
     expect((await req(app, 'GET', '/api/dashboard/warnings', tok)).status).toBe(200);
     expect(dipanggil.every((c) => c === '')).toBe(true);
     expect(dipanggil.length).toBeGreaterThan(0);
+  });
+});
+
+describe('MANAGEMENT membaca Flazz, jalur, tugas semua cabang', () => {
+  it('GET /api/flazz/card semua cabang, ?branch_id= menyaring, /card/:id cabang lain 200', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, MGR);
+    const semua = await (await req(app, 'GET', '/api/flazz/card', tok)).json() as any;
+    expect(semua.cards.map((k: any) => k.id).sort()).toEqual(['FLZ-A', 'FLZ-B']);
+    const b = await (await req(app, 'GET', '/api/flazz/card?branch_id=CBG-B', tok)).json() as any;
+    expect(b.cards.map((k: any) => k.id)).toEqual(['FLZ-B']);
+    expect((await req(app, 'GET', '/api/flazz/card/FLZ-B', tok)).status).toBe(200);
+  });
+
+  it('GET /api/flazz/dashboard memuat kartu semua cabang', async () => {
+    const { app, kv, deps } = setup();
+    let filter: unknown = 'belum';
+    const asli = deps.flazz.listCards.bind(deps.flazz);
+    deps.flazz.listCards = async (f?: any) => { if (filter === 'belum') filter = f; return asli(f); };
+    expect((await req(app, 'GET', '/api/flazz/dashboard', await loginAs(kv, MGR))).status).toBe(200);
+    expect(filter).toBeUndefined();
+  });
+
+  it('PIC tetap ditolak membaca kartu cabang lain', async () => {
+    const { app, kv } = setup();
+    expect((await req(app, 'GET', '/api/flazz/card/FLZ-B', await loginAs(kv, PIC))).status).toBe(403);
+  });
+
+  it('topup, tol, reconciliation: MANAGEMENT 200 tanpa dan dengan ?branch_id=; PIC ?branch_id= cabang lain 403', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, MGR);
+    for (const p of ['/api/flazz/topup', '/api/flazz/tol', '/api/flazz/reconciliation']) {
+      expect((await req(app, 'GET', p, tok)).status).toBe(200);
+      expect((await req(app, 'GET', p + '?branch_id=CBG-B', tok)).status).toBe(200);
+      expect((await req(app, 'GET', p + '?branch_id=CBG-B', await loginAs(kv, PIC))).status).toBe(403);
+    }
+  });
+
+  it('GET /api/flazz/reconciliation/preview kartu cabang lain tidak 403 untuk MANAGEMENT, 403 untuk PIC', async () => {
+    const { app, kv } = setup();
+    const m = await req(app, 'GET', '/api/flazz/reconciliation/preview?card_id=FLZ-B', await loginAs(kv, MGR));
+    expect(m.status).not.toBe(403);
+    expect(m.status).toBeLessThan(500);
+    expect((await req(app, 'GET', '/api/flazz/reconciliation/preview?card_id=FLZ-B', await loginAs(kv, PIC))).status).toBe(403);
+  });
+
+  it('GET /api/jalur semua cabang; /api/jalur/:id cabang lain 200', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, MGR);
+    const body = await (await req(app, 'GET', '/api/jalur?tanggal=2026-10-01&tanggal_akhir=2026-10-31', tok)).json() as any;
+    expect(body.list.map((j: any) => j.id).sort()).toEqual(['J-1', 'J-B']);
+    expect((await req(app, 'GET', '/api/jalur/J-B', tok)).status).toBe(200);
+  });
+
+  it('GET /api/jalur/drivers tidak kosong karena cakupan untuk MANAGEMENT', async () => {
+    const { app, kv, deps } = setup();
+    let cabangArg: unknown = 'belum';
+    const asli = deps.jalur.listForDate.bind(deps.jalur);
+    deps.jalur.listForDate = async (t: string, cab: string | null) => { cabangArg = cab; return asli(t, cab); };
+    const res = await req(app, 'GET', '/api/jalur/drivers?tanggal=2026-10-01', await loginAs(kv, MGR));
+    expect(res.status).toBe(200);
+    expect(cabangArg).toBeNull();
+  });
+
+  it('tugasUntuk MANAGEMENT membaca semua cabang (cabang null)', async () => {
+    const { deps } = setup();
+    let cabangArg: unknown = 'belum';
+    const asli = deps.jalur.listRange.bind(deps.jalur);
+    deps.jalur.listRange = async (a: string, b: string, cab: string | null) => { cabangArg = cab; return asli(a, b, cab); };
+    await tugasUntuk(deps, { role: 'MANAGEMENT', cabang: '' }, '2026-10-01');
+    expect(cabangArg).toBeNull();
   });
 });

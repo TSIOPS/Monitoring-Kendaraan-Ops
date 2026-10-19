@@ -4,6 +4,7 @@ import type { Env } from '../env';
 import type { AppDeps, SessionUser } from '../deps';
 import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
+import { isSuper, lihatSemuaCabang } from '../auth/peran';
 import { HttpError, okPayload, reqIp } from '../utils/http';
 import { recomputeJalurForCard } from './jalur';
 import { decodeBase64, extOf } from './laporan';
@@ -24,12 +25,10 @@ import { canonicalCardId, formatIdNumber } from '../logic/laporan';
 
 type Ctx = Context<{ Bindings: Env; Variables: AuthVars }>;
 
-function roleOf(u: SessionUser): string {
-  return String(u.role || '').toUpperCase();
-}
-
-function isSuper(u: SessionUser): boolean {
-  return roleOf(u) === 'SUPERADMIN';
+// Cakupan BACA: SUPERADMIN & MANAGEMENT boleh semua cabang (dengan filter opsional).
+function scopeBaca(u: SessionUser, requested?: unknown): string {
+  if (lihatSemuaCabang(u)) return String(requested ?? '').trim();
+  return scopeBranch(u, requested);
 }
 
 function scopeBranch(u: SessionUser, requested?: unknown): string {
@@ -79,6 +78,14 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const card = await deps.flazz.findCardById(id);
     if (!card) throw new HttpError(404, 'Kartu Flazz tidak ditemukan.', 'NOT_FOUND');
     assertBranch(u, card.branch_id);
+    return card;
+  };
+
+  // Versi baca dari requireCard: MANAGEMENT boleh melihat kartu cabang mana pun.
+  const requireCardBaca = async (id: string, u: SessionUser): Promise<FlazzCardRow> => {
+    const card = await deps.flazz.findCardById(id);
+    if (!card) throw new HttpError(404, 'Kartu Flazz tidak ditemukan.', 'NOT_FOUND');
+    if (!lihatSemuaCabang(u)) assertBranch(u, card.branch_id);
     return card;
   };
 
@@ -142,7 +149,7 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   app.get('/card', async (c: Ctx) => {
     const u = c.get('user');
     const cards = await deps.flazz.listCards({
-      branchId: scopeBranch(u, c.req.query('branch_id')),
+      branchId: scopeBaca(u, c.req.query('branch_id')),
       status: str(c.req.query('status')) || undefined,
       q: str(c.req.query('q')) || undefined,
     });
@@ -151,7 +158,7 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
   app.get('/card/:id', async (c: Ctx) => {
     const u = c.get('user');
-    const card = await requireCard(c.req.param('id') as string, u);
+    const card = await requireCardBaca(c.req.param('id') as string, u);
     return c.json(okPayload({ card }));
   });
 
@@ -265,7 +272,7 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   app.get('/topup', async (c: Ctx) => {
     const u = c.get('user');
     const topups = await deps.flazz.listTopups({
-      branchId: scopeBranch(u, c.req.query('branch_id')),
+      branchId: scopeBaca(u, c.req.query('branch_id')),
       cardId: str(c.req.query('card_id')) || undefined,
       date: str(c.req.query('date')) || undefined,
       isDeleted: str(c.req.query('is_deleted')) === '1',
@@ -374,7 +381,7 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   app.get('/tol', async (c: Ctx) => {
     const u = c.get('user');
     const tols = await deps.flazz.listTols({
-      branchId: scopeBranch(u, c.req.query('branch_id')),
+      branchId: scopeBaca(u, c.req.query('branch_id')),
       cardId: str(c.req.query('card_id')) || undefined,
       date: str(c.req.query('date')) || undefined,
       isDeleted: str(c.req.query('is_deleted')) === '1',
@@ -476,7 +483,7 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   app.get('/reconciliation', async (c: Ctx) => {
     const u = c.get('user');
     const rows = await deps.flazz.listReconciliations({
-      branchId: scopeBranch(u, c.req.query('branch_id')),
+      branchId: scopeBaca(u, c.req.query('branch_id')),
       cardId: str(c.req.query('card_id')) || undefined,
       date: str(c.req.query('date')) || undefined,
       isDeleted: str(c.req.query('is_deleted')) === '1',
@@ -507,7 +514,7 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
   app.get('/reconciliation/preview', async (c: Ctx) => {
     const u = c.get('user');
-    const card = await requireCard(str(c.req.query('card_id')), u);
+    const card = await requireCardBaca(str(c.req.query('card_id')), u);
     const { usage, nums, gate } = await reconContext(card);
     return c.json(okPayload({
       ...gate, ...nums,
@@ -582,7 +589,7 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   // ── GET /api/flazz/dashboard (port getFlazzDashboardData) ─────────────────
   app.get('/dashboard', async (c: Ctx) => {
     const u = c.get('user');
-    const cards = isSuper(u) ? await deps.flazz.listCards() : (u.cabang ? await deps.flazz.listCards({ branchId: u.cabang }) : []);
+    const cards = lihatSemuaCabang(u) ? await deps.flazz.listCards() : (u.cabang ? await deps.flazz.listCards({ branchId: u.cabang }) : []);
     const master = new Map(cards.map((k) => [canonicalCardId(k.id), k.id]));
     const resolve = (raw: unknown) => master.get(canonicalCardId(raw)) ?? null;
     const norm = <T extends { card_id: string }>(list: T[]) =>

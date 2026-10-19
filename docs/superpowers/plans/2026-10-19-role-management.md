@@ -442,7 +442,7 @@ git commit -m "feat(laporan): MANAGEMENT membaca laporan & peringatan semua caba
 - Modify: `src/routes/push.ts` (baris 29-35, 134)
 - Test: `tests/routes/management.test.ts`
 
-- [ ] **Step 1: Tambah tes yang gagal**
+- [x] **Step 1: Tambah tes yang gagal**
 
 ```ts
 import { tugasUntuk } from '../../src/routes/push';
@@ -493,9 +493,9 @@ describe('MANAGEMENT membaca Flazz, jalur, tugas semua cabang', () => {
 
 (Pindahkan baris `import { tugasUntuk } …` ke blok impor di atas file.)
 
-- [ ] **Step 2: Jalankan, pastikan gagal** — `npx vitest run tests/routes/management.test.ts` → FAIL.
+- [x] **Step 2: Jalankan, pastikan gagal** — `npx vitest run tests/routes/management.test.ts` → FAIL.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 `src/routes/flazz.ts`:
 
@@ -562,14 +562,16 @@ export async function tugasUntuk(deps: AppDeps, u: Pick<SessionUser, 'role' | 'c
 const kunci = lihatSemuaCabang(s) ? '*' : s.cabang;
 ```
 
-- [ ] **Step 4: Jalankan** test file → PASS; `npm test` hijau; `npm run typecheck` bersih.
+- [x] **Step 4: Jalankan** test file → PASS; `npm test` hijau; `npm run typecheck` bersih.
 
-- [ ] **Step 5: Centang, CHANGELOG (Fitur), commit**
+- [x] **Step 5: Centang, CHANGELOG (Fitur), commit**
 
 ```bash
 git add src/routes/flazz.ts src/routes/jalur.ts src/routes/push.ts tests/routes/management.test.ts docs/superpowers/plans/2026-10-19-role-management.md CHANGELOG.md
 git commit -m "feat(flazz,jalur): MANAGEMENT membaca kartu, jalur, dan tugas semua cabang"
 ```
+> Catatan implementasi: tes tambahan untuk topup/tol/reconciliation (+ PIC 403 pada filter cabang lain), reconciliation/preview, dan /api/jalur/drivers; `assertMasterAccess` di jalur hanya memakai `normalPeran` (tidak menambah MANAGEMENT).
+
 
 ---
 
