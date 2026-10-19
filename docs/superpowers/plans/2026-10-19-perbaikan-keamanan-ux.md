@@ -216,9 +216,10 @@ git commit -m "fix(auth): rate limit login per akun dan per IP"
 ```
 
 ### Gerbang Fase 1
-- [ ] `npm test && npm run typecheck` hijau
-- [ ] Jalankan **`/security-review`** atas commit Fase 1; perbaiki temuan
-- [ ] Entri CHANGELOG (Keamanan) + update "Catatan keamanan" di README.md (rate limit per akun/IP)
+- [x] `npm test && npm run typecheck` hijau
+- [x] Jalankan **`/security-review`** atas commit Fase 1; perbaiki temuan
+- [x] Entri CHANGELOG (Keamanan) + update "Catatan keamanan" di README.md (rate limit per akun/IP)
+  - Hasil security-review 2026-10-19: tidak ada temuan ≥8. Catatan: username baru berisi `%`/`*` lolos cek unik (tidak bisa login) → Fase 5 #8.
 
 ---
 
