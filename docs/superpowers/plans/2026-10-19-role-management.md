@@ -127,7 +127,7 @@ git commit -m "feat(auth): helper role terpusat termasuk MANAGEMENT"
 - Modify: `src/auth/middleware.ts`
 - Test: `tests/routes/management.test.ts` (baru)
 
-- [ ] **Step 1: Tulis tes yang gagal**
+- [x] **Step 1: Tulis tes yang gagal**
 
 ```ts
 // tests/routes/management.test.ts
@@ -239,12 +239,12 @@ describe('penjaga tulis MANAGEMENT', () => {
 
 Catatan: bila `memJalur`/`jalurRow` butuh field lain, salin persis dari `tests/routes/jalur.test.ts:17-24`.
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `npx vitest run tests/routes/management.test.ts`
 Expected: FAIL — status bukan 403 / pesan berbeda.
 
-- [ ] **Step 3: Implementasi di `src/auth/middleware.ts`**
+- [x] **Step 3: Implementasi di `src/auth/middleware.ts`**
 
 ```ts
 import type { MiddlewareHandler } from 'hono';
@@ -289,16 +289,18 @@ Pastikan semua route tulis memang memakai `requireUser` (via `app.use('*', requi
 `grep -n "requireUser\|app.use" src/routes/*.ts`. Route tanpa sesi (`/api/login`, `/api/logout`, `/api/admin/*`,
 `/api/push/kunci`, `/api/push/ringkasan`) tidak terpengaruh dan memang tidak memakai sesi pengguna.
 
-- [ ] **Step 4: Jalankan, pastikan lolos**
+- [x] **Step 4: Jalankan, pastikan lolos**
 
 Run: `npx vitest run tests/routes/management.test.ts` → PASS. Lalu `npm test` (semua tetap hijau).
 
-- [ ] **Step 5: Centang, CHANGELOG (Keamanan), commit**
+- [x] **Step 5: Centang, CHANGELOG (Keamanan), commit**
 
 ```bash
 git add src/auth/middleware.ts tests/routes/management.test.ts docs/superpowers/plans/2026-10-19-role-management.md CHANGELOG.md
 git commit -m "feat(auth): penjaga tulis terpusat untuk role MANAGEMENT"
 ```
+
+> Catatan implementasi: ditambah tes unit langsung `bolehTulisManagement` (huruf kecil, garis miring akhir, `/api/passwordX`, path traversal, `/api/master`) di `tests/routes/management.test.ts`. Seluruh route tulis ber-sesi sudah di belakang `requireUser` (via `app.use('*')` di flazz/jalur/master atau per-route); `/api/login`, `/api/logout`, `/api/admin/salin-foto` (token migrasi) memang tanpa sesi.
 
 ---
 

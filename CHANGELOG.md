@@ -3,6 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-10-19
+- **Keamanan** — Penjaga tulis terpusat untuk role `MANAGEMENT`: semua metode non-GET dari sesi MANAGEMENT ditolak 403 di `requireUser` ("Akses ditolak: akun MANAGEMENT hanya dapat melihat data."), kecuali `/api/password` dan `/api/push/{langganan,berhenti,tes}` — `src/auth/middleware.ts`, `tests/routes/management.test.ts`
 - **Fitur** — Helper role terpusat `src/auth/peran.ts` (`normalPeran`, `isSuper`, `isManagement`, `lihatSemuaCabang`, `PERAN_VALID`) sebagai dasar role `MANAGEMENT` — `src/auth/peran.ts`
 - **Fitur** — Rencana implementasi role `MANAGEMENT` (11 task: helper peran, penjaga tulis, cakupan baca, frontend, gerbang review, dokumentasi) — `docs/superpowers/plans/2026-10-19-role-management.md`
 - **Fitur** — Spesifikasi role baru `MANAGEMENT` (monitoring read-only semua cabang; penjaga tulis terpusat di `requireUser`) — `docs/superpowers/specs/2026-10-19-role-management-design.md`
