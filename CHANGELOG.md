@@ -3,6 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-10-19
+- **Fitur** — Rencana implementasi role `MANAGEMENT` (11 task: helper peran, penjaga tulis, cakupan baca, frontend, gerbang review, dokumentasi) — `docs/superpowers/plans/2026-10-19-role-management.md`
 - **Fitur** — Spesifikasi role baru `MANAGEMENT` (monitoring read-only semua cabang; penjaga tulis terpusat di `requireUser`) — `docs/superpowers/specs/2026-10-19-role-management-design.md`
 - **UX** — Input Laporan, Edit Transaksi, dan Buat/Edit Jalur yang lambat memuat data (sinyal lemah) tidak lagi menggambar form atau memasang penjaga "belum disimpan" di halaman lain bila pengguna sudah pindah halaman selama memuat (sebelumnya halaman tujuan bisa tertimpa dan pindah halaman berikutnya ditanya tanpa alasan) — `static/js/router.js` (`halamanMasihAktif()`), `static/js/pages/input.js`, `static/js/pages/edit.js`, `static/js/pages/jalur.js`
 - **Perbaikan** — Top Up & Rekonsiliasi Flazz, edit Riwayat Flazz, dan Edit Transaksi yang membawa foto kini memakai batas waktu unggah foto (120 dtk, sebelumnya 30 dtk) sehingga tidak gagal di sinyal lemah; bila Top Up/Rekonsiliasi tetap timeout, galat menambahkan "Mungkin sudah tersimpan di server — cek Riwayat Flazz sebelum mengulang agar saldo tidak tercatat dua kali." (helper `pesanTimeoutSimpan()`, juga dipakai Input Laporan) — `static/js/api.js`, `static/js/pages/flazz.js`, `static/js/pages/edit.js`, `static/js/pages/input.js`
