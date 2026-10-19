@@ -1,5 +1,6 @@
 import { get } from '../api.js';
 import { getUser } from '../store.js';
+import { lihatSemuaCabang } from '../peran.js';
 import { confirmDialog, el, fmtDateId, fmtNum, halaman, navHalaman, toast, idUntukLabel } from '../ui.js';
 import { tanggalWib } from './input.js';
 
@@ -173,10 +174,10 @@ const rp = (n) => `Rp ${fmtNum(n)}`;
 const PER_HALAMAN = 20;
 
 export async function renderRekap(view) {
-  const isSuper = getUser()?.role === 'SUPERADMIN';
+  const semua = lihatSemuaCabang(getUser()?.role); // hanya mengatur filter warehouse
   let cabangList = [];
   try {
-    // Nama warehouse dipakai di filter (SUPERADMIN) dan di file Excel (semua role).
+    // Nama warehouse dipakai di filter (SUPERADMIN/MANAGEMENT) dan di file Excel (semua role).
     const master = await get('/api/master');
     cabangList = Array.isArray(master.cabangList) ? master.cabangList : [];
   } catch (err) {
@@ -291,9 +292,9 @@ export async function renderRekap(view) {
     isi.replaceChildren(el('div', { class: 'text-muted', text: 'Memuat rekap…' }));
     try {
       const q = new URLSearchParams({ dari: dari.value, sampai: sampai.value });
-      if (isSuper && wh.value) q.set('cabang', wh.value);
+      if (semua && wh.value) q.set('cabang', wh.value);
       ({ lines = [] } = await get(`/api/laporan/rekap-pengeluaran?${q}`));
-      filterDimuat = { dari: dari.value, sampai: sampai.value, wh: isSuper ? wh.value : String(getUser()?.cabang || '') };
+      filterDimuat = { dari: dari.value, sampai: sampai.value, wh: semua ? wh.value : String(getUser()?.cabang || '') };
       nomor = 1;
       gambarRingkasan();
       gambarTab();
@@ -306,7 +307,7 @@ export async function renderRekap(view) {
   tombol.addEventListener('click', muat);
   unduh.addEventListener('click', async () => {
     if (!lines.length) { toast('Tidak ada data untuk diunduh.', 'error'); return; }
-    if ((dari.value !== filterDimuat.dari || sampai.value !== filterDimuat.sampai || (isSuper && wh.value !== filterDimuat.wh)) &&
+    if ((dari.value !== filterDimuat.dari || sampai.value !== filterDimuat.sampai || (semua && wh.value !== filterDimuat.wh)) &&
         !confirmDialog(`Filter belum diterapkan. File akan berisi data yang sedang tampil: ${fmtDateId(filterDimuat.dari)} s/d ${fmtDateId(filterDimuat.sampai)}. Lanjut unduh?`)) return;
     unduh.disabled = true;
     try {
@@ -326,10 +327,10 @@ export async function renderRekap(view) {
     el('div', { class: 'panel' }, [
       el('h2', { 'data-judul-halaman': '', class: 'h5 mb-3 pb-2 border-bottom', text: 'Rekap Pengeluaran BBM & Tol' }),
       el('div', { class: 'row g-2 align-items-end' }, [
-        isSuper ? kolom('col-md-3', 'Warehouse', wh) : null,
+        semua ? kolom('col-md-3', 'Warehouse', wh) : null,
         kolom('col-md-3', 'Dari tanggal', dari),
         kolom('col-md-3', 'Sampai tanggal', sampai),
-        el('div', { class: `${isSuper ? 'col-md-3' : 'col-md-6'} d-flex gap-2` }, [tombol, unduh]),
+        el('div', { class: `${semua ? 'col-md-3' : 'col-md-6'} d-flex gap-2` }, [tombol, unduh]),
       ]),
     ]),
     el('div', { class: 'panel' }, [ringkasan, el('div', { class: 'd-flex gap-2 mb-3 flex-wrap' }, tabTombol.map((t) => t.b)), isi]),

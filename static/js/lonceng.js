@@ -1,6 +1,7 @@
 import { get } from './api.js';
 import { getJumlahPeringatan, getUser, setJumlahPeringatan } from './store.js';
 import { el, fmtNum } from './ui.js';
+import { bolehTulis } from './peran.js';
 
 // Lonceng notifikasi bilah atas: tugas hari ini (laporan/rekonsiliasi belum selesai) +
 // Peringatan Dini (pajak/KIR, saldo etoll, ganti oli, odometer estimasi). Data dari
@@ -11,7 +12,8 @@ const LABEL_DOK = { PAJAK: 'Pajak', PAJAK5: 'Pajak 5 tahunan', KIR: 'KIR' };
 const KELAS_STATUS = { LEWAT: 'text-bg-danger', KRITIS: 'text-bg-warning', WASPADA: 'text-bg-info', GANTI_OLI: 'text-bg-danger' };
 
 // Daftar notifikasi siap tampil (murni, diuji). href = halaman tindak lanjut.
-export function susunNotifikasi(warn, tugas) {
+// boleh = false (MANAGEMENT, read-only): tautan ke halaman tulis dialihkan ke halaman baca.
+export function susunNotifikasi(warn, tugas, boleh = true) {
   const out = [];
   for (const t of tugas?.item || []) {
     const lewat = Boolean(t.tanggal && tugas.tanggal && t.tanggal < tugas.tanggal);
@@ -20,7 +22,7 @@ export function susunNotifikasi(warn, tugas) {
       grup: 'Tugas belum selesai', judul: `${t.plat_nomor} — ${t.nama_driver}`,
       ket: `Belum ${perlu}` + (lewat ? ` · jalur ${t.tanggal.slice(8, 10)}/${t.tanggal.slice(5, 7)}` : ''),
       badge: lewat ? 'Tertunggak' : 'Hari ini', kelas: lewat ? 'text-bg-dark' : 'text-bg-danger',
-      href: (t.perlu || []).includes('LAPORAN') ? '#/input' : '#/flazz/rekon',
+      href: !boleh ? '#/flazz' : (t.perlu || []).includes('LAPORAN') ? '#/input' : '#/flazz/rekon',
     });
   }
   for (const r of warn?.pajakKIR || []) {
@@ -32,7 +34,7 @@ export function susunNotifikasi(warn, tugas) {
     });
   }
   for (const c of warn?.saldo || []) {
-    out.push({ grup: 'Saldo etoll rendah', judul: c.card_name || c.card_number, ket: `Saldo Rp ${fmtNum(c.last_balance)}`, badge: '< 100rb', kelas: 'text-bg-warning', href: '#/flazz/topup' });
+    out.push({ grup: 'Saldo etoll rendah', judul: c.card_name || c.card_number, ket: `Saldo Rp ${fmtNum(c.last_balance)}`, badge: '< 100rb', kelas: 'text-bg-warning', href: boleh ? '#/flazz/topup' : '#/flazz' });
   }
   for (const r of warn?.oli || []) {
     out.push({
@@ -51,7 +53,7 @@ let cache = { warn: null, tugas: null, waktu: 0 };
 const pendengar = new Set();
 
 export function jumlahNotifikasi() {
-  return susunNotifikasi(cache.warn, cache.tugas).length;
+  return susunNotifikasi(cache.warn, cache.tugas, bolehTulis(getUser()?.role)).length;
 }
 
 export async function muatLonceng() {
@@ -109,7 +111,7 @@ export function tombolLonceng() {
     badge.textContent = n > 99 ? '99+' : String(n);
     badge.classList.toggle('d-none', !n);
     tombol.title = n ? `${n} notifikasi` : 'Tidak ada notifikasi';
-    const list = susunNotifikasi(cache.warn, cache.tugas);
+    const list = susunNotifikasi(cache.warn, cache.tugas, bolehTulis(getUser()?.role));
     if (!cache.waktu) { isi.replaceChildren(el('div', { class: 'p-3 small text-muted', text: 'Memuat notifikasi…' })); return; }
     if (!list.length) { isi.replaceChildren(el('div', { class: 'p-3 small text-muted text-center', text: 'Tidak ada notifikasi. Semua aman.' })); return; }
     const anak = [];

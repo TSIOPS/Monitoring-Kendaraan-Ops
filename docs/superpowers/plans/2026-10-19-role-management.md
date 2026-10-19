@@ -858,7 +858,7 @@ git commit -m "feat(ui): menu dan rute sesuai role MANAGEMENT"
 **Files:**
 - Modify: `static/js/pages/dashboard.js`, `transaksi.js`, `jalur.js`, `flazz.js`, `master.js`, `performa.js`, `rekap.js`, `perbandingan.js`
 - Test: `tests/frontend/master-helpers.test.ts`
-> Catatan implementasi: Task 9 dikerjakan dalam dua commit (A: master/dashboard/transaksi, B: jalur/flazz/performa/rekap/perbandingan). Penyimpangan kecil: di `transaksi.js` parameter `panelFilter` tetap bernama `isSuper` (variabel `semua` sudah dipakai untuk daftar transaksi), dan `view.replaceChildren` di dashboard memfilter `null` karena DOM asli mengubah null menjadi teks.
+> Catatan implementasi: Task 9 dikerjakan dalam dua commit (A: master/dashboard/transaksi, B: jalur/flazz/performa/rekap/perbandingan). Penyimpangan kecil: di `transaksi.js` parameter `panelFilter` tetap bernama `isSuper` (variabel `semua` sudah dipakai untuk daftar transaksi), dan `view.replaceChildren` di dashboard memfilter `null` karena DOM asli mengubah null menjadi teks. Part B: `lonceng.js` `susunNotifikasi` mendapat argumen ketiga `boleh` (tautan Top Up/Input/Rekon dialihkan ke `#/flazz` untuk MANAGEMENT), dengan tes. Uji manual di browser (`npm run dev`) belum dilakukan oleh agent.
 
 
 - [x] **Step 1: Tes yang gagal untuk form pengguna** (tambahkan di `tests/frontend/master-helpers.test.ts`)
@@ -935,7 +935,7 @@ import { bolehTulis, lihatSemuaCabang } from '../peran.js';
   pemanggil `selAksi(` dan header `'Aksi'` di file ini, lalu bungkus keduanya dengan kondisi yang sama.
 - baris 289: `const isSuper = lihatSemuaCabang(getUser()?.role);` (variabel ini hanya mengatur filter warehouse).
 
-- [ ] **Step 5: `static/js/pages/jalur.js`**
+- [x] **Step 5: `static/js/pages/jalur.js`**
 
 ```js
 import { bolehTulis, lihatSemuaCabang } from '../peran.js';
@@ -946,7 +946,7 @@ const tulis = () => bolehTulis(getUser()?.role);
   mengalihkannya, jadi perilaku SUPERADMIN/PIC tidak berubah).
 - Daftar Jalur: tombol "Buat Jalur" (187) dan kolom Aksi (161 + header 'Aksi') hanya bila `tulis()`.
 
-- [ ] **Step 6: `static/js/pages/flazz.js`**
+- [x] **Step 6: `static/js/pages/flazz.js`**
 
 ```js
 import { bolehTulis, lihatSemuaCabang } from '../peran.js';
@@ -958,7 +958,7 @@ const tulis = () => bolehTulis(getUser()?.role);
 - Riwayat: kolom Aksi top up (523), tol (534), BBM/lepas (544) hanya bila `tulis()` (header 'Aksi' ikut).
   Hapus rekonsiliasi (557, 571) tetap `isSuper()`.
 
-- [ ] **Step 7: `performa.js` (16), `rekap.js` (176), `perbandingan.js` (552)**
+- [x] **Step 7: `performa.js` (16), `rekap.js` (176), `perbandingan.js` (552)**
 
 ```js
 import { lihatSemuaCabang } from '../peran.js';
@@ -972,11 +972,11 @@ if (!lihatSemuaCabang(getUser()?.role)) {
 ```
 Ganti nama variabel `isSuper` → `semua` di performa/rekap agar tidak menyesatkan.
 
-- [ ] **Step 8: Verifikasi** — `npm test` hijau, `npm run typecheck` bersih, dan uji manual di `npm run dev`
+- [x] **Step 8: Verifikasi** — `npm test` hijau, `npm run typecheck` bersih, dan uji manual di `npm run dev`
   dengan akun MANAGEMENT (buat lewat Data Master oleh SUPERADMIN): menu, filter warehouse, tidak ada tombol
   tambah/ubah/hapus, `#/input` dialihkan ke Dashboard.
 
-- [ ] **Step 9: Centang, CHANGELOG (UX), commit**
+- [x] **Step 9: Centang, CHANGELOG (UX), commit**
 
 ```bash
 git add static/js/pages tests/frontend/master-helpers.test.ts docs/superpowers/plans/2026-10-19-role-management.md CHANGELOG.md

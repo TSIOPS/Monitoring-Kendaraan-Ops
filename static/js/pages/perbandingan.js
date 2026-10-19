@@ -1,5 +1,6 @@
 import { get } from '../api.js';
 import { getUser } from '../store.js';
+import { lihatSemuaCabang } from '../peran.js';
 import { el, fmtNum, toast, idUntukLabel } from '../ui.js';
 import { tanggalWib } from './input.js';
 import { awalBulan, bukuExcel, muatSheetJS } from './rekap.js';
@@ -549,8 +550,8 @@ function panelBulanan(ambilMaster) {
 }
 
 export async function renderPerbandingan(view) {
-  if (getUser()?.role !== 'SUPERADMIN') {
-    view.replaceChildren(el('div', { class: 'alert alert-warning', text: 'Perbandingan antar warehouse hanya untuk SUPERADMIN.' }));
+  if (!lihatSemuaCabang(getUser()?.role)) {
+    view.replaceChildren(el('div', { class: 'alert alert-warning', text: 'Perbandingan antar warehouse hanya untuk SUPERADMIN dan MANAGEMENT.' }));
     return { ok: false };
   }
   let masterP = null;

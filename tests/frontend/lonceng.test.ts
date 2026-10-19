@@ -20,6 +20,14 @@ describe('lonceng: susunNotifikasi', () => {
     expect(list[2]!.ket).toBe('Pajak sisa 5 hari · KIR lewat 3 hari');
     expect(list[3]!.ket).toBe('Saldo Rp 38.562');
   });
+  it('read-only (boleh=false): tautan tulis dialihkan ke halaman baca', () => {
+    const list = susunNotifikasi(
+      { saldo: [{ card_name: 'E toll 3', last_balance: 100 }] },
+      { item: [{ plat_nomor: 'D 1', nama_driver: 'A', perlu: ['LAPORAN'] }] },
+      false,
+    );
+    expect(list.map((x) => x.href)).toEqual(['#/flazz', '#/flazz']);
+  });
   it('tanpa data -> kosong', () => {
     expect(susunNotifikasi(null, null)).toEqual([]);
   });

@@ -1,6 +1,7 @@
 import { del, get, post, put } from '../api.js';
 import { getRouteParam, halamanMasihAktif, pasangPenjagaKeluar } from '../router.js';
 import { getUser } from '../store.js';
+import { bolehTulis, lihatSemuaCabang } from '../peran.js';
 import { autoRefresh, confirmDialog, el, fmtDateId, toast, grupAksi, tombolIkon, tombolIkonSekali, tampilkanGalat, barisForm as baris } from '../ui.js';
 import { tanggalWib } from './input.js';
 
@@ -61,7 +62,8 @@ export function indeksBarisGalat(err) {
   return (err || []).map((p) => /^Jalur #(\d+):/.exec(String(p))).filter(Boolean).map((m) => Number(m[1]) - 1);
 }
 
-const isSuper = () => String(getUser()?.role || '').toUpperCase() === 'SUPERADMIN';
+const lihatSemua = () => lihatSemuaCabang(getUser()?.role);
+const tulis = () => bolehTulis(getUser()?.role);
 
 function isiOpsi(select, items, placeholder) {
   select.replaceChildren(el('option', { value: '', text: placeholder }));
@@ -99,7 +101,7 @@ async function muatMaster() {
   };
 }
 
-// Filter warehouse hanya untuk SUPERADMIN; PIC selalu cabangnya sendiri (dibatasi server).
+// Filter warehouse untuk SUPERADMIN dan MANAGEMENT; PIC selalu cabangnya sendiri (dibatasi server).
 function pilihWarehouse(cabangList) {
   const sel = el('select', { class: 'form-select' });
   isiOpsi(sel, cabangList.map((c) => ({ value: c.kode, label: c.nama || c.kode })), 'Semua warehouse');
@@ -134,7 +136,7 @@ export async function renderJalurList(view) {
     diam = diam === true;
     if (!diam) hasil.replaceChildren(el('div', { class: 'text-muted', text: 'Memuat jalur' }));
     const q = new URLSearchParams({ tanggal: dari.value, tanggal_akhir: sampai.value || dari.value });
-    if (isSuper() && wh.value) q.set('cabang', wh.value);
+    if (lihatSemua() && wh.value) q.set('cabang', wh.value);
     let data;
     try {
       data = await get(`/api/jalur?${q}`);
@@ -157,13 +159,13 @@ export async function renderJalurList(view) {
       el('td', {}, [badge(LABEL_STATUS[j.status] || j.status, KELAS_STATUS[j.status])]),
       el('td', {}, [badge(teksDokumen(j.status_pajak, j.sisa_hari_pajak), KELAS_DOKUMEN[j.status_pajak])]),
       el('td', { class: 'small', text: j.created_by || '-' }),
-      el('td', {}, [
+      tulis() ? el('td', {}, [
         grupAksi([tombolIkon('edit', 'Edit jalur', `#/jalur/edit/${encodeURIComponent(j.id)}`), tombolIkonSekali('hapus', 'Hapus jalur', () => hapus(j))]),
-      ]),
+      ]) : null,
     ])));
     hasil.replaceChildren(el('div', { class: 'table-wrap' }, [
       el('table', { class: 'table table-sm align-middle' }, [
-        el('thead', {}, [el('tr', {}, ['Tanggal', 'Kendaraan', 'Driver', 'Rute', 'Etoll', 'Status', 'Pajak', 'Dibuat oleh', 'Aksi'].map((t) => el('th', { text: t })))]),
+        el('thead', {}, [el('tr', {}, ['Tanggal', 'Kendaraan', 'Driver', 'Rute', 'Etoll', 'Status', 'Pajak', 'Dibuat oleh', ...(tulis() ? ['Aksi'] : [])].map((t) => el('th', { text: t })))]),
         tbody,
       ]),
     ]));
@@ -184,12 +186,12 @@ export async function renderJalurList(view) {
     el('div', { class: 'd-flex flex-wrap gap-2 justify-content-between align-items-center mb-3' }, [
       el('h2', { 'data-judul-halaman': '', class: 'h6 m-0', text: 'Daftar Jalur Pengiriman' }),
       el('div', { class: 'd-flex gap-2' }, [
-        el('a', { class: 'btn btn-sm btn-primary', href: '#/jalur/buat', text: 'Buat Jalur' }),
+        tulis() ? el('a', { class: 'btn btn-sm btn-primary', href: '#/jalur/buat', text: 'Buat Jalur' }) : null,
         el('a', { class: 'btn btn-sm btn-outline-secondary', href: '#/jalur/ringkasan', text: 'Ringkasan' }),
       ]),
     ]),
     el('div', { class: 'row g-2 mb-3' }, [
-      isSuper() ? el('div', { class: 'col-md-3' }, [baris('Warehouse', wh)]) : null,
+      lihatSemua() ? el('div', { class: 'col-md-3' }, [baris('Warehouse', wh)]) : null,
       el('div', { class: 'col-md-3' }, [baris('Dari tanggal', dari)]),
       el('div', { class: 'col-md-3' }, [baris('Sampai tanggal', sampai)]),
       el('div', { class: 'col-md-3 d-flex align-items-end mb-3' }, [el('button', { class: 'btn btn-primary', type: 'button', text: 'Tampilkan', onclick: tampilkan })]),
@@ -303,7 +305,7 @@ export async function renderJalurBuat(view) {
   }
 
   function tambahBaris() {
-    const cabang = isSuper() ? wh.value : '';
+    const cabang = lihatSemua() ? wh.value : '';
     const b = formBaris(master, cabang);
     const item = { ...b, node: null, judul: el('div', { class: 'small fw-bold text-muted mb-1' }), hapus: null };
     item.hapus = el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', title: 'Hapus baris', 'aria-label': 'Hapus baris', onclick: () => {
@@ -351,7 +353,7 @@ export async function renderJalurBuat(view) {
   const form = el('form', { novalidate: 'novalidate' }, [
     alertBox,
     el('div', { class: 'row g-2' }, [
-      isSuper() ? el('div', { class: 'col-md-4' }, [baris('Warehouse', wh)]) : null,
+      lihatSemua() ? el('div', { class: 'col-md-4' }, [baris('Warehouse', wh)]) : null,
       el('div', { class: 'col-md-4' }, [baris('Tanggal pengiriman', tanggal)]),
     ]),
     wadah,
@@ -552,7 +554,7 @@ export async function renderJalurRingkasan(view) {
   };
 
   async function tampilkan() {
-    const namaWh = isSuper() && wh.value ? wh.options[wh.selectedIndex]?.text : '';
+    const namaWh = lihatSemua() && wh.value ? wh.options[wh.selectedIndex]?.text : '';
     infoTanggal.textContent = fmtDateId(tanggal.value);
     infoWh.textContent = namaWh || '';
     barisWh.classList.toggle('d-none', !namaWh);
@@ -560,7 +562,7 @@ export async function renderJalurRingkasan(view) {
     kosong.className = 'text-muted';
     kosong.textContent = 'Memuat';
     const q = new URLSearchParams({ tanggal: tanggal.value });
-    if (isSuper() && wh.value) q.set('cabang', wh.value);
+    if (lihatSemua() && wh.value) q.set('cabang', wh.value);
     try {
       const { list = [], created_by: pembuat = '' } = await get(`/api/jalur?${q}`);
       if (!list.length) {
@@ -596,7 +598,7 @@ export async function renderJalurRingkasan(view) {
   view.replaceChildren(el('div', { class: 'panel' }, [
     el('h2', { class: 'h6 mb-3 no-print', 'data-judul-halaman': '', text: 'Ringkasan Jalur Pengiriman' }),
     el('div', { class: 'row g-2 no-print' }, [
-      isSuper() ? el('div', { class: 'col-md-3' }, [baris('Warehouse', wh)]) : null,
+      lihatSemua() ? el('div', { class: 'col-md-3' }, [baris('Warehouse', wh)]) : null,
       el('div', { class: 'col-md-3' }, [baris('Tanggal', tanggal)]),
       el('div', { class: 'col-md-6 d-flex gap-2 align-items-end mb-3' }, [
         el('button', { class: 'btn btn-primary', type: 'button', text: 'Tampilkan', onclick: tampilkan }),

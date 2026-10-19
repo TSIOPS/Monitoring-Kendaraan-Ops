@@ -1,5 +1,6 @@
 import { get } from '../api.js';
 import { getUser } from '../store.js';
+import { lihatSemuaCabang } from '../peran.js';
 import { el, fmtNum, idUntukLabel } from '../ui.js';
 
 const STATUS_KELAS = { 'Sesuai standar': 'bg-success', 'Di bawah standar': 'bg-danger', 'Di atas standar': 'badge-ef-atas' };
@@ -13,11 +14,11 @@ export function saringPerforma(items, kode, cabangList) {
 
 export async function renderPerforma(view) {
   view.replaceChildren(el('div', { class: 'text-muted', text: 'Memuat performa' }));
-  const isSuper = getUser()?.role === 'SUPERADMIN';
+  const semua = lihatSemuaCabang(getUser()?.role); // hanya mengatur filter warehouse
   let items;
   let cabangList = [];
   try {
-    const [perf, master] = await Promise.all([get('/api/laporan/performa'), isSuper ? get('/api/master') : Promise.resolve({})]);
+    const [perf, master] = await Promise.all([get('/api/laporan/performa'), semua ? get('/api/master') : Promise.resolve({})]);
     items = Array.isArray(perf.items) ? perf.items : [];
     cabangList = Array.isArray(master.cabangList) ? master.cabangList : [];
   } catch (err) {
@@ -29,7 +30,7 @@ export async function renderPerforma(view) {
   const isi = el('div', {});
 
   function gambar() {
-    const rows = saringPerforma(items, isSuper ? pilih.value : '', cabangList);
+    const rows = saringPerforma(items, semua ? pilih.value : '', cabangList);
     isi.replaceChildren(rows.length
       ? el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-bordered table-striped table-hover align-middle' }, [
         el('thead', { class: 'table-dark text-center text-nowrap' }, [el('tr', {}, ['Periode Tanggal', 'Warehouse', 'Supir (Trip Terakhir)', 'Kendaraan', 'Total KM Tempuh', 'Total Isi BBM', 'Efisiensi (KM/L)', 'Status Standar'].map((h) => el('th', { text: h })))]),
@@ -53,7 +54,7 @@ export async function renderPerforma(view) {
 
   view.replaceChildren(el('div', { class: 'panel' }, [
     el('h2', { 'data-judul-halaman': '', class: 'h5 mb-3 pb-2 border-bottom', text: 'Ringkasan Performa Kendaraan (Per 7 Trip)' }),
-    isSuper && cabangList.length > 1 ? el('div', { class: 'row mb-3' }, [el('div', { class: 'col-md-4' }, [el('label', { class: 'form-label small fw-bold text-muted text-uppercase', for: idUntukLabel(pilih), text: 'Pilih Warehouse' }), pilih])]) : null,
+    semua && cabangList.length > 1 ? el('div', { class: 'row mb-3' }, [el('div', { class: 'col-md-4' }, [el('label', { class: 'form-label small fw-bold text-muted text-uppercase', for: idUntukLabel(pilih), text: 'Pilih Warehouse' }), pilih])]) : null,
     isi,
   ]));
   gambar();
