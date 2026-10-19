@@ -884,15 +884,16 @@ export function renderLogin(view) {
 - [x] **Step 3: Commit** `fix(input): galat muat jalur dengan tombol coba lagi`.
 
 ### Gerbang Fase 2
-- [ ] `npm test && npm run typecheck` hijau
-- [ ] **`/security-review`** (Task 5 sesi sliding, Task 8 redirect login)
-- [ ] **`/ui-ux-pro-max`** review alur Input & Edit (draft, konfirmasi keluar, galat)
-- [ ] **`/code-review:code-review`** (modul baru `draft.js`, perubahan router)
-- [ ] CHANGELOG (UX + Keamanan) diperbarui
+- [x] `npm test && npm run typecheck` hijau
+- [x] **`/security-review`** (Task 5 sesi sliding, Task 8 redirect login)
+- [x] **`/ui-ux-pro-max`** review alur Input & Edit (draft, konfirmasi keluar, galat)
+- [x] **`/code-review:code-review`** (modul baru `draft.js`, perubahan router)
+- [x] CHANGELOG (UX + Keamanan) diperbarui
   - Perbaikan hasil code-review: sesi sliding hanya diperpanjang bila token masih di `sessu:`, `sessu:` tidak ditulis ulang di `resolveSession`, batas umur 7 hari (`SESSION_MAKS_MS`)
   - Perbaikan hasil code-review: draft Input dibaca sinkron saat render, simpan ditahan sampai pemulihan selesai; `simpanDraft(..., abaikan)` mengabaikan field berdefault
   - Perbaikan hasil code-review: Keluar menghormati penjaga form belum disimpan; abort saat `res.json()` dilaporkan `TIMEOUT`
   - Perbaikan hasil ui-ux review: supir draft tertunda saat jalur gagal dimuat, banner tanggal draft (`teksBannerDraft`), penjaga menyimpan draft seketika, konfirmasi "Buang draft" tanpa reload, retry jalur anti-basi, draft dibuang pada `SUDAH_DILAPORKAN`, pesan timeout kirim, tahap tombol simpan, `keLogin` pakai `location.replace`, konfirmasi Keluar khusus
+  - Hasil gerbang 2026-10-19: security-review lolos (tidak ada temuan ≥8; catatan: jendela propagasi KV ~60 dtk saat pencabutan sesi). Verifikasi manual di browser untuk Task 6–9 masih tertunda.
 
 ---
 
