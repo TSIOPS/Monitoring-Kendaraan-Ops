@@ -90,4 +90,18 @@ describe('history: selisih ODO', () => {
     const { selisihOdo } = await import('../../static/js/pages/transaksi.js');
     expect(selisihOdo({ warning: '' })).toBeNull();
   });
+
+  it('menampilkan angka selisih dari teks warning server', async () => {
+    const { teksSelisihOdo } = await import('../../static/js/pages/transaksi.js');
+    const w = 'SELISIH ODO: KM akhir terakhir 12.300 (5-10-2026), KM awal 12.450, selisih 150 KM - indikasi pemakaian di luar jam kerja';
+    expect(teksSelisihOdo(w)).toBe('Selisih ODO +150 KM');
+  });
+
+  it('selisih negatif dan ribuan tetap terbaca; teks lain jatuh ke label umum', async () => {
+    const { teksSelisihOdo } = await import('../../static/js/pages/transaksi.js');
+    expect(teksSelisihOdo('SELISIH ODO: KM akhir terakhir 12.300 (5-10-2026), KM awal 12.250, selisih -50 KM - indikasi pemakaian di luar jam kerja')).toBe('Selisih ODO -50 KM');
+    expect(teksSelisihOdo('SELISIH ODO: KM akhir terakhir 10.000 (1-10-2026), KM awal 11.500, selisih 1.500 KM - indikasi')).toBe('Selisih ODO +1.500 KM');
+    expect(teksSelisihOdo('peringatan lain')).toBe('Selisih ODO');
+    expect(teksSelisihOdo(null)).toBe('Selisih ODO');
+  });
 });

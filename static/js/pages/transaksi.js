@@ -128,13 +128,17 @@ function pakaiKartu2(r) {
   return Boolean(r.flazz_card_id_2 || r.flazz_card_id_toll_2 || Number(r.biaya_bbm_2) || Number(r.biaya_toll_2));
 }
 
+// Label badge dari teks warning server (buildOdoWarning); teks lain → label umum.
+export function teksSelisihOdo(warning) {
+  const m = String(warning || '').match(/KM akhir terakhir ([\d.,]+) \(([^)]*)\), KM awal ([\d.,]+), selisih (-?[\d.,]+) KM/);
+  return m ? `Selisih ODO ${m[4].startsWith('-') ? '' : '+'}${m[4]} KM` : 'Selisih ODO';
+}
+
 // Selisih KM akhir laporan sebelumnya dengan KM awal laporan ini (teks dari server).
 export function selisihOdo(row) {
   const w = String(row.warning || '');
   if (!w) return null;
-  const m = w.match(/KM akhir terakhir ([d.,]+) (([^)]*)), KM awal ([d.,]+), selisih (-?[d.,]+) KM/);
-  const teks = m ? `Selisih ODO ${m[4].startsWith('-') ? '' : '+'}${m[4]} KM` : 'Selisih ODO';
-  return el('div', {}, [el('span', { class: 'badge text-bg-danger', title: w, text: teks })]);
+  return el('div', {}, [el('span', { class: 'badge text-bg-danger', title: w, text: teksSelisihOdo(w) })]);
 }
 
 function barisTabel(r) {

@@ -1041,7 +1041,7 @@ Ganti `height: 100vh` pada aturan sidebar mobile (sekitar `app.css:557`) menjadi
 
 **Files:** Modify `static/js/pages/transaksi.js:135`; Test `tests/frontend/dashboard-helpers.test.ts`
 
-- [ ] **Step 1: Tes gagal** (di `describe('history: selisih ODO', …)`):
+- [x] **Step 1: Tes gagal** (di `describe('history: selisih ODO', …)`):
 
 ```ts
   it('menampilkan angka selisih dari teks warning server', async () => {
@@ -1054,7 +1054,7 @@ Ganti `height: 100vh` pada aturan sidebar mobile (sekitar `app.css:557`) menjadi
 
 (Jika tes berjalan di node tanpa `document`, ekstrak dulu fungsi murni `teksSelisihOdo(warning)` yang mengembalikan string, tes fungsi itu, dan `selisihOdo` memakainya.)
 
-- [ ] **Step 2: Implementasi**
+- [x] **Step 2: Implementasi**
 
 ```js
 export function teksSelisihOdo(warning) {
@@ -1070,6 +1070,7 @@ export function selisihOdo(row) {
 ```
 
 Tes pakai `teksSelisihOdo`. **Step 3:** PASS. **Step 4: Commit** `fix(history): badge Selisih ODO menampilkan angka`.
+- [x] Step 3–4 selesai (tes `teksSelisihOdo`: format server, selisih negatif, ribuan, teks lain/null).
 
 ### Task 15: Input rupiah — keyboard angka + tampilan terformat
 
