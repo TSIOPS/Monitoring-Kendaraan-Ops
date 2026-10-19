@@ -1,4 +1,5 @@
 # Changelog
+- **UX** — Perbandingan Pengeluaran, tab Bulan vs Bulan: pilihan rentang 3/6/12 bulan diganti perbandingan tetap **bulan lalu vs bulan berjalan**. Tabel per warehouse kini berkolom bulan lalu (penuh), **bulan lalu s.d. tanggal yang sama** (pembanding adil), bulan ini s.d. tanggal hari ini, selisih, %, dan proyeksi; kartu rata-rata diganti "bulan lalu s.d. tgl N"; grafik menampilkan ketiga nilai; Excel menambah kolom pembanding. Diperiksa visual di Chrome (data tiruan); skill /ui-ux-pro-max tidak tersedia di sesi ini sehingga gerbang UI berupa pemeriksaan manual — `static/js/pages/perbandingan.js`, `tests/frontend/perbandingan-helpers.test.ts`
 
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 

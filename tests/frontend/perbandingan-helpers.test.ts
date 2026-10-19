@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as XLSX from 'xlsx';
-import { bandingBulan, bandingkan, daftarBulan, hariDalamBulan, jenisWarehouse, labelBulan, susunExcelBanding, susunExcelBulanan, teksDelta, teksDeltaPersen } from '../../static/js/pages/perbandingan.js';
+import { bandingBulan, bandingkan, bulanPembanding, daftarBulan, kolomBulanan, hariDalamBulan, jenisWarehouse, labelBulan, susunExcelBanding, susunExcelBulanan, teksDelta, teksDeltaPersen } from '../../static/js/pages/perbandingan.js';
 import { bukuExcel } from '../../static/js/pages/rekap.js';
 
 const L = (o: Record<string, unknown>) => ({ kode_cabang: 'BDG', jenis: 'BBM', metode: 'TUNAI', amount: 0, ...o });
@@ -118,12 +118,12 @@ describe('perbandingan bulan vs bulan', () => {
     const wb = XLSX.read(XLSX.write(bukuExcel(XLSX, susunExcelBulanan(b)), { type: 'array', bookType: 'xlsx' }), { type: 'array', cellNF: true });
     expect(wb.SheetNames).toEqual(['Ringkasan', 'Per Warehouse', 'Rinci Bulanan']);
     const m = XLSX.utils.sheet_to_json(wb.Sheets['Per Warehouse']!, { header: 1 }) as any[][];
-    expect(m[0]).toEqual(['No', 'Jenis', 'Warehouse', 'Agu 2026', 'Sep 2026', 'Okt 2026 (berjalan)', 'Total (Rp)', 'Rata-rata/Bulan (Rp)', 'Selisih s.d. tgl 7 (Rp)', 'Selisih (%)', 'Proyeksi Bulan Berjalan (Rp)']);
-    expect(m[1]!.slice(0, 10)).toEqual([1, 'Cabang (Who)', 'Who Bandung', 100000, 500000, 150000, 750000, 300000, -150000, -50]);
-    expect(m[1]![10]).toBeCloseTo((150000 / 7) * 31, 5);
+    expect(m[0]).toEqual(['No', 'Jenis', 'Warehouse', 'Agu 2026', 'Sep 2026', 'Sep 2026 s.d. tgl 7', 'Okt 2026 (berjalan)', 'Total (Rp)', 'Rata-rata/Bulan (Rp)', 'Selisih s.d. tgl 7 (Rp)', 'Selisih (%)', 'Proyeksi Bulan Berjalan (Rp)']);
+    expect(m[1]!.slice(0, 11)).toEqual([1, 'Cabang (Who)', 'Who Bandung', 100000, 500000, 300000, 150000, 750000, 300000, -150000, -50]);
+    expect(m[1]![11]).toBeCloseTo((150000 / 7) * 31, 5);
     expect(m.map((r) => r[2]).slice(3)).toEqual(['Subtotal Cabang (Who)', 'Whp Bandung', 'Subtotal Gudang Pusat (Whp)', 'TOTAL']);
     expect(wb.Sheets['Per Warehouse']!.D2!.z).toBe('#,##0');
-    expect(wb.Sheets['Per Warehouse']!.J2!.z).toBe('0.0"%"');
+    expect(wb.Sheets['Per Warehouse']!.K2!.z).toBe('0.0"%"');
     const r = XLSX.utils.sheet_to_json(wb.Sheets['Rinci Bulanan']!, { header: 1 }) as any[][];
     expect(r).toHaveLength(6);
     expect(r[5]).toEqual(['TOTAL', '', '', 1300000, 250000, 0, 200000, 1750000]);
@@ -145,5 +145,16 @@ describe('perbandingan bulan vs bulan', () => {
     const d = XLSX.utils.sheet_to_json(wb.Sheets['Per Warehouse']!, { header: 1 }) as any[][];
     expect(d[d.length - 1]![2]).toBe('TOTAL');
     expect(d[d.length - 1]![12]).toBe(1000000);
+  });
+});
+
+describe('bulan lalu vs bulan berjalan', () => {
+  it('dua bulan; kolom: bulan lalu penuh, bulan lalu s.d. tgl yang sama, bulan ini s.d. tgl', () => {
+    expect(bulanPembanding('2026-10-19')).toEqual(['2026-09', '2026-10']);
+    expect(bulanPembanding('2026-01-05')).toEqual(['2025-12', '2026-01']);
+    const b = bandingBulan([L({ tanggal: '2026-09-25', amount: 400000 }), L({ tanggal: '2026-09-10', amount: 100000 }), L({ tanggal: '2026-10-08', amount: 250000 })], cabangList, bulanPembanding('2026-10-19'), '2026-10-19');
+    expect(kolomBulanan(b).map((k: any) => k.label)).toEqual(['Sep 2026 (penuh)', 'Sep 2026 s.d. tgl 19', 'Okt 2026 s.d. tgl 19']);
+    const bdg = b.cabang.baris.find((w: any) => w.kode === 'BDG');
+    expect(bdg).toMatchObject({ pembandingTerakhir: 100000, terakhir: 250000, delta: 150000 });
   });
 });
