@@ -1299,7 +1299,7 @@ Tambahkan `'aria-current': 'page'` pada tombol aktif dan `aria-label` "Halaman s
 
 **Files:** Modify `static/js/router.js` (`run`)
 
-- [ ] **Step 1:** Setelah `await page.render(view);`:
+- [x] **Step 1:** Setelah `await page.render(view);`:
 
 ```js
     window.scrollTo?.(0, 0);
@@ -1308,7 +1308,7 @@ Tambahkan `'aria-current': 'page'` pada tombol aktif dan `aria-label` "Halaman s
     if (judul) { judul.setAttribute('tabindex', '-1'); judul.focus({ preventScroll: true }); }
 ```
 
-- [ ] **Step 2: Commit** `fix(router): scroll ke atas, judul & fokus per halaman`.
+- [x] **Step 2: Commit** `fix(router): scroll ke atas, judul & fokus per halaman`.
 
 ### Gerbang Fase 4
 - [ ] `npm test && npm run typecheck` hijau

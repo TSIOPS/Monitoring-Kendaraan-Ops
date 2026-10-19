@@ -76,6 +76,26 @@ export function perluMuatUlang(err) {
   return /does not provide an export named|Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed/i.test(m);
 }
 
+const JUDUL_APLIKASI = 'Monitoring Kendaraan Operasional';
+
+// Setelah halaman digambar: gulir ke atas (halaman baru tidak mewarisi posisi gulir halaman
+// lama), judul tab mengikuti judul halaman, dan fokus pindah ke judul agar pembaca layar tahu
+// halaman berganti. Fokus tidak direbut bila halaman sudah memfokuskan sesuatu sendiri
+// (mis. input username di login, atau kotak galat dari tampilkanGalat) — yaitu bila elemen
+// yang sedang fokus ada di dalam view. Fokus di luar view (tautan menu yang baru diklik) dipindah.
+function setelahRender(view) {
+  if (typeof window.scrollTo === 'function') window.scrollTo(0, 0);
+  const judul = view.querySelector('h1, h2');
+  const teks = judul ? String(judul.textContent || '').trim() : '';
+  document.title = teks ? `${teks} — Monitoring Kendaraan` : JUDUL_APLIKASI;
+  const aktif = document.activeElement;
+  const fokusBebas = !aktif || aktif === document.body || !view.contains(aktif);
+  if (judul && fokusBebas) {
+    judul.setAttribute('tabindex', '-1');
+    judul.focus?.({ preventScroll: true });
+  }
+}
+
 async function run(hash) {
   const view = document.getElementById('view');
   if (!view) return;
@@ -112,6 +132,7 @@ async function run(hash) {
   try {
     const page = await found.loader();
     await page.render(view);
+    if (hashAktif === hash) setelahRender(view);
     try { sessionStorage.removeItem('muat-ulang-versi'); } catch { /* abaikan */ }
   } catch (err) {
     // Aplikasi versi baru sudah dipasang saat halaman ini masih terbuka: modul lama di memori
@@ -130,6 +151,7 @@ async function run(hash) {
     box.className = 'alert alert-danger';
     box.textContent = perluMuatUlang(err) ? 'Aplikasi baru saja diperbarui. Tekan Ctrl+F5 (atau tutup & buka lagi aplikasinya) untuk memuat versi terbaru.' : (err.message || 'Halaman gagal dimuat.');
     view.replaceChildren(box);
+    document.title = JUDUL_APLIKASI;
   }
 }
 
