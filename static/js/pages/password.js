@@ -58,7 +58,7 @@ export async function renderPassword(view) {
   });
 
   view.replaceChildren(el('div', { class: 'panel', style: 'max-width:480px;margin:0 auto' }, [
-    el('h2', { class: 'h5 mb-1', text: 'Ganti Password' }),
+    el('h2', { 'data-judul-halaman': '', class: 'h5 mb-1', text: 'Ganti Password' }),
     el('div', { class: 'text-muted small mb-3', text: `Akun: ${user.username || '-'}${user.nama ? ' (' + user.nama + ')' : ''}` }),
     form,
   ]));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { autofillDariDriver, badgeDokumenRingkasan, indeksBarisGalat, kumpulkanBaris, teksDokumen } from '../../static/js/pages/jalur.js';
+import { autofillDariDriver, badgeDokumenRingkasan, indeksBarisGalat, kumpulkanBaris, pesanGalatEdit, teksDokumen } from '../../static/js/pages/jalur.js';
 
 describe('kumpulkanBaris', () => {
   const lengkap = { driver_id: 'S-1', driver2_id: '', vehicle_id: 'V-1', rute_tujuan: 'Gudang - Toko', etoll_card_id: '', etoll_card_id_2: '' };
@@ -18,7 +18,7 @@ describe('kumpulkanBaris', () => {
   });
 
   it('semua kosong -> minta minimal satu baris', () => {
-    expect(kumpulkanBaris([]).err).toEqual(['Isi minimal satu baris jalur.']);
+    expect(kumpulkanBaris([]).err).toEqual(['Isi minimal satu jalur.']);
   });
 });
 
@@ -86,6 +86,14 @@ describe('indeksBarisGalat', () => {
   });
 
   it('pesan tanpa nomor baris diabaikan', () => {
-    expect(indeksBarisGalat(['Isi minimal satu baris jalur.', 'Tanggal pengiriman wajib diisi.'])).toEqual([]);
+    expect(indeksBarisGalat(['Isi minimal satu jalur.', 'Tanggal pengiriman wajib diisi.'])).toEqual([]);
+  });
+});
+
+describe('pesanGalatEdit', () => {
+  it('membuang awalan "Jalur #1: " dan mengkapitalkan huruf pertama', () => {
+    expect(pesanGalatEdit(['Jalur #1: driver, kendaraan, dan rute wajib diisi.'])).toBe('Driver, kendaraan, dan rute wajib diisi.');
+    expect(pesanGalatEdit(['Jalur #1: kartu etoll ke-2 harus berbeda dari kartu etoll ke-1.'])).toBe('Kartu etoll ke-2 harus berbeda dari kartu etoll ke-1.');
+    expect(pesanGalatEdit(['Isi minimal satu jalur.'])).toBe('Isi minimal satu jalur.');
   });
 });

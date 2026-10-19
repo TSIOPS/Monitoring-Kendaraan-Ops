@@ -104,7 +104,7 @@ export async function renderPengaturan(view, { onTersimpan } = {}) {
 
 
   view.replaceChildren(el('div', { class: 'panel' }, [
-    el('h2', { class: 'h5 mb-3 pb-2 border-bottom', text: 'Pengaturan Aplikasi' }),
+    el('h2', { 'data-judul-halaman': '', class: 'h5 mb-3 pb-2 border-bottom', text: 'Pengaturan Aplikasi' }),
     el('div', { class: 'row g-4' }, [
       el('div', { class: 'col-md-6' }, [el('div', { class: 'form-section h-100 text-center' }, [
         el('div', { class: 'form-section-title text-start', text: 'Logo Aplikasi' }),

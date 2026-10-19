@@ -1,6 +1,6 @@
 import { get } from '../api.js';
 import { getUser } from '../store.js';
-import { el, fmtDateId, fmtNum, halaman, navHalaman, toast, idUntukLabel } from '../ui.js';
+import { confirmDialog, el, fmtDateId, fmtNum, halaman, navHalaman, toast, idUntukLabel } from '../ui.js';
 import { tanggalWib } from './input.js';
 
 // ── Helper murni (diuji) ────────────────────────────────────────────────────
@@ -306,9 +306,8 @@ export async function renderRekap(view) {
   tombol.addEventListener('click', muat);
   unduh.addEventListener('click', async () => {
     if (!lines.length) { toast('Tidak ada data untuk diunduh.', 'error'); return; }
-    if (dari.value !== filterDimuat.dari || sampai.value !== filterDimuat.sampai || (isSuper && wh.value !== filterDimuat.wh)) {
-      toast('Filter belum diterapkan — file berisi periode yang sedang ditampilkan.', 'warning');
-    }
+    if ((dari.value !== filterDimuat.dari || sampai.value !== filterDimuat.sampai || (isSuper && wh.value !== filterDimuat.wh)) &&
+        !confirmDialog(`Filter belum diterapkan. File akan berisi data yang sedang tampil: ${fmtDateId(filterDimuat.dari)} s/d ${fmtDateId(filterDimuat.sampai)}. Lanjut unduh?`)) return;
     unduh.disabled = true;
     try {
       const XLSX = await muatSheetJS();
@@ -325,7 +324,7 @@ export async function renderRekap(view) {
   const kolom = (lebar, label, kontrol) => el('div', { class: lebar }, [el('label', { class: 'form-label small fw-bold text-muted text-uppercase', for: idUntukLabel(kontrol), text: label }), kontrol]);
   view.replaceChildren(
     el('div', { class: 'panel' }, [
-      el('h2', { class: 'h5 mb-3 pb-2 border-bottom', text: 'Rekap Pengeluaran BBM & Tol' }),
+      el('h2', { 'data-judul-halaman': '', class: 'h5 mb-3 pb-2 border-bottom', text: 'Rekap Pengeluaran BBM & Tol' }),
       el('div', { class: 'row g-2 align-items-end' }, [
         isSuper ? kolom('col-md-3', 'Warehouse', wh) : null,
         kolom('col-md-3', 'Dari tanggal', dari),

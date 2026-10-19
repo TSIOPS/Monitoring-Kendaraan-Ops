@@ -247,7 +247,7 @@ export async function renderFlazzList(view) {
   cari.addEventListener('input', tampilkan);
   view.replaceChildren(el('div', { class: 'panel' }, [
     navFlazz('#/flazz'),
-    el('h2', { class: 'h6 mb-3', text: 'List Flazz' }),
+    el('h2', { 'data-judul-halaman': '', class: 'h6 mb-3', text: 'List Flazz' }),
     el('div', { class: 'row g-2 no-print' }, [
       isSuper() ? el('div', { class: 'col-md-3' }, [baris('Warehouse', wh)]) : null,
       el('div', { class: 'col-md-3' }, [baris('Dari tanggal', dari)]),
@@ -310,7 +310,7 @@ export async function renderFlazzTopup(view) {
       simpan.disabled = false;
     }
   });
-  view.replaceChildren(el('div', { class: 'panel' }, [navFlazz('#/flazz/topup'), el('h2', { class: 'h6 mb-3', text: 'Top Up Saldo Flazz' }), form]));
+  view.replaceChildren(el('div', { class: 'panel' }, [navFlazz('#/flazz/topup'), el('h2', { 'data-judul-halaman': '', class: 'h6 mb-3', text: 'Top Up Saldo Flazz' }), form]));
   return { ok: true };
 }
 
@@ -426,7 +426,7 @@ export async function renderFlazzRekon(view) {
       simpan.disabled = false;
     }
   });
-  view.replaceChildren(el('div', { class: 'panel' }, [navFlazz('#/flazz/rekon'), el('h2', { class: 'h6 mb-3', text: 'Pengembalian & Rekonsiliasi' }), form]));
+  view.replaceChildren(el('div', { class: 'panel' }, [navFlazz('#/flazz/rekon'), el('h2', { 'data-judul-halaman': '', class: 'h6 mb-3', text: 'Pengembalian & Rekonsiliasi' }), form]));
   return { ok: true };
 }
 
@@ -487,8 +487,13 @@ export async function renderFlazzRiwayat(view) {
       ]),
     ]);
     editBox.replaceChildren(kotakEdit);
-    // Form edit ada di atas tabel; di HP baris yang diklik bisa jauh di bawah.
-    kotakEdit.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    // Form edit ada di atas tabel; di HP baris yang diklik bisa jauh di bawah. Jarak atas =
+    // tinggi topbar agar judul form tidak tertutup; fokus ke nominal agar langsung bisa diubah.
+    const tinggiTopbar = document.getElementById('topbar-slot')?.offsetHeight || 0;
+    kotakEdit.style.scrollMarginTop = `${tinggiTopbar + 8}px`;
+    const kurangiGerak = typeof globalThis.matchMedia === 'function' && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    kotakEdit.scrollIntoView({ block: 'start', behavior: kurangiGerak ? 'auto' : 'smooth' });
+    nominal.focus({ preventScroll: true });
   }
 
   const hapus = (pesan, path) => aman(async () => {
@@ -579,7 +584,7 @@ export async function renderFlazzRiwayat(view) {
   for (const ctl of [wh, dari, sampai]) ctl.addEventListener('change', gambar);
   view.replaceChildren(el('div', { class: 'panel' }, [
     navFlazz('#/flazz/riwayat'),
-    el('h2', { class: 'h6 mb-3', text: 'Riwayat Flazz' }),
+    el('h2', { 'data-judul-halaman': '', class: 'h6 mb-3', text: 'Riwayat Flazz' }),
     el('div', { class: 'row g-2' }, [
       isSuper() ? el('div', { class: 'col-md-4' }, [baris('Warehouse', wh)]) : null,
       el('div', { class: 'col-md-4' }, [baris('Dari tanggal', dari)]),

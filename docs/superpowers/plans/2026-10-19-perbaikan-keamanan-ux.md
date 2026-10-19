@@ -1313,6 +1313,8 @@ Tambahkan `'aria-current': 'page'` pada tombol aktif dan `aria-label` "Halaman s
 ### Gerbang Fase 4
 - [ ] `npm test && npm run typecheck` hijau
 - [ ] **`/ui-ux-pro-max`** review alur Flazz, Rekap, Jalur, History
+  - Perbaikan hasil ui-ux review: judul tab & target fokus router dari `[data-judul-halaman]` (dipasang di judul utama tiap halaman; Dashboard h1 `visually-hidden`, Ringkasan Jalur kini berjudul), jumlah "(N)" dibuang & satu nama aplikasi (`judulDokumen`); judul berfokus tanpa outline; hapus baris jalur berisi minta konfirmasi, tombol berlabel "Hapus Jalur #N", pesan "Isi minimal satu jalur."; form edit riwayat Flazz digulir dengan `scrollMarginTop` setinggi topbar, hormati kurangi gerak, fokus ke nominal; wording "Jalur diperbarui."/"Belum ada jalur pengiriman", galat edit jalur berhuruf kapital (`pesanGalatEdit`); unduh rekap dengan filter belum diterapkan kini konfirmasi berisi periode yang tampil
+  - Ditunda ke Fase 5: tanda galat per baris jalur (aria-invalid/teks), role=status gate rekon + hint usulan, pagination sempit di 360px & fokus setelah ganti halaman, scroll sebelum render, fmtDateId dengan nol di depan
 - [ ] CHANGELOG diperbarui
 
 ---

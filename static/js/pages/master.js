@@ -347,7 +347,7 @@ export async function renderMaster(view) {
   wh.addEventListener('change', gambar);
   cari.addEventListener('input', gambar);
   view.replaceChildren(el('div', { class: 'panel' }, [
-    el('h2', { class: 'h6 mb-3', text: 'Data Master' }),
+    el('h2', { 'data-judul-halaman': '', class: 'h6 mb-3', text: 'Data Master' }),
     barTab,
     el('div', { class: 'row g-2 mb-2' }, [
       isSuper() ? el('div', { class: 'col-md-3' }, [wh]) : null,

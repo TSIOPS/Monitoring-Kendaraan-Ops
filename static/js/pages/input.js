@@ -759,6 +759,6 @@ export async function renderInput(view) {
     }
   });
 
-  view.replaceChildren(el('div', { class: 'panel' }, [el('h2', { class: 'h6 mb-3', text: 'Input Laporan Harian' }), form]));
+  view.replaceChildren(el('div', { class: 'panel' }, [el('h2', { 'data-judul-halaman': '', class: 'h6 mb-3', text: 'Input Laporan Harian' }), form]));
   return { ok: true };
 }

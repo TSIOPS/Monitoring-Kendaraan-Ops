@@ -301,6 +301,6 @@ export async function renderEdit(view) {
     }
   });
 
-  view.replaceChildren(el('div', { class: 'panel' }, [el('h2', { class: 'h6 mb-3', text: 'Edit Transaksi' }), form]));
+  view.replaceChildren(el('div', { class: 'panel' }, [el('h2', { 'data-judul-halaman': '', class: 'h6 mb-3', text: 'Edit Transaksi' }), form]));
   return { ok: true };
 }

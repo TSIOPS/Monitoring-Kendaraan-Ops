@@ -52,7 +52,7 @@ export async function renderPerforma(view) {
   pilih.addEventListener('change', gambar);
 
   view.replaceChildren(el('div', { class: 'panel' }, [
-    el('h2', { class: 'h5 mb-3 pb-2 border-bottom', text: 'Ringkasan Performa Kendaraan (Per 7 Trip)' }),
+    el('h2', { 'data-judul-halaman': '', class: 'h5 mb-3 pb-2 border-bottom', text: 'Ringkasan Performa Kendaraan (Per 7 Trip)' }),
     isSuper && cabangList.length > 1 ? el('div', { class: 'row mb-3' }, [el('div', { class: 'col-md-4' }, [el('label', { class: 'form-label small fw-bold text-muted text-uppercase', for: idUntukLabel(pilih), text: 'Pilih Warehouse' }), pilih])]) : null,
     isi,
   ]));

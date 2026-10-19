@@ -53,3 +53,19 @@ describe('tujuanSetelahLogin', () => {
     expect(tujuanSetelahLogin(null)).toBe('#/dashboard');
   });
 });
+
+describe('judulDokumen', () => {
+  it('judul halaman + nama aplikasi; jumlah di akhir dibuang', async () => {
+    const { judulDokumen } = await import('../../static/js/router.js');
+    expect(judulDokumen('Rekap Pengeluaran BBM & Tol')).toBe('Rekap Pengeluaran BBM & Tol — Monitoring Kendaraan Operasional');
+    expect(judulDokumen('  Riwayat Operasional (12) ')).toBe('Riwayat Operasional — Monitoring Kendaraan Operasional');
+    expect(judulDokumen('Pajak (5 Tahunan) Kendaraan')).toBe('Pajak (5 Tahunan) Kendaraan — Monitoring Kendaraan Operasional');
+  });
+
+  it('tanpa judul -> nama aplikasi saja', async () => {
+    const { judulDokumen } = await import('../../static/js/router.js');
+    expect(judulDokumen('')).toBe('Monitoring Kendaraan Operasional');
+    expect(judulDokumen(null)).toBe('Monitoring Kendaraan Operasional');
+    expect(judulDokumen(' (3) ')).toBe('Monitoring Kendaraan Operasional');
+  });
+});

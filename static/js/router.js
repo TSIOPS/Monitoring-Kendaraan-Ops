@@ -78,6 +78,13 @@ export function perluMuatUlang(err) {
 
 const JUDUL_APLIKASI = 'Monitoring Kendaraan Operasional';
 
+// Judul tab: "<judul halaman> — Monitoring Kendaraan Operasional". Jumlah di akhir judul
+// (mis. "Riwayat Operasional (12)") dibuang agar judul tab tidak berubah tiap filter.
+export function judulDokumen(teks) {
+  const judul = String(teks ?? '').trim().replace(/\s*\(\d+\)$/, '').trim();
+  return judul ? `${judul} — ${JUDUL_APLIKASI}` : JUDUL_APLIKASI;
+}
+
 // Setelah halaman digambar: gulir ke atas (halaman baru tidak mewarisi posisi gulir halaman
 // lama), judul tab mengikuti judul halaman, dan fokus pindah ke judul agar pembaca layar tahu
 // halaman berganti. Fokus tidak direbut bila halaman sudah memfokuskan sesuatu sendiri
@@ -85,9 +92,9 @@ const JUDUL_APLIKASI = 'Monitoring Kendaraan Operasional';
 // yang sedang fokus ada di dalam view. Fokus di luar view (tautan menu yang baru diklik) dipindah.
 function setelahRender(view) {
   if (typeof window.scrollTo === 'function') window.scrollTo(0, 0);
-  const judul = view.querySelector('h1, h2');
-  const teks = judul ? String(judul.textContent || '').trim() : '';
-  document.title = teks ? `${teks} — Monitoring Kendaraan` : JUDUL_APLIKASI;
+  // Judul utama ditandai data-judul-halaman (h2 pertama bisa saja judul panel ringkasan).
+  const judul = view.querySelector('[data-judul-halaman]') || view.querySelector('h1, h2');
+  document.title = judulDokumen(judul ? judul.textContent : '');
   const aktif = document.activeElement;
   const fokusBebas = !aktif || aktif === document.body || !view.contains(aktif);
   if (judul && fokusBebas) {

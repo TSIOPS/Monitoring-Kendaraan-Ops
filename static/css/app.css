@@ -688,3 +688,7 @@ body.tanpa-sidebar .sidebar, body.tanpa-sidebar .sidebar-latar { display: none; 
    teks sekunder putih 85% tetap ≥4.5:1 di atasnya (text-white-50 hanya ~2:1). */
 .bg-utama-gelap { background-color: var(--warna-utama-gelap) !important; }
 .teks-putih-redup { color: rgba(255, 255, 255, 0.85); }
+
+/* Judul halaman difokuskan router (tabindex=-1) agar pembaca layar mengumumkan halaman baru;
+   bukan elemen interaktif, jadi tanpa cincin fokus. */
+h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus, [data-judul-halaman]:focus { outline: none; }

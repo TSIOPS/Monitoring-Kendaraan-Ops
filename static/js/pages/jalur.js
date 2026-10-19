@@ -46,8 +46,14 @@ export function kumpulkanBaris(rows) {
     }
     valid.push(r);
   });
-  if (!valid.length && !err.length) err.push('Isi minimal satu baris jalur.');
+  if (!valid.length && !err.length) err.push('Isi minimal satu jalur.');
   return { valid, err };
+}
+
+// Form edit hanya satu jalur: awalan "Jalur #1: " tidak perlu, kalimat diawali huruf kapital.
+export function pesanGalatEdit(err) {
+  const s = (err || []).join(' ').replace('Jalur #1: ', '');
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 // Indeks (0-based) baris yang disebut pesan galat kumpulkanBaris ("Jalur #N: …"), untuk menandai kartunya.
@@ -176,7 +182,7 @@ export async function renderJalurList(view) {
 
   view.replaceChildren(el('div', { class: 'panel' }, [
     el('div', { class: 'd-flex flex-wrap gap-2 justify-content-between align-items-center mb-3' }, [
-      el('h2', { class: 'h6 m-0', text: 'Daftar Jalur Pengiriman' }),
+      el('h2', { 'data-judul-halaman': '', class: 'h6 m-0', text: 'Daftar Jalur Pengiriman' }),
       el('div', { class: 'd-flex gap-2' }, [
         el('a', { class: 'btn btn-sm btn-primary', href: '#/jalur/buat', text: 'Buat Jalur' }),
         el('a', { class: 'btn btn-sm btn-outline-secondary', href: '#/jalur/ringkasan', text: 'Ringkasan' }),
@@ -282,7 +288,11 @@ export async function renderJalurBuat(view) {
 
   // Nomor "Jalur #N" mengikuti urutan baris yang tersisa = nomor pada pesan galat kumpulkanBaris.
   function nomori() {
-    daftar.forEach((d, i) => { d.judul.textContent = `Jalur #${i + 1}`; });
+    daftar.forEach((d, i) => {
+      d.judul.textContent = `Jalur #${i + 1}`;
+      d.hapus.setAttribute('aria-label', `Hapus Jalur #${i + 1}`);
+      d.hapus.title = `Hapus Jalur #${i + 1}`;
+    });
   }
   function tandaiGalat(indeks = []) {
     daftar.forEach((d, i) => d.node.classList.toggle('border-danger', indeks.includes(i)));
@@ -291,7 +301,16 @@ export async function renderJalurBuat(view) {
   function tambahBaris() {
     const cabang = isSuper() ? wh.value : '';
     const b = formBaris(master, cabang);
-    const item = { ...b, node: null, judul: el('div', { class: 'small fw-bold text-muted mb-1' }) };
+    const item = { ...b, node: null, judul: el('div', { class: 'small fw-bold text-muted mb-1' }), hapus: null };
+    item.hapus = el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', title: 'Hapus baris', 'aria-label': 'Hapus baris', onclick: () => {
+      // Baris berisi isian dibuang hanya setelah dikonfirmasi; baris kosong langsung dihapus.
+      const nomor = daftar.indexOf(item) + 1;
+      if (Object.values(item.ambil()).some(Boolean) && !confirmDialog(`Hapus Jalur #${nomor} beserta isiannya?`)) return;
+      daftar = daftar.filter((x) => x !== item);
+      item.node.remove();
+      tandaiGalat();
+      nomori();
+    } }, [el('i', { class: 'bi bi-trash', 'aria-hidden': 'true' })]);
     item.node = el('div', { class: 'border rounded p-2 mb-2' }, [
       item.judul,
       el('div', { class: 'row g-2' }, [
@@ -301,14 +320,7 @@ export async function renderJalurBuat(view) {
         el('div', { class: 'col-md-4' }, [baris('Rute tujuan', b.f.rute_tujuan)]),
         el('div', { class: 'col-md-3' }, [baris('Kartu etoll 1', b.f.etoll_card_id)]),
         el('div', { class: 'col-md-3' }, [baris('Kartu etoll 2', b.f.etoll_card_id_2)]),
-        el('div', { class: 'col-md-2 d-flex align-items-end mb-3' }, [
-          el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', title: 'Hapus baris', 'aria-label': 'Hapus baris', onclick: () => {
-            daftar = daftar.filter((x) => x !== item);
-            item.node.remove();
-            tandaiGalat();
-            nomori();
-          } }, [el('i', { class: 'bi bi-trash', 'aria-hidden': 'true' })]),
-        ]),
+        el('div', { class: 'col-md-2 d-flex align-items-end mb-3' }, [item.hapus]),
       ]),
     ]);
     daftar.push(item);
@@ -376,7 +388,7 @@ export async function renderJalurBuat(view) {
   });
 
   tambahBaris();
-  view.replaceChildren(el('div', { class: 'panel' }, [el('h2', { class: 'h6 mb-3', text: 'Buat Jalur Pengiriman' }), form]));
+  view.replaceChildren(el('div', { class: 'panel' }, [el('h2', { 'data-judul-halaman': '', class: 'h6 mb-3', text: 'Buat Jalur Pengiriman' }), form]));
   return { ok: true };
 }
 
@@ -425,13 +437,13 @@ export async function renderJalurEdit(view) {
     const v = b.ambil();
     const { err } = kumpulkanBaris([v]);
     if (err.length) {
-      tampilkanGalat(alertBox, err.join(' ').replace('Jalur #1: ', ''));
+      tampilkanGalat(alertBox, pesanGalatEdit(err));
       return;
     }
     simpan.disabled = true;
     try {
       const res = await put(`/api/jalur/${encodeURIComponent(id)}`, { tanggal: tanggal.value, ...v });
-      toast(res.msg || 'Jadwal diperbarui.', 'success');
+      toast(res.msg || 'Jalur diperbarui.', 'success');
       formDiubah = false; // sebelum pindah agar penjaga tidak bertanya
       window.location.hash = '#/jalur';
     } catch (e) {
@@ -441,7 +453,7 @@ export async function renderJalurEdit(view) {
   });
 
   view.replaceChildren(el('div', { class: 'panel' }, [
-    el('h2', { class: 'h6 mb-1', text: 'Edit Jalur Pengiriman' }),
+    el('h2', { 'data-judul-halaman': '', class: 'h6 mb-1', text: 'Edit Jalur Pengiriman' }),
     el('div', { class: 'small text-muted mb-3', text: `Status: ${LABEL_STATUS[jalur.status] || jalur.status}` }),
     form,
   ]));
@@ -544,7 +556,7 @@ export async function renderJalurRingkasan(view) {
     try {
       const { list = [], created_by: pembuat = '' } = await get(`/api/jalur?${q}`);
       if (!list.length) {
-        kosong.textContent = `Belum ada jadwal pengiriman pada ${fmtDateId(tanggal.value)}.`;
+        kosong.textContent = `Belum ada jalur pengiriman pada ${fmtDateId(tanggal.value)}.`;
         return;
       }
       kosong.className = 'd-none';
@@ -574,6 +586,7 @@ export async function renderJalurRingkasan(view) {
 
 
   view.replaceChildren(el('div', { class: 'panel' }, [
+    el('h2', { class: 'h6 mb-3 no-print', 'data-judul-halaman': '', text: 'Ringkasan Jalur Pengiriman' }),
     el('div', { class: 'row g-2 no-print' }, [
       isSuper() ? el('div', { class: 'col-md-3' }, [baris('Warehouse', wh)]) : null,
       el('div', { class: 'col-md-3' }, [baris('Tanggal', tanggal)]),

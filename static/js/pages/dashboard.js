@@ -79,6 +79,8 @@ export async function renderDashboard(view) {
   const tanggal = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Jakarta' });
   // Hijau gelap + teks putih penuh: teks kecil di hijau utama (#208b3a) hanya ~4,4:1, text-white-50 ~2:1.
   const salam = el('div', { class: 'rounded-3 bg-utama-gelap text-white p-4 mb-3 shadow-sm' }, [
+    // Judul halaman untuk tab & pembaca layar; sapaan tetap tampil sebagai teks besar.
+    el('h1', { class: 'visually-hidden', 'data-judul-halaman': '', text: 'Dashboard' }),
     el('div', { class: 'h4 fw-bold mb-1', text: `${sapaan(jamWib())}${user.nama ? ', ' + user.nama : ''}!` }),
     el('div', { class: 'teks-putih-redup', text: tanggal }),
   ]);
