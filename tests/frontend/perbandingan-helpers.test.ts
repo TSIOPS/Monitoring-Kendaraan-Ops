@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as XLSX from 'xlsx';
-import { bandingBulan, bandingkan, bulanPembanding, daftarBulan, kolomBulanan, hariDalamBulan, jenisWarehouse, labelBulan, susunExcelBanding, susunExcelBulanan, teksDelta, teksDeltaPersen } from '../../static/js/pages/perbandingan.js';
+import { bandingkan, bandingRentang, cekRentangBanding, daftarBulan, hariDalamBulan, jenisWarehouse, labelBulan, labelRentang, mundurSebulan, periodeLalu, susunExcelBanding, susunExcelRentang, teksDelta, teksDeltaPersen } from '../../static/js/pages/perbandingan.js';
 import { bukuExcel } from '../../static/js/pages/rekap.js';
 
 const L = (o: Record<string, unknown>) => ({ kode_cabang: 'BDG', jenis: 'BBM', metode: 'TUNAI', amount: 0, ...o });
@@ -72,38 +72,6 @@ describe('perbandingan bulan vs bulan', () => {
     expect([hariDalamBulan('2026-02'), hariDalamBulan('2024-02'), hariDalamBulan('2026-10')]).toEqual([28, 29, 31]);
   });
 
-  it('total per bulan, rata-rata bulan penuh, selisih periode sama, proyeksi, warehouse nonaktif dilewati', () => {
-    const b = bandingBulan(baris, cabangList, bulan, HARI);
-    expect(b.berjalan).toBe(true);
-    expect(b.diabaikan).toBe(1);
-    const bdg = b.cabang.baris.find((w: any) => w.kode === 'BDG');
-    expect(bdg.per).toEqual({ '2026-08': 100000, '2026-09': 500000, '2026-10': 150000 });
-    expect(bdg.rinci['2026-09']).toMatchObject({ bbmEtoll: 300000, tolTunai: 200000, total: 500000 });
-    expect(bdg).toMatchObject({ total: 750000, rata: 300000, terakhir: 150000, pembandingTerakhir: 300000, delta: -150000, deltaPersen: -50 });
-    expect(bdg.proyeksi).toBeCloseTo((150000 / 7) * 31, 5);
-    const tsm = b.cabang.baris.find((w: any) => w.kode === 'TSM');
-    expect(tsm).toMatchObject({ total: 0, delta: 0, deltaPersen: null, proyeksi: 0 });
-    expect(b.pusat.baris[0]).toMatchObject({ nama: 'Whp Bandung', delta: -1000000, deltaPersen: -100 });
-    expect(b.cabang.sub).toMatchObject({ nama: 'Subtotal Cabang (Who)', total: 750000, delta: -150000 });
-    expect(b.total).toMatchObject({ nama: 'TOTAL', total: 1750000, pembandingTerakhir: 1300000, delta: -1150000 });
-    expect(b.total.deltaPersen).toBeCloseTo(-88.46, 1);
-    expect(b.total.per['2026-09']).toBe(1500000);
-  });
-
-  it('bulan awal tanpa data dipangkas dan tidak dihitung sebagai 0 pada rata-rata', () => {
-    const b = bandingBulan(baris.filter((l: any) => l.tanggal >= '2026-09-01' && l.kode_cabang !== 'CMS'), cabangList, daftarBulan(HARI, 6), HARI);
-    expect(b.bulan).toEqual(['2026-09', '2026-10']);
-    const bdg = b.cabang.baris.find((w: any) => w.kode === 'BDG');
-    expect(bdg.rata).toBe(500000); // hanya September (bulan penuh); Mei–Agu tidak dihitung
-    expect(b.total.rata).toBe(1500000);
-  });
-
-  it('hanya bulan berjalan yang punya data: rata-rata 0 (belum ada bulan penuh), tanpa pembanding', () => {
-    const b = bandingBulan([L({ tanggal: '2026-10-05', amount: 150000 })], cabangList, daftarBulan(HARI, 6), HARI);
-    expect(b.bulan).toEqual(['2026-10']);
-    expect(b.total).toMatchObject({ rata: 0, delta: 0, deltaPersen: null, total: 150000 });
-  });
-
   it('format selisih: naik +, turun −, tanpa pembanding "-"', () => {
     expect(teksDelta(1500000)).toBe('+Rp 1.500.000');
     expect(teksDelta(-250000)).toBe('−Rp 250.000');
@@ -111,26 +79,6 @@ describe('perbandingan bulan vs bulan', () => {
     expect(teksDeltaPersen(12.34)).toBe('+12,3%');
     expect(teksDeltaPersen(-50)).toBe('−50%');
     expect(teksDeltaPersen(null)).toBe('-');
-  });
-
-  it('Excel bulanan: 3 sheet, angka berformat ribuan & persen, subtotal/total, filter rinci', () => {
-    const b = bandingBulan(baris, cabangList, bulan, HARI);
-    const wb = XLSX.read(XLSX.write(bukuExcel(XLSX, susunExcelBulanan(b)), { type: 'array', bookType: 'xlsx' }), { type: 'array', cellNF: true });
-    expect(wb.SheetNames).toEqual(['Ringkasan', 'Per Warehouse', 'Rinci Bulanan']);
-    const m = XLSX.utils.sheet_to_json(wb.Sheets['Per Warehouse']!, { header: 1 }) as any[][];
-    expect(m[0]).toEqual(['No', 'Jenis', 'Warehouse', 'Agu 2026', 'Sep 2026', 'Sep 2026 s.d. tgl 7', 'Okt 2026 (berjalan)', 'Total (Rp)', 'Rata-rata/Bulan (Rp)', 'Selisih s.d. tgl 7 (Rp)', 'Selisih (%)', 'Proyeksi Bulan Berjalan (Rp)']);
-    expect(m[1]!.slice(0, 11)).toEqual([1, 'Cabang (Who)', 'Who Bandung', 100000, 500000, 300000, 150000, 750000, 300000, -150000, -50]);
-    expect(m[1]![11]).toBeCloseTo((150000 / 7) * 31, 5);
-    expect(m.map((r) => r[2]).slice(3)).toEqual(['Subtotal Cabang (Who)', 'Whp Bandung', 'Subtotal Gudang Pusat (Whp)', 'TOTAL']);
-    expect(wb.Sheets['Per Warehouse']!.D2!.z).toBe('#,##0');
-    expect(wb.Sheets['Per Warehouse']!.K2!.z).toBe('0.0"%"');
-    const r = XLSX.utils.sheet_to_json(wb.Sheets['Rinci Bulanan']!, { header: 1 }) as any[][];
-    expect(r).toHaveLength(6);
-    expect(r[5]).toEqual(['TOTAL', '', '', 1300000, 250000, 0, 200000, 1750000]);
-    expect(wb.Sheets['Rinci Bulanan']!['!autofilter']!.ref).toBe('A1:H5');
-    const rk = XLSX.utils.sheet_to_json(wb.Sheets.Ringkasan!, { header: 1 }) as any[][];
-    expect(rk[1]).toEqual(['Periode', 'Agu 2026 s.d. Okt 2026']);
-    expect(rk[6]).toEqual(['Agu 2026', 100000, 0, 100000, '', '']);
   });
 
   it('Excel cabang vs gudang pusat: ringkasan kelompok dan total', () => {
@@ -148,13 +96,63 @@ describe('perbandingan bulan vs bulan', () => {
   });
 });
 
-describe('bulan lalu vs bulan berjalan', () => {
-  it('dua bulan; kolom: bulan lalu penuh, bulan lalu s.d. tgl yang sama, bulan ini s.d. tgl', () => {
-    expect(bulanPembanding('2026-10-19')).toEqual(['2026-09', '2026-10']);
-    expect(bulanPembanding('2026-01-05')).toEqual(['2025-12', '2026-01']);
-    const b = bandingBulan([L({ tanggal: '2026-09-25', amount: 400000 }), L({ tanggal: '2026-09-10', amount: 100000 }), L({ tanggal: '2026-10-08', amount: 250000 })], cabangList, bulanPembanding('2026-10-19'), '2026-10-19');
-    expect(kolomBulanan(b).map((k: any) => k.label)).toEqual(['Sep 2026 (penuh)', 'Sep 2026 s.d. tgl 19', 'Okt 2026 s.d. tgl 19']);
-    const bdg = b.cabang.baris.find((w: any) => w.kode === 'BDG');
-    expect(bdg).toMatchObject({ pembandingTerakhir: 100000, terakhir: 250000, delta: 150000 });
+describe('bulan vs bulan: rentang tanggal', () => {
+  const lines = [
+    L({ tanggal: '2026-09-03', jenis: 'BBM', metode: 'ETOLL', amount: 300000 }),
+    L({ tanggal: '2026-09-25', jenis: 'TOL', metode: 'TUNAI', amount: 200000 }),
+    L({ tanggal: '2026-10-05', jenis: 'BBM', metode: 'TUNAI', amount: 450000 }),
+    L({ tanggal: '2026-09-10', amount: 1000000, kode_cabang: 'GDGBDG' }),
+    L({ tanggal: '2026-10-10', amount: 400000, kode_cabang: 'GDGBDG' }),
+    L({ tanggal: '2026-10-02', amount: 500000, kode_cabang: 'CMS' }),
+  ];
+
+  it('tanggal mundur sebulan: akhir bulan ikut akhir bulan, tanggal tidak ada dipotong', () => {
+    expect(mundurSebulan('2026-10-19')).toBe('2026-09-19');
+    expect(mundurSebulan('2026-10-31')).toBe('2026-09-30');
+    expect(mundurSebulan('2026-03-30')).toBe('2026-02-28');
+    expect(mundurSebulan('2026-02-28')).toBe('2026-01-31');
+    expect(mundurSebulan('2026-01-15')).toBe('2025-12-15');
+    expect(periodeLalu('2026-10-01', '2026-10-19')).toEqual({ dari: '2026-09-01', sampai: '2026-09-19' });
+  });
+
+  it('validasi rentang & label', () => {
+    expect(cekRentangBanding('', '2026-10-19')).toContain('Isi tanggal');
+    expect(cekRentangBanding('2026-10-20', '2026-10-19')).toContain('tidak boleh setelah');
+    expect(cekRentangBanding('2026-09-01', '2026-10-19')).toContain('maksimal 31 hari');
+    expect(cekRentangBanding('2026-10-01', '2026-10-31')).toBe('');
+    expect(labelRentang('2026-10-01', '2026-10-19')).toBe('1–19 Okt 2026');
+    expect(labelRentang('2026-09-28', '2026-10-05')).toBe('28 Sep – 5 Okt 2026');
+    expect(labelRentang('2026-10-07', '2026-10-07')).toBe('7 Okt 2026');
+  });
+
+  it('bulan berjalan (tgl 1 s.d. hari ini): pembanding periode sama, bulan lalu penuh, proyeksi', () => {
+    const h = bandingRentang(lines, cabangList, '2026-10-01', '2026-10-19', '2026-10-19');
+    expect(h.berjalan).toBe(true);
+    expect(h.diabaikan).toBe(1);
+    const bdg = h.cabang.baris.find((w: any) => w.kode === 'BDG');
+    expect(bdg).toMatchObject({ lalu: 300000, ini: 450000, penuhLalu: 500000, delta: 150000, deltaPersen: 50 });
+    expect(bdg.proyeksi).toBeCloseTo((450000 / 19) * 31, 5);
+    expect(h.pusat.sub).toMatchObject({ lalu: 1000000, ini: 400000, delta: -600000 });
+    expect(h.total).toMatchObject({ lalu: 1300000, ini: 850000, penuhLalu: 1500000, delta: -450000 });
+  });
+
+  it('rentang bebas di tengah bulan: tanpa bulan penuh & proyeksi', () => {
+    const h = bandingRentang(lines, cabangList, '2026-10-05', '2026-10-09', '2026-10-19');
+    expect(h.berjalan).toBe(false);
+    expect(h.lalu).toEqual({ dari: '2026-09-05', sampai: '2026-09-09' });
+    const bdg = h.cabang.baris.find((w: any) => w.kode === 'BDG');
+    expect(bdg).toMatchObject({ lalu: 0, ini: 450000, deltaPersen: null, proyeksi: null });
+  });
+
+  it('Excel: 3 sheet; kolom bulan lalu penuh & proyeksi hanya untuk bulan berjalan', () => {
+    const h = bandingRentang(lines, cabangList, '2026-10-01', '2026-10-19', '2026-10-19');
+    const wb = XLSX.read(XLSX.write(bukuExcel(XLSX, susunExcelRentang(h)), { type: 'array', bookType: 'xlsx' }), { type: 'array', cellNF: true });
+    expect(wb.SheetNames).toEqual(['Ringkasan', 'Per Warehouse', 'Rinci']);
+    const m = XLSX.utils.sheet_to_json(wb.Sheets['Per Warehouse']!, { header: 1 }) as any[][];
+    expect(m[0]).toEqual(['No', 'Jenis', 'Warehouse', 'Sep 2026 penuh (Rp)', '1–19 Sep 2026 (Rp)', '1–19 Okt 2026 (Rp)', 'Selisih (Rp)', 'Selisih (%)', 'Proyeksi Akhir Bulan (Rp)']);
+    expect(m[1]!.slice(0, 8)).toEqual([1, 'Cabang (Who)', 'Who Bandung', 500000, 300000, 450000, 150000, 50]);
+    expect(wb.Sheets['Per Warehouse']!.H2!.z).toBe('0.0"%"');
+    const bebas = susunExcelRentang(bandingRentang(lines, cabangList, '2026-10-05', '2026-10-09', '2026-10-19'));
+    expect(bebas[1]!.aoa[0]).toEqual(['No', 'Jenis', 'Warehouse', '5–9 Sep 2026 (Rp)', '5–9 Okt 2026 (Rp)', 'Selisih (Rp)', 'Selisih (%)']);
   });
 });

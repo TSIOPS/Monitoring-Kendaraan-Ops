@@ -86,96 +86,102 @@ export function hariDalamBulan(b) {
   return new Date(Date.UTC(y, m, 0)).getUTCDate();
 }
 
-const rinciKosong = () => ({ bbmEtoll: 0, bbmTunai: 0, tolEtoll: 0, tolTunai: 0, total: 0 });
+// Tab "Bulan vs Bulan": rentang tanggal pilihan dibandingkan dengan rentang yang sama di bulan
+// sebelumnya (mis. 1–19 Okt vs 1–19 Sep). Bila rentang = awal bulan s.d. hari ini, ditambah
+// total bulan lalu penuh dan proyeksi akhir bulan.
+export const MAKS_HARI_RENTANG = 31;
+const pad2 = (n) => String(n).padStart(2, '0');
+const akhirBulan = (tgl) => Number(tgl.slice(8, 10)) === hariDalamBulan(tgl.slice(0, 7));
 
-function rekamBaru(kode, nama, jenis, bulan) {
-  return { kode, nama, jenis, per: Object.fromEntries(bulan.map((b) => [b, 0])), rinci: Object.fromEntries(bulan.map((b) => [b, rinciKosong()])), pembanding: 0 };
+// Tanggal yang sama sebulan sebelumnya; 31 Okt -> 30 Sep, akhir bulan -> akhir bulan sebelumnya.
+export function mundurSebulan(tgl) {
+  const [y, m, d] = String(tgl).split('-').map(Number);
+  const b = m === 1 ? `${y - 1}-12` : `${y}-${pad2(m - 1)}`;
+  const hari = akhirBulan(tgl) ? hariDalamBulan(b) : Math.min(d, hariDalamBulan(b));
+  return `${b}-${pad2(hari)}`;
 }
 
-// Bulan terakhir yang masih berjalan dibandingkan dengan bulan lalu pada rentang tanggal yang
-// sama (adil); rata-rata hanya dari bulan penuh; proyeksi = linear sampai akhir bulan.
-function turunan(r, bulan, berjalan, hari) {
-  const terakhir = bulan[bulan.length - 1];
-  const sebelum = bulan.length > 1 ? bulan[bulan.length - 2] : null;
-  const penuh = berjalan ? bulan.slice(0, -1) : bulan;
-  const total = bulan.reduce((n, b) => n + r.per[b], 0);
-  const rata = penuh.length ? penuh.reduce((n, b) => n + r.per[b], 0) / penuh.length : 0;
-  const nilaiTerakhir = r.per[terakhir];
-  const pembanding = sebelum ? (berjalan ? r.pembanding : r.per[sebelum]) : 0;
-  const delta = sebelum ? nilaiTerakhir - pembanding : 0;
+export function periodeLalu(dari, sampai) {
+  return { dari: mundurSebulan(dari), sampai: mundurSebulan(sampai) };
+}
+
+// '' bila rentang sah; selain itu pesan untuk pengguna.
+export function cekRentangBanding(dari, sampai) {
+  if (!dari || !sampai) return 'Isi tanggal dari dan sampai.';
+  if (dari > sampai) return 'Tanggal "dari" tidak boleh setelah tanggal "sampai".';
+  const hari = Math.round((Date.parse(sampai + 'T00:00:00Z') - Date.parse(dari + 'T00:00:00Z')) / 86_400_000) + 1;
+  if (hari > MAKS_HARI_RENTANG) return `Rentang maksimal ${MAKS_HARI_RENTANG} hari (dibandingkan dengan rentang yang sama bulan sebelumnya).`;
+  return '';
+}
+
+// "1–19 Okt 2026" (satu bulan) atau "28 Sep – 5 Okt 2026".
+export function labelRentang(dari, sampai) {
+  const [y1, m1, d1] = dari.split('-').map(Number);
+  const [y2, m2, d2] = sampai.split('-').map(Number);
+  const bln = (y, m) => `${NAMA_BULAN[m - 1]} ${y}`;
+  if (y1 === y2 && m1 === m2) return d1 === d2 ? `${d1} ${bln(y1, m1)}` : `${d1}–${d2} ${bln(y1, m1)}`;
+  return y1 === y2 ? `${d1} ${NAMA_BULAN[m1 - 1]} – ${d2} ${bln(y2, m2)}` : `${d1} ${bln(y1, m1)} – ${d2} ${bln(y2, m2)}`;
+}
+
+const rinciKosong = () => ({ bbmEtoll: 0, bbmTunai: 0, tolEtoll: 0, tolTunai: 0, total: 0 });
+const rekamRentang = (kode, nama, jenis) => ({ kode, nama, jenis, ini: 0, lalu: 0, penuhLalu: 0, rinciIni: rinciKosong(), rinciLalu: rinciKosong() });
+
+function hitungTurunan(r, proyeksiHari, hariBulan) {
+  const delta = r.ini - r.lalu;
   return {
     ...r,
-    total,
-    rata,
-    terakhir: nilaiTerakhir,
-    pembandingTerakhir: pembanding,
     delta,
-    deltaPersen: pembanding > 0 ? (delta / pembanding) * 100 : null,
-    proyeksi: berjalan && hari > 0 ? (nilaiTerakhir / hari) * hariDalamBulan(terakhir) : null,
+    deltaPersen: r.lalu > 0 ? (delta / r.lalu) * 100 : null,
+    proyeksi: proyeksiHari ? (r.ini / proyeksiHari) * hariBulan : null,
   };
 }
 
-function gabungRekam(a, b, bulan) {
-  const r = rekamBaru('', '', '', bulan);
-  for (const x of [a, b]) {
-    for (const bl of bulan) {
-      r.per[bl] += x.per[bl];
-      for (const k of Object.keys(rinciKosong())) r.rinci[bl][k] += x.rinci[bl][k];
-    }
-    r.pembanding += x.pembanding;
+function jumlahkan(list, nama, jenis) {
+  const t = rekamRentang('', nama, jenis);
+  for (const w of list) {
+    t.ini += w.ini; t.lalu += w.lalu; t.penuhLalu += w.penuhLalu;
+    for (const k of Object.keys(rinciKosong())) { t.rinciIni[k] += w.rinciIni[k]; t.rinciLalu[k] += w.rinciLalu[k]; }
   }
-  return r;
+  return t;
 }
 
-// Tab Bulan vs Bulan: bulan lalu dibandingkan dengan bulan berjalan.
-export function bulanPembanding(hariIni) {
-  return daftarBulan(hariIni, 2);
-}
-
-// Kolom tabel bulanan: bulan lalu (penuh), bulan lalu s.d. tanggal yang sama (pembanding adil), bulan ini.
-export function kolomBulanan(b) {
-  const kolom = b.bulan.map((bl, i) => ({ jenis: 'bulan', bulan: bl, label: labelBulan(bl) + (b.berjalan && i === b.bulan.length - 1 ? ` s.d. tgl ${b.hari}` : ' (penuh)') }));
-  if (b.berjalan && b.bulan.length > 1) {
-    kolom.splice(b.bulan.length - 1, 0, { jenis: 'pembanding', label: `${labelBulan(b.bulan[b.bulan.length - 2])} s.d. tgl ${b.hari}` });
-  }
-  return kolom;
-}
-
-export function bandingBulan(lines, cabangList, bulan, hariIni) {
-  const bulanIni = String(hariIni).slice(0, 7);
-  const hari = Number(String(hariIni).slice(8, 10));
-  const berjalan = bulan[bulan.length - 1] === bulanIni;
-  const sebelum = bulan.length > 1 ? bulan[bulan.length - 2] : null;
+export function bandingRentang(lines, cabangList, dari, sampai, hariIni) {
+  const lalu = periodeLalu(dari, sampai);
+  const bulanLalu = lalu.dari.slice(0, 7);
+  // Bulan berjalan s.d. hari ini (dari tanggal 1): tambah bulan lalu penuh & proyeksi.
+  const berjalan = dari.endsWith('-01') && sampai === hariIni && dari.slice(0, 7) === sampai.slice(0, 7);
+  const hariIniKe = Number(sampai.slice(8, 10));
+  const hariBulan = hariDalamBulan(sampai.slice(0, 7));
   const peta = new Map();
-  for (const c of cabangList || []) peta.set(String(c.kode), rekamBaru(String(c.kode), String(c.nama || c.kode), jenisWarehouse(c.kode, c.nama), bulan));
+  for (const c of cabangList || []) peta.set(String(c.kode), rekamRentang(String(c.kode), String(c.nama || c.kode), jenisWarehouse(c.kode, c.nama)));
   let diabaikan = 0;
   for (const l of lines || []) {
-    const b = String(l.tanggal || '').slice(0, 7);
-    if (!bulan.includes(b)) continue;
+    const t = String(l.tanggal || '').slice(0, 10);
+    const diIni = t >= dari && t <= sampai;
+    const diLalu = t >= lalu.dari && t <= lalu.sampai;
+    const diPenuh = berjalan && t.slice(0, 7) === bulanLalu;
+    if (!diIni && !diLalu && !diPenuh) continue;
     const w = peta.get(String(l.kode_cabang));
     if (!w) { diabaikan++; continue; }
     const n = Number(l.amount) || 0;
     const etoll = l.metode === 'ETOLL';
     const kolom = l.jenis === 'TOL' ? (etoll ? 'tolEtoll' : 'tolTunai') : (etoll ? 'bbmEtoll' : 'bbmTunai');
-    w.rinci[b][kolom] += n;
-    w.rinci[b].total += n;
-    w.per[b] += n;
-    if (berjalan && b === sebelum && Number(String(l.tanggal).slice(8, 10)) <= hari) w.pembanding += n;
+    if (diIni) { w.ini += n; w.rinciIni[kolom] += n; w.rinciIni.total += n; }
+    if (diLalu) { w.lalu += n; w.rinciLalu[kolom] += n; w.rinciLalu.total += n; }
+    if (diPenuh) w.penuhLalu += n;
   }
+  const proyeksiHari = berjalan ? hariIniKe : 0;
   const semua = [...peta.values()];
-  // Bulan-bulan awal tanpa data (sebelum aplikasi dipakai) tidak ditampilkan dan tidak masuk rata-rata.
-  const awal = bulan.findIndex((bl) => semua.some((w) => w.per[bl] > 0));
-  const tampil = awal > 0 ? bulan.slice(awal) : bulan;
   const kelompok = (jenis) => {
     const isi = semua.filter((w) => w.jenis === jenis);
-    const baris = isi.map((w) => turunan(w, tampil, berjalan, hari)).sort((a, b) => b.total - a.total || a.nama.localeCompare(b.nama));
-    const sub = isi.reduce((t, w) => gabungRekam(t, w, bulan), rekamBaru('', '', '', bulan));
-    return { jenis, baris, sub: { ...turunan(sub, tampil, berjalan, hari), nama: jenis === 'PUSAT' ? 'Subtotal Gudang Pusat (Whp)' : 'Subtotal Cabang (Who)', jenis } };
+    const baris = isi.map((w) => hitungTurunan(w, proyeksiHari, hariBulan)).sort((a, b) => b.ini - a.ini || b.lalu - a.lalu || a.nama.localeCompare(b.nama));
+    const nama = jenis === 'PUSAT' ? 'Subtotal Gudang Pusat (Whp)' : 'Subtotal Cabang (Who)';
+    return { jenis, baris, sub: hitungTurunan(jumlahkan(isi, nama, jenis), proyeksiHari, hariBulan) };
   };
   const cabang = kelompok('CABANG');
   const pusat = kelompok('PUSAT');
-  const total = { ...turunan(gabungRekam(cabang.sub, pusat.sub, bulan), tampil, berjalan, hari), nama: 'TOTAL', jenis: '' };
-  return { bulan: tampil, berjalan, hari, hariIni, cabang, pusat, total, diabaikan };
+  const total = hitungTurunan(jumlahkan([cabang.sub, pusat.sub], 'TOTAL', ''), proyeksiHari, hariBulan);
+  return { dari, sampai, lalu, berjalan, bulanLalu, hariIni, cabang, pusat, total, diabaikan };
 }
 
 // ── Spesifikasi Excel (array-of-arrays; dirender bukuExcel) ─────────────────
@@ -219,75 +225,57 @@ export function susunExcelBanding(h, { dari = '', sampai = '' } = {}) {
   return [ringkasan, detail];
 }
 
-export function susunExcelBulanan(b) {
-  const label = (bl) => labelBulan(bl) + (b.berjalan && bl === b.bulan[b.bulan.length - 1] ? ' (berjalan)' : '');
-  const awal = labelBulan(b.bulan[0]);
-  const akhir = labelBulan(b.bulan[b.bulan.length - 1]);
-  const teksDelta = b.berjalan ? `Selisih s.d. tgl ${b.hari} (Rp)` : 'Selisih Bulan Terakhir (Rp)';
-  const barisBulan = (r) => b.bulan.map((bl) => r.per[bl]);
-
-  // Ringkasan per bulan (cabang vs gudang pusat).
-  const ringkasanBaris = b.bulan.map((bl, i) => {
-    const tot = b.total.per[bl];
-    const last = i === b.bulan.length - 1;
-    const pembanding = i === 0 ? null : (last && b.berjalan ? b.total.pembanding : b.total.per[b.bulan[i - 1]]);
-    const delta = pembanding === null ? '' : tot - pembanding;
-    const persen = pembanding && pembanding > 0 ? ((tot - pembanding) / pembanding) * 100 : '';
-    return [label(bl), b.cabang.sub.per[bl], b.pusat.sub.per[bl], tot, delta, persen];
-  });
+export function susunExcelRentang(h) {
+  const ini = labelRentang(h.dari, h.sampai);
+  const lalu = labelRentang(h.lalu.dari, h.lalu.sampai);
+  const penuh = h.berjalan ? `${labelBulan(h.bulanLalu)} penuh (Rp)` : null;
+  const ringkasBaris = [
+    [NAMA_JENIS.CABANG, h.cabang.sub.lalu, h.cabang.sub.ini, h.cabang.sub.delta, angkaAtauKosong(h.cabang.sub.deltaPersen)],
+    [NAMA_JENIS.PUSAT, h.pusat.sub.lalu, h.pusat.sub.ini, h.pusat.sub.delta, angkaAtauKosong(h.pusat.sub.deltaPersen)],
+    ['Total', h.total.lalu, h.total.ini, h.total.delta, angkaAtauKosong(h.total.deltaPersen)],
+  ];
   const ringkasan = {
     nama: 'Ringkasan',
     aoa: [
       ['Perbandingan Pengeluaran Bulan vs Bulan'],
-      ['Periode', `${awal} s.d. ${akhir}`],
-      ['Data sampai', tglId(b.hariIni)],
-      ['Catatan', b.berjalan ? `Bulan terakhir masih berjalan: selisihnya dibandingkan dengan bulan sebelumnya pada rentang tanggal yang sama (1–${b.hari}). Rata-rata per bulan hanya dari bulan penuh.` : 'Seluruh bulan adalah bulan penuh.'],
+      ['Periode', ini],
+      ['Pembanding', `${lalu} (rentang yang sama bulan sebelumnya)`],
+      ['Keterangan', 'BBM + tol, via etoll dan tunai. Selisih positif = pengeluaran naik. Warehouse nonaktif tidak dihitung.'],
       [],
-      ['Bulan', 'Cabang (Who) (Rp)', 'Gudang Pusat (Whp) (Rp)', 'Total (Rp)', 'Selisih vs Bulan Sebelumnya (Rp)', 'Selisih (%)'],
-      ...ringkasanBaris,
+      ['Kelompok', `${lalu} (Rp)`, `${ini} (Rp)`, 'Selisih (Rp)', 'Selisih (%)'],
+      ...ringkasBaris,
     ],
-    angka: { baris: ringkasanBaris.map((_, i) => 6 + i), kolom: [1, 2, 3, 4] },
-    persen: { baris: ringkasanBaris.map((_, i) => 6 + i), kolom: [5] },
+    angka: { baris: [6, 7, 8], kolom: [1, 2, 3] },
+    persen: { baris: [6, 7, 8], kolom: [4] },
   };
-
-  // Matriks per warehouse (baris subtotal & total di dalam tabel).
-  const kolomAwal = 3;
-  // Bulan berjalan: kolom pembanding = bulan sebelumnya s.d. tanggal yang sama (dasar selisih).
-  const adaPem = b.berjalan && b.bulan.length > 1;
-  const bulanDgnPem = (r) => {
-    const v = barisBulan(r);
-    if (adaPem) v.splice(v.length - 1, 0, r.pembandingTerakhir);
-    return v;
-  };
-  const judulBulan = b.bulan.map(label);
-  if (adaPem) judulBulan.splice(judulBulan.length - 1, 0, `${labelBulan(b.bulan[b.bulan.length - 2])} s.d. tgl ${b.hari}`);
-  const barisW = (w, no) => [no, NAMA_JENIS[w.jenis], w.nama, ...bulanDgnPem(w), w.total, w.rata, w.delta, angkaAtauKosong(w.deltaPersen), b.berjalan ? angkaAtauKosong(w.proyeksi) : ''];
-  const barisSub = (r, nama) => ['', '', nama, ...bulanDgnPem(r), r.total, r.rata, r.delta, angkaAtauKosong(r.deltaPersen), b.berjalan ? angkaAtauKosong(r.proyeksi) : ''];
+  const kepala = ['No', 'Jenis', 'Warehouse', ...(penuh ? [penuh] : []), `${lalu} (Rp)`, `${ini} (Rp)`, 'Selisih (Rp)', 'Selisih (%)', ...(h.berjalan ? ['Proyeksi Akhir Bulan (Rp)'] : [])];
+  const nilai = (w) => [...(penuh ? [w.penuhLalu] : []), w.lalu, w.ini, w.delta, angkaAtauKosong(w.deltaPersen), ...(h.berjalan ? [angkaAtauKosong(w.proyeksi)] : [])];
   const aoaM = [
-    ['No', 'Jenis', 'Warehouse', ...judulBulan, 'Total (Rp)', 'Rata-rata/Bulan (Rp)', teksDelta, 'Selisih (%)', 'Proyeksi Bulan Berjalan (Rp)'],
-    ...b.cabang.baris.map((w, i) => barisW(w, i + 1)),
-    barisSub(b.cabang.sub, 'Subtotal Cabang (Who)'),
-    ...b.pusat.baris.map((w, i) => barisW(w, i + 1)),
-    barisSub(b.pusat.sub, 'Subtotal Gudang Pusat (Whp)'),
-    barisSub(b.total, 'TOTAL'),
+    kepala,
+    ...h.cabang.baris.map((w, i) => [i + 1, NAMA_JENIS[w.jenis], w.nama, ...nilai(w)]),
+    ['', '', 'Subtotal Cabang (Who)', ...nilai(h.cabang.sub)],
+    ...h.pusat.baris.map((w, i) => [i + 1, NAMA_JENIS[w.jenis], w.nama, ...nilai(w)]),
+    ['', '', 'Subtotal Gudang Pusat (Whp)', ...nilai(h.pusat.sub)],
+    ['', '', 'TOTAL', ...nilai(h.total)],
   ];
-  const nB = b.bulan.length + (adaPem ? 1 : 0);
-  const kolomRp = [...Array.from({ length: nB }, (_, i) => kolomAwal + i), kolomAwal + nB, kolomAwal + nB + 1, kolomAwal + nB + 2, kolomAwal + nB + 4];
-  const matriks = { nama: 'Per Warehouse', aoa: aoaM, angka: { kolom: kolomRp }, persen: { kolom: [kolomAwal + nB + 3] } };
+  const awalNilai = 3;
+  const nRp = (penuh ? 1 : 0) + 3;
+  const kolomPersen = awalNilai + nRp;
+  const kolomRp = [...Array.from({ length: nRp }, (_, i) => awalNilai + i), ...(h.berjalan ? [kolomPersen + 1] : [])];
+  const matriks = { nama: 'Per Warehouse', aoa: aoaM, angka: { kolom: kolomRp }, persen: { kolom: [kolomPersen] } };
 
-  // Rinci (cocok untuk pivot): satu baris per bulan × warehouse yang ada pengeluaran.
   const rinci = [];
-  for (const bl of b.bulan) {
-    for (const w of [...b.cabang.baris, ...b.pusat.baris]) {
-      const r = w.rinci[bl];
-      if (r.total > 0) rinci.push([label(bl), NAMA_JENIS[w.jenis], w.nama, r.bbmEtoll, r.bbmTunai, r.tolEtoll, r.tolTunai, r.total]);
+  for (const [label, kunci] of [[lalu, 'rinciLalu'], [ini, 'rinciIni']]) {
+    for (const w of [...h.cabang.baris, ...h.pusat.baris]) {
+      const r = w[kunci];
+      if (r.total > 0) rinci.push([label, NAMA_JENIS[w.jenis], w.nama, r.bbmEtoll, r.bbmTunai, r.tolEtoll, r.tolTunai, r.total]);
     }
   }
   const jumlah = (i) => rinci.reduce((n, x) => n + x[i], 0);
   const detail = {
-    nama: 'Rinci Bulanan',
+    nama: 'Rinci',
     aoa: [
-      ['Bulan', 'Jenis', 'Warehouse', 'BBM Etoll (Rp)', 'BBM Tunai (Rp)', 'Tol Etoll (Rp)', 'Tol Tunai (Rp)', 'Total (Rp)'],
+      ['Periode', 'Jenis', 'Warehouse', 'BBM Etoll (Rp)', 'BBM Tunai (Rp)', 'Tol Etoll (Rp)', 'Tol Tunai (Rp)', 'Total (Rp)'],
       ...rinci,
       ['TOTAL', '', '', jumlah(3), jumlah(4), jumlah(5), jumlah(6), jumlah(7)],
     ],
@@ -315,7 +303,8 @@ export function teksDeltaPersen(n) {
 }
 
 // Pengeluaran naik = merah (boros), turun = hijau.
-const kelasDelta = (n) => (!n ? '' : n > 0 ? 'text-danger' : 'text-success');
+// Plus (naik) hijau, minus (turun) merah — konvensi yang lazim dibaca pengguna.
+const kelasDelta = (n) => (!n ? '' : n > 0 ? 'text-success' : 'text-danger');
 
 function kartu(kelas, judul, nilai, sub) {
   return el('div', { class: 'col-6 col-lg-3' }, [el('div', { class: `rounded-3 p-3 h-100 ${kelas}` }, [
@@ -447,92 +436,102 @@ function panelBanding(ambilMaster) {
 }
 
 // Mode 2: bulan vs bulan per warehouse.
-function grafikBulanan(b) {
-  const maks = Math.max(1, ...b.bulan.map((bl) => b.total.per[bl]));
+function grafikRentang(h) {
+  const bar = [
+    ...(h.berjalan ? [{ label: `${labelBulan(h.bulanLalu)} (penuh)`, c: h.cabang.sub.penuhLalu, p: h.pusat.sub.penuhLalu, redup: true }] : []),
+    { label: labelRentang(h.lalu.dari, h.lalu.sampai), c: h.cabang.sub.lalu, p: h.pusat.sub.lalu, redup: true },
+    { label: labelRentang(h.dari, h.sampai), c: h.cabang.sub.ini, p: h.pusat.sub.ini, redup: false },
+  ];
+  const maks = Math.max(1, ...bar.map((x) => x.c + x.p));
   return el('div', { class: 'mb-4' }, [
-    el('h3', { class: 'h6 fw-bold mb-2', text: 'Total pengeluaran per bulan' }),
+    el('h3', { class: 'h6 fw-bold mb-2', text: 'Total pengeluaran' }),
     el('div', { class: 'd-flex gap-3 small mb-2' }, [
       el('span', {}, [el('span', { class: 'bar-legenda bar-cabang' }), ' Cabang (Who)']),
       el('span', {}, [el('span', { class: 'bar-legenda bar-pusat' }), ' Gudang Pusat (Whp)']),
     ]),
-    ...kolomBulanan(b).map((k) => {
-      const pem = k.jenis === 'pembanding';
-      const c = pem ? b.cabang.sub.pembandingTerakhir : b.cabang.sub.per[k.bulan];
-      const p = pem ? b.pusat.sub.pembandingTerakhir : b.pusat.sub.per[k.bulan];
-      return el('div', { class: `bar-baris${pem ? ' opacity-75' : ''}` }, [
-        el('div', { class: 'bar-nama', text: k.label }),
-        el('div', { class: 'bar-jalur d-flex' }, [
-          el('div', { class: 'bar-isi bar-cabang', style: `width:${(c / maks) * 100}%`, title: `Cabang ${rp(c)}` }),
-          el('div', { class: 'bar-isi bar-pusat', style: `width:${(p / maks) * 100}%`, title: `Gudang pusat ${rp(p)}` }),
-        ]),
-        el('div', { class: 'bar-nilai', text: rp(c + p) }),
-      ]);
-    }),
-  ].filter(Boolean));
+    ...bar.map((x) => el('div', { class: `bar-baris${x.redup ? ' opacity-75' : ''}` }, [
+      el('div', { class: 'bar-nama', text: x.label }),
+      el('div', { class: 'bar-jalur d-flex' }, [
+        el('div', { class: 'bar-isi bar-cabang', style: `width:${(x.c / maks) * 100}%`, title: `Cabang ${rp(x.c)}` }),
+        el('div', { class: 'bar-isi bar-pusat', style: `width:${(x.p / maks) * 100}%`, title: `Gudang pusat ${rp(x.p)}` }),
+      ]),
+      el('div', { class: 'bar-nilai', text: rp(x.c + x.p) }),
+    ])),
+  ]);
 }
 
-function tabelBulanan(b, k) {
-  const kolom = kolomBulanan(b);
+function tabelRentang(h, k) {
   const sel = (n, tebal, kelas = '') => el('td', { class: `text-end text-nowrap ${tebal ? 'fw-bold' : ''} ${kelas}`, text: n ? rp(n) : '-' });
   const baris = (w, tebal) => el('tr', { class: tebal ? 'table-light fw-bold' : '' }, [
     el('td', { class: tebal ? '' : 'fw-semibold', text: w.nama }),
-    ...kolom.map((c) => sel(c.jenis === 'pembanding' ? w.pembandingTerakhir : w.per[c.bulan], tebal, c.jenis === 'pembanding' ? 'text-muted' : '')),
+    ...(h.berjalan ? [sel(w.penuhLalu, tebal, 'text-muted')] : []),
+    sel(w.lalu, tebal, 'text-muted'),
+    sel(w.ini, tebal),
     el('td', { class: `text-end text-nowrap ${tebal ? 'fw-bold' : ''} ${kelasDelta(w.delta)}`, text: teksDelta(w.delta) }),
     el('td', { class: `text-end text-nowrap ${kelasDelta(w.delta)}`, text: teksDeltaPersen(w.deltaPersen) }),
-    ...(b.berjalan ? [sel(w.proyeksi, tebal)] : []),
+    ...(h.berjalan ? [sel(w.proyeksi, tebal)] : []),
   ]);
   return el('div', { class: 'mb-4' }, [
     el('h3', { class: 'h6 fw-bold mb-2', text: `${LABEL[k.jenis]} — ${k.baris.length} warehouse` }),
     el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm table-hover align-middle' }, [
       el('thead', { class: 'table-light' }, [el('tr', {}, [
-        'Warehouse', ...kolom.map((c) => c.label), 'Selisih', '%', ...(b.berjalan ? [`Proyeksi ${labelBulan(b.bulan[b.bulan.length - 1])}`] : []),
-      ].map((h, i) => el('th', { class: i ? 'text-end text-nowrap' : '', text: h })))]),
+        'Warehouse', ...(h.berjalan ? [`${labelBulan(h.bulanLalu)} (penuh)`] : []),
+        labelRentang(h.lalu.dari, h.lalu.sampai), labelRentang(h.dari, h.sampai), 'Selisih', '%', ...(h.berjalan ? ['Proyeksi akhir bulan'] : []),
+      ].map((t, i) => el('th', { class: i ? 'text-end text-nowrap' : '', text: t })))]),
       el('tbody', {}, [...k.baris.map((w) => baris(w, false)), baris(k.sub, true)]),
     ])]),
   ]);
 }
 
 function panelBulanan(ambilMaster) {
-  const keteranganBulan = el('div', { class: 'fw-semibold' });
-  const tombol = el('button', { class: 'btn btn-primary', type: 'button', text: 'Muat ulang' });
+  const hariIni = tanggalWib();
+  const dari = el('input', { type: 'date', class: 'form-control', value: awalBulan(hariIni) });
+  const sampai = el('input', { type: 'date', class: 'form-control', value: hariIni });
+  const pesan = el('div', { class: 'text-danger small mt-1', role: 'alert' });
+  const tombol = el('button', { class: 'btn btn-primary flex-fill', type: 'button', text: 'Tampilkan' });
   const unduh = el('button', { class: 'btn btn-outline-primary', type: 'button', text: 'Unduh Excel' });
   const isi = el('div', {});
   let hasil = null;
 
   async function muat() {
+    const salah = cekRentangBanding(dari.value, sampai.value);
+    pesan.textContent = salah;
+    if (salah) return;
     tombol.disabled = true;
     isi.replaceChildren(el('div', { class: 'text-muted', text: 'Memuat perbandingan…' }));
     try {
-      const hariIni = tanggalWib();
-      const bulan = bulanPembanding(hariIni);
-      keteranganBulan.textContent = `${labelBulan(bulan[0])} vs ${labelBulan(bulan[1])} (s.d. tanggal ${Number(hariIni.slice(8, 10))})`;
+      const sekarang = tanggalWib();
+      const lalu = periodeLalu(dari.value, sampai.value);
       const master = await ambilMaster();
-      const q = new URLSearchParams({ dari: `${bulan[0]}-01`, sampai: hariIni });
+      // Ambil dari awal bulan pembanding agar total bulan lalu penuh ikut terhitung.
+      const q = new URLSearchParams({ dari: `${lalu.dari.slice(0, 7)}-01`, sampai: sampai.value });
       const { lines = [] } = await get(`/api/laporan/rekap-pengeluaran?${q}`);
-      const b = bandingBulan(lines, master.cabangList || [], bulan, hariIni);
-      hasil = b.total.total ? b : null;
+      const h = bandingRentang(lines, master.cabangList || [], dari.value, sampai.value, sekarang);
+      hasil = h.total.ini || h.total.lalu ? h : null;
       if (!hasil) {
-        isi.replaceChildren(el('div', { class: 'text-center text-muted py-4', text: 'Tidak ada pengeluaran pada periode ini.' }));
+        isi.replaceChildren(el('div', { class: 'text-center text-muted py-4', text: 'Tidak ada pengeluaran pada kedua periode ini.' }));
         return;
       }
+      const ini = labelRentang(h.dari, h.sampai);
+      const lalu2 = labelRentang(h.lalu.dari, h.lalu.sampai);
       isi.replaceChildren(...[
         el('div', { class: 'row g-3 mb-4' }, [
-          kartu('bg-success text-white', `Total ${labelBulan(bulan[bulan.length - 1])}${b.berjalan ? ` (s.d. tgl ${b.hari})` : ''}`, rp(b.total.terakhir),
-            b.total.pembandingTerakhir > 0 ? `${teksDeltaPersen(b.total.deltaPersen)} dari ${b.berjalan ? 'periode sama bulan lalu' : 'bulan sebelumnya'}` : 'belum ada pembanding'),
-          b.berjalan && b.bulan.length > 1
-            ? kartu('border bg-white', `${labelBulan(bulan[0])} s.d. tgl ${b.hari}`, rp(b.total.pembandingTerakhir), `sebulan penuh: ${rp(b.total.per[bulan[0]])}`)
-            : kartu('border bg-white', `Total ${labelBulan(bulan[0])}`, rp(b.total.per[bulan[0]] || 0), 'bulan lalu'),
-          b.berjalan ? kartu('kartu-biru', 'Proyeksi akhir bulan ini', rp(b.total.proyeksi ?? 0), 'perkiraan linear dari data berjalan') : kartu('border bg-white', 'Total periode', rp(b.total.total), `${b.bulan.length} bulan`),
-          kartu('border bg-white', `Cabang (Who) · ${labelBulan(bulan[bulan.length - 1])}`, rp(b.cabang.sub.terakhir), `Gudang pusat (Whp): ${rp(b.pusat.sub.terakhir)}`),
+          kartu('bg-success text-white', `Total ${ini}`, rp(h.total.ini), h.total.lalu > 0 ? `${teksDeltaPersen(h.total.deltaPersen)} dari ${lalu2}` : 'belum ada pembanding'),
+          kartu('border bg-white', `Pembanding: ${lalu2}`, rp(h.total.lalu), h.berjalan ? `${labelBulan(h.bulanLalu)} penuh: ${rp(h.total.penuhLalu)}` : 'rentang yang sama bulan sebelumnya'),
+          h.berjalan
+            ? kartu('kartu-biru', 'Proyeksi akhir bulan ini', rp(h.total.proyeksi ?? 0), 'perkiraan linear dari data berjalan')
+            : kartu('border bg-white', 'Selisih', teksDelta(h.total.delta), h.total.delta > 0 ? 'pengeluaran naik' : h.total.delta < 0 ? 'pengeluaran turun' : 'sama'),
+          kartu('border bg-white', `Cabang (Who) · ${ini}`, rp(h.cabang.sub.ini), `Gudang pusat (Whp): ${rp(h.pusat.sub.ini)}`),
         ]),
-        grafikBulanan(b),
-        tabelBulanan(b, b.cabang),
-        tabelBulanan(b, b.pusat),
+        grafikRentang(h),
+        tabelRentang(h, h.cabang),
+        tabelRentang(h, h.pusat),
         el('div', { class: 'small text-muted mt-2' }, [
-          b.berjalan ? `Selisih membandingkan ${labelBulan(bulan[bulan.length - 1])} s.d. tanggal ${b.hari} dengan ${labelBulan(bulan[0])} s.d. tanggal yang sama (adil, jumlah hari sama); proyeksi = pengeluaran berjalan ÷ ${b.hari} hari × jumlah hari bulan itu (perkiraan). ` : '',
-          'Merah = pengeluaran naik, hijau = turun.',
+          `Selisih membandingkan ${ini} dengan ${lalu2} (rentang yang sama bulan sebelumnya). `,
+          h.berjalan ? `Proyeksi = pengeluaran berjalan ÷ ${Number(h.sampai.slice(8, 10))} hari × jumlah hari bulan itu (perkiraan). ` : '',
+          'Hijau = naik (+), merah = turun (−).',
         ]),
-        b.diabaikan ? el('div', { class: 'small text-muted mt-1', text: `${fmtNum(b.diabaikan)} pembayaran dari warehouse yang sudah tidak aktif tidak dihitung.` }) : null,
+        h.diabaikan ? el('div', { class: 'small text-muted mt-1', text: `${fmtNum(h.diabaikan)} pembayaran dari warehouse yang sudah tidak aktif tidak dihitung.` }) : null,
       ].filter(Boolean));
     } catch (err) {
       hasil = null;
@@ -546,7 +545,7 @@ function panelBulanan(ambilMaster) {
     if (!hasil) { toast('Tidak ada data untuk diunduh.', 'error'); return; }
     unduh.disabled = true;
     try {
-      await unduhExcel(susunExcelBulanan(hasil), `perbandingan-bulanan-${hasil.bulan[0]}_${hasil.bulan[hasil.bulan.length - 1]}.xlsx`);
+      await unduhExcel(susunExcelRentang(hasil), `perbandingan-${hasil.dari}_${hasil.sampai}.xlsx`);
     } catch (err) {
       toast(err.message || 'Gagal membuat file Excel.', 'error');
     } finally {
@@ -558,10 +557,12 @@ function panelBulanan(ambilMaster) {
     el('div', { class: 'panel' }, [
       el('h2', { 'data-judul-halaman': '', class: 'h5 mb-3 pb-2 border-bottom', text: 'Perbandingan Pengeluaran Bulan vs Bulan per Warehouse' }),
       el('div', { class: 'row g-2 align-items-end' }, [
-        el('div', { class: 'col-md-6' }, [el('div', { class: 'small text-muted', text: 'Bulan lalu vs bulan berjalan' }), keteranganBulan]),
-        el('div', { class: 'col-md-6 d-flex gap-2 justify-content-md-end' }, [tombol, unduh]),
+        kolom('col-md-3', 'Dari tanggal', dari),
+        kolom('col-md-3', 'Sampai tanggal', sampai),
+        el('div', { class: 'col-md-4 d-flex gap-2' }, [tombol, unduh]),
       ]),
-      el('div', { class: 'form-text mt-2', text: 'Dasar untuk melihat tren dan merencanakan anggaran BBM & tol per warehouse. Sumber data sama dengan Rekap Pengeluaran.' }),
+      pesan,
+      el('div', { class: 'form-text mt-2', text: `Rentang dibandingkan dengan tanggal yang sama di bulan sebelumnya (maks. ${MAKS_HARI_RENTANG} hari). Sumber data sama dengan Rekap Pengeluaran.` }),
     ]),
     el('div', { class: 'panel' }, [isi]),
   ]);
