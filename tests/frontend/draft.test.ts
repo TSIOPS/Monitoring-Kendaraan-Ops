@@ -37,4 +37,13 @@ describe('draft form', () => {
     simpanDraft(s, 'k', { a: '', b: false }, 0);
     expect(s.getItem('k')).toBeNull();
   });
+
+  it('field berdefault di daftar abaikan tidak dihitung sebagai isi', () => {
+    const s = new Mem();
+    s.setItem('k', JSON.stringify({ nilai: { km_awal: '1' }, disimpan: 0 }));
+    simpanDraft(s, 'k', { tanggal: '2026-10-19', metode_pembayaran: 'TUNAI', km_awal: '' }, 0, ['tanggal', 'metode_pembayaran']);
+    expect(s.getItem('k')).toBeNull();
+    simpanDraft(s, 'k', { tanggal: '2026-10-19', metode_pembayaran: 'TUNAI', km_awal: '5' }, 0, ['tanggal', 'metode_pembayaran']);
+    expect(bacaDraft(s, 'k', 0)).toEqual({ nilai: { tanggal: '2026-10-19', metode_pembayaran: 'TUNAI', km_awal: '5' }, disimpan: 0 });
+  });
 });

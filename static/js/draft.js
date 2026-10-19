@@ -7,13 +7,15 @@ export function kunciDraft(form, userId) {
   return `draft.${form}.${userId || 'anon'}`;
 }
 
-function adaIsi(nilai) {
-  return Object.values(nilai || {}).some((v) => v !== '' && v !== false && v !== null && v !== undefined);
+// `abaikan`: field yang punya nilai bawaan (mis. tanggal hari ini, metode TUNAI) sehingga
+// tidak menandakan pengguna sudah mengisi apa pun.
+function adaIsi(nilai, abaikan = []) {
+  return Object.entries(nilai || {}).some(([k, v]) => !abaikan.includes(k) && v !== '' && v !== false && v !== null && v !== undefined);
 }
 
-export function simpanDraft(storage, kunci, nilai, now = Date.now()) {
+export function simpanDraft(storage, kunci, nilai, now = Date.now(), abaikan = []) {
   try {
-    if (!adaIsi(nilai)) { storage.removeItem(kunci); return; }
+    if (!adaIsi(nilai, abaikan)) { storage.removeItem(kunci); return; }
     storage.setItem(kunci, JSON.stringify({ nilai, disimpan: now }));
   } catch { /* abaikan */ }
 }

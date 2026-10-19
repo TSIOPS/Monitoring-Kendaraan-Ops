@@ -536,19 +536,33 @@ export async function renderInput(view) {
     v.km_akhir_broken = f.km_akhir_broken.checked;
     return v;
   };
+  // Field berdefault (tanggal hari ini, TUNAI, dst.) tidak dihitung sebagai "sudah ada isi".
+  const FIELD_BERDEFAULT = ['tanggal', 'metode_pembayaran', 'metode_toll', 'jenis_bbm'];
+  // Draft dibaca sinkron saat render, sebelum listener simpan dipasang, dan penyimpanan
+  // ditahan sampai pemulihan selesai: ketukan selama jalur dimuat (bisa sampai 30 dtk)
+  // tidak boleh menimpa draft lama dengan form yang hampir kosong.
+  const draftAwal = bacaDraft(localStorage, KUNCI);
+  let draftSiap = false;
   let timerDraft = 0;
   const simpanNanti = () => {
+    if (!draftSiap) return;
     clearTimeout(timerDraft);
-    timerDraft = setTimeout(() => simpanDraft(localStorage, KUNCI, ambilNilai()), 600);
+    timerDraft = setTimeout(() => simpanDraft(localStorage, KUNCI, ambilNilai(), Date.now(), FIELD_BERDEFAULT), 600);
   };
   form.addEventListener('input', simpanNanti);
   form.addEventListener('change', simpanNanti);
   const bannerDraft = el('div', { class: 'alert alert-info d-none d-flex flex-wrap align-items-center gap-2', role: 'status' });
   form.prepend(bannerDraft);
 
-  async function pulihkanDraft() {
-    const d = bacaDraft(localStorage, KUNCI);
-    if (!d) return;
+  async function pulihkanDraft(d) {
+    try {
+      if (d) await terapkanDraft(d);
+    } finally {
+      draftSiap = true; // juga saat tidak ada draft atau pemulihan gagal
+    }
+  }
+
+  async function terapkanDraft(d) {
     const v = d.nilai;
     if (v.tanggal && v.tanggal !== f.tanggal.value) { f.tanggal.value = v.tanggal; await muatSupirJalur(); }
     if (v.supir) {
@@ -572,7 +586,7 @@ export async function renderInput(view) {
     bannerDraft.classList.remove('d-none');
   }
 
-  muatSupirJalur().then(pulihkanDraft);
+  muatSupirJalur().catch(() => {}).then(() => pulihkanDraft(draftAwal)).catch(() => {});
 
   let fotoSudahTerunggah = false;
 
