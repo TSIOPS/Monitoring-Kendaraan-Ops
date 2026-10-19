@@ -1259,7 +1259,7 @@ export function aksiSekali(tombol, fn) {
 
 **Files:** Modify `static/js/ui.js` (`navHalaman`); Test `tests/frontend/ui.test.ts`
 
-- [ ] **Step 1: Tes gagal**
+- [x] **Step 1: Tes gagal**
 
 ```ts
 import { nomorHalamanTampil } from '../../static/js/ui.js';
@@ -1270,7 +1270,7 @@ it('nomorHalamanTampil memberi jendela dengan elipsis', () => {
 });
 ```
 
-- [ ] **Step 2: Implementasi**
+- [x] **Step 2: Implementasi**
 
 ```js
 export function nomorHalamanTampil(total, aktif, sisi = 1) {
@@ -1293,7 +1293,7 @@ Di `navHalaman`, ganti `...Array.from({ length: total }, …)` dengan:
 ```
 
 Tambahkan `'aria-current': 'page'` pada tombol aktif dan `aria-label` "Halaman sebelumnya/berikutnya" untuk « ».
-- [ ] **Step 3:** PASS. **Step 4: Commit** `fix(ui): pagination berjendela`.
+- [x] **Step 3:** PASS. **Step 4: Commit** `fix(ui): pagination berjendela`.
 
 ### Task 22: Navigasi — gulir ke atas & judul halaman per rute
 

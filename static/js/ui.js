@@ -167,20 +167,37 @@ export function halaman(list, nomor, per = 10) {
   return { total, aktif, isi: list.slice((aktif - 1) * per, aktif * per) };
 }
 
-// Tombol « 1 2 3 » seperti renderDashPagination GAS; kosong bila hanya satu halaman.
+// Nomor halaman yang ditampilkan: semua bila ≤7, selain itu halaman pertama, terakhir, dan
+// `sisi` halaman di kiri-kanan halaman aktif; celah diganti '…'.
+export function nomorHalamanTampil(total, aktif, sisi = 1) {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const hasil = [];
+  for (let i = 1; i <= total; i++) {
+    if (i === 1 || i === total || Math.abs(i - aktif) <= sisi) hasil.push(i);
+    else if (hasil[hasil.length - 1] !== '…') hasil.push('…');
+  }
+  return hasil;
+}
+
+// Tombol « 1 … 4 5 6 … 20 » (berjendela agar tidak memanjang di HP); kosong bila hanya satu halaman.
 export function navHalaman(total, aktif, keHalaman) {
-  const wrap = el('div', { class: 'd-flex justify-content-center gap-2 flex-wrap mt-3' });
+  const wrap = el('nav', { class: 'd-flex justify-content-center gap-2 flex-wrap mt-3', 'aria-label': 'Halaman' });
   if (total <= 1) return wrap;
-  const tombol = (label, ke, sekarang = false, mati = false) => {
-    const b = el('button', { type: 'button', class: `btn btn-sm ${sekarang ? 'btn-primary' : 'btn-outline-primary'}`, text: label });
+  const tombol = (label, ke, sekarang = false, mati = false, aria = null) => {
+    const b = el('button', {
+      type: 'button', class: `btn btn-sm ${sekarang ? 'btn-primary' : 'btn-outline-primary'}`, text: label,
+      'aria-label': aria, 'aria-current': sekarang ? 'page' : null,
+    });
     b.disabled = mati;
     b.addEventListener('click', () => keHalaman(ke));
     return b;
   };
   wrap.append(
-    tombol('«', aktif - 1, false, aktif === 1),
-    ...Array.from({ length: total }, (_, i) => tombol(String(i + 1), i + 1, i + 1 === aktif)),
-    tombol('»', aktif + 1, false, aktif === total),
+    tombol('«', aktif - 1, false, aktif === 1, 'Halaman sebelumnya'),
+    ...nomorHalamanTampil(total, aktif).map((n) => (n === '…'
+      ? el('span', { class: 'px-2 align-self-center text-muted', 'aria-hidden': 'true', text: '…' })
+      : tombol(String(n), n, n === aktif, false, `Halaman ${n}`))),
+    tombol('»', aktif + 1, false, aktif === total, 'Halaman berikutnya'),
   );
   return wrap;
 }

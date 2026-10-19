@@ -188,3 +188,14 @@ describe('aksiSekali', () => {
     expect(btn.disabled).toBe(false);
   });
 });
+
+describe('nomorHalamanTampil', () => {
+  it('memberi jendela dengan elipsis', async () => {
+    const { nomorHalamanTampil } = await import('../../static/js/ui.js');
+    expect(nomorHalamanTampil(5, 3)).toEqual([1, 2, 3, 4, 5]);
+    expect(nomorHalamanTampil(100, 50)).toEqual([1, '…', 49, 50, 51, '…', 100]);
+    expect(nomorHalamanTampil(100, 1)).toEqual([1, 2, '…', 100]);
+    expect(nomorHalamanTampil(100, 100)).toEqual([1, '…', 99, 100]);
+    expect(nomorHalamanTampil(8, 3)).toEqual([1, 2, 3, 4, '…', 8]);
+  });
+});
