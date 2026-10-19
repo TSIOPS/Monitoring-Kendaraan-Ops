@@ -231,9 +231,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       if (j && (!matchedJalur || j.status === 'BELUM_DIISI')) { matchedJalur = j; trxCabang = cab; }
       if (j?.status === 'BELUM_DIISI') break;
     }
-    if (!matchedJalur || matchedJalur.status !== 'BELUM_DIISI') {
-      throw new HttpError(409, L.MSG_JALUR_GATE, 'CONFLICT');
-    }
+    if (!matchedJalur) throw new HttpError(409, L.MSG_JALUR_GATE, 'CONFLICT');
+    if (matchedJalur.status !== 'BELUM_DIISI') throw new HttpError(409, L.MSG_SUDAH_DILAPORKAN, 'SUDAH_DILAPORKAN');
 
     const prevTrx = await deps.laporan.lastForVehicle(vehicleId);
     const rujukanKm = prevTrx ? prevTrx.km_akhir : null;

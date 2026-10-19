@@ -1,6 +1,6 @@
 import { del, get, post, put } from '../api.js';
 import { getUser } from '../store.js';
-import { confirmDialog, el, fmtDateId, fmtNum, toast, grupAksi, tombolIkon } from '../ui.js';
+import { confirmDialog, el, fmtDateId, fmtNum, toast, grupAksi, tombolIkon, tombolIkonSekali, tampilkanGalat, idUntukLabel } from '../ui.js';
 
 // Halaman Data Master (M10). Satu pembangun tabel + form dipakai semua tab;
 // tiap entitas hanya mendeskripsikan kolom, field, dan endpoint (API M2/M5, field GAS).
@@ -194,7 +194,7 @@ function kontrol(f, nilai, isEdit, values) {
     const terpilih = new Set(String(nilai ?? '').split(',').filter(Boolean));
     const kotak = f.opsi(values).map((o) => el('input', { class: 'form-check-input', type: 'checkbox', value: String(o.value), id: `m-${f.key}-${o.value}` }));
     kotak.forEach((k) => { k.checked = terpilih.has(k.value); });
-    node = el('div', { class: 'border rounded px-2 py-1', style: 'max-height:9rem;overflow:auto' }, kotak.length
+    node = el('div', { class: 'border rounded px-2 py-1', style: 'max-height:9rem;overflow:auto', role: 'group', 'aria-label': f.label }, kotak.length
       ? kotak.map((k, i) => el('div', { class: 'form-check' }, [k, el('label', { class: 'form-check-label small', for: k.id, text: f.opsi(values)[i].label })]))
       : [el('div', { class: 'small text-muted', text: 'Pilih warehouse pemilik dulu.' })]);
     Object.defineProperty(node, 'value', { get: () => kotak.filter((k) => k.checked).map((k) => k.value).join(','), set: () => {} });
@@ -224,10 +224,10 @@ export async function renderMaster(view) {
   let ent = entitas(m);
   const urutan = ['kendaraan', 'cabang', 'supir', 'bbm', 'kartu', 'pengguna'].filter((k) => ent[k].boleh);
   let tab = urutan[0];
-  const wh = el('select', { class: 'form-select form-select-sm' });
+  const wh = el('select', { class: 'form-select form-select-sm', 'aria-label': 'Filter warehouse' });
   wh.appendChild(el('option', { value: '', text: 'Semua warehouse' }));
   for (const c of m.cabang) wh.appendChild(el('option', { value: c.kode, text: c.nama || c.kode }));
-  const cari = el('input', { class: 'form-control form-control-sm', placeholder: 'Cari' });
+  const cari = el('input', { class: 'form-control form-control-sm', placeholder: 'Cari', 'aria-label': 'Cari data master' });
   const formBox = el('div', {});
   const isi = el('div', {});
   const tombol = {};
@@ -260,7 +260,8 @@ export async function renderMaster(view) {
         ctl[f.key].addEventListener('input', () => { values[f.key] = ctl[f.key].value; });
         const catatan = f.catatan ? f.catatan(isEdit) : '';
         return el('div', { class: 'col-md-4' }, [el('div', { class: 'mb-2' }, [
-          el('label', { class: 'form-label small mb-1', text: f.label }), ctl[f.key],
+          // Kotak centang (multi) bukan satu kontrol: grupnya diberi aria-label di kontrol().
+          el('label', { class: 'form-label small mb-1', for: ctl[f.key].matches('input,select,textarea') ? idUntukLabel(ctl[f.key]) : null, text: f.label }), ctl[f.key],
           catatan ? el('div', { class: 'form-text', text: catatan }) : null,
         ])]);
       }));
@@ -277,8 +278,7 @@ export async function renderMaster(view) {
       for (const f of e.fields) values[f.key] = ctl[f.key].value;
       const err = fieldKosong(e.fields, values, isEdit);
       if (err.length) {
-        alertBox.textContent = err.join(' ');
-        alertBox.classList.remove('d-none');
+        tampilkanGalat(alertBox, err.join(' '));
         return;
       }
       simpan.disabled = true;
@@ -288,8 +288,7 @@ export async function renderMaster(view) {
         formBox.replaceChildren();
         await muatUlang();
       } catch (er) {
-        alertBox.textContent = er.message;
-        alertBox.classList.remove('d-none');
+        tampilkanGalat(alertBox, er.message);
         simpan.disabled = false;
       }
     });
@@ -322,8 +321,8 @@ export async function renderMaster(view) {
         ...e.kolom.map(([, fn, kelas]) => el('td', { class: kelas ? kelas(r) : '', text: String(fn(r) ?? '-') })),
         bukanMilik ? el('td', { class: 'small text-muted', text: 'Kendaraan bersama (dikelola pemilik)' }) : el('td', { class: 'text-nowrap' }, [grupAksi([
           tombolIkon('edit', 'Edit', () => bukaForm(r)),
-          ...(e.ekstra ? e.ekstra(r).map((x) => tombolIkon(x.ikon || 'lainnya', x.label, () => aksi(x))) : []),
-          tombolIkon(h.label === 'Nonaktifkan' ? 'nonaktif' : h.label === 'Aktifkan' ? 'aktif' : 'hapus', h.label || 'Hapus', () => aksi(h)),
+          ...(e.ekstra ? e.ekstra(r).map((x) => tombolIkonSekali(x.ikon || 'lainnya', x.label, () => aksi(x))) : []),
+          tombolIkonSekali(h.label === 'Nonaktifkan' ? 'nonaktif' : h.label === 'Aktifkan' ? 'aktif' : 'hapus', h.label || 'Hapus', () => aksi(h)),
         ])]),
       ]);
     });
@@ -348,7 +347,7 @@ export async function renderMaster(view) {
   wh.addEventListener('change', gambar);
   cari.addEventListener('input', gambar);
   view.replaceChildren(el('div', { class: 'panel' }, [
-    el('h2', { class: 'h6 mb-3', text: 'Data Master' }),
+    el('h2', { 'data-judul-halaman': '', class: 'h6 mb-3', text: 'Data Master' }),
     barTab,
     el('div', { class: 'row g-2 mb-2' }, [
       isSuper() ? el('div', { class: 'col-md-3' }, [wh]) : null,

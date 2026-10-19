@@ -47,19 +47,113 @@ export function el(tag, attrs = {}, children = []) {
   return node;
 }
 
+let nomorField = 0;
+// Label wajib terhubung ke kontrolnya (for=id): dibaca pembaca layar & area tap label ikut memfokuskan input.
+export function idUntukLabel(kontrol) {
+  if (kontrol.id) return kontrol.id;
+  const id = `fld-${++nomorField}`;
+  kontrol.setAttribute('id', id);
+  return id;
+}
+
+// Kontrol bisa dibungkus (input-group/div berisi input file + pratinjau): label menunjuk
+// input/select/textarea pertama di dalamnya.
+export function barisForm(label, kontrol, catatan = '', kelas = 'mb-3') {
+  const target = kontrol.matches?.('input,select,textarea') ? kontrol : kontrol.querySelector?.('input,select,textarea');
+  let teksCatatan = null;
+  if (catatan) {
+    // Catatan dibacakan bersama kontrolnya (aria-describedby), bukan hanya terlihat.
+    teksCatatan = el('div', { class: 'form-text', id: `ket-${++nomorField}`, text: catatan });
+    if (target) tambahKeterangan(target, teksCatatan.id);
+  }
+  return el('div', { class: kelas }, [
+    el('label', { class: 'form-label', text: label, for: target ? idUntukLabel(target) : null }),
+    kontrol,
+    teksCatatan,
+  ]);
+}
+
+// Tambah id ke aria-describedby kontrol (nilai lama dipertahankan, tanpa duplikat).
+export function tambahKeterangan(kontrol, id) {
+  const ada = String(kontrol.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+  if (!ada.includes(id)) ada.push(id);
+  kontrol.setAttribute('aria-describedby', ada.join(' '));
+}
+
+// "= Rp 150.000" untuk nominal valid; kosong bila kosong/bukan angka.
+export function teksRupiah(nilai) {
+  const n = Number(nilai);
+  if (nilai === '' || nilai === null || nilai === undefined || !Number.isFinite(n)) return '';
+  return `= Rp ${n.toLocaleString('id-ID', { maximumFractionDigits: 0 })}`;
+}
+
+// Teks bantu di bawah input nominal agar 150.000 vs 1.500.000 mudah dibedakan. Mengembalikan
+// elemen teks; pemanggil menaruhnya setelah input/input-group. Isi diperbarui pada event
+// 'input' — nilai yang diisi lewat kode perlu dispatchEvent(new Event('input')).
+// Tanpa aria-live (dibacakan tiap ketukan terlalu ramai); terhubung lewat aria-describedby.
+export function bantuRupiah(input) {
+  input.setAttribute('inputmode', 'numeric');
+  const teks = el('div', { class: 'form-text fw-semibold', id: `rp-${++nomorField}` });
+  tambahKeterangan(input, teks.id);
+  const segar = () => { teks.textContent = teksRupiah(input.value); };
+  input.addEventListener('input', segar);
+  segar();
+  return teks;
+}
+
+// Pemanggil lama memakai nama kelas Bootstrap ('danger'); semua dipetakan ke gaya toast yang ada.
+const PETA_JENIS = { danger: 'error', warning: 'warning', error: 'error', success: 'success', info: 'info' };
+export const jenisToast = (kind) => PETA_JENIS[kind] || 'info';
+
+// Toast diumumkan pembaca layar (galat: role=alert, lainnya: status) dan bisa ditutup; galat tampil lebih lama.
+// Role hanya di <span> pesan (bukan node berisi tombol ×, agar "Tutup notifikasi" tidak ikut dibaca).
+// Span disisipkan kosong lalu diisi di tick berikutnya: VoiceOver hanya mengumumkan perubahan isi
+// region yang sudah ada, bukan region yang muncul sudah berisi.
 export function toast(message, kind = 'info') {
   let host = document.getElementById('toast-host');
   if (!host) {
     host = el('div', { id: 'toast-host', class: 'toast-host' });
     document.body.appendChild(host);
   }
-  const node = el('div', { class: `toast-item toast-${kind}`, text: message });
+  const jenis = jenisToast(kind);
+  const tutup = el('button', { type: 'button', class: 'toast-tutup', 'aria-label': 'Tutup notifikasi', text: '×' });
+  const pesan = el('span', { role: jenis === 'error' ? 'alert' : 'status' });
+  const node = el('div', { class: `toast-item toast-${jenis}` }, [pesan, tutup]);
+  tutup.addEventListener('click', () => node.remove());
   host.appendChild(node);
-  setTimeout(() => node.remove(), kind === 'error' ? 8000 : 4000);
+  setTimeout(() => { pesan.textContent = String(message); }, 0);
+  setTimeout(() => node.remove(), jenis === 'error' ? 10000 : 4000);
+}
+
+// Galat form selalu di-scroll ke tengah layar dan difokuskan (fokus membuat pembaca layar
+// membacakannya — tanpa role=alert agar tidak diumumkan dua kali); tombol Simpan ada di bawah
+// form panjang, jadi galat di atas form sebelumnya tidak terlihat di HP.
+// Tanpa `pesan`: isi kotak yang sudah dibangun pemanggil (mis. pesan + tautan) dipertahankan.
+export function tampilkanGalat(box, pesan) {
+  if (pesan !== undefined) box.textContent = pesan;
+  box.setAttribute('tabindex', '-1');
+  box.classList.remove('d-none');
+  const kurangiGerak = typeof globalThis.matchMedia === 'function' && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  box.scrollIntoView?.({ block: 'center', behavior: kurangiGerak ? 'auto' : 'smooth' });
+  box.focus?.({ preventScroll: true });
 }
 
 export function confirmDialog(message) {
   return window.confirm(message);
+}
+
+// Bungkus handler async: tombol dimatikan selama proses agar tap ganda tidak mengirim dua request.
+export function aksiSekali(tombol, fn) {
+  let berjalan = false;
+  return async (...args) => {
+    if (berjalan) return;
+    berjalan = true;
+    if (tombol) tombol.disabled = true;
+    try { return await fn(...args); } finally {
+      berjalan = false;
+      if (tombol && tombol.isConnected !== false) tombol.disabled = false;
+    }
+  };
 }
 
 export function spinner(view, text = 'Memuat data') {
@@ -73,20 +167,37 @@ export function halaman(list, nomor, per = 10) {
   return { total, aktif, isi: list.slice((aktif - 1) * per, aktif * per) };
 }
 
-// Tombol « 1 2 3 » seperti renderDashPagination GAS; kosong bila hanya satu halaman.
+// Nomor halaman yang ditampilkan: semua bila ≤7, selain itu halaman pertama, terakhir, dan
+// `sisi` halaman di kiri-kanan halaman aktif; celah diganti '…'.
+export function nomorHalamanTampil(total, aktif, sisi = 1) {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const hasil = [];
+  for (let i = 1; i <= total; i++) {
+    if (i === 1 || i === total || Math.abs(i - aktif) <= sisi) hasil.push(i);
+    else if (hasil[hasil.length - 1] !== '…') hasil.push('…');
+  }
+  return hasil;
+}
+
+// Tombol « 1 … 4 5 6 … 20 » (berjendela agar tidak memanjang di HP); kosong bila hanya satu halaman.
 export function navHalaman(total, aktif, keHalaman) {
-  const wrap = el('div', { class: 'd-flex justify-content-center gap-1 flex-wrap mt-3' });
+  const wrap = el('nav', { class: 'd-flex justify-content-center gap-2 flex-wrap mt-3', 'aria-label': 'Halaman' });
   if (total <= 1) return wrap;
-  const tombol = (label, ke, sekarang = false, mati = false) => {
-    const b = el('button', { type: 'button', class: `btn btn-sm ${sekarang ? 'btn-primary' : 'btn-outline-primary'}`, text: label });
+  const tombol = (label, ke, sekarang = false, mati = false, aria = null) => {
+    const b = el('button', {
+      type: 'button', class: `btn btn-sm ${sekarang ? 'btn-primary' : 'btn-outline-primary'}`, text: label,
+      'aria-label': aria, 'aria-current': sekarang ? 'page' : null,
+    });
     b.disabled = mati;
     b.addEventListener('click', () => keHalaman(ke));
     return b;
   };
   wrap.append(
-    tombol('«', aktif - 1, false, aktif === 1),
-    ...Array.from({ length: total }, (_, i) => tombol(String(i + 1), i + 1, i + 1 === aktif)),
-    tombol('»', aktif + 1, false, aktif === total),
+    tombol('«', aktif - 1, false, aktif === 1, 'Halaman sebelumnya'),
+    ...nomorHalamanTampil(total, aktif).map((n) => (n === '…'
+      ? el('span', { class: 'px-2 align-self-center text-muted', 'aria-hidden': 'true', text: '…' })
+      : tombol(String(n), n, n === aktif, false, `Halaman ${n}`))),
+    tombol('»', aktif + 1, false, aktif === total, 'Halaman berikutnya'),
   );
   return wrap;
 }
@@ -176,4 +287,10 @@ export function tombolIkon(jenis, judul, aksi) {
   node.appendChild(el('i', { class: `bi ${ikon}`, 'aria-hidden': 'true' }));
   return node;
 }
-export const grupAksi = (tombol) => el('div', { class: 'aksi-ikon' }, tombol.filter(Boolean));
+// tombolIkon yang handler async-nya dibungkus aksiSekali (hapus/nonaktifkan: cegah request ganda).
+export function tombolIkonSekali(jenis, judul, fn) {
+  const b = tombolIkon(jenis, judul, null);
+  b.addEventListener('click', aksiSekali(b, fn));
+  return b;
+}
+export const grupAksi =(tombol) => el('div', { class: 'aksi-ikon' }, tombol.filter(Boolean));

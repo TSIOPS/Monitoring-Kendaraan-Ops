@@ -3,6 +3,63 @@ import { get } from './api.js';
 
 const routes = [];
 let params = {};
+let penjagaKeluar = null;
+let hashAktif = '';
+let abaikanHashBerikut = false;
+
+// Halaman dengan form memasang penjaga: fungsi yang mengembalikan pesan konfirmasi
+// bila ada isian belum disimpan ('' = aman). Dilepas otomatis setiap ganti halaman.
+export function pasangPenjagaKeluar(fn) {
+  penjagaKeluar = fn;
+}
+
+export function putuskanKeluar(penjaga, tanya = (m) => window.confirm(m)) {
+  const pesan = penjaga ? penjaga() : '';
+  return !pesan || tanya(pesan);
+}
+
+export function bolehTinggalkanHalaman() {
+  return putuskanKeluar(penjagaKeluar);
+}
+
+// Ada form berisi isian belum disimpan di halaman aktif (dipakai untuk menunda pop-up).
+export function adaFormTerbuka() {
+  return Boolean(penjagaKeluar && penjagaKeluar());
+}
+
+// Pesan penjaga halaman aktif ('' bila aman) — tiap halaman punya pesannya sendiri
+// (draft laporan, perubahan edit, jalur belum disimpan).
+export function pesanPenjagaKeluar() {
+  return penjagaKeluar ? (penjagaKeluar() || '') : '';
+}
+
+// Halaman yang memuat data lama (sinyal lemah) memeriksa ini setelah await: bila pengguna
+// sudah pindah halaman, halaman lama berhenti agar tidak memasang penjaga/menggambar di
+// halaman lain. hash = window.location.hash saat render dimulai.
+export function halamanMasihAktif(hash) {
+  return hashAktif === hash;
+}
+
+const KUNCI_TUJUAN = 'tujuan-login';
+
+// Hanya hash rute internal ('#/...') yang diterima — mencegah open redirect.
+export function tujuanSetelahLogin(simpanan) {
+  const s = String(simpanan || '');
+  return /^#\/[\w\-/%.]*$/.test(s) && s !== '#/login' ? s : '#/dashboard';
+}
+
+// Ke halaman login sambil mengingat rute yang sedang dibuka (per tab).
+function keLogin(hashSekarang) {
+  try { if (hashSekarang && hashSekarang !== '#/login') sessionStorage.setItem(KUNCI_TUJUAN, hashSekarang); } catch { /* abaikan */ }
+  // replace: rute yang ditolak tidak tertinggal di riwayat, Back cukup sekali setelah login.
+  window.location.replace('#/login');
+}
+
+export function ambilTujuanLogin() {
+  let s = '';
+  try { s = sessionStorage.getItem(KUNCI_TUJUAN) || ''; sessionStorage.removeItem(KUNCI_TUJUAN); } catch { /* abaikan */ }
+  return tujuanSetelahLogin(s);
+}
 
 export function registerRoute(pattern, loader, options = {}) {
   const names = [];
@@ -32,9 +89,38 @@ export function perluMuatUlang(err) {
   return /does not provide an export named|Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed/i.test(m);
 }
 
+const JUDUL_APLIKASI = 'Monitoring Kendaraan Operasional';
+
+// Judul tab: "<judul halaman> — Monitoring Kendaraan Operasional". Jumlah di akhir judul
+// (mis. "Riwayat Operasional (12)") dibuang agar judul tab tidak berubah tiap filter.
+export function judulDokumen(teks) {
+  const judul = String(teks ?? '').trim().replace(/\s*\(\d+\)$/, '').trim();
+  return judul ? `${judul} — ${JUDUL_APLIKASI}` : JUDUL_APLIKASI;
+}
+
+// Setelah halaman digambar: gulir ke atas (halaman baru tidak mewarisi posisi gulir halaman
+// lama), judul tab mengikuti judul halaman, dan fokus pindah ke judul agar pembaca layar tahu
+// halaman berganti. Fokus tidak direbut bila halaman sudah memfokuskan sesuatu sendiri
+// (mis. input username di login, atau kotak galat dari tampilkanGalat) — yaitu bila elemen
+// yang sedang fokus ada di dalam view. Fokus di luar view (tautan menu yang baru diklik) dipindah.
+function setelahRender(view) {
+  if (typeof window.scrollTo === 'function') window.scrollTo(0, 0);
+  // Judul utama ditandai data-judul-halaman (h2 pertama bisa saja judul panel ringkasan).
+  const judul = view.querySelector('[data-judul-halaman]') || view.querySelector('h1, h2');
+  document.title = judulDokumen(judul ? judul.textContent : '');
+  const aktif = document.activeElement;
+  const fokusBebas = !aktif || aktif === document.body || !view.contains(aktif);
+  if (judul && fokusBebas) {
+    judul.setAttribute('tabindex', '-1');
+    judul.focus?.({ preventScroll: true });
+  }
+}
+
 async function run(hash) {
   const view = document.getElementById('view');
   if (!view) return;
+  penjagaKeluar = null;
+  hashAktif = hash;
 
   const found = matchRoute(hash);
   if (!found) {
@@ -51,7 +137,7 @@ async function run(hash) {
   }
 
   if (found.guard && !isLoggedIn()) {
-    window.location.hash = '#/login';
+    keLogin(hash);
     return;
   }
 
@@ -66,6 +152,7 @@ async function run(hash) {
   try {
     const page = await found.loader();
     await page.render(view);
+    if (hashAktif === hash) setelahRender(view);
     try { sessionStorage.removeItem('muat-ulang-versi'); } catch { /* abaikan */ }
   } catch (err) {
     // Aplikasi versi baru sudah dipasang saat halaman ini masih terbuka: modul lama di memori
@@ -84,9 +171,12 @@ async function run(hash) {
     box.className = 'alert alert-danger';
     box.textContent = perluMuatUlang(err) ? 'Aplikasi baru saja diperbarui. Tekan Ctrl+F5 (atau tutup & buka lagi aplikasinya) untuk memuat versi terbaru.' : (err.message || 'Halaman gagal dimuat.');
     view.replaceChildren(box);
+    document.title = JUDUL_APLIKASI;
   }
 }
 
+// Hash sama = gambar ulang halaman aktif atas permintaan halaman itu sendiri, tidak lewat
+// penjaga; hash berbeda lewat hashchange sehingga penjaga ikut bertanya.
 export function navigate(hash) {
   if (window.location.hash === hash) {
     run(hash);
@@ -96,13 +186,24 @@ export function navigate(hash) {
 }
 
 export function startRouter() {
-  window.addEventListener('hashchange', () => run(window.location.hash));
+  window.addEventListener('hashchange', () => {
+    if (abaikanHashBerikut) { abaikanHashBerikut = false; return; }
+    if (!putuskanKeluar(penjagaKeluar)) {
+      abaikanHashBerikut = true;
+      window.location.hash = hashAktif; // batal pindah: kembalikan hash, halaman tidak digambar ulang
+      return;
+    }
+    run(window.location.hash);
+  });
+  window.addEventListener('beforeunload', (ev) => {
+    if (penjagaKeluar && penjagaKeluar()) { ev.preventDefault(); ev.returnValue = ''; }
+  });
   run(window.location.hash);
 }
 
 export async function ensureSession() {
   if (!isLoggedIn()) {
-    window.location.hash = '#/login';
+    keLogin(window.location.hash);
     return null;
   }
   try {
@@ -112,7 +213,7 @@ export async function ensureSession() {
     return user;
   } catch (err) {
     if (err.status === 401) clearSession();
-    window.location.hash = '#/login';
+    keLogin(window.location.hash);
     return null;
   }
 }

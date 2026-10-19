@@ -1,6 +1,6 @@
 import { get, post, put } from '../api.js';
 import { getUser } from '../store.js';
-import { el, toast } from '../ui.js';
+import { el, toast, barisForm as baris, idUntukLabel } from '../ui.js';
 
 export const MAKS_LOGO = 10 * 1024 * 1024;
 const TIPE_LOGO = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
@@ -102,12 +102,9 @@ export async function renderPengaturan(view, { onTersimpan } = {}) {
     }
   });
 
-  const baris = (label, kontrol, catatan) => el('div', { class: 'mb-3' }, [
-    el('label', { class: 'form-label', text: label }), kontrol, catatan ? el('div', { class: 'form-text', text: catatan }) : null,
-  ]);
 
   view.replaceChildren(el('div', { class: 'panel' }, [
-    el('h2', { class: 'h5 mb-3 pb-2 border-bottom', text: 'Pengaturan Aplikasi' }),
+    el('h2', { 'data-judul-halaman': '', class: 'h5 mb-3 pb-2 border-bottom', text: 'Pengaturan Aplikasi' }),
     el('div', { class: 'row g-4' }, [
       el('div', { class: 'col-md-6' }, [el('div', { class: 'form-section h-100 text-center' }, [
         el('div', { class: 'form-section-title text-start', text: 'Logo Aplikasi' }),
@@ -186,8 +183,8 @@ function panelKosongkan() {
       ]),
     ]),
     el('div', { class: 'row g-2 align-items-end' }, [
-      el('div', { class: 'col-md-4' }, [el('label', { class: 'form-label', text: `Ketik ${KATA_KONFIRMASI}` }), kata]),
-      el('div', { class: 'col-md-4' }, [el('label', { class: 'form-label', text: 'Password Anda' }), password]),
+      el('div', { class: 'col-md-4' }, [el('label', { class: 'form-label', for: idUntukLabel(kata), text: `Ketik ${KATA_KONFIRMASI}` }), kata]),
+      el('div', { class: 'col-md-4' }, [el('label', { class: 'form-label', for: idUntukLabel(password), text: 'Password Anda' }), password]),
       el('div', { class: 'col-md-4' }, [tombol]),
     ]),
     hasil,

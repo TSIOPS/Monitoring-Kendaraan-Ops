@@ -1,6 +1,6 @@
 import { get } from '../api.js';
 import { getUser } from '../store.js';
-import { el, fmtDateId, fmtNum, halaman, navHalaman, toast } from '../ui.js';
+import { confirmDialog, el, fmtDateId, fmtNum, halaman, navHalaman, toast, idUntukLabel } from '../ui.js';
 import { tanggalWib } from './input.js';
 
 // ── Helper murni (diuji) ────────────────────────────────────────────────────
@@ -194,11 +194,13 @@ export async function renderRekap(view) {
   const isi = el('div', {});
   const tab = { aktif: 'kartu' };
   let lines = [];
+  // Filter yang menghasilkan `lines` saat ini; Excel mengikuti data yang tampil, bukan isian filter terbaru.
+  let filterDimuat = { dari: '', sampai: '', wh: '' };
   let nomor = 1;
-  const filterJenis = el('select', { class: 'form-select form-select-sm', style: 'width:auto' }, [
+  const filterJenis = el('select', { class: 'form-select form-select-sm', style: 'width:auto', 'aria-label': 'Filter jenis' }, [
     el('option', { value: '', text: 'Semua jenis' }), el('option', { value: 'BBM', text: 'BBM' }), el('option', { value: 'TOL', text: 'Tol' }),
   ]);
-  const filterMetode = el('select', { class: 'form-select form-select-sm', style: 'width:auto' }, [
+  const filterMetode = el('select', { class: 'form-select form-select-sm', style: 'width:auto', 'aria-label': 'Filter metode' }, [
     el('option', { value: '', text: 'Semua metode' }), el('option', { value: 'ETOLL', text: 'Etoll' }), el('option', { value: 'TUNAI', text: 'Tunai' }),
   ]);
   filterJenis.addEventListener('change', () => { nomor = 1; gambarIsi(); });
@@ -291,6 +293,7 @@ export async function renderRekap(view) {
       const q = new URLSearchParams({ dari: dari.value, sampai: sampai.value });
       if (isSuper && wh.value) q.set('cabang', wh.value);
       ({ lines = [] } = await get(`/api/laporan/rekap-pengeluaran?${q}`));
+      filterDimuat = { dari: dari.value, sampai: sampai.value, wh: isSuper ? wh.value : String(getUser()?.cabang || '') };
       nomor = 1;
       gambarRingkasan();
       gambarTab();
@@ -303,12 +306,14 @@ export async function renderRekap(view) {
   tombol.addEventListener('click', muat);
   unduh.addEventListener('click', async () => {
     if (!lines.length) { toast('Tidak ada data untuk diunduh.', 'error'); return; }
+    if ((dari.value !== filterDimuat.dari || sampai.value !== filterDimuat.sampai || (isSuper && wh.value !== filterDimuat.wh)) &&
+        !confirmDialog(`Filter belum diterapkan. File akan berisi data yang sedang tampil: ${fmtDateId(filterDimuat.dari)} s/d ${fmtDateId(filterDimuat.sampai)}. Lanjut unduh?`)) return;
     unduh.disabled = true;
     try {
       const XLSX = await muatSheetJS();
-      const kodeWh = isSuper ? wh.value : String(getUser()?.cabang || '');
-      const sheets = susunExcel(lines, { dari: dari.value, sampai: sampai.value, warehouse: kodeWh ? namaCabang[kodeWh] || kodeWh : 'Semua Warehouse', namaCabang });
-      XLSX.writeFile(bukuExcel(XLSX, sheets), `rekap-pengeluaran-${dari.value}_${sampai.value}${kodeWh ? '-' + kodeWh : ''}.xlsx`);
+      const { dari: d, sampai: s, wh: kodeWh } = filterDimuat;
+      const sheets = susunExcel(lines, { dari: d, sampai: s, warehouse: kodeWh ? namaCabang[kodeWh] || kodeWh : 'Semua Warehouse', namaCabang });
+      XLSX.writeFile(bukuExcel(XLSX, sheets), `rekap-pengeluaran-${d}_${s}${kodeWh ? '-' + kodeWh : ''}.xlsx`);
     } catch (err) {
       toast(err.message || 'Gagal membuat file Excel.', 'error');
     } finally {
@@ -316,10 +321,10 @@ export async function renderRekap(view) {
     }
   });
 
-  const kolom = (lebar, label, kontrol) => el('div', { class: lebar }, [el('label', { class: 'form-label small fw-bold text-muted text-uppercase', text: label }), kontrol]);
+  const kolom = (lebar, label, kontrol) => el('div', { class: lebar }, [el('label', { class: 'form-label small fw-bold text-muted text-uppercase', for: idUntukLabel(kontrol), text: label }), kontrol]);
   view.replaceChildren(
     el('div', { class: 'panel' }, [
-      el('h2', { class: 'h5 mb-3 pb-2 border-bottom', text: 'Rekap Pengeluaran BBM & Tol' }),
+      el('h2', { 'data-judul-halaman': '', class: 'h5 mb-3 pb-2 border-bottom', text: 'Rekap Pengeluaran BBM & Tol' }),
       el('div', { class: 'row g-2 align-items-end' }, [
         isSuper ? kolom('col-md-3', 'Warehouse', wh) : null,
         kolom('col-md-3', 'Dari tanggal', dari),

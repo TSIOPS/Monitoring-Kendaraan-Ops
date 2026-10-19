@@ -1,5 +1,6 @@
 import type { Env } from '../env';
 import { getSupabase } from './client';
+import { polaUsername } from '../utils/keamanan';
 
 // Bagian ini ditulis di Task 1; MasterRepo + supabaseMasterRepo menyusul di Task 2.
 export interface MasterCabang {
@@ -233,9 +234,11 @@ export function supabaseMasterRepo(env: Env): MasterRepo {
     },
 
     async findPenggunaByUsername(username) {
+      const pola = polaUsername(username);
+      if (pola === null) return null;
       const { data, error } = await sb().from('pengguna')
         .select('user_id, username, password, nama, role, kode_cabang, status')
-        .ilike('username', username).limit(1).maybeSingle();
+        .ilike('username', pola).limit(1).maybeSingle();
       if (error) throw fail('findPenggunaByUsername')(error);
       return (data as MasterPenggunaWithPassword | null) ?? null;
     },

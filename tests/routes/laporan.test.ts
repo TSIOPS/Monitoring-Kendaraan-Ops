@@ -63,6 +63,16 @@ async function post(app: ReturnType<typeof buildApp>, path: string, token: strin
 }
 
 describe('POST /api/laporan (save)', () => {
+  it('jalur sudah dilaporkan -> 409 SUDAH_DILAPORKAN, bukan pesan "buat jalur"', async () => {
+    const { app, kv } = setup({ jalur: [jalurRow({ status: 'SUDAH_LAPORAN', laporan_id: 'TRX-LAMA' })] });
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan', tok, saveBody());
+    expect(res.status).toBe(409);
+    const b = await res.json() as any;
+    expect(b.error).toBe('SUDAH_DILAPORKAN');
+    expect(b.message).toContain('sudah tersimpan');
+  });
+
   it('happy path: insert baris, flip jalur, audit CREATE, invalidate cache', async () => {
     const { app, kv, audits, lap } = setup();
     const tok = await loginAs(kv, PIC);
@@ -607,12 +617,12 @@ describe('lintas-cutting', () => {
     expect(lap.state.rows[0]).toMatchObject({ metode_pembayaran: '', metode_toll: 'FLAZZ', flazz_card_id_toll: 'FLZ-1' });
   });
 
-  it('jalur berstatus SUDAH_LAPORAN -> 409 gate', async () => {
+  it('jalur berstatus SUDAH_LAPORAN -> 409 SUDAH_DILAPORKAN', async () => {
     const { app, kv } = setup({ jalur: [jalurRow({ status: 'SUDAH_LAPORAN', laporan_id: 'TRX-LAIN' })] });
     const tok = await loginAs(kv, PIC);
     const res = await post(app, '/api/laporan', tok, saveBody());
     expect(res.status).toBe(409);
-    expect((await res.json() as any).message).toContain('Jalur Pengiriman terlebih dahulu');
+    expect((await res.json() as any).error).toBe('SUDAH_DILAPORKAN');
   });
 
   it('audit save memuat data_sesudah ringkas (<= 2000 char)', async () => {

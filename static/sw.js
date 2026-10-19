@@ -43,7 +43,8 @@ self.addEventListener('notificationclick', (event) => {
     for (const c of semua) {
       if ('focus' in c) {
         await c.focus();
-        if ('navigate' in c) await c.navigate(url);
+        // Biarkan halaman memutuskan (form yang belum disimpan dijaga router).
+        c.postMessage({ type: 'buka-url', url });
         return;
       }
     }

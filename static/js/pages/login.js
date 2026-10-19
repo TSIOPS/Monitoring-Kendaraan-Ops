@@ -1,8 +1,11 @@
 import { get, post } from '../api.js';
-import { setToken, setUser } from '../store.js';
-import { el } from '../ui.js';
+import { isLoggedIn, setToken, setUser } from '../store.js';
+import { ambilTujuanLogin } from '../router.js';
+import { el, tampilkanGalat } from '../ui.js';
 
 export function renderLogin(view) {
+  // Sudah masuk: jangan tampilkan form login; lanjut ke rute tujuan tersimpan (bila ada).
+  if (isLoggedIn()) { location.replace(ambilTujuanLogin()); return; }
   const username = el('input', { class: 'form-control', id: 'login-username', name: 'username', autocomplete: 'username' });
   const password = el('input', { class: 'form-control', id: 'login-password', type: 'password', name: 'password', autocomplete: 'current-password' });
   const alertBox = el('div', { id: 'login-alert', class: 'alert alert-danger d-none' });
@@ -41,8 +44,7 @@ export function renderLogin(view) {
     const u = username.value.trim();
     const p = password.value;
     if (!u || !p) {
-      alertBox.textContent = 'Username dan password wajib diisi.';
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, 'Username dan password wajib diisi.');
       return;
     }
     submit.disabled = true;
@@ -51,10 +53,9 @@ export function renderLogin(view) {
       const data = await post('/api/login', { username: u, password: p });
       setToken(data.token);
       setUser(data.user);
-      window.location.hash = '#/dashboard';
+      location.replace(ambilTujuanLogin()); // replace: tombol Back tidak kembali ke form login
     } catch (err) {
-      alertBox.textContent = err.message || 'Login gagal.';
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, err.message || 'Login gagal.');
       password.value = '';
       submit.disabled = false;
       submit.textContent = 'Masuk';

@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { buildPayload, hitungLiter, opsiBbm, opsiSupirJalur, tanggalWib, validateForm } from '../../static/js/pages/input.js';
+import { buildPayload, hitungLiter, opsiBbm, opsiSupirJalur, tanggalWib, teksBannerDraft, validateForm } from '../../static/js/pages/input.js';
+
+describe('teksBannerDraft', () => {
+  // 18-10-2026 14:20 WIB = 07:20 UTC
+  const disimpan = Date.UTC(2026, 9, 18, 7, 20);
+
+  it('draft hari ini: hanya jam', () => {
+    expect(teksBannerDraft(disimpan, '2026-10-18', '2026-10-18')).toMatch(/^Isian dari 14[.:]20 dipulihkan\. Foto perlu dipilih ulang\.$/);
+  });
+
+  it('draft tanggal lain: menyebut tanggal simpan dan tanggal laporan', () => {
+    expect(teksBannerDraft(disimpan, '2026-10-18', '2026-10-19')).toMatch(
+      /^Isian dari 18-10-2026 14[.:]20 dipulihkan — tanggal laporan diisi 18-10-2026\. Foto perlu dipilih ulang\.$/,
+    );
+  });
+});
 
 const DASAR = {
   vehicle_id: 'V-1',

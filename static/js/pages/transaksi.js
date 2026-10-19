@@ -1,6 +1,6 @@
 import { get, del } from '../api.js';
 import { getUser } from '../store.js';
-import { el, fmtNum, fmtDateId, toast, spinner, confirmDialog, halaman, navHalaman } from '../ui.js';
+import { el, fmtNum, fmtDateId, toast, spinner, confirmDialog, halaman, navHalaman, idUntukLabel } from '../ui.js';
 
 const PER_HALAMAN = 10;
 let halamanAktif = 1;
@@ -128,13 +128,17 @@ function pakaiKartu2(r) {
   return Boolean(r.flazz_card_id_2 || r.flazz_card_id_toll_2 || Number(r.biaya_bbm_2) || Number(r.biaya_toll_2));
 }
 
+// Label badge dari teks warning server (buildOdoWarning); teks lain → label umum.
+export function teksSelisihOdo(warning) {
+  const m = String(warning || '').match(/KM akhir terakhir ([\d.,]+) \(([^)]*)\), KM awal ([\d.,]+), selisih (-?[\d.,]+) KM/);
+  return m ? `Selisih ODO ${m[4].startsWith('-') ? '' : '+'}${m[4]} KM` : 'Selisih ODO';
+}
+
 // Selisih KM akhir laporan sebelumnya dengan KM awal laporan ini (teks dari server).
 export function selisihOdo(row) {
   const w = String(row.warning || '');
   if (!w) return null;
-  const m = w.match(/KM akhir terakhir ([d.,]+) (([^)]*)), KM awal ([d.,]+), selisih (-?[d.,]+) KM/);
-  const teks = m ? `Selisih ODO ${m[4].startsWith('-') ? '' : '+'}${m[4]} KM` : 'Selisih ODO';
-  return el('div', {}, [el('span', { class: 'badge text-bg-danger', title: w, text: teks })]);
+  return el('div', {}, [el('span', { class: 'badge text-bg-danger', title: w, text: teksSelisihOdo(w) })]);
 }
 
 function barisTabel(r) {
@@ -177,7 +181,7 @@ function panelTransaksi(rows, view, adaFilter = false) {
         ])
       : el('p', { class: 'text-muted', text: adaFilter ? 'Tidak ada transaksi yang cocok dengan filter.' : 'Belum ada transaksi.' });
     panel.replaceChildren(
-      el('h2', { class: 'h5 mb-3 pb-2 border-bottom text-success fw-bold' }, [
+      el('h2', { 'data-judul-halaman': '', class: 'h5 mb-3 pb-2 border-bottom text-success fw-bold' }, [
         el('i', { class: 'bi bi-clock-history me-2', 'aria-hidden': 'true' }), `Riwayat Operasional (${rows.length})`,
       ]),
       isi,
@@ -262,7 +266,7 @@ function panelFilter(master, isSuper, view, penginput) {
     halamanAktif = 1;
     renderHistory(view);
   };
-  const kolom = (lebar, label, kontrol) => el('div', { class: lebar }, [el('label', { class: 'form-label small fw-bold text-muted text-uppercase', text: label }), kontrol]);
+  const kolom = (lebar, label, kontrol) => el('div', { class: lebar }, [el('label', { class: 'form-label small fw-bold text-muted text-uppercase', for: idUntukLabel(kontrol), text: label }), kontrol]);
 
   return el('div', { class: 'panel' }, [
     el('div', { class: 'row g-2 align-items-end' }, [

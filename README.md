@@ -29,8 +29,9 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 
 ## Catatan keamanan
 - Role/cabang tidak pernah dari client; dicek `requireUser`.
-- Rate limit login 5x/5mnt per username (KV).
+- Rate limit login (KV): 5x/5mnt per input username, per akun hasil lookup, dan 30x/5mnt per IP; username berisi wildcard (`%`, `*`) ditolak dan `_` diperlakukan literal.
 - Hash password format kompatibel GAS (tidak perlu reset saat migrasi).
+- Sesi sliding 12 jam: diperpanjang saat dipakai hanya selama token masih terdaftar di daftar sesi pengguna (`sessu:`, belum dicabut), dan maksimal 7 hari sejak login; setelah itu wajib login ulang.
 
 ## API (status M5 — fondasi + master + settings + audit + laporan + warnings + Flazz CRUD)
 | Metode | Path | Akses | Keterangan |

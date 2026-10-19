@@ -1,6 +1,6 @@
-import { get, put } from '../api.js';
-import { getRouteParam } from '../router.js';
-import { el, fmtNum, toast, pratinjauFoto } from '../ui.js';
+import { BATAS_WAKTU_FOTO_MS, get, put } from '../api.js';
+import { getRouteParam, halamanMasihAktif, pasangPenjagaKeluar } from '../router.js';
+import { el, fmtNum, toast, pratinjauFoto, tampilkanGalat, barisForm as baris, bantuRupiah } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
 import { hitungLiter, kompresGambar, namaAman, opsiBbm, pesanDigitKm, STRUK_KUALITAS, STRUK_LEBAR, THUMB_KUALITAS, THUMB_LEBAR } from './input.js';
 
@@ -101,6 +101,7 @@ function pilihNilai(select, value, label) {
 }
 
 export async function renderEdit(view) {
+  const hashSaya = window.location.hash;
   const id = getRouteParam('id');
   if (!id) {
     window.location.hash = '#/history';
@@ -115,10 +116,13 @@ export async function renderEdit(view) {
   try {
     [{ transaksi: trx }, master] = await Promise.all([get(`/api/laporan/${encodeURIComponent(id)}`), get('/api/master')]);
   } catch (err) {
+    if (!halamanMasihAktif(hashSaya)) return { ok: false };
     const pesan = err.status === 404 ? 'Transaksi tidak ditemukan. Mungkin sudah dihapus.' : err.message;
     view.replaceChildren(el('div', { class: `alert ${err.status === 404 ? 'alert-warning' : 'alert-danger'}`, text: pesan }));
     return { ok: false };
   }
+  // Pengguna sudah pindah halaman selama data dimuat: jangan pasang penjaga/gambar di sana.
+  if (!halamanMasihAktif(hashSaya)) return { ok: false };
 
   const cards = Array.isArray(master.flazzCards) ? master.flazzCards : [];
   const kendaraan = (master.vehicles || []).find((v) => v.vehicle_id === trx.vehicle_id);
@@ -192,12 +196,6 @@ export async function renderEdit(view) {
 
   const alertBox = el('div', { class: 'alert alert-danger d-none' });
   const submit = el('button', { class: 'btn btn-primary', type: 'submit', text: 'Simpan Perubahan' });
-  const baris = (label, kontrol, catatan = '') =>
-    el('div', { class: 'mb-3' }, [
-      el('label', { class: 'form-label', text: label }),
-      kontrol,
-      catatan ? el('div', { class: 'form-text', text: catatan }) : null,
-    ]);
   const kol = (n, ...isi) => el('div', { class: `col-md-${n}` }, isi);
 
   const form = el('form', { novalidate: 'novalidate' }, [
@@ -229,21 +227,21 @@ export async function renderEdit(view) {
     el('h3', { class: 'h6 mt-2', text: 'Pembayaran' }),
     el('div', { class: 'row' }, [
       kol(3, baris('Jenis BBM', jenisBbm)),
-      kol(3, baris('Biaya BBM', biayaBbm, 'Kosongkan/0 bila tidak membeli BBM.')),
+      kol(3, baris('Biaya BBM', el('div', {}, [biayaBbm, bantuRupiah(biayaBbm)]), 'Kosongkan/0 bila tidak membeli BBM.')),
       kol(3, baris('Metode pembayaran', metode)),
       kol(3, baris('Kartu Flazz (BBM)', kartu)),
     ]),
     el('div', { class: 'row' }, [
-      kol(4, baris('Biaya tol', biayaTol)),
+      kol(4, baris('Biaya tol', el('div', {}, [biayaTol, bantuRupiah(biayaTol)]))),
       kol(4, baris('Metode tol', metodeTol)),
       kol(4, baris('Kartu Flazz (tol)', kartuTol)),
     ]),
     el('h3', { class: 'h6 mt-2', text: 'Kartu ke-2 (opsional)' }),
     el('div', { class: 'form-text mb-2', text: 'Isi bila laporan memakai 2 kartu. Nominal tanpa kartu dihitung sebagai tunai.' }),
     el('div', { class: 'row' }, [
-      kol(3, baris('Biaya BBM (kartu 2)', biayaBbm2)),
+      kol(3, baris('Biaya BBM (kartu 2)', el('div', {}, [biayaBbm2, bantuRupiah(biayaBbm2)]))),
       kol(3, baris('Kartu Flazz BBM (kartu 2)', kartu2)),
-      kol(3, baris('Biaya tol (kartu 2)', biayaTol2)),
+      kol(3, baris('Biaya tol (kartu 2)', el('div', {}, [biayaTol2, bantuRupiah(biayaTol2)]))),
       kol(3, baris('Kartu Flazz tol (kartu 2)', kartuTol2)),
     ]),
     el('div', { class: 'd-flex gap-2' }, [
@@ -251,6 +249,12 @@ export async function renderEdit(view) {
       el('a', { class: 'btn btn-outline-secondary', href: '#/history', text: 'Batal' }),
     ]),
   ]);
+
+  // Penjaga keluar: tautan Batal, menu, dan tombol Back ditanya bila ada perubahan belum disimpan.
+  let formDiubah = false;
+  form.addEventListener('input', () => { formDiubah = true; });
+  form.addEventListener('change', () => { formDiubah = true; });
+  pasangPenjagaKeluar(() => (formDiubah ? 'Perubahan belum disimpan. Tinggalkan halaman?' : ''));
 
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -265,8 +269,7 @@ export async function renderEdit(view) {
     };
     const err = validateEdit(values);
     if (err.length) {
-      alertBox.textContent = err.join(' ');
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, err.join(' '));
       return;
     }
 
@@ -290,17 +293,18 @@ export async function renderEdit(view) {
         body['foto_' + slot + '_thumb'] = await kompresGambar(input.files[0], THUMB_LEBAR, THUMB_KUALITAS);
         body['foto_' + slot + '_name'] = namaAman(input.files[0].name);
       }
-      const res = await put(`/api/laporan/${encodeURIComponent(id)}`, body);
+      const res = await put(`/api/laporan/${encodeURIComponent(id)}`, body, { timeoutMs: BATAS_WAKTU_FOTO_MS });
       toast(res.msg || 'Transaksi diperbarui.', 'success');
-      window.location.hash = '#/history';
+      formDiubah = false; // sebelum pindah agar penjaga tidak bertanya
+      // replace: tombol Back tidak kembali ke form edit lama.
+      location.replace('#/history');
     } catch (e) {
-      alertBox.textContent = e.message || 'Gagal memperbarui transaksi.';
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, e.message || 'Gagal memperbarui transaksi.');
       submit.disabled = false;
       submit.textContent = 'Simpan Perubahan';
     }
   });
 
-  view.replaceChildren(el('div', { class: 'panel' }, [el('h2', { class: 'h6 mb-3', text: 'Edit Transaksi' }), form]));
+  view.replaceChildren(el('div', { class: 'panel' }, [el('h2', { 'data-judul-halaman': '', class: 'h6 mb-3', text: 'Edit Transaksi' }), form]));
   return { ok: true };
 }

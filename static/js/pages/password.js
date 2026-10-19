@@ -1,6 +1,6 @@
 import { post } from '../api.js';
 import { getUser } from '../store.js';
-import { el, toast } from '../ui.js';
+import { el, toast, tampilkanGalat, barisForm as baris } from '../ui.js';
 
 export const PANJANG_MIN = 6;
 
@@ -24,9 +24,6 @@ export async function renderPassword(view) {
   lihat.addEventListener('change', () => { for (const x of [lama, baru, ulang]) x.type = lihat.checked ? 'text' : 'password'; });
   const alertBox = el('div', { class: 'alert alert-danger d-none' });
   const simpan = el('button', { type: 'submit', class: 'btn btn-primary', text: 'Simpan Password' });
-  const baris = (label, kontrol, catatan) => el('div', { class: 'mb-3' }, [
-    el('label', { class: 'form-label', for: kontrol.id, text: label }), kontrol, catatan ? el('div', { class: 'form-text', text: catatan }) : null,
-  ]);
 
   const form = el('form', { novalidate: 'novalidate' }, [
     alertBox,
@@ -42,8 +39,7 @@ export async function renderPassword(view) {
     alertBox.classList.add('d-none');
     const err = cekGantiPassword(lama.value, baru.value, ulang.value);
     if (err.length) {
-      alertBox.textContent = err.join(' ');
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, err.join(' '));
       return;
     }
     simpan.disabled = true;
@@ -54,8 +50,7 @@ export async function renderPassword(view) {
       for (const x of [lama, baru, ulang]) x.value = '';
       window.location.hash = '#/dashboard';
     } catch (e) {
-      alertBox.textContent = e.message || 'Gagal mengganti password.';
-      alertBox.classList.remove('d-none');
+      tampilkanGalat(alertBox, e.message || 'Gagal mengganti password.');
     } finally {
       simpan.disabled = false;
       simpan.textContent = 'Simpan Password';
@@ -63,7 +58,7 @@ export async function renderPassword(view) {
   });
 
   view.replaceChildren(el('div', { class: 'panel', style: 'max-width:480px;margin:0 auto' }, [
-    el('h2', { class: 'h5 mb-1', text: 'Ganti Password' }),
+    el('h2', { 'data-judul-halaman': '', class: 'h5 mb-1', text: 'Ganti Password' }),
     el('div', { class: 'text-muted small mb-3', text: `Akun: ${user.username || '-'}${user.nama ? ' (' + user.nama + ')' : ''}` }),
     form,
   ]));

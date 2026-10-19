@@ -530,6 +530,8 @@ export const MSG_JALUR_GATE =
   'Anda harus membuat Jalur Pengiriman terlebih dahulu (status BELUM DIISI) untuk kendaraan dan supir ini pada tanggal tersebut sebelum menginput laporan harian.';
 export const MSG_DUPLICATE =
   'Laporan sudah pernah disimpan. Untuk menghindari data ganda, tidak disimpan ulang. Silakan cek Riwayat Transaksi.';
+export const MSG_SUDAH_DILAPORKAN =
+  'Laporan untuk supir & kendaraan ini pada tanggal tersebut sudah tersimpan (mungkin dari kiriman sebelumnya saat sinyal putus). Cek Riwayat Transaksi sebelum menginput ulang.';
 export const MSG_TRX_NOT_FOUND = 'Transaksi tidak ditemukan.';
 export const MSG_PICK_FLAZZ = 'Pilih kartu Flazz terlebih dahulu.';
 export const MSG_CARD_TARGET_NOT_FOUND = 'Kartu tujuan tidak ditemukan.';

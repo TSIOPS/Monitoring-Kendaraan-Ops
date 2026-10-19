@@ -1,5 +1,5 @@
 import { get } from '../api.js';
-import { el, fmtDateId, halaman as potong, navHalaman } from '../ui.js';
+import { el, fmtDateId, halaman as potong, navHalaman, idUntukLabel } from '../ui.js';
 
 export const GALERI_PER_HALAMAN = 10;
 
@@ -77,8 +77,8 @@ export async function renderGaleri(view) {
 
   view.replaceChildren(el('div', { class: 'panel' }, [
     el('div', { class: 'd-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3 pb-2 border-bottom' }, [
-      el('h2', { class: 'h5 mb-0', text: 'Galeri Foto Operasional' }),
-      el('div', { class: 'd-flex align-items-center gap-2' }, [el('label', { class: 'small fw-bold text-muted text-uppercase text-nowrap', text: 'Jenis Foto:' }), pilih]),
+      el('h2', { 'data-judul-halaman': '', class: 'h5 mb-0', text: 'Galeri Foto Operasional' }),
+      el('div', { class: 'd-flex align-items-center gap-2' }, [el('label', { class: 'small fw-bold text-muted text-uppercase text-nowrap', for: idUntukLabel(pilih), text: 'Jenis Foto:' }), pilih]),
     ]),
     isi,
     nav,
