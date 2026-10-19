@@ -131,7 +131,7 @@ git commit -m "fix(auth): netralkan wildcard ILIKE pada lookup username"
 - Modify: `src/routes/auth.ts:9-60`
 - Test: `tests/auth-routes.test.ts`
 
-- [ ] **Step 1: Tulis tes gagal** (tambahkan di dalam `describe('auth routes', …)`):
+- [x] **Step 1: Tulis tes gagal** (tambahkan di dalam `describe('auth routes', …)`):
 
 ```ts
   it('variasi penulisan username tidak menambah jatah percobaan untuk akun yang sama', async () => {
@@ -163,12 +163,12 @@ git commit -m "fix(auth): netralkan wildcard ILIKE pada lookup username"
   });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan dua tes pertama gagal**
+- [x] **Step 2: Jalankan, pastikan dua tes pertama gagal**
 
 Run: `npx vitest run tests/auth-routes.test.ts`
 Expected: FAIL — status 401, bukan 429 (rate limit masih per string mentah).
 
-- [ ] **Step 3: Implementasi** — ganti blok rate limit di handler `/login`:
+- [x] **Step 3: Implementasi** — ganti blok rate limit di handler `/login`:
 
 ```ts
 const LOGIN_MAX = 5;
@@ -203,12 +203,12 @@ Dan setelah login sukses, reset kedua kunci:
     await resetRate(deps.kv, `login-akun:${user.user_id}`);
 ```
 
-- [ ] **Step 4: Jalankan seluruh tes auth**
+- [x] **Step 4: Jalankan seluruh tes auth**
 
 Run: `npx vitest run tests/auth-routes.test.ts tests/rate-limit.test.ts`
 Expected: PASS semua (termasuk tes lama "login melebihi rate limit diblokir").
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/routes/auth.ts tests/auth-routes.test.ts

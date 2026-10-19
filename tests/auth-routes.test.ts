@@ -64,6 +64,47 @@ describe('auth routes', () => {
     expect(body.error).toBe('RATE_LIMIT');
   });
 
+  it('variasi penulisan username tidak menambah jatah percobaan untuk akun yang sama', async () => {
+    const cryptoHash = await hashPassword('rahasia123');
+    const { deps } = makeDeps({ findByUsername: async () => ({ ...PIC_USER, password: cryptoHash }) });
+    const app = buildApp(fakeEnv(), deps);
+    const variasi = ['picjkt', 'picjk_', 'pic_kt', '_icjkt', 'p_cjkt'];
+    for (const v of variasi) await login(app, v, 'salah');
+    const { res, body } = await login(app, 'pi_jkt', 'salah');
+    expect(res.status).toBe(429);
+    expect(body.error).toBe('RATE_LIMIT');
+  });
+
+  it('akun terkunci tetap terkunci walau password benar sampai jendela habis', async () => {
+    const cryptoHash = await hashPassword('rahasia123');
+    const { deps } = makeDeps({ findByUsername: async () => ({ ...PIC_USER, password: cryptoHash }) });
+    const app = buildApp(fakeEnv(), deps);
+    for (let i = 0; i < 5; i++) await login(app, `v${i}`, 'salah');
+    const { res } = await login(app, 'picjkt', 'rahasia123');
+    expect(res.status).toBe(429);
+  });
+
+  it('username dengan karakter wildcard ditolak sebagai kredensial salah', async () => {
+    const { deps } = makeDeps({ findByUsername: async () => null });
+    const app = buildApp(fakeEnv(), deps);
+    const { res } = await login(app, '%', 'x');
+    expect(res.status).toBe(401);
+  });
+
+  it('rate limit per IP: 30 percobaan dengan username berbeda boleh, ke-31 diblokir', async () => {
+    const { deps } = makeDeps({ findByUsername: async () => null });
+    const app = buildApp(fakeEnv(), deps);
+    const dariIp = (username: string) => app.request('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': '1.2.3.4' },
+      body: JSON.stringify({ username, password: 'x' }),
+    });
+    for (let i = 0; i < 30; i++) expect((await dariIp(`user${i}`)).status).toBe(401);
+    const res = await dariIp('user-baru');
+    expect(res.status).toBe(429);
+    expect(((await res.json()) as any).error).toBe('RATE_LIMIT');
+  });
+
   it('GET /api/session valid dengan Bearer token', async () => {
     const cryptoHash = await hashPassword('rahasia123');
     const { deps } = makeDeps({ findByUsername: async (u) => (u === 'picjkt' ? { ...PIC_USER, password: cryptoHash } : null) });

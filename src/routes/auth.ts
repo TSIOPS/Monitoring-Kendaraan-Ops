@@ -7,6 +7,7 @@ import { requireUser } from '../auth/middleware';
 import { errPayload, okPayload, reqIp } from '../utils/http';
 
 const LOGIN_MAX = 5;
+const LOGIN_IP_MAX = 30;
 const PASSWORD_MIN = 6;
 const LOGIN_WINDOW_MS = 5 * 60 * 1000;
 
@@ -22,12 +23,22 @@ export function authRoutes(deps: AppDeps): Hono {
       return c.json(errPayload('Username dan password wajib diisi.', 'BAD_REQUEST'), 400);
     }
 
+    // Lapis 1: per string input (perilaku lama) + per IP, sebelum menyentuh DB.
     const rate = await checkRate(deps.kv, `login:${username}`, LOGIN_MAX, LOGIN_WINDOW_MS, deps.now);
-    if (!rate.allowed) {
-      return c.json(errPayload(`Terlalu banyak percobaan login. Tunggu ${rate.retryAfterSec} detik.`, 'RATE_LIMIT'), 429);
+    const rateIp = ip ? await checkRate(deps.kv, `login-ip:${ip}`, LOGIN_IP_MAX, LOGIN_WINDOW_MS, deps.now) : rate;
+    const tolak = !rate.allowed ? rate : !rateIp.allowed ? rateIp : null;
+    if (tolak) {
+      return c.json(errPayload(`Terlalu banyak percobaan login. Tunggu ${tolak.retryAfterSec} detik.`, 'RATE_LIMIT'), 429);
     }
 
     const user = await deps.findByUsername(username);
+    // Lapis 2: per akun hasil lookup — variasi penulisan username tidak memberi jatah baru.
+    if (user) {
+      const rateAkun = await checkRate(deps.kv, `login-akun:${user.user_id}`, LOGIN_MAX, LOGIN_WINDOW_MS, deps.now);
+      if (!rateAkun.allowed) {
+        return c.json(errPayload(`Terlalu banyak percobaan login. Tunggu ${rateAkun.retryAfterSec} detik.`, 'RATE_LIMIT'), 429);
+      }
+    }
     if (!user || user.status === 'Non-Aktif' || !(await verifyPassword(password, user.password))) {
       await deps.recordAudit({
         user_id: user?.user_id ?? '-',
@@ -40,7 +51,10 @@ export function authRoutes(deps: AppDeps): Hono {
       return c.json(errPayload('Username atau password salah.', 'BAD_CREDENTIALS'), 401);
     }
 
+    // Counter IP sengaja TIDAK di-reset: penyerang yang punya satu akun sah tidak boleh bisa
+    // memulihkan jatah IP-nya dengan login berhasil di sela tebakan.
     await resetRate(deps.kv, `login:${username}`);
+    await resetRate(deps.kv, `login-akun:${user.user_id}`);
     // Hash lama (warisan GAS) diganti PBKDF2 begitu password terbukti benar; gagal simpan tidak menggagalkan login.
     if (perluRehash(user.password)) {
       try {

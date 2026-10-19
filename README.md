@@ -29,7 +29,7 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 
 ## Catatan keamanan
 - Role/cabang tidak pernah dari client; dicek `requireUser`.
-- Rate limit login 5x/5mnt per username (KV).
+- Rate limit login (KV): 5x/5mnt per input username, per akun hasil lookup, dan 30x/5mnt per IP; username berisi wildcard (`%`, `*`) ditolak dan `_` diperlakukan literal.
 - Hash password format kompatibel GAS (tidak perlu reset saat migrasi).
 
 ## API (status M5 — fondasi + master + settings + audit + laporan + warnings + Flazz CRUD)
