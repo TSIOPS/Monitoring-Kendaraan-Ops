@@ -602,8 +602,15 @@ export async function renderInput(view) {
       toast('Laporan tersimpan.', 'success');
       window.location.hash = '#/history';
     } catch (err) {
-      alertBox.textContent = err.message || 'Gagal menyimpan laporan.';
-      alertBox.classList.remove('d-none');
+      alertBox.replaceChildren(
+        ...[
+          err.message || 'Gagal menyimpan laporan.',
+          err.error === 'SUDAH_DILAPORKAN'
+            ? el('div', { class: 'mt-2' }, [el('a', { href: '#/history', class: 'alert-link', text: 'Buka Riwayat Transaksi' })])
+            : null,
+        ].filter(Boolean),
+      );
+      alertBox.classList.remove('d-none'); // diganti tampilkanGalat(alertBox) pada Task 10
       submit.disabled = false;
       batal.disabled = false;
       submit.textContent = 'Simpan Laporan';

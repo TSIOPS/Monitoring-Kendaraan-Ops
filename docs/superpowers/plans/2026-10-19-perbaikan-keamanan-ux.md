@@ -336,7 +336,7 @@ git commit -m "fix(api): sesi tidak dihapus pada respons non-JSON; tambah timeou
 - Modify: `src/routes/laporan.ts:234-236`
 - Test: `tests/routes/laporan.test.ts`
 
-- [ ] **Step 1: Tulis tes gagal** (di `describe('POST /api/laporan (save)', …)`):
+- [x] **Step 1: Tulis tes gagal** (di `describe('POST /api/laporan (save)', …)`):
 
 ```ts
   it('jalur sudah dilaporkan -> 409 SUDAH_DILAPORKAN, bukan pesan "buat jalur"', async () => {
@@ -350,12 +350,12 @@ git commit -m "fix(api): sesi tidak dihapus pada respons non-JSON; tambah timeou
   });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `npx vitest run tests/routes/laporan.test.ts -t "sudah dilaporkan"`
 Expected: FAIL — `error` = `CONFLICT`.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 `src/logic/laporan.ts` (setelah `MSG_DUPLICATE`):
 
@@ -371,7 +371,7 @@ export const MSG_SUDAH_DILAPORKAN =
     if (matchedJalur.status !== 'BELUM_DIISI') throw new HttpError(409, L.MSG_SUDAH_DILAPORKAN, 'SUDAH_DILAPORKAN');
 ```
 
-- [ ] **Step 4: Klien — tawarkan tautan Riwayat**
+- [x] **Step 4: Klien — tawarkan tautan Riwayat**
 
 Di `static/js/pages/input.js`, blok `catch (err)` submit:
 
@@ -384,9 +384,9 @@ Di `static/js/pages/input.js`, blok `catch (err)` submit:
       tampilkanGalat(alertBox); // dari Task 10; sebelum Task 10 cukup alertBox.classList.remove('d-none')
 ```
 
-- [ ] **Step 5: Jalankan tes laporan** — Run: `npx vitest run tests/routes/laporan.test.ts` → PASS.
+- [x] **Step 5: Jalankan tes laporan** — Run: `npx vitest run tests/routes/laporan.test.ts` → PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/logic/laporan.ts src/routes/laporan.ts static/js/pages/input.js tests/routes/laporan.test.ts
