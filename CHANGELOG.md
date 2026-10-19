@@ -3,6 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-10-19
+- **Aksesibilitas** — Toast kini diumumkan pembaca layar (`aria-live`, galat `role="alert"`), punya tombol tutup 44px, galat tampil 10 dtk; jenis `danger`/`warning` yang sebelumnya tanpa gaya (audit) kini berwarna (warning oranye gelap kontras ≥4.5:1); di HP toast selebar layar di atas safe-area — `static/js/ui.js`, `static/index.html`, `static/css/app.css`
 - **Aksesibilitas** — Semua label form kini terhubung ke kontrolnya (`for`/`id`, lewat helper bersama `barisForm()`/`idUntukLabel()`), sehingga dibaca pembaca layar dan tap pada label memfokuskan input; kontrol tanpa label (pencarian/filter master, filter rekap, filter warehouse dashboard) diberi `aria-label`, kotak centang multi di master diberi `role="group"` — `static/js/ui.js`, `static/js/pages/*.js`
 - **Aksesibilitas** — Galat form (Input, Edit, Jalur, Flazz Top Up/Rekonsiliasi, Master, Login, Ganti Password) kini di-scroll ke tengah layar, difokuskan, dan diumumkan pembaca layar (`role="alert"`) lewat helper `tampilkanGalat()`; sebelumnya galat di atas form panjang tidak terlihat saat menekan Simpan di HP — `static/js/ui.js`, `static/js/pages/*.js`
 - **Keamanan/UX** — Gerbang Fase 2 ditutup: code-review (4 temuan diperbaiki), security-review lolos, ui-ux review (10 temuan diperbaiki).

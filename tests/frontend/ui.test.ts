@@ -106,3 +106,15 @@ describe('idUntukLabel', () => {
     expect(idUntukLabel(b)).not.toBe(id1);
   });
 });
+
+describe('jenisToast', () => {
+  it('memetakan jenis Bootstrap ke gaya toast; tak dikenal jadi info', async () => {
+    const { jenisToast } = await import('../../static/js/ui.js');
+    expect(jenisToast('danger')).toBe('error');
+    expect(jenisToast('error')).toBe('error');
+    expect(jenisToast('warning')).toBe('warning');
+    expect(jenisToast('success')).toBe('success');
+    expect(jenisToast('aneh')).toBe('info');
+    expect(jenisToast(undefined)).toBe('info');
+  });
+});

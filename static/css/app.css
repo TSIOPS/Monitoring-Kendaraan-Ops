@@ -215,10 +215,32 @@ body {
   background: #343a40;
   max-width: 22rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
 }
 
 .toast-error { background: var(--warna-bahaya); }
 .toast-success { background: var(--warna-ok); }
+/* Oranye gelap: teks putih tetap ≥4.5:1 (oranye #fd7e14 hanya ~2.9:1). */
+.toast-warning { background: #8a5300; }
+/* Tombol tutup: area tap 44px tanpa menambah tinggi toast (margin negatif ke tepi padding). */
+.toast-tutup {
+  background: none;
+  border: 0;
+  color: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -0.65rem -0.9rem -0.65rem auto;
+  cursor: pointer;
+}
+
+@media (max-width: 575.98px) {
+  .toast-host { left: 1rem; right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom)); }
+  .toast-item { max-width: none; }
+}
 
 .login-wrap {
   flex: 1 0 auto;

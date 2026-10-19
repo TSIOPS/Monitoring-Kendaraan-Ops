@@ -975,8 +975,8 @@ export function barisForm(label, kontrol, catatan = '', kelas = 'mb-3') {
 
 **Files:** Modify `static/js/ui.js` (`toast`), `static/index.html:27`, `static/css/app.css:201-221`
 
-- [ ] **Step 1:** `static/index.html`: `<div id="toast-host" class="toast-host" aria-live="polite"></div>`
-- [ ] **Step 2:** ganti `toast()`:
+- [x] **Step 1:** `static/index.html`: `<div id="toast-host" class="toast-host" aria-live="polite"></div>`
+- [x] **Step 2:** ganti `toast()`:
 
 ```js
 const PETA_JENIS = { danger: 'error', warning: 'warning', error: 'error', success: 'success', info: 'info' };
@@ -995,7 +995,7 @@ export function toast(message, kind = 'info') {
 }
 ```
 
-- [ ] **Step 3:** CSS tambahan:
+- [x] **Step 3:** CSS tambahan:
 
 ```css
 .toast-item { display: flex; align-items: flex-start; gap: 0.5rem; }
@@ -1004,7 +1004,8 @@ export function toast(message, kind = 'info') {
 @media (max-width: 575.98px) { .toast-host { left: 1rem; right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom)); } .toast-item { max-width: none; } }
 ```
 
-- [ ] **Step 4: Commit** `fix(ui): toast aksesibel dengan tombol tutup`.
+  - Penyimpangan: pemetaan jenis diekspor sebagai `jenisToast()` (dites); aturan `display:flex` digabung ke `.toast-item` yang ada; margin `.toast-tutup` disatukan (`margin: -0.65rem -0.9rem -0.65rem auto`) karena di rencana `margin` menimpa `margin-left: auto`.
+- [x] **Step 4: Commit** `fix(ui): toast aksesibel dengan tombol tutup`.
 
 ### Task 13: CSS mobile — font input 16px, target sentuh 44px, kontras, dvh
 

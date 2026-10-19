@@ -67,15 +67,23 @@ export function barisForm(label, kontrol, catatan = '', kelas = 'mb-3') {
   ]);
 }
 
+// Pemanggil lama memakai nama kelas Bootstrap ('danger'); semua dipetakan ke gaya toast yang ada.
+const PETA_JENIS = { danger: 'error', warning: 'warning', error: 'error', success: 'success', info: 'info' };
+export const jenisToast = (kind) => PETA_JENIS[kind] || 'info';
+
+// Toast diumumkan pembaca layar (galat: role=alert, lainnya: status) dan bisa ditutup; galat tampil lebih lama.
 export function toast(message, kind = 'info') {
   let host = document.getElementById('toast-host');
   if (!host) {
-    host = el('div', { id: 'toast-host', class: 'toast-host' });
+    host = el('div', { id: 'toast-host', class: 'toast-host', 'aria-live': 'polite' });
     document.body.appendChild(host);
   }
-  const node = el('div', { class: `toast-item toast-${kind}`, text: message });
+  const jenis = jenisToast(kind);
+  const tutup = el('button', { type: 'button', class: 'toast-tutup', 'aria-label': 'Tutup notifikasi', text: '×' });
+  const node = el('div', { class: `toast-item toast-${jenis}`, role: jenis === 'error' ? 'alert' : 'status' }, [el('span', { text: message }), tutup]);
+  tutup.addEventListener('click', () => node.remove());
   host.appendChild(node);
-  setTimeout(() => node.remove(), kind === 'error' ? 8000 : 4000);
+  setTimeout(() => node.remove(), jenis === 'error' ? 10000 : 4000);
 }
 
 // Galat form selalu di-scroll ke tengah layar dan diumumkan pembaca layar; tombol Simpan
