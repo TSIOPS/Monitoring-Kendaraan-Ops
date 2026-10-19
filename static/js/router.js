@@ -38,7 +38,8 @@ export function tujuanSetelahLogin(simpanan) {
 // Ke halaman login sambil mengingat rute yang sedang dibuka (per tab).
 function keLogin(hashSekarang) {
   try { if (hashSekarang && hashSekarang !== '#/login') sessionStorage.setItem(KUNCI_TUJUAN, hashSekarang); } catch { /* abaikan */ }
-  window.location.hash = '#/login';
+  // replace: rute yang ditolak tidak tertinggal di riwayat, Back cukup sekali setelah login.
+  window.location.replace('#/login');
 }
 
 export function ambilTujuanLogin() {

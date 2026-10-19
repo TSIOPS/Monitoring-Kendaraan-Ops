@@ -1,9 +1,9 @@
 import { get, post, BATAS_WAKTU_FOTO_MS } from '../api.js';
-import { el, fmtNum, pratinjauFoto, toast } from '../ui.js';
+import { el, fmtDateId, fmtNum, pratinjauFoto, toast } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
 import { bacaDraft, hapusDraft, kunciDraft, simpanDraft } from '../draft.js';
 import { getUser } from '../store.js';
-import { pasangPenjagaKeluar } from '../router.js';
+import { navigate, pasangPenjagaKeluar } from '../router.js';
 
 // Setara compressPhoto GAS (1280 px, 70%) agar kapasitas Storage awet.
 const MAKS_LEBAR = 1280;
@@ -125,6 +125,19 @@ const FORMAT_WIB = new Intl.DateTimeFormat('en-CA', {
 
 export function tanggalWib(d = new Date()) {
   return FORMAT_WIB.format(d);
+}
+
+const FORMAT_JAM_WIB = new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' });
+
+// Teks banner draft dipulihkan. Draft dari tanggal lain menyebut tanggalnya agar PIC
+// tidak tanpa sadar mengirim laporan untuk tanggal yang salah.
+export function teksBannerDraft(disimpanMs, tanggalDraft, hariIni = tanggalWib()) {
+  const jam = FORMAT_JAM_WIB.format(new Date(disimpanMs));
+  if (tanggalDraft && tanggalDraft !== hariIni) {
+    const tglSimpan = fmtDateId(tanggalWib(new Date(disimpanMs)));
+    return `Isian dari ${tglSimpan} ${jam} dipulihkan — tanggal laporan diisi ${fmtDateId(tanggalDraft)}. Foto perlu dipilih ulang.`;
+  }
+  return `Isian dari ${jam} dipulihkan. Foto perlu dipilih ulang.`;
 }
 
 export function kompresGambar(file, maksLebar = MAKS_LEBAR, kualitas = KUALITAS_JPEG) {
@@ -423,8 +436,7 @@ export async function renderInput(view) {
 
   form.addEventListener('input', () => { formDiubah = true; });
   form.addEventListener('change', () => { formDiubah = true; });
-  pasangPenjagaKeluar(() => (formDiubah ? 'Laporan belum disimpan. Tinggalkan halaman? (Isian tetap tersimpan sebagai draft.)' : ''));
-  // Konfirmasi ditangani penjaga router.
+  // Konfirmasi ditangani penjaga router (dipasang di bagian draft otomatis di bawah).
   batal.addEventListener('click', () => { window.location.hash = '#/history'; });
 
   // Tidak ada prefill dari laporan terakhir: bar bensin adalah bacaan fisik saat ini
@@ -459,22 +471,38 @@ export async function renderInput(view) {
     if (cardId && Array.from(select.options).some((o) => o.value === cardId)) select.value = cardId;
   }
 
+  // Mengembalikan true bila berhasil, false bila gagal, null bila hasilnya basi (sudah ada
+  // pemuatan yang lebih baru, mis. tanggal diganti lagi) dan diabaikan.
+  let nomorMuat = 0;
   async function muatSupirJalur() {
+    const nomor = ++nomorMuat;
     const sebelumnya = f.nama_supir.value === '' ? null : jalurDrivers[Number(f.nama_supir.value)];
     jalurDrivers = [];
     isiOpsi(f.nama_supir, [], '— memuat jalur —');
+    infoJalur.replaceChildren('Memuat jalur…');
+    let list;
     try {
       const data = await get(`/api/jalur/drivers?tanggal=${encodeURIComponent(f.tanggal.value)}`);
-      jalurDrivers = Array.isArray(data.list) ? data.list : [];
+      list = Array.isArray(data.list) ? data.list : [];
     } catch (err) {
+      if (nomor !== nomorMuat) return null;
       // Galat jaringan/server bukan berarti "tidak ada jalur": tampilkan galat + Coba lagi,
       // tanpa tautan "Buat jalur" yang memicu jalur ganda.
       isiOpsi(f.nama_supir, [], '— gagal memuat jalur —');
-      const ulang = el('button', { type: 'button', class: 'btn btn-sm btn-outline-danger ms-2', text: 'Coba lagi' });
-      ulang.addEventListener('click', async () => { await muatSupirJalur(); await onSupirChange(); });
+      const ulang = el('button', { type: 'button', class: 'btn btn-outline-danger ms-2', text: 'Coba lagi' });
+      ulang.addEventListener('click', async () => {
+        ulang.disabled = true;
+        ulang.textContent = 'Memuat…';
+        const ok = await muatSupirJalur();
+        if (ok === null) return;
+        pakaiSupirTertunda(ok);
+        await onSupirChange();
+      });
       infoJalur.replaceChildren(el('span', { class: 'text-danger', role: 'alert' }, [`Gagal memuat jalur: ${err.message}`, ulang]));
-      return;
+      return false;
     }
+    if (nomor !== nomorMuat) return null;
+    jalurDrivers = list;
     isiOpsi(f.nama_supir, opsiSupirJalur(jalurDrivers), jalurDrivers.length ? '— pilih supir dari jalur —' : '— tidak ada jalur —');
     infoJalur.replaceChildren(
       jalurDrivers.length
@@ -484,6 +512,18 @@ export async function renderInput(view) {
     // Pertahankan supir yang sama bila masih punya jalur pada tanggal baru.
     const idx = sebelumnya ? jalurDrivers.findIndex((d) => d.nama_driver === sebelumnya.nama_driver && d.vehicle_id === sebelumnya.vehicle_id) : -1;
     if (idx > -1) f.nama_supir.value = String(idx);
+    return true;
+  }
+
+  // Supir dari draft yang belum bisa dipilih karena jalur gagal dimuat saat pemulihan.
+  let supirTertunda = null;
+  function pakaiSupirTertunda(ok) {
+    if (!ok || !supirTertunda) return;
+    const s = supirTertunda;
+    supirTertunda = null;
+    const idx = jalurDrivers.findIndex((x) => x.nama_driver === s.nama_driver && x.vehicle_id === s.vehicle_id);
+    if (idx > -1) f.nama_supir.value = String(idx);
+    else catatanSupir.textContent = ` Supir ${s.nama_driver} tidak lagi punya jalur BELUM DIISI pada tanggal ini — pilih ulang.`;
   }
 
   async function onSupirChange() {
@@ -517,7 +557,9 @@ export async function renderInput(view) {
   }
 
   f.tanggal.addEventListener('change', async () => {
-    await muatSupirJalur();
+    const ok = await muatSupirJalur();
+    if (ok === null) return;
+    pakaiSupirTertunda(ok);
     await onSupirChange();
   });
   f.nama_supir.addEventListener('change', onSupirChange);
@@ -551,42 +593,57 @@ export async function renderInput(view) {
   };
   form.addEventListener('input', simpanNanti);
   form.addEventListener('change', simpanNanti);
+  // Penjaga keluar menyimpan draft saat itu juga (tanpa menunggu debounce) agar pesan
+  // "isian disimpan sebagai draft" benar.
+  pasangPenjagaKeluar(() => {
+    if (!formDiubah) return '';
+    if (draftSiap) {
+      clearTimeout(timerDraft);
+      simpanDraft(localStorage, KUNCI, ambilNilai(), Date.now(), FIELD_BERDEFAULT);
+    }
+    return 'Laporan belum dikirim. Tinggalkan halaman? Isian disimpan sebagai draft, tetapi foto harus dipilih ulang.';
+  });
   const bannerDraft = el('div', { class: 'alert alert-info d-none d-flex flex-wrap align-items-center gap-2', role: 'status' });
+  const catatanSupir = el('span', {});
   form.prepend(bannerDraft);
 
-  async function pulihkanDraft(d) {
+  async function pulihkanDraft(d, jalurOk) {
     try {
-      if (d) await terapkanDraft(d);
+      if (d) await terapkanDraft(d, jalurOk);
     } finally {
       draftSiap = true; // juga saat tidak ada draft atau pemulihan gagal
     }
   }
 
-  async function terapkanDraft(d) {
+  async function terapkanDraft(d, jalurOk) {
     const v = d.nilai;
-    if (v.tanggal && v.tanggal !== f.tanggal.value) { f.tanggal.value = v.tanggal; await muatSupirJalur(); }
+    if (v.tanggal && v.tanggal !== f.tanggal.value) { f.tanggal.value = v.tanggal; jalurOk = await muatSupirJalur(); }
     if (v.supir) {
       const idx = jalurDrivers.findIndex((x) => x.nama_driver === v.supir.nama_driver && x.vehicle_id === v.supir.vehicle_id);
       if (idx > -1) { f.nama_supir.value = String(idx); await onSupirChange(); }
+      // Jalur gagal dimuat: supir dipilih setelah "Coba lagi" berhasil.
+      else if (!jalurOk) supirTertunda = v.supir;
+      else catatanSupir.textContent = ` Supir ${v.supir.nama_driver} tidak lagi punya jalur BELUM DIISI pada tanggal ini — pilih ulang.`;
     }
     for (const k of FIELD_DRAFT) if (k !== 'tanggal' && v[k] !== undefined && v[k] !== '') f[k].value = v[k];
     for (const k of ['km_awal_broken', 'km_akhir_broken']) if (v[k]) { f[k].checked = true; f[k].dispatchEvent(new Event('change')); }
     if (v.biaya_bbm_2 || v.biaya_toll_2) bukaGrup2();
     hitungUlangLiter();
     formDiubah = true;
-    const jam = new Date(d.disimpan).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-    const buang = el('button', { type: 'button', class: 'btn btn-sm btn-outline-secondary ms-auto', text: 'Buang draft' });
+    const buang = el('button', { type: 'button', class: 'btn btn-outline-secondary ms-auto', text: 'Buang draft' });
     buang.addEventListener('click', () => {
+      if (!window.confirm('Buang isian draft? Isian di form akan dikosongkan.')) return;
       clearTimeout(timerDraft);
       hapusDraft(localStorage, KUNCI);
-      formDiubah = false; // isian sengaja dibuang: reload tanpa dialog "tinggalkan situs?"
-      window.location.reload();
+      formDiubah = false; // isian sengaja dibuang: gambar ulang tanpa dialog penjaga
+      navigate(window.location.hash);
+      toast('Draft dibuang.');
     });
-    bannerDraft.replaceChildren(el('span', { text: `Isian dari ${jam} dipulihkan. Foto perlu dipilih ulang.` }), buang);
+    bannerDraft.replaceChildren(el('span', {}, [teksBannerDraft(d.disimpan, v.tanggal), catatanSupir]), buang);
     bannerDraft.classList.remove('d-none');
   }
 
-  muatSupirJalur().catch(() => {}).then(() => pulihkanDraft(draftAwal)).catch(() => {});
+  muatSupirJalur().catch(() => false).then((ok) => pulihkanDraft(draftAwal, ok)).catch(() => {});
 
   let fotoSudahTerunggah = false;
 
@@ -632,10 +689,12 @@ export async function renderInput(view) {
 
     submit.disabled = true;
     batal.disabled = true;
-    submit.textContent = 'Menyimpan';
+    submit.textContent = 'Menyimpan…';
+    let tahap = 'foto';
 
     try {
       if (!fotoSudahTerunggah) {
+        if ([fotoAwal, fotoAkhir, fotoStrukBbm, fotoStrukTol].some((x) => x.files && x.files[0])) submit.textContent = 'Mengunggah foto…';
         const fotoBody = {};
         if (fotoAwal.files && fotoAwal.files[0]) {
           fotoBody.foto_odo_awal = await kompresGambar(fotoAwal.files[0]);
@@ -671,6 +730,8 @@ export async function renderInput(view) {
         }
       }
 
+      tahap = 'laporan';
+      submit.textContent = 'Menyimpan laporan…';
       await post('/api/laporan', buildPayload(values, serverData));
       clearTimeout(timerDraft);
       hapusDraft(localStorage, KUNCI);
@@ -678,9 +739,19 @@ export async function renderInput(view) {
       toast('Laporan tersimpan.', 'success');
       window.location.hash = '#/history';
     } catch (err) {
+      if (err.error === 'SUDAH_DILAPORKAN') {
+        // Laporan sudah masuk: draft dibuang agar tidak dipulihkan lagi, dan tautan Riwayat tidak memicu penjaga.
+        clearTimeout(timerDraft);
+        hapusDraft(localStorage, KUNCI);
+        formDiubah = false;
+      }
+      // Timeout saat kirim laporan: server mungkin sudah menyimpan; kirim ulang aman (dijawab SUDAH_DILAPORKAN).
+      const pesanTimeout = err.error === 'TIMEOUT' && tahap === 'laporan'
+        ? ` Laporan mungkin sudah terkirim. Kirim ulang aman: bila muncul 'sudah dilaporkan', berarti sudah masuk.`
+        : '';
       alertBox.replaceChildren(
         ...[
-          err.message || 'Gagal menyimpan laporan.',
+          (err.message || 'Gagal menyimpan laporan.') + pesanTimeout,
           err.error === 'SUDAH_DILAPORKAN'
             ? el('div', { class: 'mt-2' }, [el('a', { href: '#/history', class: 'alert-link', text: 'Buka Riwayat Transaksi' })])
             : null,

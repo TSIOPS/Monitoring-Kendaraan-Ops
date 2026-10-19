@@ -892,6 +892,7 @@ export function renderLogin(view) {
   - Perbaikan hasil code-review: sesi sliding hanya diperpanjang bila token masih di `sessu:`, `sessu:` tidak ditulis ulang di `resolveSession`, batas umur 7 hari (`SESSION_MAKS_MS`)
   - Perbaikan hasil code-review: draft Input dibaca sinkron saat render, simpan ditahan sampai pemulihan selesai; `simpanDraft(..., abaikan)` mengabaikan field berdefault
   - Perbaikan hasil code-review: Keluar menghormati penjaga form belum disimpan; abort saat `res.json()` dilaporkan `TIMEOUT`
+  - Perbaikan hasil ui-ux review: supir draft tertunda saat jalur gagal dimuat, banner tanggal draft (`teksBannerDraft`), penjaga menyimpan draft seketika, konfirmasi "Buang draft" tanpa reload, retry jalur anti-basi, draft dibuang pada `SUDAH_DILAPORKAN`, pesan timeout kirim, tahap tombol simpan, `keLogin` pakai `location.replace`, konfirmasi Keluar khusus
 
 ---
 
