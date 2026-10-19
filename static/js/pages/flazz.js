@@ -1,6 +1,6 @@
 import { del, get, post, put } from '../api.js';
 import { getUser } from '../store.js';
-import { autoRefresh, confirmDialog, el, fmtDateId, fmtNum, toast, labelDari, petaMaster, pratinjauFoto, grupAksi, tombolIkon, tampilkanGalat } from '../ui.js';
+import { autoRefresh, confirmDialog, el, fmtDateId, fmtNum, toast, labelDari, petaMaster, pratinjauFoto, grupAksi, tombolIkon, tampilkanGalat, barisForm as baris } from '../ui.js';
 import { kompresGambar, namaAman, tanggalWib } from './input.js';
 
 // Halaman Flazz (M9): List, Top Up, Pengembalian & Rekonsiliasi, Riwayat.
@@ -92,7 +92,6 @@ export function infoSelisih(sistem, fisik) {
 
 const isSuper = () => String(getUser()?.role || '').toUpperCase() === 'SUPERADMIN';
 const rp = (v) => 'Rp ' + fmtNum(v);
-const baris = (label, kontrol) => el('div', { class: 'mb-3' }, [el('label', { class: 'form-label', text: label }), kontrol]);
 const namaKartu = (c) => (c ? `${c.card_name || c.card_number || c.id}` : '-');
 const KELAS_STATUS_KARTU = { SEDANG_DIGUNAKAN: 'badge-ef-waspada', TERSEDIA: 'badge-ef-baik' };
 

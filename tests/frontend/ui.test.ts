@@ -93,3 +93,16 @@ describe('tampilkanGalat', () => {
     expect(box.textContent).toBe('isi lama');
   });
 });
+
+describe('idUntukLabel', () => {
+  it('idUntukLabel memakai id yang ada atau membuat id unik', async () => {
+    const { idUntukLabel } = await import('../../static/js/ui.js');
+    expect(idUntukLabel({ id: 'f-km' } as any)).toBe('f-km');
+    const a = { id: '', setAttribute(k: string, v: string) { (this as any)[k] = v; } } as any;
+    const id1 = idUntukLabel(a);
+    expect(id1).toMatch(/^fld-\d+$/);
+    expect(a.id).toBe(id1);
+    const b = { id: '', setAttribute(k: string, v: string) { (this as any)[k] = v; } } as any;
+    expect(idUntukLabel(b)).not.toBe(id1);
+  });
+});

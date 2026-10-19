@@ -1,6 +1,6 @@
 import { get } from '../api.js';
 import { getUser } from '../store.js';
-import { el, fmtDateId, fmtNum, halaman, navHalaman, toast } from '../ui.js';
+import { el, fmtDateId, fmtNum, halaman, navHalaman, toast, idUntukLabel } from '../ui.js';
 import { tanggalWib } from './input.js';
 
 // ── Helper murni (diuji) ────────────────────────────────────────────────────
@@ -195,10 +195,10 @@ export async function renderRekap(view) {
   const tab = { aktif: 'kartu' };
   let lines = [];
   let nomor = 1;
-  const filterJenis = el('select', { class: 'form-select form-select-sm', style: 'width:auto' }, [
+  const filterJenis = el('select', { class: 'form-select form-select-sm', style: 'width:auto', 'aria-label': 'Filter jenis' }, [
     el('option', { value: '', text: 'Semua jenis' }), el('option', { value: 'BBM', text: 'BBM' }), el('option', { value: 'TOL', text: 'Tol' }),
   ]);
-  const filterMetode = el('select', { class: 'form-select form-select-sm', style: 'width:auto' }, [
+  const filterMetode = el('select', { class: 'form-select form-select-sm', style: 'width:auto', 'aria-label': 'Filter metode' }, [
     el('option', { value: '', text: 'Semua metode' }), el('option', { value: 'ETOLL', text: 'Etoll' }), el('option', { value: 'TUNAI', text: 'Tunai' }),
   ]);
   filterJenis.addEventListener('change', () => { nomor = 1; gambarIsi(); });
@@ -316,7 +316,7 @@ export async function renderRekap(view) {
     }
   });
 
-  const kolom = (lebar, label, kontrol) => el('div', { class: lebar }, [el('label', { class: 'form-label small fw-bold text-muted text-uppercase', text: label }), kontrol]);
+  const kolom = (lebar, label, kontrol) => el('div', { class: lebar }, [el('label', { class: 'form-label small fw-bold text-muted text-uppercase', for: idUntukLabel(kontrol), text: label }), kontrol]);
   view.replaceChildren(
     el('div', { class: 'panel' }, [
       el('h2', { class: 'h5 mb-3 pb-2 border-bottom', text: 'Rekap Pengeluaran BBM & Tol' }),

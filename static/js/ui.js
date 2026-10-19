@@ -47,6 +47,26 @@ export function el(tag, attrs = {}, children = []) {
   return node;
 }
 
+let nomorField = 0;
+// Label wajib terhubung ke kontrolnya (for=id): dibaca pembaca layar & area tap label ikut memfokuskan input.
+export function idUntukLabel(kontrol) {
+  if (kontrol.id) return kontrol.id;
+  const id = `fld-${++nomorField}`;
+  kontrol.setAttribute('id', id);
+  return id;
+}
+
+// Kontrol bisa dibungkus (input-group/div berisi input file + pratinjau): label menunjuk
+// input/select/textarea pertama di dalamnya.
+export function barisForm(label, kontrol, catatan = '', kelas = 'mb-3') {
+  const target = kontrol.matches?.('input,select,textarea') ? kontrol : kontrol.querySelector?.('input,select,textarea');
+  return el('div', { class: kelas }, [
+    el('label', { class: 'form-label', text: label, for: target ? idUntukLabel(target) : null }),
+    kontrol,
+    catatan ? el('div', { class: 'form-text', text: catatan }) : null,
+  ]);
+}
+
 export function toast(message, kind = 'info') {
   let host = document.getElementById('toast-host');
   if (!host) {

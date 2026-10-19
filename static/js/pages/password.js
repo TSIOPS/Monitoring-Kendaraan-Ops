@@ -1,6 +1,6 @@
 import { post } from '../api.js';
 import { getUser } from '../store.js';
-import { el, toast, tampilkanGalat } from '../ui.js';
+import { el, toast, tampilkanGalat, barisForm as baris } from '../ui.js';
 
 export const PANJANG_MIN = 6;
 
@@ -24,9 +24,6 @@ export async function renderPassword(view) {
   lihat.addEventListener('change', () => { for (const x of [lama, baru, ulang]) x.type = lihat.checked ? 'text' : 'password'; });
   const alertBox = el('div', { class: 'alert alert-danger d-none' });
   const simpan = el('button', { type: 'submit', class: 'btn btn-primary', text: 'Simpan Password' });
-  const baris = (label, kontrol, catatan) => el('div', { class: 'mb-3' }, [
-    el('label', { class: 'form-label', for: kontrol.id, text: label }), kontrol, catatan ? el('div', { class: 'form-text', text: catatan }) : null,
-  ]);
 
   const form = el('form', { novalidate: 'novalidate' }, [
     alertBox,

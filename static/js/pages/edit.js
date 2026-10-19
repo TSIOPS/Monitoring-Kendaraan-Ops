@@ -1,6 +1,6 @@
 import { get, put } from '../api.js';
 import { getRouteParam, pasangPenjagaKeluar } from '../router.js';
-import { el, fmtNum, toast, pratinjauFoto, tampilkanGalat } from '../ui.js';
+import { el, fmtNum, toast, pratinjauFoto, tampilkanGalat, barisForm as baris } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
 import { hitungLiter, kompresGambar, namaAman, opsiBbm, pesanDigitKm, STRUK_KUALITAS, STRUK_LEBAR, THUMB_KUALITAS, THUMB_LEBAR } from './input.js';
 
@@ -192,12 +192,6 @@ export async function renderEdit(view) {
 
   const alertBox = el('div', { class: 'alert alert-danger d-none' });
   const submit = el('button', { class: 'btn btn-primary', type: 'submit', text: 'Simpan Perubahan' });
-  const baris = (label, kontrol, catatan = '') =>
-    el('div', { class: 'mb-3' }, [
-      el('label', { class: 'form-label', text: label }),
-      kontrol,
-      catatan ? el('div', { class: 'form-text', text: catatan }) : null,
-    ]);
   const kol = (n, ...isi) => el('div', { class: `col-md-${n}` }, isi);
 
   const form = el('form', { novalidate: 'novalidate' }, [

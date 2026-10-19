@@ -1,5 +1,5 @@
 import { get, post, BATAS_WAKTU_FOTO_MS } from '../api.js';
-import { el, fmtDateId, fmtNum, pratinjauFoto, toast, tampilkanGalat } from '../ui.js';
+import { el, fmtDateId, fmtNum, pratinjauFoto, toast, tampilkanGalat, barisForm as baris } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
 import { bacaDraft, hapusDraft, kunciDraft, simpanDraft } from '../draft.js';
 import { getUser } from '../store.js';
@@ -318,13 +318,6 @@ export async function renderInput(view) {
   let formDiubah = false;
 
   f.tanggal.value = tanggalWib();
-
-  const baris = (label, kontrol, catatan = '') =>
-    el('div', { class: 'mb-3' }, [
-      el('label', { class: 'form-label', text: label }),
-      kontrol,
-      catatan ? el('div', { class: 'form-text', text: catatan }) : null,
-    ]);
 
   // Pengeluaran kartu ke-2 (opsional), seperti di GAS: tersembunyi sampai dibuka.
   const grup2Wrap = el('div', { class: 'form-section d-none' }, [

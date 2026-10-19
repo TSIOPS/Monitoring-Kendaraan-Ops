@@ -1,6 +1,6 @@
 import { get } from '../api.js';
 import { getUser } from '../store.js';
-import { el, fmtNum, toast } from '../ui.js';
+import { el, fmtNum, toast, idUntukLabel } from '../ui.js';
 import { tanggalWib } from './input.js';
 import { awalBulan, bukuExcel, muatSheetJS } from './rekap.js';
 
@@ -342,7 +342,7 @@ function grafik(h) {
   ]);
 }
 
-const kolom = (lebar, label, kontrol) => el('div', { class: lebar }, [el('label', { class: 'form-label small fw-bold text-muted text-uppercase', text: label }), kontrol]);
+const kolom = (lebar, label, kontrol) => el('div', { class: lebar }, [el('label', { class: 'form-label small fw-bold text-muted text-uppercase', for: idUntukLabel(kontrol), text: label }), kontrol]);
 
 async function unduhExcel(sheets, namaFile) {
   const XLSX = await muatSheetJS();

@@ -1,6 +1,6 @@
 import { get } from '../api.js';
 import { getUser } from '../store.js';
-import { el, fmtNum, halaman, navHalaman, toast } from '../ui.js';
+import { el, fmtNum, halaman, navHalaman, toast, idUntukLabel } from '../ui.js';
 import { bukuExcel, muatSheetJS } from './rekap.js';
 import { tanggalWib } from './input.js';
 
@@ -110,7 +110,7 @@ export async function renderAudit(view) {
   let items = [];
   let aktif = 1;
 
-  const baris = (label, kontrol) => el('div', {}, [el('label', { class: 'form-label small mb-1', text: label }), kontrol]);
+  const baris = (label, kontrol) => el('div', {}, [el('label', { class: 'form-label small mb-1', for: idUntukLabel(kontrol), text: label }), kontrol]);
 
   function detail(r) {
     const d = rincianPerubahan(r.data_sebelum, r.data_sesudah);

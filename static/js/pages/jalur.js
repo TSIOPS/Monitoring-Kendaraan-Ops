@@ -1,7 +1,7 @@
 import { del, get, post, put } from '../api.js';
 import { getRouteParam } from '../router.js';
 import { getUser } from '../store.js';
-import { autoRefresh, confirmDialog, el, fmtDateId, toast, grupAksi, tombolIkon, tampilkanGalat } from '../ui.js';
+import { autoRefresh, confirmDialog, el, fmtDateId, toast, grupAksi, tombolIkon, tampilkanGalat, barisForm as baris } from '../ui.js';
 import { tanggalWib } from './input.js';
 
 // Halaman Jalur Pengiriman (M8): daftar, buat, edit, ringkasan.
@@ -77,7 +77,6 @@ function badge(text, kelas) {
   return el('span', { class: `badge-status ${kelas || ''}`, text });
 }
 
-const baris = (label, kontrol) => el('div', { class: 'mb-3' }, [el('label', { class: 'form-label', text: label }), kontrol]);
 
 async function muatMaster() {
   const m = await get('/api/master');

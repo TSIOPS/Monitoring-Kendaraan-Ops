@@ -93,7 +93,7 @@ export async function renderDashboard(view) {
 
   // Peringatan Dini
   const jumlahWarn = el('span', { class: 'badge rounded-pill text-bg-danger ms-1', text: '0' });
-  const pilihCabang = el('select', { class: 'form-select form-select-sm d-none', style: 'width:auto' }, [el('option', { value: '', text: 'Semua Warehouse' })]);
+  const pilihCabang = el('select', { class: 'form-select form-select-sm d-none', style: 'width:auto', 'aria-label': 'Filter warehouse' }, [el('option', { value: '', text: 'Semua Warehouse' })]);
   const tombolWarn = el('button', { class: 'btn btn-outline-primary btn-sm', type: 'button', text: 'Refresh' });
   const isiWarn = el('div', { class: 'text-muted', text: 'Memeriksa peringatan…' });
   const panelWarn = kartuPanel(['Peringatan Dini', jumlahWarn], el('div', { class: 'd-flex gap-2 align-items-center' }, [pilihCabang, tombolWarn]), isiWarn);

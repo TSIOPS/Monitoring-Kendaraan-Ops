@@ -931,7 +931,7 @@ Cari dengan: `grep -n "classList.remove('d-none')" static/js/pages/*.js` dan uba
 
 **Files:** Modify `static/js/ui.js`; ganti helper `baris` lokal di `input.js`, `edit.js`, `jalur.js`, `flazz.js`, `master.js`, `pengaturan.js`, `transaksi.js`, `audit.js`, `galeri.js`, `rekap.js` (`kolom`).
 
-- [ ] **Step 1: Tes gagal** — `tests/frontend/ui.test.ts`:
+- [x] **Step 1: Tes gagal** — `tests/frontend/ui.test.ts`:
 
 ```ts
 import { idUntukLabel } from '../../static/js/ui.js';
@@ -944,7 +944,7 @@ it('idUntukLabel memakai id yang ada atau membuat id unik', () => {
 });
 ```
 
-- [ ] **Step 2: Implementasi** di `ui.js`:
+- [x] **Step 2: Implementasi** di `ui.js`:
 
 ```js
 let nomorField = 0;
@@ -967,8 +967,9 @@ export function barisForm(label, kontrol, catatan = '', kelas = 'mb-3') {
 }
 ```
 
-- [ ] **Step 3:** Di setiap halaman, hapus definisi `const baris = (label, kontrol, catatan = '') => …` dan import `barisForm as baris` dari `../ui.js` (signature sama, jadi pemanggilan tidak berubah). Untuk halaman dengan kelas label berbeda (`rekap.js` `kolom`, `master.js` pencarian), tambahkan `for` lewat `idUntukLabel` di helper lokalnya. Input tanpa label sama sekali (pencarian master) diberi `aria-label`.
-- [ ] **Step 4:** `npx vitest run tests/frontend` → PASS. **Step 5: Commit** `fix(a11y): label form terhubung ke input`.
+- [x] **Step 3:** Di setiap halaman, hapus definisi `const baris = (label, kontrol, catatan = '') => …` dan import `barisForm as baris` dari `../ui.js` (signature sama, jadi pemanggilan tidak berubah). Untuk halaman dengan kelas label berbeda (`rekap.js` `kolom`, `master.js` pencarian), tambahkan `for` lewat `idUntukLabel` di helper lokalnya. Input tanpa label sama sekali (pencarian master) diberi `aria-label`.
+  - `barisForm as baris`: `input.js`, `edit.js`, `flazz.js`, `jalur.js`, `password.js`, `pengaturan.js`. `for` via `idUntukLabel` di helper/label lokal: `audit.js` (`baris` kelas kecil), `master.js` (form entitas; kotak centang multi tidak diberi `for` tetapi grupnya `role="group"` + `aria-label`), `rekap.js`/`transaksi.js`/`perbandingan.js` (`kolom`), `galeri.js`, `performa.js`, `pengaturan.js` (reset data). `aria-label` untuk kontrol tanpa label: pencarian & filter warehouse master, filter jenis/metode rekap, filter warehouse dashboard. `perbandingan.js`, `performa.js`, `dashboard.js` tidak ada di daftar file rencana tetapi polanya sama.
+- [x] **Step 4:** `npx vitest run tests/frontend` → PASS. **Step 5: Commit** `fix(a11y): label form terhubung ke input`.
 
 ### Task 12: Toast aksesibel, bisa ditutup, dan semua jenis punya gaya
 

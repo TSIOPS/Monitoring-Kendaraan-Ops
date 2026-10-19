@@ -1,6 +1,6 @@
 import { get, del } from '../api.js';
 import { getUser } from '../store.js';
-import { el, fmtNum, fmtDateId, toast, spinner, confirmDialog, halaman, navHalaman } from '../ui.js';
+import { el, fmtNum, fmtDateId, toast, spinner, confirmDialog, halaman, navHalaman, idUntukLabel } from '../ui.js';
 
 const PER_HALAMAN = 10;
 let halamanAktif = 1;
@@ -262,7 +262,7 @@ function panelFilter(master, isSuper, view, penginput) {
     halamanAktif = 1;
     renderHistory(view);
   };
-  const kolom = (lebar, label, kontrol) => el('div', { class: lebar }, [el('label', { class: 'form-label small fw-bold text-muted text-uppercase', text: label }), kontrol]);
+  const kolom = (lebar, label, kontrol) => el('div', { class: lebar }, [el('label', { class: 'form-label small fw-bold text-muted text-uppercase', for: idUntukLabel(kontrol), text: label }), kontrol]);
 
   return el('div', { class: 'panel' }, [
     el('div', { class: 'row g-2 align-items-end' }, [
