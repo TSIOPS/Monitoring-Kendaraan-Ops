@@ -27,6 +27,12 @@ export function adaFormTerbuka() {
   return Boolean(penjagaKeluar && penjagaKeluar());
 }
 
+// Pesan penjaga halaman aktif ('' bila aman) — tiap halaman punya pesannya sendiri
+// (draft laporan, perubahan edit, jalur belum disimpan).
+export function pesanPenjagaKeluar() {
+  return penjagaKeluar ? (penjagaKeluar() || '') : '';
+}
+
 const KUNCI_TUJUAN = 'tujuan-login';
 
 // Hanya hash rute internal ('#/...') yang diterima — mencegah open redirect.

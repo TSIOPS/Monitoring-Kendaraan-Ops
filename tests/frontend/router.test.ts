@@ -41,6 +41,20 @@ describe('putuskanKeluar', () => {
   });
 });
 
+describe('pesanPenjagaKeluar', () => {
+  it('pesan dari penjaga halaman aktif; tanpa penjaga atau tanpa pesan -> string kosong', async () => {
+    const { pasangPenjagaKeluar, pesanPenjagaKeluar } = await import('../../static/js/router.js');
+    pasangPenjagaKeluar(() => 'Perubahan jalur belum disimpan. Tinggalkan halaman?');
+    expect(pesanPenjagaKeluar()).toBe('Perubahan jalur belum disimpan. Tinggalkan halaman?');
+    pasangPenjagaKeluar(() => '');
+    expect(pesanPenjagaKeluar()).toBe('');
+    pasangPenjagaKeluar(() => undefined);
+    expect(pesanPenjagaKeluar()).toBe('');
+    pasangPenjagaKeluar(null);
+    expect(pesanPenjagaKeluar()).toBe('');
+  });
+});
+
 describe('tujuanSetelahLogin', () => {
   it('memakai rute tersimpan bila aman', () => {
     expect(tujuanSetelahLogin('#/input')).toBe('#/input');

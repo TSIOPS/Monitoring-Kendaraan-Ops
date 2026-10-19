@@ -1318,6 +1318,10 @@ Tambahkan `'aria-current': 'page'` pada tombol aktif dan `aria-label` "Halaman s
   - Hasil code-review (bug) 2026-10-19: tidak ada temuan. Verifikasi manual di browser masih tertunda.
 - [x] CHANGELOG diperbarui
 
+### Review akhir seluruh branch (2026-10-19)
+- [x] Konfirmasi Keluar memakai pesan penjaga halaman aktif (`pesanPenjagaKeluar()`), tidak selalu pesan draft Input Laporan
+- Ditunda: idempotency key server untuk top up Flazz; notifikasi klik di tab versi lama (sampai reload) → Fase 5
+
 ---
 
 # FASE 5 — Rencana lanjutan (masing-masing dibuat rencana terpisah via brainstorming → writing-plans)

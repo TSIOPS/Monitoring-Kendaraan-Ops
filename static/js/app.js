@@ -1,6 +1,6 @@
 import { getJumlahPeringatan, getUser, logout, onPeringatanChange } from './store.js';
 import { get, post } from './api.js';
-import { adaFormTerbuka, ensureSession, pasangPenjagaKeluar, registerRoute, startRouter } from './router.js';
+import { ensureSession, pasangPenjagaKeluar, pesanPenjagaKeluar, registerRoute, startRouter } from './router.js';
 import { el } from './ui.js';
 import { renderLogin } from './pages/login.js';
 import { daftarkanServiceWorker, mulaiBanner } from './notifikasi.js';
@@ -196,9 +196,11 @@ export function inisial(nama) {
 
 async function keluar() {
   // Form belum dikirim: tanya dulu sebelum logout (batal = tetap di form, masih login).
-  // adaFormTerbuka() memanggil penjaga, yang sekaligus menyimpan draft saat itu juga.
+  // Pesan diambil dari penjaga halaman aktif (Input Laporan menyebut draft; Edit/Jalur
+  // menyebut perubahan belum disimpan). Memanggil penjaga Input sekaligus menyimpan draft.
   // Setelah setuju penjaga dilepas agar router tidak bertanya dua kali.
-  if (adaFormTerbuka() && !window.confirm('Laporan belum dikirim. Tetap keluar? Isian disimpan sebagai draft untuk login berikutnya (tanpa foto).')) return;
+  const pesan = pesanPenjagaKeluar();
+  if (pesan && !window.confirm(`${pesan}\n\nTetap keluar dari aplikasi?`)) return;
   pasangPenjagaKeluar(null);
   try {
     await post('/api/logout', {});
