@@ -5,6 +5,7 @@ import type { AppDeps, SessionUser } from '../deps';
 import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
 import { HttpError, okPayload } from '../utils/http';
+import { isSuper, lihatSemuaCabang } from '../auth/peran';
 import { newId, jsonSnip } from './master';
 import { bumpMasterRev, CACHE_TTL_DETIK, getMasterRev, performaCacheKey, monthlyCacheKey, peringatanCacheKey, warningsCacheKey } from '../logic/master-cache';
 import { CardBalanceError } from '../db/laporan';
@@ -30,9 +31,6 @@ type Ctx = Context<{ Bindings: Env; Variables: AuthVars }>;
 
 function roleOf(u: SessionUser): string {
   return String(u.role || '').toUpperCase();
-}
-function isSuper(u: SessionUser): boolean {
-  return roleOf(u) === 'SUPERADMIN';
 }
 function deny(kind: string, cabang: string): never {
   throw new HttpError(403, 'Akses ditolak: Anda hanya dapat mengelola ' + kind + ' warehouse ' + cabang + '.', 'FORBIDDEN');
@@ -404,7 +402,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   // ── GET /api/laporan/prefill (port getLastLaporanPrefill) ─────────────────
   app.get('/prefill', requireUser(deps), async (c) => {
     const u = c.get('user');
-    const cabang = isSuper(u) ? '' : u.cabang;
+    const cabang = lihatSemuaCabang(u) ? '' : u.cabang;
     const rows = await deps.laporan.recentRows(cabang, 2000);
     const cardIdMap = await loadCardIdMap(deps);
     let pref: L.Prefill | null = null;
@@ -420,7 +418,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   // ── GET /api/laporan/performa (port getPerformaSummary) ──────────────────
   app.get('/performa', requireUser(deps), async (c) => {
     const u = c.get('user');
-    const cabang = isSuper(u) ? '' : u.cabang;
+    const cabang = lihatSemuaCabang(u) ? '' : u.cabang;
     const key = performaCacheKey(await getMasterRev(deps.kv), roleOf(u), cabang);
     const cached = await deps.kv.get(key, 'json');
     if (cached) return c.json(okPayload({ items: cached }));
@@ -432,7 +430,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   });
 
   // ── GET /api/laporan/rekap-pengeluaran (BBM & tol per metode bayar) ─────
-  // Didaftarkan sebelum /:id. Warehouse dipilih hanya oleh SUPERADMIN; PIC terkunci ke cabangnya.
+  // Didaftarkan sebelum /:id. Warehouse dipilih hanya oleh SUPERADMIN/MANAGEMENT; PIC terkunci ke cabangnya.
   app.get('/rekap-pengeluaran', requireUser(deps), async (c) => {
     const u = c.get('user');
     const dari = String(c.req.query('dari') ?? '');
@@ -440,8 +438,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const pola = /^\d{4}-\d{2}-\d{2}$/;
     if (!pola.test(dari) || !pola.test(sampai)) throw new HttpError(400, 'Rentang tanggal (dari & sampai) wajib diisi.', 'BAD_REQUEST');
     if (dari > sampai) throw new HttpError(400, 'Tanggal "dari" tidak boleh setelah tanggal "sampai".', 'BAD_REQUEST');
-    const cabang = isSuper(u) ? String(c.req.query('cabang') ?? '') : u.cabang;
-    if (!isSuper(u) && !cabang) return c.json(okPayload({ lines: [] }));
+    const cabang = lihatSemuaCabang(u) ? String(c.req.query('cabang') ?? '') : u.cabang;
+    if (!lihatSemuaCabang(u) && !cabang) return c.json(okPayload({ lines: [] }));
     const [rows, tols, cards, all] = await Promise.all([
       deps.laporan.rowsBetween(cabang, dari, sampai),
       deps.flazz.listTols(),
@@ -458,7 +456,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const u = c.get('user');
     const row = await deps.laporan.findById(c.req.param('id') ?? '');
     if (!row) throw new HttpError(404, L.MSG_TRX_NOT_FOUND, 'NOT_FOUND');
-    assertTransactionAccess(u, row.kode_cabang);
+    if (!lihatSemuaCabang(u)) assertTransactionAccess(u, row.kode_cabang);
     const all = await deps.master.listAll();
     const [transaksi] = L.buildRecentList([row], kendaraanInfoMap(all), cabangNamaMapOf(all), await loadCardIdMap(deps));
     return c.json(okPayload({ transaksi }));
@@ -858,7 +856,7 @@ export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   // ── GET /api/dashboard (port getDashboardData) ───────────────────────────
   app.get('/', requireUser(deps), async (c) => {
     const u = c.get('user');
-    const cabang = isSuper(u) ? '' : u.cabang;
+    const cabang = lihatSemuaCabang(u) ? '' : u.cabang;
     const all = await deps.master.listAll();
     const cardIdMap = await loadCardIdMap(deps);
     const rowsCabang = await deps.laporan.recentRows(cabang, 2000);
@@ -866,9 +864,9 @@ export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     // Baris konteks (kendaraan bersama dari cabang lain) hanya untuk perhitungan, tidak ditampilkan.
     const milikCabang = (cab: string) => (t: L.RecentItem) => !cab || String(t.kode_cabang) === cab;
 
-    // Filter History Laporan. Warehouse hanya untuk SUPERADMIN (PIC terkunci ke cabangnya).
+    // Filter History Laporan. Warehouse hanya untuk SUPERADMIN/MANAGEMENT (PIC terkunci ke cabangnya).
     // Efisiensi 7-trip dihitung dari riwayat lengkap kendaraan, baru dipotong rentang tanggal.
-    const fCabang = isSuper(u) ? String(c.req.query('cabang') ?? '') : '';
+    const fCabang = lihatSemuaCabang(u) ? String(c.req.query('cabang') ?? '') : '';
     const fVehicle = String(c.req.query('vehicle_id') ?? '');
     const fDari = String(c.req.query('dari') ?? '');
     const fSampai = String(c.req.query('sampai') ?? '');
@@ -922,7 +920,7 @@ export function dashboardRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   // Cache 300 dtk seperti GAS; ?fresh=1 (tombol Refresh) membaca ulang.
   app.get('/warnings', requireUser(deps), async (c) => {
     const u = c.get('user');
-    const cabang = isSuper(u) ? '' : u.cabang;
+    const cabang = lihatSemuaCabang(u) ? '' : u.cabang;
     const key = peringatanCacheKey(await getMasterRev(deps.kv), roleOf(u), cabang);
     if (c.req.query('fresh') !== '1') {
       const hit = await deps.kv.get(key, 'json');

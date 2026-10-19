@@ -197,3 +197,19 @@ describe('computeWarnings — scope & sort', () => {
     expect(items.map((i) => i.vehicle_id)).toEqual(['V-A', 'V-B']);
   });
 });
+describe('computeWarnings untuk MANAGEMENT', () => {
+  const kendaraan = [
+    vehicle({ vehicle_id: 'V-1', kode_cabang: 'CBG-A', tanggal_pajak: '2026-09-01' }),
+    vehicle({ vehicle_id: 'V-9', kode_cabang: 'CBG-B', tanggal_pajak: '2026-09-01' }),
+  ];
+  const hitung = (role: string, cabang: string) =>
+    computeWarnings({ kendaraan, user: { role, cabang }, odoMap: {}, cabangNama: new Map(), today: TODAY });
+
+  it('MANAGEMENT melihat peringatan kendaraan semua cabang', () => {
+    const pic = hitung('PIC CABANG', 'CBG-A');
+    const mgr = hitung('MANAGEMENT', '');
+    const sup = hitung('SUPERADMIN', '');
+    expect(mgr).toEqual(sup);
+    expect(mgr.length).toBeGreaterThan(pic.length);
+  });
+});

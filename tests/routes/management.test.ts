@@ -122,3 +122,49 @@ describe('bolehTulisManagement', () => {
     expect(bolehTulisManagement('POST', '/api/master')).toBe(false);
   });
 });
+
+describe('MANAGEMENT membaca laporan semua cabang', () => {
+  it('GET /api/dashboard berisi transaksi semua cabang; ?cabang= menyaring', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, MGR);
+    const semua = await (await req(app, 'GET', '/api/dashboard', tok)).json() as any;
+    expect(semua.transactions.map((t: any) => t.transaction_id).sort()).toEqual(['TRX-A', 'TRX-B']);
+    const b = await (await req(app, 'GET', '/api/dashboard?cabang=CBG-B', tok)).json() as any;
+    expect(b.transactions.map((t: any) => t.transaction_id)).toEqual(['TRX-B']);
+  });
+
+  it('GET /api/laporan/:id cabang mana pun -> 200', async () => {
+    const { app, kv } = setup();
+    const res = await req(app, 'GET', '/api/laporan/TRX-B', await loginAs(kv, MGR));
+    expect(res.status).toBe(200);
+  });
+
+  it('PIC tetap ditolak membaca laporan cabang lain', async () => {
+    const { app, kv } = setup();
+    const res = await req(app, 'GET', '/api/laporan/TRX-B', await loginAs(kv, PIC));
+    expect(res.status).toBe(403);
+  });
+
+  it('rekap-pengeluaran memakai ?cabang= untuk MANAGEMENT', async () => {
+    const { app, kv, deps } = setup();
+    const dipanggil: string[] = [];
+    const asli = deps.laporan.rowsBetween.bind(deps.laporan);
+    deps.laporan.rowsBetween = async (cab, d, s) => { dipanggil.push(cab); return asli(cab, d, s); };
+    const tok = await loginAs(kv, MGR);
+    const res = await req(app, 'GET', '/api/laporan/rekap-pengeluaran?dari=2026-09-01&sampai=2026-09-30&cabang=CBG-B', tok);
+    expect(res.status).toBe(200);
+    expect(dipanggil).toEqual(['CBG-B']);
+  });
+
+  it('performa dan warnings mencakup semua cabang (rowsInScope dipanggil dengan cabang kosong)', async () => {
+    const { app, kv, deps } = setup();
+    const dipanggil: string[] = [];
+    const asli = deps.laporan.rowsInScope.bind(deps.laporan);
+    deps.laporan.rowsInScope = async (cab, lim) => { dipanggil.push(cab); return asli(cab, lim); };
+    const tok = await loginAs(kv, MGR);
+    expect((await req(app, 'GET', '/api/laporan/performa', tok)).status).toBe(200);
+    expect((await req(app, 'GET', '/api/dashboard/warnings', tok)).status).toBe(200);
+    expect(dipanggil.every((c) => c === '')).toBe(true);
+    expect(dipanggil.length).toBeGreaterThan(0);
+  });
+});

@@ -90,3 +90,14 @@ describe('ringkasanPeringatan (warningsSummary GAS)', () => {
     expect(out.pajakKIR.map((p) => p.vehicle_id)).toEqual(['V-3']);
   });
 });
+
+describe('ringkasanPeringatan untuk MANAGEMENT', () => {
+  it('hasil sama dengan SUPERADMIN (semua cabang)', () => {
+    const kartuList = [kartu({ id: 'K1', last_balance: 90000 }), kartu({ id: 'K5', last_balance: 5000, branch_id: 'JKT' })];
+    const input = { kendaraan: [], kartu: kartuList, rows: [], today: TODAY };
+    const mgr = ringkasanPeringatan({ ...input, user: { role: 'MANAGEMENT', cabang: '' } });
+    const sup = ringkasanPeringatan({ ...input, user: SUPER });
+    expect(mgr).toEqual(sup);
+    expect(mgr.saldo.length).toBe(2);
+  });
+});

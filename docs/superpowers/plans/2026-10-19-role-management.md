@@ -311,7 +311,7 @@ git commit -m "feat(auth): penjaga tulis terpusat untuk role MANAGEMENT"
 - Modify: `src/logic/warnings.ts:104` dan `:221`
 - Test: `tests/routes/management.test.ts`
 
-- [ ] **Step 1: Tambah tes yang gagal** (di akhir `tests/routes/management.test.ts`)
+- [x] **Step 1: Tambah tes yang gagal** (di akhir `tests/routes/management.test.ts`)
 
 ```ts
 describe('MANAGEMENT membaca laporan semua cabang', () => {
@@ -378,12 +378,12 @@ it('MANAGEMENT melihat peringatan kendaraan semua cabang', () => {
 CBG-B yang sama-sama memicu peringatan (mis. pajak lewat). Bila file belum punya konstanta seperti itu, buat di
 atas `describe`.
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `npx vitest run tests/routes/management.test.ts tests/logic/warnings.test.ts` → FAIL (MANAGEMENT hanya melihat
 cabang kosong / 403 pada `/api/laporan/TRX-B`).
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 `src/routes/laporan.ts` — impor dan ganti helper lokal:
 
@@ -422,9 +422,9 @@ const isSuper = lihatSemuaCabang(input.user);
 
 (ganti nama variabel lokal menjadi `semua` pada kedua fungsi beserta pemakaiannya agar tidak menyesatkan.)
 
-- [ ] **Step 4: Jalankan** `npx vitest run tests/routes/management.test.ts tests/logic/warnings.test.ts` → PASS; `npm test` → hijau; `npm run typecheck` → bersih.
+- [x] **Step 4: Jalankan** `npx vitest run tests/routes/management.test.ts tests/logic/warnings.test.ts` → PASS; `npm test` → hijau; `npm run typecheck` → bersih.
 
-- [ ] **Step 5: Centang, CHANGELOG (Fitur), commit**
+- [x] **Step 5: Centang, CHANGELOG (Fitur), commit**
 
 ```bash
 git add src/routes/laporan.ts src/logic/warnings.ts tests/routes/management.test.ts tests/logic/warnings.test.ts docs/superpowers/plans/2026-10-19-role-management.md CHANGELOG.md
@@ -433,6 +433,7 @@ git commit -m "feat(laporan): MANAGEMENT membaca laporan & peringatan semua caba
 
 ---
 
+> Catatan implementasi: tes `ringkasanPeringatan` ditambahkan di `tests/logic/peringatan-dini.test.ts` (bukan warnings.test.ts); tes `computeWarnings` memakai fixture lokal di `tests/logic/warnings.test.ts`.
 ### Task 4: Cakupan baca Flazz, jalur, dan tugas push
 
 **Files:**
