@@ -3,6 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-10-19
+- **Fitur** — Helper role frontend `static/js/peran.js` (`isSuper`, `isManagement`, `lihatSemuaCabang`, `bolehTulis`, `ruteDilarang`, `saringMenu`) untuk menu, penjaga rute, dan tombol tulis role `MANAGEMENT` — `static/js/peran.js`
 - **Perbaikan** — Alur kerja: perubahan kini langsung di `main` dan langsung di-push ke `origin main` setelah tes/typecheck hijau (tanpa branch fitur/PR); branch `feat/role-management` sudah di-merge (fast-forward) ke `main` — `CLAUDE.md`
 - **Keamanan** — Gerbang security-review role `MANAGEMENT` (Task 1–5) lolos tanpa temuan. Catatan berdampak rendah, sengaja tidak diperbaiki: langganan push menyimpan role saat berlangganan, jadi akun MANAGEMENT yang diturunkan ke PIC tetap menerima jumlah tugas semua cabang di ringkasan push sampai berlangganan ulang (hanya angka; perilaku sama seperti langganan SUPERADMIN) — `src/routes/push.ts`
 - **Fitur** — SUPERADMIN dapat membuat/mengubah akun `MANAGEMENT` (warehouse selalu dikosongkan); `GET /api/master` untuk MANAGEMENT berisi data semua cabang tanpa daftar pengguna; Audit Log & status reset tetap khusus SUPERADMIN — `src/logic/master.ts`, `src/routes/master.ts`

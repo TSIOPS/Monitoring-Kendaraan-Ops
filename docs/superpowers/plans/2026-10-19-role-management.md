@@ -699,7 +699,7 @@ git commit -m "feat(master): akun MANAGEMENT dan payload master read-only semua 
 - Create: `static/js/peran.js`
 - Test: `tests/frontend/peran-helpers.test.ts`
 
-- [ ] **Step 1: Tulis tes yang gagal**
+- [x] **Step 1: Tulis tes yang gagal**
 
 ```ts
 // tests/frontend/peran-helpers.test.ts
@@ -746,9 +746,9 @@ describe('helper peran frontend', () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan** `npx vitest run tests/frontend/peran-helpers.test.ts` → FAIL (modul belum ada).
+- [x] **Step 2: Jalankan** `npx vitest run tests/frontend/peran-helpers.test.ts` → FAIL (modul belum ada).
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 ```js
 // static/js/peran.js
@@ -782,9 +782,9 @@ export function saringMenu(nav, role) {
 }
 ```
 
-- [ ] **Step 4: Jalankan** → PASS.
+- [x] **Step 4: Jalankan** → PASS.
 
-- [ ] **Step 5: Centang, CHANGELOG (Fitur), commit**
+- [x] **Step 5: Centang, CHANGELOG (Fitur), commit**
 
 ```bash
 git add static/js/peran.js tests/frontend/peran-helpers.test.ts docs/superpowers/plans/2026-10-19-role-management.md CHANGELOG.md
