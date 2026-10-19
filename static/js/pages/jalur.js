@@ -1,7 +1,7 @@
 import { del, get, post, put } from '../api.js';
 import { getRouteParam } from '../router.js';
 import { getUser } from '../store.js';
-import { autoRefresh, confirmDialog, el, fmtDateId, toast, grupAksi, tombolIkon, tampilkanGalat, barisForm as baris } from '../ui.js';
+import { autoRefresh, confirmDialog, el, fmtDateId, toast, grupAksi, tombolIkon, tombolIkonSekali, tampilkanGalat, barisForm as baris } from '../ui.js';
 import { tanggalWib } from './input.js';
 
 // Halaman Jalur Pengiriman (M8): daftar, buat, edit, ringkasan.
@@ -147,7 +147,7 @@ export async function renderJalurList(view) {
       el('td', {}, [badge(teksDokumen(j.status_pajak, j.sisa_hari_pajak), KELAS_DOKUMEN[j.status_pajak])]),
       el('td', { class: 'small', text: j.created_by || '-' }),
       el('td', {}, [
-        grupAksi([tombolIkon('edit', 'Edit jalur', `#/jalur/edit/${encodeURIComponent(j.id)}`), tombolIkon('hapus', 'Hapus jalur', () => hapus(j))]),
+        grupAksi([tombolIkon('edit', 'Edit jalur', `#/jalur/edit/${encodeURIComponent(j.id)}`), tombolIkonSekali('hapus', 'Hapus jalur', () => hapus(j))]),
       ]),
     ])));
     hasil.replaceChildren(el('div', { class: 'table-wrap' }, [
@@ -162,7 +162,7 @@ export async function renderJalurList(view) {
     if (!confirmDialog(`Hapus jalur ${j.plat_nomor} (${fmtDateId(j.tanggal)})? Kartu etoll yang terpasang akan dikembalikan.`)) return;
     try {
       const res = await del(`/api/jalur/${encodeURIComponent(j.id)}`);
-      toast(res.msg || 'Jadwal dihapus.', 'success');
+      toast(res.msg || 'Jalur dihapus.', 'success');
       await tampilkan();
     } catch (err) {
       toast(err.message, 'error');

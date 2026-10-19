@@ -1,6 +1,6 @@
 import { del, get, post, put } from '../api.js';
 import { getUser } from '../store.js';
-import { confirmDialog, el, fmtDateId, fmtNum, toast, grupAksi, tombolIkon, tampilkanGalat, idUntukLabel } from '../ui.js';
+import { confirmDialog, el, fmtDateId, fmtNum, toast, grupAksi, tombolIkon, tombolIkonSekali, tampilkanGalat, idUntukLabel } from '../ui.js';
 
 // Halaman Data Master (M10). Satu pembangun tabel + form dipakai semua tab;
 // tiap entitas hanya mendeskripsikan kolom, field, dan endpoint (API M2/M5, field GAS).
@@ -321,8 +321,8 @@ export async function renderMaster(view) {
         ...e.kolom.map(([, fn, kelas]) => el('td', { class: kelas ? kelas(r) : '', text: String(fn(r) ?? '-') })),
         bukanMilik ? el('td', { class: 'small text-muted', text: 'Kendaraan bersama (dikelola pemilik)' }) : el('td', { class: 'text-nowrap' }, [grupAksi([
           tombolIkon('edit', 'Edit', () => bukaForm(r)),
-          ...(e.ekstra ? e.ekstra(r).map((x) => tombolIkon(x.ikon || 'lainnya', x.label, () => aksi(x))) : []),
-          tombolIkon(h.label === 'Nonaktifkan' ? 'nonaktif' : h.label === 'Aktifkan' ? 'aktif' : 'hapus', h.label || 'Hapus', () => aksi(h)),
+          ...(e.ekstra ? e.ekstra(r).map((x) => tombolIkonSekali(x.ikon || 'lainnya', x.label, () => aksi(x))) : []),
+          tombolIkonSekali(h.label === 'Nonaktifkan' ? 'nonaktif' : h.label === 'Aktifkan' ? 'aktif' : 'hapus', h.label || 'Hapus', () => aksi(h)),
         ])]),
       ]);
     });

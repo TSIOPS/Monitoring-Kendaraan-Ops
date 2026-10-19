@@ -1,6 +1,6 @@
 import { del, get, post, put } from '../api.js';
 import { getUser } from '../store.js';
-import { autoRefresh, confirmDialog, el, fmtDateId, fmtNum, toast, labelDari, petaMaster, pratinjauFoto, grupAksi, tombolIkon, tampilkanGalat, barisForm as baris, bantuRupiah } from '../ui.js';
+import { autoRefresh, confirmDialog, el, fmtDateId, fmtNum, toast, labelDari, petaMaster, pratinjauFoto, grupAksi, tombolIkon, tombolIkonSekali, aksiSekali, tampilkanGalat, barisForm as baris, bantuRupiah } from '../ui.js';
 import { kompresGambar, namaAman, tanggalWib } from './input.js';
 
 // Halaman Flazz (M9): List, Top Up, Pengembalian & Rekonsiliasi, Riwayat.
@@ -466,7 +466,14 @@ export async function renderFlazzRiwayat(view) {
     const catatan = el('input', { class: 'form-control form-control-sm', value: row.notes || '' });
     // Top up: foto bukti bisa ditambah/diganti (kosongkan bila tidak diganti).
     const foto = jenis === 'topup' ? el('input', { type: 'file', accept: 'image/*', class: 'form-control form-control-sm' }) : null;
-    editBox.replaceChildren(el('div', { class: 'border rounded p-2 mb-3' }, [
+    const tSimpan = el('button', { class: 'btn btn-sm btn-primary', type: 'button', text: 'Simpan' });
+    tSimpan.addEventListener('click', aksiSekali(tSimpan, () => aman(async () => {
+      await put(`/api/flazz/${jenis}/${encodeURIComponent(row.id)}`, { amount: Number(nominal.value), date: tanggal.value, notes: catatan.value.trim(), ...(foto ? await bacaFoto(foto) : {}) });
+      toast('Perubahan disimpan.', 'success');
+      editBox.replaceChildren();
+      await muatUlang();
+    })));
+    const kotakEdit = el('div', { class: 'border rounded p-2 mb-3' }, [
       el('div', { class: 'fw-bold mb-2', text: `Edit ${jenis === 'topup' ? 'top up' : 'tol'} — ${namaKartu(kartuMap().get(row.card_id))}` }),
       el('div', { class: 'row g-2' }, [
         el('div', { class: 'col-md-3' }, [baris('Nominal', el('div', {}, [nominal, bantuRupiah(nominal)]))]),
@@ -475,15 +482,13 @@ export async function renderFlazzRiwayat(view) {
         foto ? el('div', { class: 'col-md-6' }, [baris(row.evidence_url ? 'Ganti foto bukti (opsional)' : 'Foto bukti (opsional)', el('div', {}, [foto, pratinjauFoto(foto, row.evidence_url || '')]))]) : null,
       ]),
       el('div', { class: 'd-flex gap-2' }, [
-        el('button', { class: 'btn btn-sm btn-primary', type: 'button', text: 'Simpan', onclick: () => aman(async () => {
-          await put(`/api/flazz/${jenis}/${encodeURIComponent(row.id)}`, { amount: Number(nominal.value), date: tanggal.value, notes: catatan.value.trim(), ...(foto ? await bacaFoto(foto) : {}) });
-          toast('Perubahan disimpan.', 'success');
-          editBox.replaceChildren();
-          await muatUlang();
-        }) }),
+        tSimpan,
         el('button', { class: 'btn btn-sm btn-outline-secondary', type: 'button', text: 'Batal', onclick: () => editBox.replaceChildren() }),
       ]),
-    ]));
+    ]);
+    editBox.replaceChildren(kotakEdit);
+    // Form edit ada di atas tabel; di HP baris yang diklik bisa jauh di bawah.
+    kotakEdit.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 
   const hapus = (pesan, path) => aman(async () => {
@@ -506,7 +511,7 @@ export async function renderFlazzRiwayat(view) {
         el('td', { text: fmtDateId(t.date) }), el('td', { text: kn(t.card_id) }), el('td', { class: 'text-end', text: rp(t.amount) }),
         el('td', {}, [tautan(t.evidence_url)]), el('td', { text: t.notes || '-' }), el('td', { class: 'small', text: t.created_by_nama || t.created_by || '-' }),
         el('td', {}, [
-          grupAksi([tombolIkon('edit', 'Edit top up', () => formEdit('topup', t)), tombolIkon('hapus', 'Hapus top up', () => hapus('Hapus top up ini? Saldo kartu ikut dikurangi.', `/api/flazz/topup/${encodeURIComponent(t.id)}`))]),
+          grupAksi([tombolIkon('edit', 'Edit top up', () => formEdit('topup', t)), tombolIkonSekali('hapus', 'Hapus top up', () => hapus('Hapus top up ini? Saldo kartu ikut dikurangi.', `/api/flazz/topup/${encodeURIComponent(t.id)}`))]),
         ]),
       ])));
     } else if (tab === 'tol') {
@@ -517,7 +522,7 @@ export async function renderFlazzRiwayat(view) {
         el('td', {}, [tautan(t.evidence_url)]), el('td', { text: t.notes || '-' }),
         el('td', { class: 'small', text: t.source === 'MANUAL' ? (t.created_by_nama || t.created_by || '-') : 'laporan' }),
         el('td', {}, t.source === 'MANUAL' ? [
-          grupAksi([tombolIkon('edit', 'Edit tol', () => formEdit('tol', t)), tombolIkon('hapus', 'Hapus catatan tol', () => hapus('Hapus catatan tol ini? Saldo kartu ikut dikembalikan.', `/api/flazz/tol/${encodeURIComponent(t.id)}`))]),
+          grupAksi([tombolIkon('edit', 'Edit tol', () => formEdit('tol', t)), tombolIkonSekali('hapus', 'Hapus catatan tol', () => hapus('Hapus catatan tol ini? Saldo kartu ikut dikembalikan.', `/api/flazz/tol/${encodeURIComponent(t.id)}`))]),
         ] : [el('span', { class: 'small text-muted', text: 'dari laporan' })]),
       ])));
     } else if (tab === 'bbm') {
@@ -527,7 +532,7 @@ export async function renderFlazzRiwayat(view) {
         el('td', { text: fmtDateId(b.tanggal) }), el('td', { text: kn(b.card_id) }),
         el('td', { text: [b.driver, b.vehicle].filter(Boolean).join(' / ') || '-' }),
         el('td', { class: 'text-end', text: rp(b.amount) }), el('td', {}, [tautan(b.evidence)]),
-        el('td', {}, n(b.amount) <= 0 ? [] : sudahDirekon(b, data.recons) ? [el('span', { class: 'small text-muted', title: 'Hapus rekonsiliasi kartunya dulu bila perlu dikoreksi.' }, [el('i', { class: 'bi bi-lock me-1', 'aria-hidden': 'true' }), 'Sudah direkon'])] : [tombolIkon('lepas', 'Lepas pembayaran Flazz', () => hapus('Lepas pembayaran BBM Flazz dari laporan ini? Gunakan hanya bila BBM sebenarnya dibayar tunai. Nominal tetap tercatat sebagai tunai dan saldo kartu dikembalikan.', `/api/laporan/${encodeURIComponent(b.transaction_id)}/flazz`))]),
+        el('td', {}, n(b.amount) <= 0 ? [] : sudahDirekon(b, data.recons) ? [el('span', { class: 'small text-muted', title: 'Hapus rekonsiliasi kartunya dulu bila perlu dikoreksi.' }, [el('i', { class: 'bi bi-lock me-1', 'aria-hidden': 'true' }), 'Sudah direkon'])] : [tombolIkonSekali('lepas', 'Lepas pembayaran Flazz', () => hapus('Lepas pembayaran BBM Flazz dari laporan ini? Gunakan hanya bila BBM sebenarnya dibayar tunai. Nominal tetap tercatat sebagai tunai dan saldo kartu dikembalikan.', `/api/laporan/${encodeURIComponent(b.transaction_id)}/flazz`))]),
       ])));
     } else if (tab === 'usage') {
       const list = filterKartu(data.usages).filter((u) => dalam(u.used_at || u.date));
@@ -554,8 +559,8 @@ export async function renderFlazzRiwayat(view) {
           angka(r.difference, n(r.difference) !== 0 ? 'text-danger fw-bold' : 'text-muted'),
           el('td', { class: 'text-center' }, [el('span', { class: `badge-status ${r.reconciliation_status === 'SESUAI' ? 'badge-ef-baik' : 'badge-ef-waspada'}`, text: r.reconciliation_status === 'PERLU_PEMERIKSAAN' ? 'PERIKSA' : r.reconciliation_status })]),
           el('td', { class: 'small', text: r.reconciled_by || '-' }),
-          ...(isSuper() ? [el('td', { class: 'text-center' }, [el('button', { class: 'btn btn-sm btn-outline-danger', type: 'button', title: 'Hapus rekonsiliasi', 'aria-label': 'Hapus rekonsiliasi',
-            onclick: () => hapus('Hapus rekonsiliasi ini? Saldo kartu kembali ke saldo sistem sebelum rekonsiliasi dan kartu kembali SEDANG_DIGUNAKAN.', `/api/flazz/reconciliation/${encodeURIComponent(r.id)}`) }, [el('i', { class: 'bi bi-trash', 'aria-hidden': 'true' })])])] : []),
+          ...(isSuper() ? [el('td', { class: 'text-center' }, [tombolIkonSekali('hapus', 'Hapus rekonsiliasi',
+            () => hapus('Hapus rekonsiliasi ini? Saldo kartu kembali ke saldo sistem sebelum rekonsiliasi dan kartu kembali SEDANG_DIGUNAKAN.', `/api/flazz/reconciliation/${encodeURIComponent(r.id)}`))])] : []),
         ])));
     }
     for (const [k, b] of Object.entries(tombolTab)) b.className = `btn btn-sm ${k === tab ? 'btn-secondary' : 'btn-outline-secondary'}`;

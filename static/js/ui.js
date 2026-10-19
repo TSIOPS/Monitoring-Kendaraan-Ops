@@ -142,6 +142,20 @@ export function confirmDialog(message) {
   return window.confirm(message);
 }
 
+// Bungkus handler async: tombol dimatikan selama proses agar tap ganda tidak mengirim dua request.
+export function aksiSekali(tombol, fn) {
+  let berjalan = false;
+  return async (...args) => {
+    if (berjalan) return;
+    berjalan = true;
+    if (tombol) tombol.disabled = true;
+    try { return await fn(...args); } finally {
+      berjalan = false;
+      if (tombol && tombol.isConnected !== false) tombol.disabled = false;
+    }
+  };
+}
+
 export function spinner(view, text = 'Memuat data') {
   view.replaceChildren(el('div', { class: 'loading text-muted', text }));
 }
@@ -256,4 +270,10 @@ export function tombolIkon(jenis, judul, aksi) {
   node.appendChild(el('i', { class: `bi ${ikon}`, 'aria-hidden': 'true' }));
   return node;
 }
-export const grupAksi = (tombol) => el('div', { class: 'aksi-ikon' }, tombol.filter(Boolean));
+// tombolIkon yang handler async-nya dibungkus aksiSekali (hapus/nonaktifkan: cegah request ganda).
+export function tombolIkonSekali(jenis, judul, fn) {
+  const b = tombolIkon(jenis, judul, null);
+  b.addEventListener('click', aksiSekali(b, fn));
+  return b;
+}
+export const grupAksi =(tombol) => el('div', { class: 'aksi-ikon' }, tombol.filter(Boolean));

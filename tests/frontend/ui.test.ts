@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { esc, fmtNum, fmtDateId } from '../../static/js/ui.js';
 
 describe('esc', () => {
@@ -161,5 +161,30 @@ describe('tambahKeterangan', () => {
     expect(attr['aria-describedby']).toBe('ket-1 ket-2');
     tambahKeterangan(k, 'ket-1');
     expect(attr['aria-describedby']).toBe('ket-1 ket-2');
+  });
+});
+
+describe('aksiSekali', () => {
+  it('menolak panggilan kedua selama yang pertama berjalan', async () => {
+    const { aksiSekali } = await import('../../static/js/ui.js');
+    let selesai!: () => void;
+    const fn = vi.fn(() => new Promise<void>((r) => { selesai = r; }));
+    const btn = { disabled: false } as any;
+    const jalan = aksiSekali(btn, fn);
+    jalan(); jalan();
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(btn.disabled).toBe(true);
+    selesai(); await Promise.resolve(); await Promise.resolve();
+    expect(btn.disabled).toBe(false);
+    jalan();
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
+  it('tombol hidup lagi walau handler melempar galat', async () => {
+    const { aksiSekali } = await import('../../static/js/ui.js');
+    const btn = { disabled: false } as any;
+    const jalan = aksiSekali(btn, async () => { throw new Error('gagal'); });
+    await expect(jalan()).rejects.toThrow('gagal');
+    expect(btn.disabled).toBe(false);
   });
 });

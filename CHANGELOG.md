@@ -3,6 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-10-19
+- **UX** — Tap ganda tidak lagi mengirim dua request: tombol hapus jalur, hapus/lepas/simpan di Riwayat Flazz (top up, tol, BBM Flazz, rekonsiliasi), serta hapus/nonaktifkan/aksi tambahan di Master dimatikan selama proses (helper `aksiSekali()`/`tombolIkonSekali()`); form edit Riwayat Flazz digulir ke layar saat dibuka; toast hapus jalur kini "Jalur dihapus." (sebelumnya "Jadwal dihapus.") — `static/js/ui.js`, `static/js/pages/jalur.js`, `static/js/pages/flazz.js`, `static/js/pages/master.js`
 - **UX** — Rekap Pengeluaran: "Unduh Excel" kini memakai periode & warehouse data yang sedang ditampilkan (isi, judul, dan nama file konsisten), bukan isian filter yang belum diterapkan; bila filter sudah diubah tanpa "Tampilkan", muncul toast peringatan — `static/js/pages/rekap.js`
 - **UX** — Rekonsiliasi Flazz: pilihan "Tindakan pada selisih" yang dipilih sendiri tidak lagi ditimpa usulan saat saldo fisik diubah; respons preview kartu lama yang datang terlambat diabaikan; status "Memeriksa kartu…" saat preview dimuat dan galat preview tampil di tempat dengan tombol "Coba lagi" (bukan toast); penyesuaian saldo (ADJUST dengan selisih) minta konfirmasi "Saldo kartu akan diubah dari … menjadi …" — `static/js/pages/flazz.js`
 - **UX/Aksesibilitas** — Gerbang Fase 3 ditutup: code-review bersih, ui-ux review (9 temuan diperbaiki, 3 ditunda ke Fase 5).

@@ -1207,7 +1207,7 @@ Tambahan: jika `dari.value !== filterDimuat.dari || sampai.value !== filterDimua
 
 **Files:** Modify `static/js/ui.js`; pakai di `jalur.js:162-171`, `flazz.js:466-482`, `master.js:300-309`; Test `tests/frontend/ui.test.ts`
 
-- [ ] **Step 1: Tes gagal**
+- [x] **Step 1: Tes gagal**
 
 ```ts
 import { aksiSekali } from '../../static/js/ui.js';
@@ -1224,7 +1224,7 @@ it('aksiSekali menolak panggilan kedua selama yang pertama berjalan', async () =
 });
 ```
 
-- [ ] **Step 2: Implementasi**
+- [x] **Step 2: Implementasi**
 
 ```js
 // Bungkus handler async: tombol dimatikan selama proses agar tap ganda tidak mengirim dua request.
@@ -1242,8 +1242,8 @@ export function aksiSekali(tombol, fn) {
 }
 ```
 
-- [ ] **Step 3:** Bungkus handler hapus jalur, hapus/simpan riwayat Flazz, hapus master. Perbaiki teks toast `'Jadwal dihapus.'` → `'Jalur dihapus.'` (`jalur.js:166`). Pada edit riwayat Flazz, setelah form edit muncul panggil `formEdit.scrollIntoView({ block: 'start', behavior: 'smooth' })`.
-- [ ] **Step 4:** PASS. **Step 5: Commit** `fix(ui): cegah klik ganda pada aksi hapus/simpan`.
+- [x] **Step 3:** Bungkus handler hapus jalur, hapus/simpan riwayat Flazz, hapus master. Perbaiki teks toast `'Jadwal dihapus.'` → `'Jalur dihapus.'` (`jalur.js:166`). Pada edit riwayat Flazz, setelah form edit muncul panggil `formEdit.scrollIntoView({ block: 'start', behavior: 'smooth' })`.
+- [x] **Step 4:** PASS. **Step 5: Commit** `fix(ui): cegah klik ganda pada aksi hapus/simpan`.
 
 ### Task 20: Jalur — konfirmasi sebelum membuang baris & format tanggal
 
