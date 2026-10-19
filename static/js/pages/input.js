@@ -1,4 +1,4 @@
-import { get, post, BATAS_WAKTU_FOTO_MS } from '../api.js';
+import { get, post, pesanTimeoutSimpan, BATAS_WAKTU_FOTO_MS } from '../api.js';
 import { el, fmtDateId, fmtNum, pratinjauFoto, toast, tampilkanGalat, barisForm as baris, bantuRupiah } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
 import { bacaDraft, hapusDraft, kunciDraft, simpanDraft } from '../draft.js';
@@ -741,12 +741,12 @@ export async function renderInput(view) {
         formDiubah = false;
       }
       // Timeout saat kirim laporan: server mungkin sudah menyimpan; kirim ulang aman (dijawab SUDAH_DILAPORKAN).
-      const pesanTimeout = err.error === 'TIMEOUT' && tahap === 'laporan'
+      const pesanTimeout = tahap === 'laporan'
         ? ` Laporan mungkin sudah terkirim. Kirim ulang aman: bila muncul 'sudah dilaporkan', berarti sudah masuk.`
         : '';
       alertBox.replaceChildren(
         ...[
-          (err.message || 'Gagal menyimpan laporan.') + pesanTimeout,
+          pesanTimeoutSimpan(err, pesanTimeout) || 'Gagal menyimpan laporan.',
           err.error === 'SUDAH_DILAPORKAN'
             ? el('div', { class: 'mt-2' }, [el('a', { href: '#/history', class: 'alert-link', text: 'Buka Riwayat Transaksi' })])
             : null,

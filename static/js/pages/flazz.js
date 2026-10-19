@@ -1,4 +1,4 @@
-import { del, get, post, put } from '../api.js';
+import { BATAS_WAKTU_FOTO_MS, del, get, pesanTimeoutSimpan, post, put } from '../api.js';
 import { getUser } from '../store.js';
 import { autoRefresh, confirmDialog, el, fmtDateId, fmtNum, toast, labelDari, petaMaster, pratinjauFoto, grupAksi, tombolIkon, tombolIkonSekali, aksiSekali, tampilkanGalat, barisForm as baris, bantuRupiah } from '../ui.js';
 import { kompresGambar, namaAman, tanggalWib } from './input.js';
@@ -94,6 +94,10 @@ const isSuper = () => String(getUser()?.role || '').toUpperCase() === 'SUPERADMI
 const rp = (v) => 'Rp ' + fmtNum(v);
 const namaKartu = (c) => (c ? `${c.card_name || c.card_number || c.id}` : '-');
 const KELAS_STATUS_KARTU = { SEDANG_DIGUNAKAN: 'badge-ef-waspada', TERSEDIA: 'badge-ef-baik' };
+// Top up/rekon belum idempoten di server: timeout bisa berarti sudah tercatat.
+const PERINGATAN_TIMEOUT = ' Mungkin sudah tersimpan di server — cek Riwayat Flazz sebelum mengulang agar saldo tidak tercatat dua kali.';
+// Permintaan berisi foto (base64) memakai batas waktu unggah foto.
+const OPSI_FOTO = { timeoutMs: BATAS_WAKTU_FOTO_MS };
 
 function isiOpsi(select, items, placeholder) {
   select.replaceChildren(el('option', { value: '', text: placeholder }));
@@ -302,11 +306,11 @@ export async function renderFlazzTopup(view) {
     try {
       const res = await post('/api/flazz/topup', {
         card_id: kartu.value, amount: Number(nominal.value), date: tanggal.value, notes: catatan.value.trim(), ...(await bacaFoto(foto)),
-      });
+      }, OPSI_FOTO);
       toast(res.msg || 'Top Up berhasil dicatat dan saldo bertambah.', 'success');
       window.location.hash = '#/flazz/riwayat';
     } catch (e) {
-      tampilkanGalat(alertBox, e.message);
+      tampilkanGalat(alertBox, pesanTimeoutSimpan(e, PERINGATAN_TIMEOUT));
       simpan.disabled = false;
     }
   });
@@ -418,11 +422,11 @@ export async function renderFlazzRekon(view) {
     try {
       const res = await post('/api/flazz/reconciliation', {
         card_id: kartu.value, actual_balance: Number(fisik.value), action: aksi.value, notes: catatan.value.trim(), ...(await bacaFoto(foto)),
-      });
+      }, OPSI_FOTO);
       toast(res.msg, 'success');
       window.location.hash = '#/flazz/riwayat';
     } catch (e) {
-      tampilkanGalat(alertBox, e.message);
+      tampilkanGalat(alertBox, pesanTimeoutSimpan(e, PERINGATAN_TIMEOUT));
       simpan.disabled = false;
     }
   });
@@ -468,7 +472,7 @@ export async function renderFlazzRiwayat(view) {
     const foto = jenis === 'topup' ? el('input', { type: 'file', accept: 'image/*', class: 'form-control form-control-sm' }) : null;
     const tSimpan = el('button', { class: 'btn btn-sm btn-primary', type: 'button', text: 'Simpan' });
     tSimpan.addEventListener('click', aksiSekali(tSimpan, () => aman(async () => {
-      await put(`/api/flazz/${jenis}/${encodeURIComponent(row.id)}`, { amount: Number(nominal.value), date: tanggal.value, notes: catatan.value.trim(), ...(foto ? await bacaFoto(foto) : {}) });
+      await put(`/api/flazz/${jenis}/${encodeURIComponent(row.id)}`, { amount: Number(nominal.value), date: tanggal.value, notes: catatan.value.trim(), ...(foto ? await bacaFoto(foto) : {}) }, OPSI_FOTO);
       toast('Perubahan disimpan.', 'success');
       editBox.replaceChildren();
       await muatUlang();

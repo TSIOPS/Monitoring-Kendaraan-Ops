@@ -74,8 +74,15 @@ export function post(path, body, opsi) {
   return request('POST', path, body, opsi);
 }
 
-export function put(path, body) {
-  return request('PUT', path, body);
+export function put(path, body, opsi) {
+  return request('PUT', path, body, opsi);
+}
+
+// Timeout saat menyimpan: server mungkin sudah memproses permintaan. Pesan galat diberi
+// keterangan tambahan hanya untuk TIMEOUT (galat lain pasti tidak tersimpan).
+export function pesanTimeoutSimpan(err, tambahan) {
+  const pesan = String(err?.message || '');
+  return err?.error === 'TIMEOUT' ? pesan + tambahan : pesan;
 }
 
 export function del(path) {

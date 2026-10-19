@@ -1,4 +1,4 @@
-import { get, put } from '../api.js';
+import { BATAS_WAKTU_FOTO_MS, get, put } from '../api.js';
 import { getRouteParam, pasangPenjagaKeluar } from '../router.js';
 import { el, fmtNum, toast, pratinjauFoto, tampilkanGalat, barisForm as baris, bantuRupiah } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
@@ -289,7 +289,7 @@ export async function renderEdit(view) {
         body['foto_' + slot + '_thumb'] = await kompresGambar(input.files[0], THUMB_LEBAR, THUMB_KUALITAS);
         body['foto_' + slot + '_name'] = namaAman(input.files[0].name);
       }
-      const res = await put(`/api/laporan/${encodeURIComponent(id)}`, body);
+      const res = await put(`/api/laporan/${encodeURIComponent(id)}`, body, { timeoutMs: BATAS_WAKTU_FOTO_MS });
       toast(res.msg || 'Transaksi diperbarui.', 'success');
       formDiubah = false; // sebelum pindah agar penjaga tidak bertanya
       // replace: tombol Back tidak kembali ke form edit lama.

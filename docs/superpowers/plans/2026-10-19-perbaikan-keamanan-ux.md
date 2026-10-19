@@ -1320,6 +1320,7 @@ Tambahkan `'aria-current': 'page'` pada tombol aktif dan `aria-label` "Halaman s
 
 ### Review akhir seluruh branch (2026-10-19)
 - [x] Konfirmasi Keluar memakai pesan penjaga halaman aktif (`pesanPenjagaKeluar()`), tidak selalu pesan draft Input Laporan
+- [x] Batas waktu unggah foto (`BATAS_WAKTU_FOTO_MS`) untuk top up/rekon/edit riwayat Flazz & edit laporan (`put()` menerima opsi); timeout top up/rekon memberi peringatan "mungkin sudah tersimpan" via `pesanTimeoutSimpan()` (juga dipakai Input Laporan)
 - Ditunda: idempotency key server untuk top up Flazz; notifikasi klik di tab versi lama (sampai reload) → Fase 5
 
 ---

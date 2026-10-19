@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, post, request } from '../../static/js/api.js';
+import { ApiError, pesanTimeoutSimpan, post, put, request } from '../../static/js/api.js';
 import { setToken, clearSession, getToken } from '../../static/js/store.js';
 
 class MemoryStorage {
@@ -124,6 +124,32 @@ describe('request', () => {
       await vi.advanceTimersByTimeAsync(31_000);
       const err = await p;
       expect(err.error).toBe('TIMEOUT');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('pesanTimeoutSimpan', () => {
+  it('menambahkan peringatan hanya untuk galat TIMEOUT', () => {
+    const tambahan = ' Mungkin sudah tersimpan.';
+    expect(pesanTimeoutSimpan(new ApiError('Server tidak merespons.', 0, 'TIMEOUT'), tambahan)).toBe('Server tidak merespons. Mungkin sudah tersimpan.');
+    expect(pesanTimeoutSimpan(new ApiError('Saldo kurang.', 400, 'ERROR'), tambahan)).toBe('Saldo kurang.');
+    expect(pesanTimeoutSimpan(new ApiError('Tidak dapat terhubung.', 0, 'NETWORK'), tambahan)).toBe('Tidak dapat terhubung.');
+  });
+});
+
+describe('put', () => {
+  it('meneruskan opsi batas waktu ke request', async () => {
+    vi.useFakeTimers();
+    try {
+      stubFetch((_u, init) => new Promise((_r, rej) => init?.signal?.addEventListener('abort', () => rej(new DOMException('aborted', 'AbortError')))));
+      let selesai = false;
+      const p = put('/api/laporan/X', {}, { timeoutMs: 120_000 }).catch((e) => { selesai = true; return e as ApiError; });
+      await vi.advanceTimersByTimeAsync(31_000);
+      expect(selesai).toBe(false);
+      await vi.advanceTimersByTimeAsync(90_000);
+      expect((await p).error).toBe('TIMEOUT');
     } finally {
       vi.useRealTimers();
     }
