@@ -3,6 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-10-19
+- **Fitur** — Helper role terpusat `src/auth/peran.ts` (`normalPeran`, `isSuper`, `isManagement`, `lihatSemuaCabang`, `PERAN_VALID`) sebagai dasar role `MANAGEMENT` — `src/auth/peran.ts`
 - **Fitur** — Rencana implementasi role `MANAGEMENT` (11 task: helper peran, penjaga tulis, cakupan baca, frontend, gerbang review, dokumentasi) — `docs/superpowers/plans/2026-10-19-role-management.md`
 - **Fitur** — Spesifikasi role baru `MANAGEMENT` (monitoring read-only semua cabang; penjaga tulis terpusat di `requireUser`) — `docs/superpowers/specs/2026-10-19-role-management-design.md`
 - **UX** — Input Laporan, Edit Transaksi, dan Buat/Edit Jalur yang lambat memuat data (sinyal lemah) tidak lagi menggambar form atau memasang penjaga "belum disimpan" di halaman lain bila pengguna sudah pindah halaman selama memuat (sebelumnya halaman tujuan bisa tertimpa dan pindah halaman berikutnya ditanya tanpa alasan) — `static/js/router.js` (`halamanMasihAktif()`), `static/js/pages/input.js`, `static/js/pages/edit.js`, `static/js/pages/jalur.js`

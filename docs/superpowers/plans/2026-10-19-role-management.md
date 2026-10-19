@@ -49,7 +49,7 @@ diakhiri baris `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 - Create: `src/auth/peran.ts`
 - Test: `tests/auth/peran.test.ts`
 
-- [ ] **Step 1: Tulis tes yang gagal**
+- [x] **Step 1: Tulis tes yang gagal**
 
 ```ts
 // tests/auth/peran.test.ts
@@ -79,12 +79,12 @@ describe('peran', () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `npx vitest run tests/auth/peran.test.ts`
 Expected: FAIL (`Failed to resolve import "../../src/auth/peran"`)
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 ```ts
 // src/auth/peran.ts
@@ -108,11 +108,11 @@ export function lihatSemuaCabang(u: BerPeran): boolean {
 }
 ```
 
-- [ ] **Step 4: Jalankan, pastikan lolos**
+- [x] **Step 4: Jalankan, pastikan lolos**
 
 Run: `npx vitest run tests/auth/peran.test.ts` → PASS
 
-- [ ] **Step 5: Centang task ini, tambah entri CHANGELOG (Fitur), commit**
+- [x] **Step 5: Centang task ini, tambah entri CHANGELOG (Fitur), commit**
 
 ```bash
 git add src/auth/peran.ts tests/auth/peran.test.ts docs/superpowers/plans/2026-10-19-role-management.md CHANGELOG.md
