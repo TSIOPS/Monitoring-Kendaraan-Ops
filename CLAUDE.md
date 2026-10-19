@@ -10,7 +10,8 @@ untuk setiap perubahan kode di repo ini.
   - implementasi → `superpowers:test-driven-development` (tes dulu, lihat gagal, baru kode)
   - sebelum menyatakan selesai → `superpowers:verification-before-completion`
 - Rencana disimpan di `docs/superpowers/plans/YYYY-MM-DD-<nama>.md`, spesifikasi di `docs/superpowers/specs/`.
-- Rencana perbaikan aktif: [docs/superpowers/plans/2026-10-19-perbaikan-keamanan-ux.md](docs/superpowers/plans/2026-10-19-perbaikan-keamanan-ux.md).
+- Rencana perbaikan aktif: [docs/superpowers/plans/2026-10-19-perbaikan-keamanan-ux.md](docs/superpowers/plans/2026-10-19-perbaikan-keamanan-ux.md),
+  [docs/superpowers/plans/2026-10-19-role-management.md](docs/superpowers/plans/2026-10-19-role-management.md) (Task 7–11 belum).
 
 ## 2. Setiap perubahan WAJIB memperbarui dokumentasi Markdown
 Setelah perubahan apa pun (kode, skema DB, konfigurasi):
@@ -39,7 +40,9 @@ Setelah perubahan apa pun (kode, skema DB, konfigurasi):
 - Urutan per perubahan: kode + tes → verifikasi (§5) → gerbang review (§3) bila terpicu → update MD (§2) → **commit**.
 - Commit hanya setelah tes & typecheck hijau. Bila terpaksa commit dalam keadaan gagal, tulis `WIP:` di awal pesan
   dan jelaskan alasannya.
-- Push ke remote **tidak** otomatis — hanya bila diminta.
+- **Kerja langsung di `main`** (permintaan pemilik repo, 2026-10-19): jangan buat branch fitur/PR; setiap commit
+  yang sudah lolos §5 (dan gerbang §3 bila terpicu) **langsung di-push ke `origin main`**.
+- Jangan push commit `WIP:` atau commit dengan tes/typecheck merah.
 
 ## 5. Verifikasi sebelum commit
 ```bash
