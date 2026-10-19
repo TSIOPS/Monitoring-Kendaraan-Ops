@@ -335,7 +335,7 @@ export async function renderJalurBuat(view) {
     try {
       const res = await post('/api/jalur', { tanggal: tanggal.value, rows: valid });
       toast(res.msg || 'Jalur tersimpan.', 'success');
-      for (const w of res.warnings || []) toast(w, 'error');
+      for (const w of res.warnings || []) toast(w, 'warning'); // jalur sudah tersimpan: peringatan, bukan galat
       window.location.hash = '#/jalur';
     } catch (e) {
       tampilkanGalat(alertBox, e.message || 'Gagal menyimpan jalur.');

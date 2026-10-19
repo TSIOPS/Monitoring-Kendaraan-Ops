@@ -66,8 +66,7 @@ describe('tombolIkon', () => {
 });
 
 describe('tampilkanGalat', () => {
-  it('mengisi pesan, menampilkan kotak, memberi role alert, dan memfokuskan tanpa scroll ganda', async () => {
-    const { tampilkanGalat } = await import('../../static/js/ui.js');
+  const kotakTiruan = () => {
     const kelas = new Set(['alert', 'd-none']);
     const attr: Record<string, string> = {};
     const panggilan: string[] = [];
@@ -75,15 +74,35 @@ describe('tampilkanGalat', () => {
       textContent: '',
       classList: { remove: (k: string) => kelas.delete(k) },
       setAttribute: (k: string, v: string) => { attr[k] = v; },
-      scrollIntoView: () => panggilan.push('scroll'),
+      scrollIntoView: (o: any) => panggilan.push(`scroll:${o?.behavior}`),
       focus: (o: any) => panggilan.push(`focus:${o?.preventScroll}`),
     };
+    return { box, kelas, attr, panggilan };
+  };
+
+  it('mengisi pesan, menampilkan kotak, dan memfokuskan tanpa role alert (fokus sudah dibacakan)', async () => {
+    const { tampilkanGalat } = await import('../../static/js/ui.js');
+    const { box, kelas, attr, panggilan } = kotakTiruan();
     tampilkanGalat(box, 'KM wajib diisi.');
     expect(box.textContent).toBe('KM wajib diisi.');
     expect(kelas.has('d-none')).toBe(false);
-    expect(attr.role).toBe('alert');
+    expect(attr.role).toBeUndefined();
     expect(attr.tabindex).toBe('-1');
-    expect(panggilan).toEqual(['scroll', 'focus:true']);
+    expect(panggilan).toEqual(['scroll:smooth', 'focus:true']);
+  });
+
+  it('prefers-reduced-motion: gulir tanpa animasi', async () => {
+    const { tampilkanGalat } = await import('../../static/js/ui.js');
+    const g = globalThis as any;
+    const asli = g.matchMedia;
+    g.matchMedia = (q: string) => ({ matches: q === '(prefers-reduced-motion: reduce)' });
+    try {
+      const { box, panggilan } = kotakTiruan();
+      tampilkanGalat(box, 'x');
+      expect(panggilan[0]).toBe('scroll:auto');
+    } finally {
+      g.matchMedia = asli;
+    }
   });
 
   it('tanpa pesan: isi kotak yang sudah dibangun tidak ditimpa', async () => {
@@ -128,5 +147,19 @@ describe('teksRupiah', () => {
     expect(teksRupiah('abc')).toBe('');
     expect(teksRupiah(null)).toBe('');
     expect(teksRupiah(undefined)).toBe('');
+  });
+});
+
+describe('tambahKeterangan', () => {
+  it('menambah id ke aria-describedby tanpa menimpa nilai lama atau menggandakan', async () => {
+    const { tambahKeterangan } = await import('../../static/js/ui.js');
+    const attr: Record<string, string> = {};
+    const k: any = { getAttribute: (n: string) => attr[n] ?? null, setAttribute: (n: string, v: string) => { attr[n] = v; } };
+    tambahKeterangan(k, 'ket-1');
+    expect(attr['aria-describedby']).toBe('ket-1');
+    tambahKeterangan(k, 'ket-2');
+    expect(attr['aria-describedby']).toBe('ket-1 ket-2');
+    tambahKeterangan(k, 'ket-1');
+    expect(attr['aria-describedby']).toBe('ket-1 ket-2');
   });
 });

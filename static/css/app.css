@@ -670,15 +670,18 @@ body.tanpa-sidebar .sidebar, body.tanpa-sidebar .sidebar-latar { display: none; 
 .lonceng-item:hover, .lonceng-item:focus-visible { background: #f1f5f2; color: #212529; outline: none; }
 @media (max-width: 640px) { .panel-lonceng { position: fixed; left: 0.75rem; right: 0.75rem; top: var(--tinggi-topbar, 58px); width: auto; } }
 
-/* iOS memperbesar layar bila font input < 16px. Basis html 15px, jadi paksa 16px di layar sentuh. */
-@media (max-width: 991.98px) {
-  .form-control, .form-select, .form-control-sm, .form-select-sm { font-size: 16px; }
+/* iOS memperbesar layar bila font input < 16px. Basis html 15px, jadi paksa 16px di layar sentuh
+   (termasuk tablet lebar); teks input-group ikut agar sejajar dengan inputnya. */
+@media (max-width: 991.98px), (pointer: coarse) {
+  .form-control, .form-select, .form-control-sm, .form-select-sm, .input-group-text { font-size: 16px; }
 }
 
 /* Target sentuh minimal 44px di perangkat sentuh (WCAG 2.5.5 / Apple HIG). */
 @media (pointer: coarse) {
   .aksi-ikon { gap: 0.5rem; }
   .aksi-ikon .btn, .btn-sm { min-width: 44px; min-height: 44px; }
+  /* Teks tombol kecil tetap di tengah vertikal saat tinggi dipaksa 44px. */
+  .btn-sm { display: inline-flex; align-items: center; justify-content: center; }
 }
 
 /* Kontras dashboard: hijau gelap (~6,6:1 dengan putih) untuk kartu sambutan & ringkasan;

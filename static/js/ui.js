@@ -60,11 +60,24 @@ export function idUntukLabel(kontrol) {
 // input/select/textarea pertama di dalamnya.
 export function barisForm(label, kontrol, catatan = '', kelas = 'mb-3') {
   const target = kontrol.matches?.('input,select,textarea') ? kontrol : kontrol.querySelector?.('input,select,textarea');
+  let teksCatatan = null;
+  if (catatan) {
+    // Catatan dibacakan bersama kontrolnya (aria-describedby), bukan hanya terlihat.
+    teksCatatan = el('div', { class: 'form-text', id: `ket-${++nomorField}`, text: catatan });
+    if (target) tambahKeterangan(target, teksCatatan.id);
+  }
   return el('div', { class: kelas }, [
     el('label', { class: 'form-label', text: label, for: target ? idUntukLabel(target) : null }),
     kontrol,
-    catatan ? el('div', { class: 'form-text', text: catatan }) : null,
+    teksCatatan,
   ]);
+}
+
+// Tambah id ke aria-describedby kontrol (nilai lama dipertahankan, tanpa duplikat).
+export function tambahKeterangan(kontrol, id) {
+  const ada = String(kontrol.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+  if (!ada.includes(id)) ada.push(id);
+  kontrol.setAttribute('aria-describedby', ada.join(' '));
 }
 
 // "= Rp 150.000" untuk nominal valid; kosong bila kosong/bukan angka.
@@ -77,9 +90,11 @@ export function teksRupiah(nilai) {
 // Teks bantu di bawah input nominal agar 150.000 vs 1.500.000 mudah dibedakan. Mengembalikan
 // elemen teks; pemanggil menaruhnya setelah input/input-group. Isi diperbarui pada event
 // 'input' — nilai yang diisi lewat kode perlu dispatchEvent(new Event('input')).
+// Tanpa aria-live (dibacakan tiap ketukan terlalu ramai); terhubung lewat aria-describedby.
 export function bantuRupiah(input) {
   input.setAttribute('inputmode', 'numeric');
-  const teks = el('div', { class: 'form-text fw-semibold', 'aria-live': 'polite' });
+  const teks = el('div', { class: 'form-text fw-semibold', id: `rp-${++nomorField}` });
+  tambahKeterangan(input, teks.id);
   const segar = () => { teks.textContent = teksRupiah(input.value); };
   input.addEventListener('input', segar);
   segar();
@@ -91,29 +106,35 @@ const PETA_JENIS = { danger: 'error', warning: 'warning', error: 'error', succes
 export const jenisToast = (kind) => PETA_JENIS[kind] || 'info';
 
 // Toast diumumkan pembaca layar (galat: role=alert, lainnya: status) dan bisa ditutup; galat tampil lebih lama.
+// Role hanya di <span> pesan (bukan node berisi tombol ×, agar "Tutup notifikasi" tidak ikut dibaca).
+// Span disisipkan kosong lalu diisi di tick berikutnya: VoiceOver hanya mengumumkan perubahan isi
+// region yang sudah ada, bukan region yang muncul sudah berisi.
 export function toast(message, kind = 'info') {
   let host = document.getElementById('toast-host');
   if (!host) {
-    host = el('div', { id: 'toast-host', class: 'toast-host', 'aria-live': 'polite' });
+    host = el('div', { id: 'toast-host', class: 'toast-host' });
     document.body.appendChild(host);
   }
   const jenis = jenisToast(kind);
   const tutup = el('button', { type: 'button', class: 'toast-tutup', 'aria-label': 'Tutup notifikasi', text: '×' });
-  const node = el('div', { class: `toast-item toast-${jenis}`, role: jenis === 'error' ? 'alert' : 'status' }, [el('span', { text: message }), tutup]);
+  const pesan = el('span', { role: jenis === 'error' ? 'alert' : 'status' });
+  const node = el('div', { class: `toast-item toast-${jenis}` }, [pesan, tutup]);
   tutup.addEventListener('click', () => node.remove());
   host.appendChild(node);
+  setTimeout(() => { pesan.textContent = String(message); }, 0);
   setTimeout(() => node.remove(), jenis === 'error' ? 10000 : 4000);
 }
 
-// Galat form selalu di-scroll ke tengah layar dan diumumkan pembaca layar; tombol Simpan
-// ada di bawah form panjang, jadi galat di atas form sebelumnya tidak terlihat di HP.
+// Galat form selalu di-scroll ke tengah layar dan difokuskan (fokus membuat pembaca layar
+// membacakannya — tanpa role=alert agar tidak diumumkan dua kali); tombol Simpan ada di bawah
+// form panjang, jadi galat di atas form sebelumnya tidak terlihat di HP.
 // Tanpa `pesan`: isi kotak yang sudah dibangun pemanggil (mis. pesan + tautan) dipertahankan.
 export function tampilkanGalat(box, pesan) {
   if (pesan !== undefined) box.textContent = pesan;
-  box.setAttribute('role', 'alert');
   box.setAttribute('tabindex', '-1');
   box.classList.remove('d-none');
-  box.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+  const kurangiGerak = typeof globalThis.matchMedia === 'function' && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  box.scrollIntoView?.({ block: 'center', behavior: kurangiGerak ? 'auto' : 'smooth' });
   box.focus?.({ preventScroll: true });
 }
 
@@ -134,7 +155,7 @@ export function halaman(list, nomor, per = 10) {
 
 // Tombol « 1 2 3 » seperti renderDashPagination GAS; kosong bila hanya satu halaman.
 export function navHalaman(total, aktif, keHalaman) {
-  const wrap = el('div', { class: 'd-flex justify-content-center gap-1 flex-wrap mt-3' });
+  const wrap = el('div', { class: 'd-flex justify-content-center gap-2 flex-wrap mt-3' });
   if (total <= 1) return wrap;
   const tombol = (label, ke, sekarang = false, mati = false) => {
     const b = el('button', { type: 'button', class: `btn btn-sm ${sekarang ? 'btn-primary' : 'btn-outline-primary'}`, text: label });

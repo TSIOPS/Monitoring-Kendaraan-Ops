@@ -1123,6 +1123,8 @@ export function bantuRupiah(input) {
 ### Gerbang Fase 3
 - [ ] `npm test && npm run typecheck` hijau
 - [ ] **`/ui-ux-pro-max`** (checklist §1 Accessibility, §2 Touch, §5 Layout, §8 Forms) di 375px
+  - Perbaikan hasil ui-ux review: `aria-live` dibuang dari `#toast-host` & teks bantu rupiah (rupiah kini lewat `aria-describedby`); role alert/status hanya di `<span>` pesan toast yang diisi pada tick berikutnya; `tampilkanGalat` tanpa `role="alert"` (fokus sudah dibacakan) dan gulir `auto` saat `prefers-reduced-motion`; catatan `barisForm` terhubung `aria-describedby` (helper `tambahKeterangan`); `.btn-sm` 44px berteks di tengah (inline-flex); font 16px juga untuk `(pointer: coarse)` & `.input-group-text`; jarak tombol halaman `gap-2`; peringatan pasca-simpan jalur memakai toast `warning`
+  - Ditunda: jeda timer toast saat hover/fokus, galat per-field (aria-invalid/invalid-feedback), warna status SEDANG_DIGUNAKAN konsisten → Fase 5
 - [ ] **`/code-review:code-review`** (helper baru di `ui.js`, perubahan lintas 10 halaman)
 - [ ] CHANGELOG diperbarui
 
