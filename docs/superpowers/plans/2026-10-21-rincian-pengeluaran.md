@@ -674,7 +674,7 @@ Catatan penyimpangan: tidak ada; kode sesuai rencana (labelKartu di `perbarui()`
 - Modify: `static/js/pages/input.js`
 - Test: `tests/frontend/input-helpers.test.ts`
 
-- [ ] **Step 1: Tes gagal** — di `tests/frontend/input-helpers.test.ts`:
+- [x] **Step 1: Tes gagal** — di `tests/frontend/input-helpers.test.ts`:
   - `DASAR`: hapus `biaya_bbm, biaya_toll, metode_pembayaran, flazz_card_id, metode_toll, flazz_card_id_toll`; tambah `rincian: [{ jenis: 'BBM', nominal: 120000, kartu: '', keterangan: '' }]`, `ada_struk_bbm: true`, `ada_struk_tol: true`.
   - Hapus tes lama metode/kartu/grup-2 (`metode_pembayaran: 'FLAZZ'`, `biaya_toll: '5000'… metode_toll`, `buildPayload mengirim field grup-2`, `buildPayload tanpa grup-2`, `validateForm menolak nominal grup-2…`, `validateForm menerima nominal grup-2…`) dan ganti dengan:
 ```ts
@@ -701,8 +701,8 @@ describe('buildPayload + rincian', () => {
 });
 ```
   - Tes lama `buildPayload` yang mengharapkan `p.biaya_bbm === 120000` (±L107-110) dan `biaya BBM tanpa jenis BBM ditolak` (±L184) dihapus (digantikan di atas).
-- [ ] **Step 2:** `npx vitest run tests/frontend/input-helpers.test.ts` → FAIL.
-- [ ] **Step 3: Implementasi** `static/js/pages/input.js`:
+- [x] **Step 2:** `npx vitest run tests/frontend/input-helpers.test.ts` → FAIL.
+- [x] **Step 3: Implementasi** `static/js/pages/input.js`:
   - Import: `import { tabelRincian, validasiRincian, ringkasRincian } from '../rincian.js';`
   - `validateForm`: hapus blok `biaya` (biaya BBM negatif), blok metode/kartu Flazz, blok grup-2; ganti blok struk/jenis dengan:
 ```js
@@ -745,9 +745,16 @@ describe('buildPayload + rincian', () => {
       rincian: tabel.ambil(),
       label_kartu: (id) => opsiKartu(kartuBoleh).find((k) => String(k.value) === id)?.label || id,
 ```
-- [ ] **Step 4:** `npx vitest run tests/frontend/input-helpers.test.ts` → PASS; `npm test && npm run typecheck`.
-- [ ] **Step 5: Cek manual** `npm run dev` (butuh `.dev.vars`), buka Input Laporan: tambah/hapus baris, total & liter berubah, pilihan "Dibayar" berisi kartu jalur, galat 3 cara bayar muncul, simpan sukses. Bila `.dev.vars` tidak tersedia, catat "cek manual ditunda ke deploy" di CHANGELOG.
-- [ ] **Step 6:** centang, CHANGELOG (UX), commit `feat(input): pengeluaran diisi per nota`, push.
+- [x] **Step 4:** `npx vitest run tests/frontend/input-helpers.test.ts` → PASS; `npm test && npm run typecheck`.
+- [x] **Step 5: Cek manual** (ditunda ke deploy — `.dev.vars` tidak tersedia) `npm run dev` (butuh `.dev.vars`), buka Input Laporan: tambah/hapus baris, total & liter berubah, pilihan "Dibayar" berisi kartu jalur, galat 3 cara bayar muncul, simpan sukses. Bila `.dev.vars` tidak tersedia, catat "cek manual ditunda ke deploy" di CHANGELOG.
+- [x] **Step 6:** centang, CHANGELOG (UX), commit `feat(input): pengeluaran diisi per nota`, push.
+
+Catatan penyimpangan:
+- `tabel` dibuat setelah `function hitungUlangLiter`; `onUbah` memakai penjaga `if (tabel)` karena `perbarui()` dipanggil di dalam `tabelRincian()` sebelum `tabel` terisi.
+- Draft hanya menyimpan `rincian` bila tabel tidak kosong (`[]` dihitung "sudah ada isi" oleh `simpanDraft`, sehingga form kosong akan tersimpan sebagai draft).
+- Tes tambahan: galat 3 cara bayar memakai `label_kartu`; tes "bukti wajib di form" disesuaikan ke `rincian`.
+- Import `bantuRupiah` dihapus dari input.js (kini hanya dipakai di `rincian.js`).
+- Gerbang review (/ui-ux-pro-max, /code-review) dijalankan di Task 13 sesuai rencana.
 
 ---
 

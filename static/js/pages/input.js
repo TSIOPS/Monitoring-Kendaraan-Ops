@@ -1,6 +1,7 @@
 import { get, post, pesanTimeoutSimpan, BATAS_WAKTU_FOTO_MS } from '../api.js';
-import { el, fmtDateId, fmtNum, pratinjauFoto, toast, tampilkanGalat, barisForm as baris, bantuRupiah } from '../ui.js';
+import { el, fmtDateId, fmtNum, pratinjauFoto, toast, tampilkanGalat, barisForm as baris } from '../ui.js';
 import { meteranBensin } from '../meteran.js';
+import { tabelRincian, validasiRincian, ringkasRincian } from '../rincian.js';
 import { bacaDraft, hapusDraft, kunciDraft, simpanDraft } from '../draft.js';
 import { getUser } from '../store.js';
 import { halamanMasihAktif, navigate, pasangPenjagaKeluar } from '../router.js';
@@ -49,21 +50,14 @@ export function validateForm(v) {
     err.push('Liter harus angka dan tidak boleh negatif.');
   }
 
-  const biaya = Number(v.biaya_bbm);
-  if (v.biaya_bbm !== '' && (!Number.isFinite(biaya) || biaya < 0)) {
-    err.push('Biaya BBM harus angka dan tidak boleh negatif.');
-  }
-
-  // Liter dihitung dari biaya / harga jenis BBM (seperti calcLiter GAS); tanpa jenis, liter kosong.
-  const biayaTotal = Number(v.biaya_bbm || 0) + Number(v.biaya_bbm_2 || 0);
+  // Pengeluaran per nota (rincian): validasi sama dengan server; liter dihitung dari total BBM.
+  const rincian = v.rincian || [];
+  err.push(...validasiRincian(rincian, v.label_kartu));
+  const { bbm, tol } = ringkasRincian(rincian);
   // Bukti wajib (sama dengan server): struk BBM bila ada biaya BBM, bukti tol bila ada biaya tol.
-  if (v.ada_struk_bbm === false && biayaTotal > 0) err.push('Foto struk BBM wajib diupload karena ada biaya BBM.');
-  if (v.ada_struk_tol === false && Number(v.biaya_toll || 0) + Number(v.biaya_toll_2 || 0) > 0) {
-    err.push('Foto struk / bukti tol wajib diupload karena ada biaya tol.');
-  }
-  if (v.harga_bbm !== undefined && biayaTotal > 0 && !(Number(v.harga_bbm) > 0)) {
-    err.push('Pilih jenis BBM agar liter terhitung.');
-  }
+  if (v.ada_struk_bbm === false && bbm > 0) err.push('Foto struk BBM wajib diupload karena ada biaya BBM.');
+  if (v.ada_struk_tol === false && tol > 0) err.push('Foto struk / bukti tol wajib diupload karena ada biaya tol.');
+  if (v.harga_bbm !== undefined && bbm > 0 && !(Number(v.harga_bbm) > 0)) err.push('Pilih jenis BBM agar liter terhitung.');
 
   if (v.jarum && [v.bar_awal, v.bar_akhir].some((x) => x !== '' && (Number(x) < 0 || Number(x) > 100))) {
     err.push('Indikator jarum diisi persen jarum 0–100.');
@@ -73,18 +67,6 @@ export function validateForm(v) {
     err.push('Geser meteran bensin awal dan akhir sesuai posisi jarum.');
   }
 
-  if (v.metode_pembayaran === 'FLAZZ' && !v.flazz_card_id) {
-    err.push('Pilih kartu Flazz untuk pembayaran.');
-  }
-  if (v.metode_toll === 'FLAZZ' && !v.flazz_card_id_toll) {
-    err.push('Pilih kartu Flazz untuk tol.');
-  }
-
-  // Grup-2: kartu boleh kosong (nominal dicatat tunai); hanya nominal yang dicek.
-  const nominal2 = [v.biaya_bbm_2, v.biaya_toll_2].filter((x) => x !== undefined && x !== '');
-  if (nominal2.some((x) => !Number.isFinite(Number(x)) || Number(x) < 0)) {
-    err.push('Nominal kartu ke-2 harus angka dan tidak boleh negatif.');
-  }
   return err;
 }
 
@@ -101,16 +83,7 @@ export function buildPayload(v, serverData) {
     bar_awal: String(v.bar_awal),
     bar_akhir: String(v.bar_akhir),
     liter_bbm: Number(v.liter_bbm || 0),
-    biaya_bbm: Number(v.biaya_bbm || 0),
-    biaya_toll: Number(v.biaya_toll || 0),
-    metode_pembayaran: v.metode_pembayaran,
-    flazz_card_id: v.flazz_card_id,
-    metode_toll: v.metode_toll,
-    flazz_card_id_toll: v.flazz_card_id_toll,
-    flazz_card_id_2: v.flazz_card_id_2 || '',
-    biaya_bbm_2: Number(v.biaya_bbm_2 || 0),
-    flazz_card_id_toll_2: v.flazz_card_id_toll_2 || '',
-    biaya_toll_2: Number(v.biaya_toll_2 || 0),
+    rincian: v.rincian || [],
     serverData,
   };
 }
@@ -249,61 +222,25 @@ export async function renderInput(view) {
     bar_akhir: el('input', { class: 'form-control', type: 'number', inputmode: 'numeric', id: 'f-bar-akhir' }),
     jenis_bbm: el('select', { class: 'form-select', id: 'f-jenis-bbm' }),
     liter_bbm: el('input', { class: 'form-control bg-light', type: 'number', step: '0.01', id: 'f-liter', readonly: 'readonly', tabindex: '-1' }),
-    biaya_bbm: el('input', { class: 'form-control', type: 'number', id: 'f-biaya-bbm' }),
-    metode_pembayaran: el('select', { class: 'form-select', id: 'f-metode' }, [
-      el('option', { value: 'TUNAI', text: 'Tunai' }),
-      el('option', { value: 'FLAZZ', text: 'Flazz' }),
-    ]),
-    flazz_card_id: el('select', { class: 'form-select', id: 'f-kartu' }),
-    biaya_toll: el('input', { class: 'form-control', type: 'number', id: 'f-biaya-tol' }),
-    metode_toll: el('select', { class: 'form-select', id: 'f-metode-tol' }, [
-      el('option', { value: '', text: 'Sama dengan pembayaran BBM' }),
-      el('option', { value: 'TUNAI', text: 'Tunai' }),
-      el('option', { value: 'FLAZZ', text: 'Flazz' }),
-    ]),
-    flazz_card_id_toll: el('select', { class: 'form-select', id: 'f-kartu-tol' }),
-    biaya_bbm_2: el('input', { class: 'form-control', type: 'number', min: '0', id: 'f-biaya-bbm-2' }),
-    flazz_card_id_2: el('select', { class: 'form-select', id: 'f-kartu-2' }),
-    biaya_toll_2: el('input', { class: 'form-control', type: 'number', min: '0', id: 'f-biaya-tol-2' }),
-    flazz_card_id_toll_2: el('select', { class: 'form-select', id: 'f-kartu-tol-2' }),
   };
 
   isiOpsi(f.vehicle_id, opsiKendaraan(vehicles), '— pilih kendaraan —');
   isiOpsi(f.jenis_bbm, bbmOpsi, '— pilih jenis BBM —');
   if (bbmOpsi.length === 1) f.jenis_bbm.value = bbmOpsi[0].value;
   const hargaBbm = () => bbmOpsi.find((o) => o.value === f.jenis_bbm.value)?.harga || 0;
-  const hitungUlangLiter = () => {
-    f.liter_bbm.value = hitungLiter(Number(f.biaya_bbm.value || 0) + Number(f.biaya_bbm_2.value || 0), hargaBbm());
-  };
+  // Didefinisikan sebagai function: tabelRincian memanggil onUbah saat dibuat.
+  function hitungUlangLiter() {
+    f.liter_bbm.value = hitungLiter(ringkasRincian(tabel.ambil()).bbm, hargaBbm());
+  }
   f.jenis_bbm.addEventListener('change', hitungUlangLiter);
-  f.biaya_bbm.addEventListener('input', hitungUlangLiter);
-  f.biaya_bbm_2.addEventListener('input', hitungUlangLiter);
+  // Kartu etoll yang boleh dipilih di kolom "Dibayar": hanya kartu jalur (tanpa jalur: semua kartu).
   let kartuBoleh = cards;
-  // Isi ulang pilihan kartu; nilai terpilih dipertahankan bila masih termasuk.
+  let tabel = null;
+  tabel = tabelRincian({ opsiKartu: opsiKartu(cards), onUbah: () => { if (tabel) hitungUlangLiter(); } });
   function isiKartu(daftar) {
     kartuBoleh = daftar;
-    const kosong = daftar.length ? '— tidak ada —' : '— jalur tidak membawa kartu etoll —';
-    for (const [sel, ph] of [[f.flazz_card_id, kosong], [f.flazz_card_id_toll, kosong], [f.flazz_card_id_2, 'Tanpa kartu (tunai)'], [f.flazz_card_id_toll_2, 'Tanpa kartu (tunai)']]) {
-      const lama = sel.value;
-      isiOpsi(sel, opsiKartu(daftar), ph);
-      pilihKartu(sel, lama);
-    }
+    tabel.setKartu(opsiKartu(daftar));
   }
-  isiKartu(cards);
-  // Metode Flazz -> kartu jalur langsung terpilih (kartu 1), mencegah salah pilih kartu.
-  f.metode_pembayaran.addEventListener('change', () => {
-    if (f.metode_pembayaran.value !== 'FLAZZ') return;
-    if (!kartuBoleh.length) {
-      toast('Jalur ini tidak membawa kartu etoll; BBM dibayar tunai atau perbarui jalur.', 'error');
-      return;
-    }
-    if (!f.flazz_card_id.value) f.flazz_card_id.value = String(kartuBoleh[0].id || kartuBoleh[0].card_id);
-  });
-  f.metode_toll.addEventListener('change', () => {
-    if (f.metode_toll.value === 'FLAZZ' && !f.flazz_card_id_toll.value && kartuBoleh.length) {
-      f.flazz_card_id_toll.value = String(kartuBoleh[0].id || kartuBoleh[0].card_id);
-    }
-  });
 
   // Supir hanya dari jalur BELUM_DIISI pada tanggal terpilih (seperti GAS, spec M8 D4).
   let jalurDrivers = [];
@@ -324,24 +261,6 @@ export async function renderInput(view) {
 
   f.tanggal.value = tanggalWib();
 
-  // Pengeluaran kartu ke-2 (opsional), seperti di GAS: tersembunyi sampai dibuka.
-  const grup2Wrap = el('div', { class: 'form-section d-none' }, [
-    el('div', { class: 'form-section-title', text: 'Pengeluaran kartu ke-2' }),
-    el('div', { class: 'form-text mb-2', text: 'Dipakai saat satu kartu tidak cukup. Bila nominal diisi tanpa kartu, biaya itu dicatat sebagai tunai.' }),
-    el('div', { class: 'row' }, [
-      el('div', { class: 'col-md-3' }, [baris('Nominal BBM (kartu 2)', el('div', {}, [f.biaya_bbm_2, bantuRupiah(f.biaya_bbm_2)]))]),
-      el('div', { class: 'col-md-3' }, [baris('Kartu Flazz BBM (kartu 2)', f.flazz_card_id_2)]),
-      el('div', { class: 'col-md-3' }, [baris('Nominal tol (kartu 2)', el('div', {}, [f.biaya_toll_2, bantuRupiah(f.biaya_toll_2)]))]),
-      el('div', { class: 'col-md-3' }, [baris('Kartu Flazz tol (kartu 2)', f.flazz_card_id_toll_2)]),
-    ]),
-  ]);
-  const grup2Toggle = el('button', { type: 'button', class: 'btn btn-outline-secondary btn-tambah-kartu w-100 mb-3', text: '+ Tambah pengeluaran dengan kartu ke-2' });
-  const bukaGrup2 = () => {
-    grup2Wrap.classList.remove('d-none');
-    grup2Toggle.classList.add('d-none');
-  };
-  grup2Toggle.addEventListener('click', bukaGrup2);
-
   // Input dengan satuan (Rp / KM / L) di sisi kiri/kanan.
   const satuan = (kontrol, kiri, kanan) => el('div', { class: 'input-group' }, [
     kiri ? el('span', { class: 'input-group-text', text: kiri }) : null,
@@ -357,8 +276,6 @@ export async function renderInput(view) {
   const barJarumAwal = el('div', { class: 'd-none' }, [baris('Level bensin awal (berangkat)', meterAwal.elemen)]);
   const barJarumAkhir = el('div', { class: 'd-none' }, [baris('Level bensin akhir (pulang)', meterAkhir.elemen)]);
   const meterRusak = (cek, id, teks) => el('div', { class: 'form-check mb-3' }, [cek, el('label', { class: 'form-check-label', for: id, text: teks })]);
-  f.biaya_toll.placeholder = 'Kosongkan bila tidak ada tol';
-  f.biaya_bbm.placeholder = '0';
   f.liter_bbm.placeholder = 'otomatis';
 
   const form = el('form', { novalidate: 'novalidate' }, [
@@ -396,30 +313,18 @@ export async function renderInput(view) {
         ]),
       ]),
     ]),
-    seksi('Pembelian BBM', [
+    seksi('Pengeluaran BBM & Tol', [
+      el('div', { class: 'form-text mb-2', text: 'Isi satu baris per nota. Dibayar: kartu etoll yang dibawa di jalur, atau Tunai. Maks. 2 cara bayar per jenis.' }),
+      tabel.elemen,
       el('div', { class: 'row' }, [
-        el('div', { class: 'col-md-3' }, [baris('Jenis BBM', f.jenis_bbm)]),
-        el('div', { class: 'col-md-3' }, [baris('Biaya BBM', el('div', {}, [satuan(f.biaya_bbm, 'Rp'), bantuRupiah(f.biaya_bbm)]))]),
-        el('div', { class: 'col-md-3' }, [baris('Liter BBM', satuan(f.liter_bbm, '', 'L'), 'Otomatis: biaya ÷ harga per liter')]),
-        el('div', { class: 'col-md-3' }, [baris('Metode pembayaran', f.metode_pembayaran)]),
+        el('div', { class: 'col-md-6' }, [baris('Jenis BBM', f.jenis_bbm)]),
+        el('div', { class: 'col-md-6' }, [baris('Liter BBM', satuan(f.liter_bbm, '', 'L'), 'Otomatis: total BBM ÷ harga per liter')]),
       ]),
       el('div', { class: 'row' }, [
-        el('div', { class: 'col-md-6' }, [baris('Kartu Flazz (BBM)', f.flazz_card_id)]),
-        el('div', { class: 'col-md-6' }, [baris('Foto struk BBM (wajib bila beli BBM)', el('div', {}, [fotoStrukBbm, pratinjauFoto(fotoStrukBbm)]), 'Foto struk SPBU bila membeli BBM.')]),
-      ]),
-    ]),
-    seksi('Tol', [
-      el('div', { class: 'row' }, [
-        el('div', { class: 'col-md-4' }, [baris('Biaya tol', el('div', {}, [satuan(f.biaya_toll, 'Rp'), bantuRupiah(f.biaya_toll)]))]),
-        el('div', { class: 'col-md-4' }, [baris('Metode tol', f.metode_toll)]),
-        el('div', { class: 'col-md-4' }, [baris('Kartu Flazz (tol)', f.flazz_card_id_toll)]),
-      ]),
-      el('div', { class: 'row' }, [
-        el('div', { class: 'col-md-6' }, [baris('Foto struk / bukti tol (wajib bila bayar tol)', el('div', {}, [fotoStrukTol, pratinjauFoto(fotoStrukTol)]), 'Lebih dari satu struk: susun lalu foto sekaligus dalam 1 foto, dan isi total di Biaya tol. E-toll tanpa struk: foto hasil cetak cek pengeluaran kartu.')]),
+        el('div', { class: 'col-md-6' }, [baris('Foto struk BBM (gabungan semua struk)', el('div', {}, [fotoStrukBbm, pratinjauFoto(fotoStrukBbm)]), 'Wajib bila ada baris BBM. Susun semua struk lalu foto sekaligus.')]),
+        el('div', { class: 'col-md-6' }, [baris('Foto bukti tol (gabungan semua bukti)', el('div', {}, [fotoStrukTol, pratinjauFoto(fotoStrukTol)]), 'Wajib bila ada baris tol. E-toll tanpa struk: foto cetak cek pengeluaran kartu.')]),
       ]),
     ]),
-    el('div', {}, [grup2Toggle]),
-    grup2Wrap,
     el('div', { class: 'd-flex justify-content-end gap-2 border-top pt-3 mt-2' }, [batal, submit]),
   ]);
 
@@ -464,10 +369,6 @@ export async function renderInput(view) {
       : (maks ? `Indikator bar: isi jumlah bar yang menyala (0–${maks}).` : '');
   }
   f.vehicle_id.addEventListener('change', onVehicleChange);
-
-  function pilihKartu(select, cardId) {
-    if (cardId && Array.from(select.options).some((o) => o.value === cardId)) select.value = cardId;
-  }
 
   // Mengembalikan true bila berhasil, false bila gagal, null bila hasilnya basi (sudah ada
   // pemuatan yang lebih baru, mis. tanggal diganti lagi) dan diabaikan.
@@ -534,23 +435,9 @@ export async function renderInput(view) {
     f.vehicle_id.disabled = adaJalur && Array.from(f.vehicle_id.options).some((o) => o.value === jalur.vehicle_id);
     isiKartu(kartuJalur(cards, adaJalur ? jalur : null));
     if (!adaJalur) return;
-    if (f.metode_pembayaran.value === 'FLAZZ' && !f.flazz_card_id.value && kartuBoleh.length) {
-      f.flazz_card_id.value = String(kartuBoleh[0].id || kartuBoleh[0].card_id);
-    }
     if (jalur.vehicle_id && Array.from(f.vehicle_id.options).some((o) => o.value === jalur.vehicle_id)) {
       f.vehicle_id.value = jalur.vehicle_id;
       await onVehicleChange();
-    }
-    // Kartu etoll jalur dipakai untuk tol (tidak ada prefill dari laporan terakhir).
-    if (jalur.flazz_card_id) {
-      f.metode_toll.value = 'FLAZZ';
-      pilihKartu(f.flazz_card_id_toll, jalur.flazz_card_id);
-    }
-    // Kartu ke-2 jalur hanya menyiapkan slot grup-2; nominal tetap diisi manual.
-    if (jalur.flazz_card_id_2 && !f.flazz_card_id_2.value) {
-      pilihKartu(f.flazz_card_id_2, jalur.flazz_card_id_2);
-      if (!f.flazz_card_id_toll_2.value) pilihKartu(f.flazz_card_id_toll_2, jalur.flazz_card_id_2);
-      bukaGrup2();
     }
   }
 
@@ -566,18 +453,21 @@ export async function renderInput(view) {
   // Hanya nilai field (foto tidak bisa diserialisasi). Supir disimpan sebagai nama + kendaraan,
   // bukan indeks opsi, karena indeks berubah saat daftar jalur dimuat ulang.
   const KUNCI = kunciDraft('input', getUser()?.user_id);
-  const FIELD_DRAFT = ['tanggal', 'km_awal', 'km_akhir', 'bar_awal', 'bar_akhir', 'jenis_bbm', 'biaya_bbm', 'metode_pembayaran',
-    'flazz_card_id', 'biaya_toll', 'metode_toll', 'flazz_card_id_toll', 'biaya_bbm_2', 'flazz_card_id_2', 'biaya_toll_2', 'flazz_card_id_toll_2'];
+  // Rincian pengeluaran disimpan sebagai array; kunci slot lama (biaya_bbm dst.) di draft lama diabaikan.
+  const FIELD_DRAFT = ['tanggal', 'km_awal', 'km_akhir', 'bar_awal', 'bar_akhir', 'jenis_bbm'];
   const ambilNilai = () => {
     const v = Object.fromEntries(FIELD_DRAFT.map((k) => [k, f[k].value]));
     const j = jalurDrivers[Number(f.nama_supir.value)];
     v.supir = j && f.nama_supir.value !== '' ? { nama_driver: j.nama_driver, vehicle_id: j.vehicle_id } : null;
     v.km_awal_broken = f.km_awal_broken.checked;
     v.km_akhir_broken = f.km_akhir_broken.checked;
+    const rincian = tabel.ambil();
+    // Tabel kosong tidak disimpan: [] akan dihitung "sudah ada isi" oleh simpanDraft.
+    if (rincian.length) v.rincian = rincian;
     return v;
   };
-  // Field berdefault (tanggal hari ini, TUNAI, dst.) tidak dihitung sebagai "sudah ada isi".
-  const FIELD_BERDEFAULT = ['tanggal', 'metode_pembayaran', 'metode_toll', 'jenis_bbm'];
+  // Field berdefault (tanggal hari ini, jenis BBM tunggal) tidak dihitung sebagai "sudah ada isi".
+  const FIELD_BERDEFAULT = ['tanggal', 'jenis_bbm'];
   // Draft dibaca sinkron saat render, sebelum listener simpan dipasang, dan penyimpanan
   // ditahan sampai pemulihan selesai: ketukan selama jalur dimuat (bisa sampai 30 dtk)
   // tidak boleh menimpa draft lama dengan form yang hampir kosong.
@@ -624,10 +514,8 @@ export async function renderInput(view) {
       else catatanSupir.textContent = ` Supir ${v.supir.nama_driver} tidak lagi punya jalur BELUM DIISI pada tanggal ini — pilih ulang.`;
     }
     for (const k of FIELD_DRAFT) if (k !== 'tanggal' && v[k] !== undefined && v[k] !== '') f[k].value = v[k];
-    // Teks bantu rupiah hanya diperbarui lewat event 'input' (tidak bubble: tidak memicu simpan draft).
-    for (const k of ['biaya_bbm', 'biaya_toll', 'biaya_bbm_2', 'biaya_toll_2']) f[k].dispatchEvent(new Event('input'));
     for (const k of ['km_awal_broken', 'km_akhir_broken']) if (v[k]) { f[k].checked = true; f[k].dispatchEvent(new Event('change')); }
-    if (v.biaya_bbm_2 || v.biaya_toll_2) bukaGrup2();
+    if (Array.isArray(v.rincian) && v.rincian.length) tabel.isi(v.rincian);
     hitungUlangLiter();
     formDiubah = true;
     const buang = el('button', { type: 'button', class: 'btn btn-outline-secondary ms-auto', text: 'Buang draft' });
@@ -666,16 +554,8 @@ export async function renderInput(view) {
       bar_akhir: f.bar_akhir.value,
       liter_bbm: f.liter_bbm.value,
       harga_bbm: hargaBbm(),
-      biaya_bbm: f.biaya_bbm.value,
-      biaya_toll: f.biaya_toll.value,
-      metode_pembayaran: f.metode_pembayaran.value,
-      flazz_card_id: f.flazz_card_id.value,
-      metode_toll: f.metode_toll.value,
-      flazz_card_id_toll: f.flazz_card_id_toll.value,
-      flazz_card_id_2: f.flazz_card_id_2.value,
-      biaya_bbm_2: f.biaya_bbm_2.value,
-      flazz_card_id_toll_2: f.flazz_card_id_toll_2.value,
-      biaya_toll_2: f.biaya_toll_2.value,
+      rincian: tabel.ambil(),
+      label_kartu: (id) => opsiKartu(kartuBoleh).find((k) => String(k.value) === id)?.label || id,
     };
 
     values.ada_struk_bbm = Boolean(fotoStrukBbm.files?.[0] || serverData.files.struk_bbm);

@@ -25,12 +25,9 @@ const DASAR = {
   bar_awal: '8',
   bar_akhir: '4',
   liter_bbm: '10',
-  biaya_bbm: '120000',
-  biaya_toll: '0',
-  metode_pembayaran: 'TUNAI',
-  flazz_card_id: '',
-  metode_toll: '',
-  flazz_card_id_toll: '',
+  rincian: [{ jenis: 'BBM', nominal: 120000, kartu: '', keterangan: '' }],
+  ada_struk_bbm: true,
+  ada_struk_tol: true,
   km_awal_broken: false,
   km_akhir_broken: false,
   km_tanpa_estimasi: false,
@@ -70,20 +67,6 @@ describe('validateForm', () => {
     const err = validateForm({ ...DASAR, liter_bbm: '-3' });
     expect(err.some((e) => e.includes('Liter'))).toBe(true);
   });
-
-  it('menolak FLAZZ tanpa kartu', () => {
-    const err = validateForm({ ...DASAR, metode_pembayaran: 'FLAZZ', flazz_card_id: '' });
-    expect(err).toContain('Pilih kartu Flazz untuk pembayaran.');
-  });
-
-  it('menerima FLAZZ dengan kartu', () => {
-    expect(validateForm({ ...DASAR, metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1' })).toEqual([]);
-  });
-
-  it('menolak tol FLAZZ tanpa kartu tol', () => {
-    const err = validateForm({ ...DASAR, biaya_toll: '5000', metode_toll: 'FLAZZ', flazz_card_id_toll: '' });
-    expect(err).toContain('Pilih kartu Flazz untuk tol.');
-  });
 });
 
 describe('buildPayload', () => {
@@ -106,7 +89,6 @@ describe('buildPayload', () => {
   it('mengirim liter sebagai angka', () => {
     const p = buildPayload(DASAR, { files: {}, km_awal: '', km_akhir: '' });
     expect(p.liter_bbm).toBe(10);
-    expect(p.biaya_bbm).toBe(120000);
   });
 
   it('mengubah bar menjadi string', () => {
@@ -131,27 +113,37 @@ describe('tanggalWib', () => {
   });
 });
 
-describe('grup-2 (kartu kedua)', () => {
-  it('buildPayload mengirim field grup-2 dengan nominal sebagai angka', () => {
-    const p = buildPayload(
-      { ...DASAR, flazz_card_id_2: 'FLZ-B', biaya_bbm_2: '500000', flazz_card_id_toll_2: '', biaya_toll_2: '' },
-      { files: {}, km_awal: '', km_akhir: '' },
-    );
-    expect(p).toMatchObject({ flazz_card_id_2: 'FLZ-B', biaya_bbm_2: 500000, flazz_card_id_toll_2: '', biaya_toll_2: 0 });
+describe('validateForm + rincian', () => {
+  it('galat rincian ikut', () => {
+    expect(validateForm({ ...DASAR, rincian: [{ jenis: 'BBM', nominal: 0, kartu: '', keterangan: '' }] })).toContain('Baris 1: nominal harus lebih dari 0.');
   });
+  it('struk wajib per jenis yang ada', () => {
+    expect(validateForm({ ...DASAR, ada_struk_bbm: false })).toContain('Foto struk BBM wajib diupload karena ada biaya BBM.');
+    expect(validateForm({ ...DASAR, rincian: [{ jenis: 'TOL', nominal: 5000, kartu: '', keterangan: '' }], ada_struk_tol: false, ada_struk_bbm: false }))
+      .toEqual(['Foto struk / bukti tol wajib diupload karena ada biaya tol.']);
+  });
+  it('BBM tanpa jenis BBM ditolak', () => {
+    expect(validateForm({ ...DASAR, harga_bbm: 0 })).toContain('Pilih jenis BBM agar liter terhitung.');
+    expect(validateForm({ ...DASAR, harga_bbm: 10000 })).not.toContain('Pilih jenis BBM agar liter terhitung.');
+    expect(validateForm({ ...DASAR, rincian: [], harga_bbm: 0 })).not.toContain('Pilih jenis BBM agar liter terhitung.');
+  });
+  it('galat 3 cara bayar memakai label kartu', () => {
+    const rincian = [
+      { jenis: 'TOL', nominal: 1, kartu: 'A', keterangan: '' },
+      { jenis: 'TOL', nominal: 1, kartu: 'B', keterangan: '' },
+      { jenis: 'TOL', nominal: 1, kartu: '', keterangan: '' },
+    ];
+    expect(validateForm({ ...DASAR, rincian, label_kartu: (id: string) => `Etoll ${id}` }).join(' ')).toContain('(Etoll A, Etoll B, Tunai)');
+  });
+});
 
-  it('buildPayload tanpa grup-2 mengirim nilai kosong', () => {
+describe('buildPayload + rincian', () => {
+  it('mengirim rincian, tanpa field slot', () => {
     const p = buildPayload(DASAR, { files: {}, km_awal: '', km_akhir: '' });
-    expect(p).toMatchObject({ flazz_card_id_2: '', biaya_bbm_2: 0, flazz_card_id_toll_2: '', biaya_toll_2: 0 });
-  });
-
-  it('validateForm menolak nominal grup-2 negatif atau bukan angka', () => {
-    expect(validateForm({ ...DASAR, biaya_bbm_2: '-1' })).toContain('Nominal kartu ke-2 harus angka dan tidak boleh negatif.');
-    expect(validateForm({ ...DASAR, biaya_toll_2: 'abc' })).toContain('Nominal kartu ke-2 harus angka dan tidak boleh negatif.');
-  });
-
-  it('validateForm menerima nominal grup-2 tanpa kartu (dicatat tunai)', () => {
-    expect(validateForm({ ...DASAR, biaya_toll_2: '7000' })).toEqual([]);
+    expect(p.rincian).toEqual(DASAR.rincian);
+    expect(p).not.toHaveProperty('biaya_bbm');
+    expect(p).not.toHaveProperty('flazz_card_id_2');
+    expect(p).not.toHaveProperty('metode_pembayaran');
   });
 });
 
@@ -180,11 +172,6 @@ describe('liter otomatis dari biaya BBM', () => {
   it('opsiBbm menerima bentuk payload SUPERADMIN maupun PIC', () => {
     expect(opsiBbm([{ id: 'B1', jenis: 'Pertalite', harga: 10000 }])).toEqual([{ value: 'B1', harga: 10000, label: 'Pertalite — Rp 10.000/L' }]);
     expect(opsiBbm([{ bbm_id: 'B2', jenis_bbm: 'Solar', harga_per_liter: '6800' }])).toEqual([{ value: 'B2', harga: 6800, label: 'Solar — Rp 6.800/L' }]);
-  });
-  it('biaya BBM tanpa jenis BBM ditolak', () => {
-    expect(validateForm({ ...DASAR, biaya_bbm: '100000', harga_bbm: 0 })).toContain('Pilih jenis BBM agar liter terhitung.');
-    expect(validateForm({ ...DASAR, biaya_bbm: '100000', harga_bbm: 10000 })).not.toContain('Pilih jenis BBM agar liter terhitung.');
-    expect(validateForm({ ...DASAR, biaya_bbm: '', harga_bbm: 0 })).not.toContain('Pilih jenis BBM agar liter terhitung.');
   });
 });
 
@@ -238,9 +225,10 @@ describe('digit KM', () => {
 
 describe('bukti wajib di form', () => {
   it('struk BBM & bukti tol wajib bila ada biayanya', () => {
-    const e = validateForm({ ...DASAR, biaya_bbm: '100000', harga_bbm: 10000, biaya_toll: '15000', ada_struk_bbm: false, ada_struk_tol: false }).join(' ');
+    const rincian = [{ jenis: 'BBM', nominal: 100000, kartu: '', keterangan: '' }, { jenis: 'TOL', nominal: 15000, kartu: '', keterangan: '' }];
+    const e = validateForm({ ...DASAR, rincian, harga_bbm: 10000, ada_struk_bbm: false, ada_struk_tol: false }).join(' ');
     expect(e).toContain('struk BBM wajib');
     expect(e).toContain('bukti tol wajib');
-    expect(validateForm({ ...DASAR, biaya_bbm: '', biaya_toll: '', ada_struk_bbm: false, ada_struk_tol: false }).join(' ')).not.toContain('wajib diupload');
+    expect(validateForm({ ...DASAR, rincian: [], ada_struk_bbm: false, ada_struk_tol: false }).join(' ')).not.toContain('wajib diupload');
   });
 });
