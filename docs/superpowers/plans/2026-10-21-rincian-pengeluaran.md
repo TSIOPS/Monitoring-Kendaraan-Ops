@@ -383,7 +383,7 @@ Pada PUT, slot dari rincian selalu mengirim `metode_pembayaran` & `flazz_card_id
 - Modify: `src/routes/laporan.ts` (DELETE `/:id/flazz`), `src/logic/laporan.ts` (`RecentItem`, `buildRecentList`)
 - Test: `tests/routes/laporan.test.ts`, `tests/logic/laporan.test.ts`
 
-- [ ] **Step 1: Tes gagal**
+- [x] **Step 1: Tes gagal**
 `tests/routes/laporan.test.ts` (dalam `describe('rincian pengeluaran')`):
 ```ts
   it('Lepas Flazz: baris BBM kartu itu jadi tunai, baris tol tetap', async () => {
@@ -409,8 +409,8 @@ Pada PUT, slot dari rincian selalu mengirim `metode_pembayaran` & `flazz_card_id
   });
 ```
 (Impor `laporanRow` dari `../helpers` bila belum.)
-- [ ] **Step 2:** jalankan kedua file tes → FAIL.
-- [ ] **Step 3: Implementasi**
+- [x] **Step 2:** jalankan kedua file tes → FAIL.
+- [x] **Step 3: Implementasi**
 
 DELETE `/:id/flazz` — setelah `if (lepas2) { … }` dan sebelum `await deps.laporan.update(id, patch);`:
 ```ts
@@ -432,10 +432,12 @@ dan di `buildRecentList` sebelum `result.push({`:
     const rc = rincianDariRow(row);
 ```
 lalu di objek push: `rincian: rc.items, rincian_lama: rc.lama,`. Import `rincianDariRow` dari `./rincian` (impor sirkular aman: `rincian.ts` hanya memakai fungsi `laporan.ts` saat dipanggil, bukan saat modul dimuat).
-- [ ] **Step 4:** tes → PASS.
-- [ ] **Step 5:** `npm test && npm run typecheck`, centang, CHANGELOG, commit `feat(laporan): lepas Flazz memperbarui rincian; rincian di daftar transaksi`, push.
+- [x] **Step 4:** tes → PASS.
+- [x] **Step 5:** `npm test && npm run typecheck`, centang, CHANGELOG, commit `feat(laporan): lepas Flazz memperbarui rincian; rincian di daftar transaksi`, push.
 
 ---
+
+> Catatan: tes `buildRecentList` memakai fixture `row` lokal di `tests/logic/laporan.test.ts` (bukan `laporanRow`). Impor sirkular `laporan.ts` <-> `rincian.ts` berjalan baik di vitest dan tsc.
 
 ### Task 5: Rekap per nota + kolom Keterangan
 

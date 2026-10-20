@@ -246,6 +246,12 @@ describe('buildPerformaList (window non-overlap)', () => {
 });
 
 describe('buildRecentList', () => {
+  it('buildRecentList menyertakan rincian (laporan lama: turunan slot, rincian_lama true)', () => {
+    const [a] = buildRecentList([row({ biaya_bbm: 50000 })], new Map(), new Map(), new Map());
+    expect(a!.rincian).toEqual([{ jenis: 'BBM', nominal: 50000, kartu: '', keterangan: '' }]);
+    expect(a!.rincian_lama).toBe(true);
+  });
+
   const kmap = new Map([['V-1', { kapasitas: 50, jumlah_bar: 8, standar: 10 }]]);
   const cmap = new Map([['CBG-A', 'Cabang A']]);
   const cards = new Map([['FLZ1', 'FLZ-1']]);

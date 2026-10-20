@@ -1058,4 +1058,18 @@ describe('rincian pengeluaran', () => {
     expect(res.status).toBe(200);
     expect(lap.state.rows[0]!.rincian).toEqual(awal);
   });
+
+  it('Lepas Flazz: baris BBM kartu itu jadi tunai, baris tol tetap', async () => {
+    const { app, kv, lap } = setup({
+      rows: [{ transaction_id: 'TRX-1', metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1', biaya_bbm: 100000, metode_toll: 'FLAZZ', flazz_card_id_toll: 'FLZ-1', biaya_toll: 5000,
+        rincian: [{ jenis: 'BBM', nominal: 100000, kartu: 'FLZ-1', keterangan: 'A' }, { jenis: 'TOL', nominal: 5000, kartu: 'FLZ-1', keterangan: 'B' }] }],
+      flazzCard: [flazzCard()],
+    });
+    const tok = await loginAs(kv, PIC);
+    const res = await app.request('/api/laporan/TRX-1/flazz', { method: 'DELETE', headers: authHeaders(tok) });
+    expect(res.status).toBe(200);
+    expect(lap.state.rows[0]!.rincian).toEqual([
+      { jenis: 'BBM', nominal: 100000, kartu: '', keterangan: 'A' }, { jenis: 'TOL', nominal: 5000, kartu: 'FLZ-1', keterangan: 'B' },
+    ]);
+  });
 });

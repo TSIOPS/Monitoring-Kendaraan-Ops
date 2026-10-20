@@ -1,6 +1,7 @@
 // Logika MURNI laporan/transaksi BBM. Port 1:1 PaymentLogic.js + SpreadsheetOps.js.
 // Tanpa I/O: tidak menyentuh env, Supabase, KV, atau Storage.
 import { thumbUrlOf } from './foto';
+import { rincianDariRow } from './rincian';
 
 export interface RincianItem { jenis: 'BBM' | 'TOL'; nominal: number; kartu: string; keterangan: string }
 
@@ -724,6 +725,9 @@ export function buildPerformaList(rows: LaporanRow[], kendaraanMap: KendaraanMap
 }
 
 export interface RecentItem {
+  rincian: RincianItem[];
+  // true = laporan lama tanpa rincian; baris diturunkan dari slot.
+  rincian_lama: boolean;
   tanggal: string;
   timestamp: number;
   sub_timestamp: number;
@@ -813,7 +817,9 @@ export function buildRecentList(rows: LaporanRow[], kendaraanMap: KendaraanMap, 
     }
 
     const metodeToll = resolveTollMethod(row.metode_toll, row.metode_pembayaran, row.flazz_card_id_toll);
+    const rc = rincianDariRow(row);
     result.push({
+      rincian: rc.items, rincian_lama: rc.lama,
       tanggal: formatDateId(row.tanggal),
       timestamp: parseTanggalMs(row.tanggal),
       sub_timestamp: parseTimestampMs(row.timestamp) ?? 0,

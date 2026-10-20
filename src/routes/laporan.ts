@@ -778,6 +778,10 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       patch.flazz_card_id_2 = '';
       kembalikan.push({ cardId: masterOf(cardBbm2), amount: biaya2 });
     }
+    if (Array.isArray(old.rincian) && old.rincian.length) {
+      const dilepas = [lepas1 ? cardBbm : '', lepas2 ? cardBbm2 : ''].filter(Boolean).map((x) => L.canonicalCardId(x));
+      patch.rincian = old.rincian.map((it) => (it.jenis === 'BBM' && it.kartu && dilepas.includes(L.canonicalCardId(it.kartu)) ? { ...it, kartu: '' } : it));
+    }
     await deps.laporan.update(id, patch);
 
     const sudah: Array<{ cardId: string; amount: number }> = [];
@@ -792,7 +796,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
         try { await deps.flazz.adjustBalance(k.cardId, -k.amount); } catch { /* rollback best-effort */ }
       }
       try {
-        await deps.laporan.update(id, { metode_pembayaran: old.metode_pembayaran, flazz_card_id: old.flazz_card_id, flazz_card_id_2: old.flazz_card_id_2 });
+        await deps.laporan.update(id, { metode_pembayaran: old.metode_pembayaran, flazz_card_id: old.flazz_card_id, flazz_card_id_2: old.flazz_card_id_2, rincian: old.rincian ?? [] });
       } catch { /* rollback best-effort */ }
       throw e;
     }
