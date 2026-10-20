@@ -749,6 +749,7 @@ describe('buildPayload + rincian', () => {
 - [x] **Step 5: Cek manual** (ditunda ke deploy — `.dev.vars` tidak tersedia) `npm run dev` (butuh `.dev.vars`), buka Input Laporan: tambah/hapus baris, total & liter berubah, pilihan "Dibayar" berisi kartu jalur, galat 3 cara bayar muncul, simpan sukses. Bila `.dev.vars` tidak tersedia, catat "cek manual ditunda ke deploy" di CHANGELOG.
 - [x] **Step 6:** centang, CHANGELOG (UX), commit `feat(input): pengeluaran diisi per nota`, push.
 
+
 Catatan penyimpangan:
 - `tabel` dibuat setelah `function hitungUlangLiter`; `onUbah` memakai penjaga `if (tabel)` karena `perbarui()` dipanggil di dalam `tabelRincian()` sebelum `tabel` terisi.
 - Draft hanya menyimpan `rincian` bila tabel tidak kosong (`[]` dihitung "sudah ada isi" oleh `simpanDraft`, sehingga form kosong akan tersimpan sebagai draft).
@@ -1232,10 +1233,13 @@ CSS (file yang berisi `.banner-tugas`):
 
 ### Task 13: Gerbang review, dokumentasi, verifikasi akhir
 
-- [ ] **Step 1:** `/security-review` (pemicu: endpoint `POST /api/rekap/unduh-harian`, input `rincian` ke DB). Perbaiki temuan atau catat alasan di CHANGELOG.
-- [ ] **Step 2:** `/ui-ux-pro-max` mode review (§1–§3 + §8 Forms) untuk `rincian.js`, `input.js`, `edit.js`, `transaksi.js`, `notifikasi.js`, `versi.js`. Perhatikan: target sentuh ≥ 44px tombol hapus baris, label/aria tiap kolom, tata letak 360px.
-- [ ] **Step 3:** `/code-review:code-review` (perubahan > 150 baris, kontrak API & skema berubah).
-- [ ] **Step 4:** README: tabel API (`rincian` di POST/PUT `/api/laporan`, `POST /api/rekap/unduh-harian`, `GET /api/health/versi`, field `unduh_excel`), bagian fitur (rincian per nota, pengingat unduh Excel, notif update). Spec: tambahkan bagian "Penyimpangan saat implementasi" (salin dari atas rencana ini).
-- [ ] **Step 5:** `npm test` dan `npm run typecheck` — tempel ringkasan output di catatan commit/CHANGELOG.
-- [ ] **Step 6:** centang semua, CHANGELOG, commit `docs(rincian): review, README, dan penutup rencana`, push.
+- [x] **Step 1:** `/security-review` (pemicu: endpoint `POST /api/rekap/unduh-harian`, input `rincian` ke DB). Perbaiki temuan atau catat alasan di CHANGELOG.
+- [x] **Step 2:** `/ui-ux-pro-max` mode review (§1–§3 + §8 Forms) untuk `rincian.js`, `input.js`, `edit.js`, `transaksi.js`, `notifikasi.js`, `versi.js`. Perhatikan: target sentuh ≥ 44px tombol hapus baris, label/aria tiap kolom, tata letak 360px.
+- [x] **Step 3:** `/code-review:code-review` (perubahan > 150 baris, kontrak API & skema berubah).
+- [x] **Step 4:** README: tabel API (`rincian` di POST/PUT `/api/laporan`, `POST /api/rekap/unduh-harian`, `GET /api/health/versi`, field `unduh_excel`), bagian fitur (rincian per nota, pengingat unduh Excel, notif update). Spec: tambahkan bagian "Penyimpangan saat implementasi" (salin dari atas rencana ini).
+- [x] **Step 5:** `npm test` dan `npm run typecheck` — tempel ringkasan output di catatan commit/CHANGELOG.
+- [x] **Step 6:** centang semua, CHANGELOG, commit `docs(rincian): review, README, dan penutup rencana`, push.
+
+> Catatan: review gabungan (security + code + UI) oleh subagent; temuan B1/B2/B3/C1/A1/A2/C2/B7/C6/B4 diperbaiki, sisanya ditunda (lihat CHANGELOG). Step 4: README (fitur + kolom API `rincian`) dan bagian "Penyimpangan saat implementasi" di spec. Step 5: `npm test` 61 file / 672 tes lulus, `npm run typecheck` tanpa galat.
+
 - [ ] **Step 7 (rilis, di komputer kantor):** jalankan `db/rincian-pengeluaran.sql` di Supabase → pindahkan barisnya ke "Sudah dijalankan" di README → `npm run deploy`.

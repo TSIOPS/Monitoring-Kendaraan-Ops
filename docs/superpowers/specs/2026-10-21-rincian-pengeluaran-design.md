@@ -186,3 +186,24 @@ tanpa tahu ada versi baru.
 1. Jalankan `db/rincian-pengeluaran.sql` ke Supabase.
 2. Deploy Worker (`npm run deploy`, dari komputer kantor).
 3. Sosialisasi ke PIC: isi per nota, foto tetap gabungan, unduh & kirim Excel setelah rekon.
+
+## Penyimpangan saat implementasi
+Dari rencana `docs/superpowers/plans/2026-10-21-rincian-pengeluaran.md`:
+- Slot tidak ditukar (§1 langkah 3): slot-1 boleh TUNAI dengan slot-2 kartu — semantik grup-2 sudah mendukung (kartu terisi → FLAZZ). Urutan slot = urutan kemunculan pertama.
+- PUT dari klien lama (tanpa `rincian`) yang mengubah field pembayaran mengosongkan `rincian` (`[]`) agar rincian tidak basi; tampilan jatuh ke baris turunan slot.
+- Endpoint versi: `GET /api/health/versi` (bukan `/api/versi`) — memakai router health publik yang ada.
+- Rincian di History tampil sebagai `<details>` "Rincian (n)" di kolom Liter (tanpa pop-up).
+- Pop-up "unduh Excel" dipicu dari `segarkanBanner` (disegarkan setelah rekon lewat event `data-berubah`), jadi `flazz.js` tidak diubah.
+
+Catatan per task (ringkas):
+- Task 3: `KOLOM_BAYAR` konstanta modul; galat slot (3 cara bayar) hanya dilaporkan bila tidak ada galat baris; ditambah tes "PUT tanpa field pembayaran mempertahankan rincian".
+- Task 4: impor sirkular `laporan.ts` ↔ `rincian.ts` aman di vitest & tsc.
+- Task 7/8: `tabel` dibuat setelah `function hitungUlangLiter` dengan penjaga `if (tabel)` di `onUbah` (liter tersimpan tidak ditimpa saat dimuat); draft hanya menyimpan `rincian` bila tabel tidak kosong; Edit memakai semua kartu master, `total_bbm` (grup-1 + grup-2) untuk `tebakJenisBbm`.
+- Task 9–12: tanpa penyimpangan berarti; cek manual browser ditunda ke deploy (`.dev.vars` tidak tersedia).
+- Task 13 (review gabungan security + code + UI oleh subagent), perbaikan:
+  - PUT menilai "kartu baru" per laporan secara kanonis (bukan per slot): kartu yang hanya pindah slot tidak membuat usage baru dan tidak dicek ulang terhadap jalur/akses.
+  - Validasi tambahan: nominal berhingga maks. Rp 100.000.000 per baris, `kartu` maks. 64 karakter; kartu rincian disimpan memakai id master.
+  - Edit hanya mengirim `rincian` bila isinya berubah; Input memakai kartu 1 jalur sebagai bawaan "Dibayar"; label "(kartu lama)" di Edit.
+  - Banner unduh Excel tampil bersama banner tugas (tunggakan hari sebelumnya), nada hijau, judul pop-up "Tugas hari ini selesai".
+  - Rekap menghitung baris lama ber-metode FLAZZ tanpa kartu sebagai Tunai (tanpa kartu terpotong).
+  - Ditunda: tata letak baris rincian bentuk kartu di HP, antrean pop-up & focus trap, nama kartu di History, retry baseline versi.

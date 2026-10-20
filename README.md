@@ -81,8 +81,8 @@ Akun `MANAGEMENT` dibuat SUPERADMIN lewat Data Master → Pengguna (warehouse ot
 | POST | `/api/settings/logo` | SUPERADMIN | upload logo (base64 → Supabase Storage) |
 | GET | `/api/audit` | SUPERADMIN | daftar audit (`?limit=` 1–500, desc) |
 | POST | `/api/laporan/photos` | PIC/SUPERADMIN | unggah 2 foto odometer (base64 → bucket `foto`) |
-| POST | `/api/laporan` | PIC/SUPERADMIN | simpan transaksi BBM (gate jalur & Flazz, potong saldo, usage, audit) |
-| PUT | `/api/laporan/:id` | PIC/SUPERADMIN | koreksi transaksi (delta Flazz, ganti foto, re-link jalur) |
+| POST | `/api/laporan` | PIC/SUPERADMIN | simpan transaksi BBM (gate jalur & Flazz, potong saldo, usage, audit); field `rincian` (nota BBM/tol per baris: `jenis`, `nominal`, `kartu`, `keterangan`) dijumlah ke kolom slot lama |
+| PUT | `/api/laporan/:id` | PIC/SUPERADMIN | koreksi transaksi (delta Flazz, ganti foto, re-link jalur); `rincian` opsional — tanpa `rincian` & tanpa field pembayaran, pembayaran lama dipertahankan |
 | DELETE | `/api/laporan/:id` | PIC/SUPERADMIN | hapus transaksi (refund Flazz, return usage, release jalur) |
 | DELETE | `/api/laporan/:id/flazz` | PIC/SUPERADMIN | detach payment BBM Flazz (refund `biaya_bbm`, field tol tidak berubah) |
 | GET/POST/PUT/DELETE | `/api/flazz/card[/:id]` | PIC (cabang sendiri), SUPERADMIN semua | CRUD kartu Flazz (saldo hanya lewat operasi Flazz) |
@@ -163,6 +163,8 @@ lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`,
   diberi `?v=` agar logo baru tidak tertahan cache.
   (`GET /api/laporan/rekap-pengeluaran?dari=&sampai=&cabang=`).
   Berikutnya: cutover dari GAS.
+- **Rincian pengeluaran per nota** — Input & Edit Laporan mengisi BBM/tol satu baris per nota (jenis, nominal maks. Rp 100.000.000, dibayar kartu jalur/Tunai — bawaan kartu 1 jalur, keterangan); maks. 30 baris dan 2 cara bayar per jenis. Disimpan di kolom `penggunaan_bbm.rincian` (`db/rincian-pengeluaran.sql`) dan dijumlah ke kolom slot lama, jadi saldo, rekon, dan Perbandingan tidak berubah. History menampilkan "Rincian (n)"; Rekap & Excel Detail satu baris per nota dengan kolom Keterangan.
+- **Pemberitahuan versi baru** — klien memoll `GET /api/health/versi` (binding `CF_VERSION_METADATA`) dan menampilkan banner "Versi baru aplikasi tersedia" + Muat ulang; catatan "Yang baru" (`static/js/rilis.js`) tampil sekali per perangkat setelah login.
 - **Pengingat unduh Excel** — `GET /api/tugas-hari-ini` memuat `jalur_hari_ini` dan `unduh_excel` (true untuk PIC CABANG bila semua tugas hari ini selesai dan Excel rekap belum diunduh); `POST /api/rekap/unduh-harian` (PIC CABANG saja; SUPERADMIN/MANAGEMENT 403) menandai sudah diunduh (penanda KV `unduh-rekap:<cabang>:<tanggal>`, TTL 8 hari) dan mencatat audit `UNDUH_HARIAN`.
 
 Catatan M5: tidak ada perubahan schema dan tidak ada upload evidence. Field
