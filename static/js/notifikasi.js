@@ -44,6 +44,12 @@ export function teksUnduhExcel(email = EMAIL_KIRIM_REKAP) {
   return `Tugas hari ini selesai. Unduh Excel rekap pengeluaran bulan ini, lalu kirim ke ${email} bersama Excel laporan lainnya.`;
 }
 
+// Banner yang tampil: tugas bila masih ada laporan/rekon (termasuk tunggakan); unduh Excel bila server
+// menandai unduh_excel (hanya pengguna yang boleh menulis). Keduanya bisa tampil bersamaan.
+export function bannerTampil(t, boleh = true) {
+  return { tugas: Boolean(teksTugas(t)), unduh: Boolean(t?.unduh_excel) && Boolean(boleh) };
+}
+
 // Teks banner tugas. Pengguna read-only (MANAGEMENT) hanya memantau: nada netral, tanpa perintah.
 export function teksBanner(teks, akhir, jam, boleh = true) {
   if (!boleh) return `Pemantauan: hari ini ${teks} di cabang.`;
@@ -79,20 +85,24 @@ export async function segarkanBanner(paksa = false) {
       return;
     }
   }
+  const boleh = bolehTulis(getUser()?.role);
+  const tampil = bannerTampil(cache, boleh);
   const teks = teksTugas(cache);
-  if (!teks) {
-    if (cache.unduh_excel && bolehTulis(getUser()?.role)) { tampilBannerUnduh(slot, cache.tanggal); return; }
-    slot.replaceChildren();
+  const jo = jamOperasional();
+  const akhir = menitWib() >= menitPeringatan();
+  slot.replaceChildren(...[
+    tampil.tugas ? el('div', { class: `banner-tugas ${akhir ? 'banner-tugas-akhir' : ''}`, role: 'status' }, [
+      el('i', { class: `bi ${akhir ? 'bi-alarm' : 'bi-info-circle'} me-2`, 'aria-hidden': 'true' }),
+      el('span', { text: teksBanner(teks, akhir, jo.jam, boleh) }),
+      el('a', { href: '#/jalur', class: 'ms-2 fw-bold', text: 'Lihat jalur' }),
+    ]) : null,
+    tampil.unduh ? bannerUnduh(cache.tanggal) : null,
+  ].filter(Boolean));
+  // Satu pop-up per penyegaran: pop-up tugas didahulukan, pop-up unduh menyusul di penyegaran berikutnya.
+  if (!tampil.tugas) {
+    if (tampil.unduh) popupUnduh(cache.tanggal);
     return;
   }
-  const jo = jamOperasional();
-  const boleh = bolehTulis(getUser()?.role);
-  const akhir = menitWib() >= menitPeringatan();
-  slot.replaceChildren(el('div', { class: `banner-tugas ${akhir ? 'banner-tugas-akhir' : ''}`, role: 'status' }, [
-    el('i', { class: `bi ${akhir ? 'bi-alarm' : 'bi-info-circle'} me-2`, 'aria-hidden': 'true' }),
-    el('span', { text: teksBanner(teks, akhir, jo.jam, boleh) }),
-    el('a', { href: '#/jalur', class: 'ms-2 fw-bold', text: 'Lihat jalur' }),
-  ]));
   // Pop-up sekali per hari, 30 menit sebelum jam tutup (16:30 hari kerja, 15:30 akhir pekan).
   const kunci = `tugas-popup:${cache.tanggal}`;
   // Form belum disimpan sedang terbuka: banner tetap tampil, pop-up ditunda (kunci belum
@@ -101,6 +111,8 @@ export async function segarkanBanner(paksa = false) {
   if (boleh && akhir && !simpan.get(kunci) && !adaFormTerbuka()) {
     simpan.set(kunci, '1');
     tampilPopup(teks, cache);
+  } else if (tampil.unduh) {
+    popupUnduh(cache.tanggal);
   }
 }
 
@@ -121,12 +133,15 @@ function tombolUnduh(tanggal, kelas, setelah = () => {}) {
   return b;
 }
 
-function tampilBannerUnduh(slot, tanggal) {
-  slot.replaceChildren(el('div', { class: 'banner-tugas banner-tugas-akhir', role: 'status' }, [
+function bannerUnduh(tanggal) {
+  return el('div', { class: 'banner-unduh', role: 'status' }, [
     el('i', { class: 'bi bi-file-earmark-excel me-2', 'aria-hidden': 'true' }),
     el('span', { text: teksUnduhExcel() }),
-    tombolUnduh(tanggal, 'btn btn-sm btn-danger ms-2'),
-  ]));
+    tombolUnduh(tanggal, 'btn btn-sm btn-success ms-2'),
+  ]);
+}
+
+function popupUnduh(tanggal) {
   // Pop-up sekali per hari per perangkat; ditunda bila form belum disimpan sedang terbuka.
   const kunci = `unduh-popup:${tanggal}`;
   if (simpan.get(kunci) || adaFormTerbuka()) return;
@@ -134,7 +149,7 @@ function tampilBannerUnduh(slot, tanggal) {
   const tutup = () => latar.remove();
   const latar = el('div', { class: 'popup-latar', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Unduh Excel rekap' }, [
     el('div', { class: 'popup-kotak' }, [
-      el('div', { class: 'h5 text-success fw-bold mb-2' }, [el('i', { class: 'bi bi-check-circle me-2', 'aria-hidden': 'true' }), 'Rekon hari ini selesai']),
+      el('div', { class: 'h5 text-success fw-bold mb-2' }, [el('i', { class: 'bi bi-check-circle me-2', 'aria-hidden': 'true' }), 'Tugas hari ini selesai']),
       el('p', { class: 'mb-3', text: teksUnduhExcel() }),
       el('div', { class: 'd-flex gap-2 justify-content-end' }, [
         el('button', { class: 'btn btn-outline-secondary', type: 'button', text: 'Nanti', onclick: tutup }),

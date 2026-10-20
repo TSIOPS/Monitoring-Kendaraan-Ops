@@ -1,7 +1,7 @@
 import { BATAS_WAKTU_FOTO_MS, get, put } from '../api.js';
 import { getRouteParam, halamanMasihAktif, pasangPenjagaKeluar } from '../router.js';
 import { el, fmtNum, toast, pratinjauFoto, tampilkanGalat, barisForm as baris } from '../ui.js';
-import { tabelRincian, validasiRincian, ringkasRincian } from '../rincian.js';
+import { bersihkanRincian, tabelRincian, validasiRincian, ringkasRincian } from '../rincian.js';
 import { meteranBensin } from '../meteran.js';
 import { hitungLiter, kompresGambar, namaAman, opsiBbm, pesanDigitKm, STRUK_KUALITAS, STRUK_LEBAR, THUMB_KUALITAS, THUMB_LEBAR } from './input.js';
 
@@ -53,6 +53,15 @@ export function tebakJenisBbm(opsi, biayaTotal, liter) {
   return terbaik?.value || '';
 }
 
+// Rincian dianggap berubah bila isi tabel (dinormalkan) beda dengan rincian awal: jenis, nominal,
+// kartu, keterangan, dan urutan baris.
+export function rincianBerubah(awal, sekarang) {
+  const a = bersihkanRincian(awal);
+  const b = bersihkanRincian(sekarang);
+  if (a.length !== b.length) return true;
+  return a.some((x, i) => x.jenis !== b[i].jenis || x.nominal !== b[i].nominal || x.kartu !== b[i].kartu || x.keterangan !== b[i].keterangan);
+}
+
 export function bodyEdit(trx, v) {
   const body = {
     tanggal: v.tanggal,
@@ -60,9 +69,10 @@ export function bodyEdit(trx, v) {
     bar_awal: Number(v.bar_awal),
     bar_akhir: Number(v.bar_akhir),
     liter_bbm: Number(v.liter_bbm),
-    // Server menjumlahkan rincian ke kolom slot lama (grup-1 + grup-2).
-    rincian: v.rincian || [],
   };
+  // Server menjumlahkan rincian ke kolom slot lama (grup-1 + grup-2). Rincian yang tidak diubah
+  // tidak dikirim: pembayaran lama (slot, kartu, usage) dipertahankan apa adanya.
+  if (rincianBerubah(Array.isArray(trx.rincian) ? trx.rincian : [], v.rincian || [])) body.rincian = v.rincian || [];
   if (Number(v.km_awal) !== Number(trx.km_awal) || Number(v.km_akhir) !== Number(trx.km_akhir)) {
     body.km_awal = Number(v.km_awal);
     body.km_akhir = Number(v.km_akhir);
@@ -163,6 +173,7 @@ export async function renderEdit(view) {
   tabel = tabelRincian({
     opsiKartu: opsiKartu(cards),
     awal: Array.isArray(trx.rincian) ? trx.rincian : [],
+    labelTidakAda: '(kartu lama)',
     onUbah: () => { if (tabel) hitungUlangLiter(); },
   });
   const labelKartu = (kartuId) => opsiKartu(cards).find((k) => String(k.value) === kartuId)?.label || kartuId;

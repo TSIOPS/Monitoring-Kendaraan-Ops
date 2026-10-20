@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bodyEdit, tanggalIso, validateEdit } from '../../static/js/pages/edit.js';
+import { bodyEdit, rincianBerubah, tanggalIso, validateEdit } from '../../static/js/pages/edit.js';
 
 const TRX = { km_awal: 1000, km_akhir: 1100 };
 const NILAI = {
@@ -36,6 +36,29 @@ describe('bodyEdit', () => {
   });
   it('KM dikirim berpasangan bila salah satu berubah', () => {
     expect(bodyEdit(TRX, { ...NILAI, km_akhir: '1150' })).toMatchObject({ km_awal: 1000, km_akhir: 1150 });
+  });
+  it('rincian tidak dikirim bila isinya sama dengan rincian awal (pembayaran lama dipertahankan server)', () => {
+    const b = bodyEdit({ ...TRX, rincian: [{ jenis: 'BBM', nominal: 100000, kartu: '', keterangan: '' }] }, NILAI);
+    expect(b).not.toHaveProperty('rincian');
+    const ubah = bodyEdit({ ...TRX, rincian: [{ jenis: 'BBM', nominal: 90000, kartu: '', keterangan: '' }] }, NILAI);
+    expect(ubah).toHaveProperty('rincian', NILAI.rincian);
+  });
+});
+
+describe('rincianBerubah', () => {
+  const R = (jenis: string, nominal: unknown, kartu = '', keterangan = '') => ({ jenis, nominal, kartu, keterangan });
+  it('sama setelah dinormalkan (spasi, angka string, baris kosong) -> false', () => {
+    expect(rincianBerubah([R('BBM', 100000, 'FLZ-1', 'SPBU')], [R('BBM', '100000', ' FLZ-1 ', ' SPBU '), R('BBM', '')])).toBe(false);
+    expect(rincianBerubah(undefined, [])).toBe(false);
+  });
+  it('beda jenis / nominal / kartu / keterangan / urutan / jumlah baris -> true', () => {
+    const awal = [R('BBM', 100000, 'FLZ-1', 'A'), R('TOL', 5000)];
+    expect(rincianBerubah(awal, [R('TOL', 100000, 'FLZ-1', 'A'), R('TOL', 5000)])).toBe(true);
+    expect(rincianBerubah(awal, [R('BBM', 100001, 'FLZ-1', 'A'), R('TOL', 5000)])).toBe(true);
+    expect(rincianBerubah(awal, [R('BBM', 100000, '', 'A'), R('TOL', 5000)])).toBe(true);
+    expect(rincianBerubah(awal, [R('BBM', 100000, 'FLZ-1', 'B'), R('TOL', 5000)])).toBe(true);
+    expect(rincianBerubah(awal, [R('TOL', 5000), R('BBM', 100000, 'FLZ-1', 'A')])).toBe(true);
+    expect(rincianBerubah(awal, [R('BBM', 100000, 'FLZ-1', 'A')])).toBe(true);
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { teksUnduhExcel, kunciKeBytes, menitWib, MENIT_PERINGATAN, perluPasangDulu, teksTugas, teksBanner } from '../../static/js/notifikasi.js';
+import { bannerTampil, teksUnduhExcel, kunciKeBytes, menitWib, MENIT_PERINGATAN, perluPasangDulu, teksTugas, teksBanner } from '../../static/js/notifikasi.js';
 
 import { EMAIL_KIRIM_REKAP, rentangUnduhHarian } from '../../static/js/unduh-rekap.js';
 
@@ -85,6 +85,12 @@ describe('pengingat unduh Excel', () => {
   it('teks menyebut email tujuan', () => {
     expect(EMAIL_KIRIM_REKAP).toBe('ceocrew01@gmail.com');
     expect(teksUnduhExcel()).toBe('Tugas hari ini selesai. Unduh Excel rekap pengeluaran bulan ini, lalu kirim ke ceocrew01@gmail.com bersama Excel laporan lainnya.');
+  });
+  it('banner unduh tetap tampil walau masih ada tugas (mis. tunggakan hari sebelumnya)', () => {
+    expect(bannerTampil({ laporan: 1, tertunggak: 1, unduh_excel: true }, true)).toEqual({ tugas: true, unduh: true });
+    expect(bannerTampil({ unduh_excel: true }, true)).toEqual({ tugas: false, unduh: true });
+    expect(bannerTampil({ unduh_excel: true }, false)).toEqual({ tugas: false, unduh: false });
+    expect(bannerTampil({ rekonsiliasi: 2, unduh_excel: false }, true)).toEqual({ tugas: true, unduh: false });
   });
   it('rentang = tanggal 1 bulan berjalan s.d. hari ini', () => {
     expect(rentangUnduhHarian('2026-10-21')).toEqual({ dari: '2026-10-01', sampai: '2026-10-21' });

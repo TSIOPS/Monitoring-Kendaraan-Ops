@@ -18,4 +18,11 @@ describe('rincian (klien)', () => {
     expect(validasiRincian([B('TOL', 1, 'A'), B('TOL', 1, 'B'), B('TOL', 1)], (id: string) => `Etoll ${id}`))
       .toEqual(['Tol dibayar dengan 3 cara (Etoll A, Etoll B, Tunai). Maksimal 2 cara per jenis — gabungkan atau pindahkan salah satu.']);
   });
+  it('validasi sama dengan server: nominal maks Rp 100.000.000, tak hingga, kartu maks 64 karakter', () => {
+    expect(validasiRincian([B('BBM', 100000000), B('BBM', 100000001), B('TOL', Infinity), B('TOL', 1, 'K'.repeat(65))])).toEqual([
+      'Baris 2: nominal maksimal Rp 100.000.000.',
+      'Baris 3: nominal harus lebih dari 0.',
+      'Baris 4: kartu tidak valid.',
+    ]);
+  });
 });

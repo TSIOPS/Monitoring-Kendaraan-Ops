@@ -185,6 +185,17 @@ describe('kartuJalur', () => {
   });
 });
 
+describe('kartuDefaultJalur', () => {
+  const cards = [{ id: 'FLZ-1' }, { id: 'FLZ-2' }];
+  it('default "Dibayar" = kartu 1 jalur bila ada di daftar kartu; selain itu Tunai', async () => {
+    const { kartuDefaultJalur } = await import('../../static/js/pages/input.js');
+    expect(kartuDefaultJalur(cards, { flazz_card_id: 'FLZ-2', flazz_card_id_2: 'FLZ-1' })).toBe('FLZ-2');
+    expect(kartuDefaultJalur(cards, { flazz_card_id: 'FLZ-9' })).toBe('');
+    expect(kartuDefaultJalur(cards, { flazz_card_id: '' })).toBe('');
+    expect(kartuDefaultJalur(cards, null)).toBe('');
+  });
+});
+
 describe('validasi jarum', () => {
   it('persen jarum harus 0-100', () => {
     expect(validateForm({ ...DASAR, jarum: true, bar_awal: '120', bar_akhir: '50' })).toContain('Indikator jarum diisi persen jarum 0–100.');

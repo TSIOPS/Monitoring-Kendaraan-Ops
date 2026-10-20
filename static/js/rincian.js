@@ -3,6 +3,8 @@ import { el, fmtNum, bantuRupiah } from './ui.js';
 // Rincian pengeluaran per nota (spec 2026-10-21). Validasi sama dengan server (src/logic/rincian.ts).
 export const MAKS_BARIS = 30;
 export const MAKS_KETERANGAN = 100;
+export const MAKS_NOMINAL = 100000000;
+export const MAKS_KARTU = 64;
 const kanonis = (id) => String(id ?? '').trim().replace(/-/g, '');
 
 // Baris yang nominal & keterangannya kosong dianggap belum diisi dan dibuang.
@@ -30,7 +32,10 @@ export function validasiRincian(items, labelKartu = (id) => id) {
   const err = [];
   list.forEach((it, i) => {
     if (it.jenis !== 'BBM' && it.jenis !== 'TOL') err.push(`Baris ${i + 1}: jenis harus BBM atau Tol.`);
-    if (!(Number(it.nominal) > 0)) err.push(`Baris ${i + 1}: nominal harus lebih dari 0.`);
+    const nominal = Number(it.nominal);
+    if (!Number.isFinite(nominal) || !(nominal > 0)) err.push(`Baris ${i + 1}: nominal harus lebih dari 0.`);
+    else if (nominal > MAKS_NOMINAL) err.push(`Baris ${i + 1}: nominal maksimal Rp 100.000.000.`);
+    if (String(it.kartu || '').length > MAKS_KARTU) err.push(`Baris ${i + 1}: kartu tidak valid.`);
     if (String(it.keterangan || '').length > MAKS_KETERANGAN) err.push(`Baris ${i + 1}: keterangan maksimal ${MAKS_KETERANGAN} karakter.`);
   });
   if (err.length) return err;
@@ -46,20 +51,22 @@ export function validasiRincian(items, labelKartu = (id) => id) {
 }
 
 // Komponen tabel rincian. opsiKartu: [{ value, label }]; awal: item rincian.
-// onUbah() dipanggil setiap isi berubah (untuk liter & ringkasan di halaman).
-export function tabelRincian({ opsiKartu = [], awal = [], onUbah = () => {} } = {}) {
+// kartuDefault: nilai "Dibayar" untuk baris baru ('' = Tunai). labelTidakAda: akhiran label kartu
+// tersimpan yang tidak ada di opsiKartu. onUbah() dipanggil setiap isi berubah (liter & ringkasan).
+export function tabelRincian({ opsiKartu = [], awal = [], kartuDefault = '', labelTidakAda = '(tidak ada di jalur)', onUbah = () => {} } = {}) {
   let kartu = opsiKartu;
+  let bawaan = String(kartuDefault || '');
   const badan = el('div', { class: 'rincian-baris-wrap' });
   const ringkas = el('div', { class: 'form-text mb-2', 'aria-live': 'polite' });
   const tambah = el('button', { type: 'button', class: 'btn btn-outline-primary btn-sm mb-2', text: '+ Tambah baris' });
 
   const isiBayar = (sel, nilai) => {
     sel.replaceChildren(el('option', { value: '', text: 'Tunai' }), ...kartu.map((k) => el('option', { value: String(k.value), text: String(k.label) })));
-    if (nilai && !kartu.some((k) => String(k.value) === String(nilai))) sel.appendChild(el('option', { value: String(nilai), text: `${nilai} (tidak ada di jalur)` }));
+    if (nilai && !kartu.some((k) => String(k.value) === String(nilai))) sel.appendChild(el('option', { value: String(nilai), text: `${nilai} ${labelTidakAda}` }));
     sel.value = String(nilai || '');
   };
 
-  function baris(it = { jenis: 'BBM', nominal: '', kartu: '', keterangan: '' }) {
+  function baris(it = { jenis: 'BBM', nominal: '', kartu: bawaan, keterangan: '' }) {
     const jenis = el('select', { class: 'form-select', 'aria-label': 'Jenis' }, [el('option', { value: 'BBM', text: 'BBM' }), el('option', { value: 'TOL', text: 'Tol' })]);
     jenis.value = it.jenis === 'TOL' ? 'TOL' : 'BBM';
     const nominal = el('input', { class: 'form-control', type: 'number', inputmode: 'numeric', min: '1', placeholder: 'Nominal', 'aria-label': 'Nominal (Rp)', value: String(it.nominal ?? '') });
@@ -76,6 +83,7 @@ export function tabelRincian({ opsiKartu = [], awal = [], onUbah = () => {} } = 
     ]);
     r._ambil = () => ({ jenis: jenis.value, nominal: nominal.value, kartu: bayar.value, keterangan: ket.value });
     r._bayar = bayar;
+    r._kosong = () => nominal.value.trim() === '' && ket.value.trim() === '';
     hapus.addEventListener('click', () => { r.remove(); perbarui(); badan.dispatchEvent(new Event('change', { bubbles: true })); });
     return r;
   }
@@ -104,6 +112,12 @@ export function tabelRincian({ opsiKartu = [], awal = [], onUbah = () => {} } = 
     elemen: el('div', {}, [badan, tambah, ringkas]),
     ambil,
     isi(items) { badan.replaceChildren(...(items.length ? items : [undefined]).map((x) => baris(x))); perbarui(); },
-    setKartu(list) { kartu = list; for (const r of semuaBaris()) isiBayar(r._bayar, r._bayar.value); perbarui(); },
+    // kartuDefault (opsional) mengganti default baris baru dan ikut diterapkan ke baris yang masih kosong.
+    setKartu(list, kartuDefault) {
+      kartu = list;
+      if (kartuDefault !== undefined) bawaan = String(kartuDefault || '');
+      for (const r of semuaBaris()) isiBayar(r._bayar, kartuDefault !== undefined && r._kosong() ? bawaan : r._bayar.value);
+      perbarui();
+    },
   };
 }

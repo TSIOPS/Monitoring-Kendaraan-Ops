@@ -183,6 +183,12 @@ export function kartuJalur(cards, jalur) {
   return ids.map((id) => cards.find((c) => String(c.id || c.card_id) === id)).filter(Boolean);
 }
 
+// Default kolom "Dibayar" untuk baris rincian baru: kartu 1 jalur bila kartunya tersedia, selain itu Tunai.
+export function kartuDefaultJalur(cards, jalur) {
+  const id = String(jalur?.flazz_card_id || '');
+  return id && cards.some((c) => String(c.id || c.card_id) === id) ? id : '';
+}
+
 function opsiKartu(cards) {
   return cards.map((c) => ({
     value: c.id || c.card_id,
@@ -237,9 +243,9 @@ export async function renderInput(view) {
   let kartuBoleh = cards;
   let tabel = null;
   tabel = tabelRincian({ opsiKartu: opsiKartu(cards), onUbah: () => { if (tabel) hitungUlangLiter(); } });
-  function isiKartu(daftar) {
+  function isiKartu(daftar, kartuDefault = '') {
     kartuBoleh = daftar;
-    tabel.setKartu(opsiKartu(daftar));
+    tabel.setKartu(opsiKartu(daftar), kartuDefault);
   }
 
   // Supir hanya dari jalur BELUM_DIISI pada tanggal terpilih (seperti GAS, spec M8 D4).
@@ -433,7 +439,7 @@ export async function renderInput(view) {
     f.nama_supir_2.value = d2 && d2.toLowerCase() !== String(jalur.nama_driver || '').trim().toLowerCase() ? d2 : '';
     // Kendaraan mengikuti jalur (gate server menolak kendaraan yang tidak cocok); dikunci selama supir dipilih.
     f.vehicle_id.disabled = adaJalur && Array.from(f.vehicle_id.options).some((o) => o.value === jalur.vehicle_id);
-    isiKartu(kartuJalur(cards, adaJalur ? jalur : null));
+    isiKartu(kartuJalur(cards, adaJalur ? jalur : null), adaJalur ? kartuDefaultJalur(cards, jalur) : '');
     if (!adaJalur) return;
     if (jalur.vehicle_id && Array.from(f.vehicle_id.options).some((o) => o.value === jalur.vehicle_id)) {
       f.vehicle_id.value = jalur.vehicle_id;

@@ -469,6 +469,16 @@ body {
   font-weight: 600;
 }
 
+/* Pengingat unduh Excel rekap: bukan galat, jadi nada hijau (sukses), padding sama dengan .banner-tugas. */
+.banner-unduh {
+  background: #e8f5e9;
+  border-bottom: 1px solid #a5d6a7;
+  color: #1b5e20;
+  padding: 0.5rem 1rem;
+  font-size: 0.92rem;
+  text-align: center;
+}
+
 .popup-latar {
   position: fixed;
   inset: 0;
@@ -688,7 +698,7 @@ body.tanpa-sidebar .sidebar, body.tanpa-sidebar .sidebar-latar { display: none; 
 /* Target sentuh minimal 44px di perangkat sentuh (WCAG 2.5.5 / Apple HIG). */
 @media (pointer: coarse) {
   .aksi-ikon { gap: 0.5rem; }
-  .aksi-ikon .btn, .btn-sm { min-width: 44px; min-height: 44px; }
+  .aksi-ikon .btn, .rincian-baris .btn, .btn-sm { min-width: 44px; min-height: 44px; }
   /* Teks tombol kecil tetap di tengah vertikal saat tinggi dipaksa 44px. */
   .btn-sm { display: inline-flex; align-items: center; justify-content: center; }
 }
