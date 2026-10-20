@@ -13,6 +13,7 @@ import type { FlazzCardRow, LaporanInsert } from '../db/laporan';
 import { extractStorageKey } from '../db/storage';
 import { thumbKeyOf } from '../logic/foto';
 import * as L from '../logic/laporan';
+import * as R from '../logic/rincian';
 import { buildOdoMap, computeWarnings, ringkasanPeringatan } from '../logic/warnings';
 import { todayWib } from '../logic/jalur';
 import { rekapPengeluaran } from '../logic/rekap';
@@ -50,6 +51,22 @@ async function assertBelumDirekon(deps: AppDeps, old: { timestamp?: string | nul
   const pesan = laporanTerkunciRekon(cardIds, waktu, await deps.flazz.listReconciliations());
   if (pesan) throw new HttpError(409, pesan, 'CONFLICT');
 }
+
+// Rincian per nota -> field slot lama di payload (p dimutasi) agar validasi POST/PUT yang ada tetap
+// berlaku. Kembalikan item bersih, atau null bila klien tidak mengirim rincian (klien lama). Galat -> 400.
+function terapkanRincian(p: Record<string, unknown>, labelKartu: (id: string) => string): R.RincianItem[] | null {
+  if (p.rincian === undefined) return null;
+  const { items, galat } = R.normalRincian(p.rincian);
+  const { slot, galat: galatSlot } = R.rincianKeSlot(items, labelKartu);
+  const semua = galat.length ? galat : galatSlot;
+  if (semua.length) throw new HttpError(400, semua.join(' '), 'BAD_REQUEST');
+  Object.assign(p, slot);
+  return items;
+}
+
+// Kolom pembayaran: PUT klien lama yang mengubah salah satunya tanpa rincian -> rincian dikosongkan.
+const KOLOM_BAYAR = ['metode_pembayaran', 'flazz_card_id', 'biaya_bbm', 'metode_toll', 'flazz_card_id_toll', 'biaya_toll',
+  'flazz_card_id_2', 'biaya_bbm_2', 'flazz_card_id_toll_2', 'biaya_toll_2'];
 
 // Cabang akses laporan lama: cabang laporan bila kendaraannya (bersama) memang dipakai cabang itu,
 // selain itu cabang kendaraan (kendaraan pindah cabang tetap mengikuti pemilik barunya).
@@ -202,6 +219,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   app.post('/', requireUser(deps), async (c) => {
     const u = c.get('user');
     const p = await readJson(c);
+    const kartuNama = (await loadCards(deps)).cardMap;
+    const rincian = terapkanRincian(p, (id) => kartuNama.get(L.canonicalCardId(id))?.card_name || id);
 
     const vehicleId = String(p.vehicle_id ?? '').trim();
     const kendaraan = await deps.master.findKendaraanById(vehicleId);
@@ -353,6 +372,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       biaya_bbm_2: group2.biayaBbm2,
       flazz_card_id_toll_2: group2.cardTol2,
       biaya_toll_2: group2.biayaTol2,
+      rincian: rincian ?? [],
     };
     await deps.laporan.insert(row);
 
@@ -467,6 +487,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const u = c.get('user');
     const id = c.req.param('id');
     const p = await readJson(c);
+    const kartuNama = (await loadCards(deps)).cardMap;
+    const rincian = terapkanRincian(p, (id) => kartuNama.get(L.canonicalCardId(id))?.card_name || id);
 
     const old = await deps.laporan.findById(id);
     if (!old) throw new HttpError(404, L.MSG_TRX_NOT_FOUND, 'NOT_FOUND');
@@ -606,6 +628,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       flazz_card_id_toll_2: newCardToll2,
       biaya_toll_2: newTol2,
     };
+    if (rincian) patch.rincian = rincian;
+    else if (KOLOM_BAYAR.some((k) => p[k] !== undefined)) patch.rincian = [];
     if (p.km_awal !== undefined || p.km_akhir !== undefined) patch.km_sumber = 'AKTUAL';
 
     // Kolom turunan dihitung ulang dengan rumus yang sama seperti saat simpan

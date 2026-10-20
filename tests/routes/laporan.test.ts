@@ -978,3 +978,84 @@ describe('kartu Flazz harus kartu jalur (server)', () => {
     expect(flz.state.cards.find((c) => c.id === 'FLZ-9')!.last_balance).toBe(500000);
   });
 });
+
+describe('rincian pengeluaran', () => {
+  const rinci = (items: unknown[]) => saveBody({ biaya_bbm: 999, biaya_toll: 999, metode_pembayaran: 'TUNAI', rincian: items });
+  const rekonKartu = (over: Record<string, unknown> = {}) => ({
+    id: 'R-1', date: '2026-09-02', card_id: 'FLZ-1', driver_id: '', vehicle_id: '', opening_balance: 0, total_topup: 0,
+    total_bbm_flazz: 0, total_tol: 0, total_expense: 0, flazz_balance: 0, actual_balance: 0, difference: 0,
+    reconciliation_status: 'RECONCILED', notes: '', reconciled_by: 'U-S', reconciled_at: '2026-09-02T10:00:00.000Z', is_deleted: '0',
+    ...over,
+  });
+
+  it('POST: rincian dijumlah ke slot, saldo kartu terpotong, rincian tersimpan', async () => {
+    const { app, kv, lap, flz } = setup({ flazzCard: [flazzCard()] });
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan', tok, rinci([
+      { jenis: 'BBM', nominal: 100000, kartu: 'FLZ-1', keterangan: 'SPBU A' },
+      { jenis: 'TOL', nominal: 15500, kartu: 'FLZ-1', keterangan: 'GT 1' },
+      { jenis: 'TOL', nominal: 4500, kartu: 'FLZ-1', keterangan: 'GT 2' },
+      { jenis: 'BBM', nominal: 20000, kartu: '', keterangan: 'SPBU B' },
+    ]));
+    expect(res.status).toBe(200);
+    expect(lap.state.rows[0]).toMatchObject({ metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1', biaya_bbm: 100000, biaya_bbm_2: 20000, flazz_card_id_2: '', metode_toll: 'FLAZZ', biaya_toll: 20000 });
+    expect(lap.state.rows[0]!.rincian).toHaveLength(4);
+    expect(flz.state.cards[0]!.last_balance).toBe(500000 - 120000);
+  });
+
+  it('POST: 3 cara bayar BBM -> 400, galat baris -> 400', async () => {
+    const { app, kv, lap } = setup({ flazzCard: [flazzCard(), flazzCard({ id: 'FLZ-2', card_name: 'Kartu B' })] });
+    const tok = await loginAs(kv, PIC);
+    const r1 = await post(app, '/api/laporan', tok, rinci([
+      { jenis: 'BBM', nominal: 1, kartu: 'FLZ-1' }, { jenis: 'BBM', nominal: 1, kartu: 'FLZ-2' }, { jenis: 'BBM', nominal: 1, kartu: '' },
+    ]));
+    expect(r1.status).toBe(400);
+    expect(((await r1.json()) as any).message).toContain('BBM dibayar dengan 3 cara (Kartu A, Kartu B, Tunai)');
+    const r2 = await post(app, '/api/laporan', tok, rinci([{ jenis: 'TOL', nominal: 0 }]));
+    expect(r2.status).toBe(400);
+    expect(((await r2.json()) as any).message).toContain('Baris 1: nominal harus lebih dari 0.');
+    expect(lap.state.rows).toHaveLength(0);
+  });
+
+  it('POST: rincian kosong = tanpa pengeluaran (foto struk tidak wajib)', async () => {
+    const { app, kv, lap } = setup();
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan', tok, rinci([]));
+    expect(res.status).toBe(200);
+    expect(lap.state.rows[0]).toMatchObject({ biaya_bbm: 0, biaya_toll: 0, liter_bbm: 0, metode_pembayaran: '' });
+  });
+
+  it('PUT: ubah keterangan / pecah baris pada laporan terekon diterima (total kartu sama); ubah total -> 409', async () => {
+    const { app, kv, lap, flz } = setup({
+      rows: [{ transaction_id: 'TRX-1', tanggal: '2026-09-01', metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1', biaya_bbm: 100000 }],
+      flazzCard: [flazzCard()],
+    });
+    flz.state.reconciliations.push(rekonKartu() as any);
+    const tok = await loginAs(kv, PIC);
+    const ok = await put(app, '/api/laporan/TRX-1', tok, { rincian: [
+      { jenis: 'BBM', nominal: 60000, kartu: 'FLZ-1', keterangan: 'SPBU A' }, { jenis: 'BBM', nominal: 40000, kartu: 'FLZ-1', keterangan: 'SPBU B' },
+    ] });
+    expect(ok.status).toBe(200);
+    expect(lap.state.rows[0]!.rincian).toHaveLength(2);
+    const tolak = await put(app, '/api/laporan/TRX-1', tok, { rincian: [{ jenis: 'BBM', nominal: 90000, kartu: 'FLZ-1' }] });
+    expect(tolak.status).toBe(409);
+    expect(lap.state.rows[0]!.biaya_bbm).toBe(100000);
+  });
+
+  it('PUT klien lama (tanpa rincian) yang mengubah biaya mengosongkan rincian', async () => {
+    const { app, kv, lap } = setup({ rows: [{ transaction_id: 'TRX-1', rincian: [{ jenis: 'BBM', nominal: 100000, kartu: '', keterangan: 'x' }] }] });
+    const tok = await loginAs(kv, PIC);
+    const res = await put(app, '/api/laporan/TRX-1', tok, { biaya_bbm: 90000 });
+    expect(res.status).toBe(200);
+    expect(lap.state.rows[0]!.rincian).toEqual([]);
+  });
+
+  it('PUT tanpa field pembayaran mempertahankan rincian', async () => {
+    const awal = [{ jenis: 'BBM' as const, nominal: 100000, kartu: '', keterangan: 'x' }];
+    const { app, kv, lap } = setup({ rows: [{ transaction_id: 'TRX-1', rincian: awal }] });
+    const tok = await loginAs(kv, PIC);
+    const res = await put(app, '/api/laporan/TRX-1', tok, { nama_supir: 'Supir B' });
+    expect(res.status).toBe(200);
+    expect(lap.state.rows[0]!.rincian).toEqual(awal);
+  });
+});

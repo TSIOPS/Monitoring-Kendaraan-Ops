@@ -3,6 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-10-21
+- **Fitur** — `POST`/`PUT /api/laporan` menerima `rincian` (nota BBM/tol per baris): rincian divalidasi lalu dijumlah ke kolom slot lama sebelum validasi yang ada (saldo, kartu jalur, bukti wajib, kunci rekon) dan disimpan di kolom `rincian`; galat baris / >2 cara bayar per jenis → 400; laporan terekon boleh diubah keterangan/dipecah selama total per kartu sama; PUT klien lama yang mengubah pembayaran tanpa `rincian` mengosongkan `rincian` — `src/routes/laporan.ts`, `tests/routes/laporan.test.ts`
 - **Fitur** — Logika murni rincian pengeluaran per nota (normalisasi/validasi, rincian→slot, slot→rincian) + tipe `RincianItem`/`rincian` di `LaporanRow` — `src/logic/rincian.ts`, `src/logic/laporan.ts`, `tests/logic/rincian.test.ts`
 - **Fitur** — Kolom `rincian jsonb` di `penggunaan_bbm` (rincian pengeluaran per nota) + migrasi SQL + tes skema — `db/rincian-pengeluaran.sql`, `db/schema.sql`, `tests/schema.test.ts`
 - **Fitur** — Rencana implementasi rincian pengeluaran per nota, pengingat unduh Excel, dan notif versi baru (13 task) — `docs/superpowers/plans/2026-10-21-rincian-pengeluaran.md`, `CLAUDE.md`

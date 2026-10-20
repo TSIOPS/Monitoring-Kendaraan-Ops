@@ -264,7 +264,7 @@ export function rincianDariRow(row: LaporanRow): { items: RincianItem[]; lama: b
 - Modify: `src/routes/laporan.ts` (POST ±L201, PUT ±L466)
 - Test: `tests/routes/laporan.test.ts`
 
-- [ ] **Step 1: Tes gagal** — tambahkan di `tests/routes/laporan.test.ts`:
+- [x] **Step 1: Tes gagal** — tambahkan di `tests/routes/laporan.test.ts`:
 ```ts
 describe('rincian pengeluaran', () => {
   const rinci = (items: unknown[]) => saveBody({ biaya_bbm: 999, biaya_toll: 999, metode_pembayaran: 'TUNAI', rincian: items });
@@ -330,8 +330,8 @@ describe('rincian pengeluaran', () => {
 });
 ```
 Catatan: periksa nama state rekonsiliasi di `memFlazz` (`tests/helpers.ts`) — sesuaikan `flz.state.recons` bila namanya berbeda (mis. `reconciliations`), dan pastikan `laporanRow()` meneruskan `rincian` (ia memakai spread `...over`, jadi sudah).
-- [ ] **Step 2:** `npx vitest run tests/routes/laporan.test.ts -t rincian` → FAIL.
-- [ ] **Step 3: Implementasi** di `src/routes/laporan.ts`:
+- [x] **Step 2:** `npx vitest run tests/routes/laporan.test.ts -t rincian` → FAIL.
+- [x] **Step 3: Implementasi** di `src/routes/laporan.ts`:
 
 Import: `import * as R from '../logic/rincian';`
 
@@ -370,8 +370,10 @@ dan setelah objek `patch` dibuat (sebelum `if (p.km_awal !== undefined …`):
     else if (KOLOM_BAYAR.some((k) => p[k] !== undefined)) patch.rincian = [];
 ```
 Pada PUT, slot dari rincian selalu mengirim `metode_pembayaran` & `flazz_card_id` eksplisit; bila `metode_pembayaran === 'TUNAI'` dan `biaya_bbm === 0`, patch yang ada sudah menyimpan `''` (aturan `(newBiaya > 0 || newMetode === 'FLAZZ') ? newMetode : ''`).
-- [ ] **Step 4:** `npx vitest run tests/routes/laporan.test.ts` → PASS (semua, termasuk tes lama).
-- [ ] **Step 5:** `npm test && npm run typecheck`, centang, CHANGELOG, commit `feat(laporan): simpan & edit rincian pengeluaran per nota`, push.
+- [x] **Step 4:** `npx vitest run tests/routes/laporan.test.ts` → PASS (semua, termasuk tes lama).
+- [x] **Step 5:** `npm test && npm run typecheck`, centang, CHANGELOG, commit `feat(laporan): simpan & edit rincian pengeluaran per nota`, push.
+
+**Catatan implementasi:** fixture rekon memakai `flz.state.reconciliations` (nama state di `memFlazz`) dengan baris `FlazzReconciliationRow` lengkap (`is_deleted: '0'`); tes PUT terekon juga memastikan `biaya_bbm` tak berubah setelah 409. Ditambah tes "PUT tanpa field pembayaran mempertahankan rincian". `KOLOM_BAYAR` dijadikan konstanta modul (bukan di dalam handler). Galat slot (3 cara bayar) hanya dilaporkan bila tidak ada galat baris.
 
 ---
 
