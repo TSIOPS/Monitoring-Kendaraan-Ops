@@ -12,6 +12,7 @@ untuk setiap perubahan kode di repo ini.
 - Rencana disimpan di `docs/superpowers/plans/YYYY-MM-DD-<nama>.md`, spesifikasi di `docs/superpowers/specs/`.
 - Rencana perbaikan aktif: [docs/superpowers/plans/2026-10-19-perbaikan-keamanan-ux.md](docs/superpowers/plans/2026-10-19-perbaikan-keamanan-ux.md),
   [docs/superpowers/plans/2026-10-19-role-management.md](docs/superpowers/plans/2026-10-19-role-management.md) (selesai).
+  [docs/superpowers/plans/2026-10-21-rincian-pengeluaran.md](docs/superpowers/plans/2026-10-21-rincian-pengeluaran.md) (aktif).
 
 ## 2. Setiap perubahan WAJIB memperbarui dokumentasi Markdown
 Setelah perubahan apa pun (kode, skema DB, konfigurasi):
