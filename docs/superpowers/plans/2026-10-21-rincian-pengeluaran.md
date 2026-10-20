@@ -445,7 +445,7 @@ lalu di objek push: `rincian: rc.items, rincian_lama: rc.lama,`. Import `rincian
 - Modify: `src/logic/rekap.ts`, `static/js/pages/rekap.js`
 - Test: `tests/logic/rekap.test.ts`, `tests/frontend/rekap-helpers.test.ts`
 
-- [ ] **Step 1: Tes gagal**
+- [x] **Step 1: Tes gagal**
 `tests/logic/rekap.test.ts`:
 ```ts
   it('laporan berincian: 1 line per nota dengan keterangan; laporan lama diberi keterangan penanda', () => {
@@ -477,8 +477,8 @@ dan tambahkan:
   });
 ```
 (tambahkan `namaFileRekap` ke impor).
-- [ ] **Step 2:** kedua file tes → FAIL.
-- [ ] **Step 3: Implementasi**
+- [x] **Step 2:** kedua file tes → FAIL.
+- [x] **Step 3: Implementasi**
 
 `src/logic/rekap.ts`:
 - `RekapLine` tambah `keterangan: string;`; `RekapTol` tambah `notes?: string;`.
@@ -507,8 +507,12 @@ export function namaFileRekap(dari, sampai, kodeWh) {
 - Sheet Detail: header `[..., 'Nominal (Rp)', 'Keterangan', 'Sumber', 'Referensi']`, baris `..., Number(l.amount) || 0, t(l.keterangan) || '-', l.sumber === 'TOL_MANUAL' ? …`, baris TOTAL `['', '', '', '', '', '', '', 'TOTAL', r.total, '', '', '']`. `angka: { kolom: [8] }` tetap.
 - Tabel Detail di layar: tambah header `'Keterangan'` setelah `'Nominal'` (indeks kolom kanan tetap 7) dan sel `el('td', { class: 'small text-muted', text: l.keterangan || '-' })`.
 - Tombol unduh memakai `namaFileRekap(d, s, kodeWh)`.
-- [ ] **Step 4:** tes → PASS.
-- [ ] **Step 5:** `npm test && npm run typecheck`, centang, CHANGELOG, commit `feat(rekap): detail per nota dan kolom keterangan`, push.
+- [x] **Step 4:** tes → PASS.
+- [x] **Step 5:** `npm test && npm run typecheck`, centang, CHANGELOG, commit `feat(rekap): detail per nota dan kolom keterangan`, push.
+
+---
+
+> Catatan: tes logika memakai fixture `row` lokal di `tests/logic/rekap.test.ts` (bukan `laporanRow`) dan `...dasar`; `RekapTol.notes` sudah terisi dari `FlazzTolRow.notes` lewat rute yang ada (tanpa perubahan rute).
 
 ---
 

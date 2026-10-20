@@ -1,7 +1,10 @@
 // Rekap pengeluaran: BBM & tol per metode bayar (ETOLL = kartu Flazz/etoll, TUNAI).
 // Sumber: laporan harian (grup-1 + grup-2 kartu ke-2) dan tol manual modul Flazz.
-import { canonicalCardId, cardGroups, num } from './laporan';
+import { canonicalCardId, num } from './laporan';
+import { rincianDariRow } from './rincian';
 import type { LaporanRow } from './laporan';
+
+export const KET_TANPA_RINCIAN = '(total, tanpa rincian)';
 
 export type JenisPengeluaran = 'BBM' | 'TOL';
 export type MetodePengeluaran = 'ETOLL' | 'TUNAI';
@@ -19,10 +22,11 @@ export interface RekapLine {
   card_id: string;
   kartu: string;
   amount: number;
+  keterangan: string;
 }
 
 export interface RekapCard { id: string; card_name?: string; card_number?: string; branch_id?: string }
-export interface RekapTol { id: string; date: string; card_id: string; driver_id: string; vehicle_id: string; amount: number }
+export interface RekapTol { id: string; date: string; card_id: string; driver_id: string; vehicle_id: string; amount: number; notes?: string }
 
 export interface RekapInput {
   rows: LaporanRow[];
@@ -53,16 +57,15 @@ export function rekapPengeluaran(input: RekapInput): RekapLine[] {
       tanggal, sumber: 'LAPORAN' as const, ref: String(r.transaction_id), kode_cabang: String(r.kode_cabang ?? ''),
       vehicle_id: String(r.vehicle_id ?? ''), plat_nomor: String(r.plat_nomor ?? ''), supir: [r.nama_supir, r.nama_supir_2].map((x) => String(x ?? '').trim()).filter(Boolean).join(' & '),
     };
-    for (const g of cardGroups(r)) {
-      const tambah = (jenis: JenisPengeluaran, metode: string, card: string, amount: number) => {
-        if (!(amount > 0)) return;
-        // Metode kosong dengan nominal > 0 = tunai (data lama sebelum metode dicatat).
-        const etoll = metode === 'FLAZZ';
-        const cid = etoll ? String(card || '') : '';
-        out.push({ ...base, jenis, metode: etoll ? 'ETOLL' : 'TUNAI', card_id: cid ? (kartuById.get(canonicalCardId(cid))?.id ?? cid) : '', kartu: cid ? labelKartu(cid) : '', amount });
-      };
-      tambah('BBM', g.mBbm, g.cBbm, num(g.bBbm));
-      tambah('TOL', g.mTol, g.cTol, num(g.bTol));
+    const { items, lama } = rincianDariRow(r);
+    for (const it of items) {
+      if (!(num(it.nominal) > 0)) continue;
+      const cid = String(it.kartu || '');
+      out.push({
+        ...base, jenis: it.jenis, metode: cid ? 'ETOLL' : 'TUNAI',
+        card_id: cid ? (kartuById.get(canonicalCardId(cid))?.id ?? cid) : '', kartu: cid ? labelKartu(cid) : '',
+        amount: num(it.nominal), keterangan: lama ? KET_TANPA_RINCIAN : String(it.keterangan ?? ''),
+      });
     }
   }
 
@@ -78,6 +81,7 @@ export function rekapPengeluaran(input: RekapInput): RekapLine[] {
       vehicle_id: String(t.vehicle_id ?? ''), plat_nomor: input.platByVehicle.get(String(t.vehicle_id ?? '')) ?? '',
       supir: String(t.driver_id ?? ''), jenis: 'TOL', metode: 'ETOLL',
       card_id: kartu?.id ?? String(t.card_id), kartu: labelKartu(String(t.card_id)), amount: num(t.amount),
+      keterangan: String(t.notes ?? ''),
     });
   }
 

@@ -20,6 +20,20 @@ describe('rekapPengeluaran', () => {
       .toEqual([['BBM', 'ETOLL', 'E toll 1', 200000], ['TOL', 'ETOLL', 'E toll 1', 15000]]);
   });
 
+  it('laporan berincian: 1 line per nota dengan keterangan; laporan lama diberi keterangan penanda', () => {
+    const rows = [
+      row({ transaction_id: 'TRX-1', tanggal: '2026-10-05', metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1', biaya_bbm: 300, metode_toll: 'TUNAI', biaya_toll: 50,
+        rincian: [{ jenis: 'BBM', nominal: 100, kartu: 'FLZ-1', keterangan: 'SPBU A' }, { jenis: 'BBM', nominal: 200, kartu: 'FLZ-1', keterangan: 'SPBU B' }, { jenis: 'TOL', nominal: 50, kartu: '', keterangan: 'GT' }] }),
+      row({ transaction_id: 'TRX-2', tanggal: '2026-10-05', biaya_bbm: 70 }),
+    ];
+    const lines = rekapPengeluaran({ ...dasar, rows, tols: [{ id: 'T-1', date: '2026-10-05', card_id: 'FLZ-1', driver_id: 'x', vehicle_id: 'V-1', amount: 9, notes: 'tol manual' }] });
+    expect(lines.map((l) => [l.ref, l.jenis, l.metode, l.amount, l.keterangan])).toEqual(expect.arrayContaining([
+      ['TRX-1', 'BBM', 'ETOLL', 100, 'SPBU A'], ['TRX-1', 'BBM', 'ETOLL', 200, 'SPBU B'], ['TRX-1', 'TOL', 'TUNAI', 50, 'GT'],
+      ['TRX-2', 'BBM', 'TUNAI', 70, '(total, tanpa rincian)'], ['T-1', 'TOL', 'ETOLL', 9, 'tol manual'],
+    ]));
+    expect(lines).toHaveLength(5);
+  });
+
   it('kartu ke-2: nominal dengan kartu = etoll, tanpa kartu = tunai', () => {
     const lines = rekapPengeluaran({ ...dasar, rows: [row({
       metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1', biaya_bbm: 50000,

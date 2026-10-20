@@ -45,6 +45,11 @@ export function kelompokRekap(lines, per) {
     .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label));
 }
 
+/** Nama file unduhan rekap: rentang tanggal + kode warehouse (bila dipilih). */
+export function namaFileRekap(dari, sampai, kodeWh) {
+  return `rekap-pengeluaran-${dari}_${sampai}${kodeWh ? '-' + kodeWh : ''}.xlsx`;
+}
+
 // ── Ekspor Excel ──────────────────────────────────────────────────────────
 // Spesifikasi sheet (array-of-arrays) dipisah dari SheetJS agar bisa diuji.
 const FORMAT_RUPIAH = '#,##0';
@@ -79,10 +84,10 @@ export function susunExcel(lines, { dari = '', sampai = '', warehouse = 'Semua W
   const detail = {
     nama: 'Detail',
     aoa: [
-      ['No', 'Tanggal', 'Warehouse', 'Kendaraan', 'Supir', 'Jenis', 'Metode', 'Kartu Etoll', 'Nominal (Rp)', 'Sumber', 'Referensi'],
+      ['No', 'Tanggal', 'Warehouse', 'Kendaraan', 'Supir', 'Jenis', 'Metode', 'Kartu Etoll', 'Nominal (Rp)', 'Keterangan', 'Sumber', 'Referensi'],
       ...urut.map((l, i) => [i + 1, tglId(l.tanggal), wh(l.kode_cabang), t(l.plat_nomor) || '-', t(l.supir) || '-', l.jenis === 'TOL' ? 'Tol' : 'BBM',
-        l.metode === 'ETOLL' ? 'Etoll' : 'Tunai', t(l.kartu) || '-', Number(l.amount) || 0, l.sumber === 'TOL_MANUAL' ? 'Tol manual Flazz' : 'Laporan harian', l.ref]),
-      ['', '', '', '', '', '', '', 'TOTAL', r.total, '', ''],
+        l.metode === 'ETOLL' ? 'Etoll' : 'Tunai', t(l.kartu) || '-', Number(l.amount) || 0, t(l.keterangan) || '-', l.sumber === 'TOL_MANUAL' ? 'Tol manual Flazz' : 'Laporan harian', l.ref]),
+      ['', '', '', '', '', '', '', 'TOTAL', r.total, '', '', ''],
     ],
     angka: { kolom: [8] },
     filter: true,
@@ -262,7 +267,7 @@ export async function renderRekap(view) {
     isi.replaceChildren(
       el('div', { class: 'd-flex gap-2 mb-2' }, [filterJenis, filterMetode]),
       el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm table-hover align-middle' }, [
-        el('thead', { class: 'table-light' }, [el('tr', {}, ['Tanggal', 'Warehouse', 'Kendaraan', 'Supir', 'Jenis', 'Metode', 'Kartu Etoll', 'Nominal'].map((x, i) => el('th', { class: i === 7 ? 'text-end' : '', text: x })))]),
+        el('thead', { class: 'table-light' }, [el('tr', {}, ['Tanggal', 'Warehouse', 'Kendaraan', 'Supir', 'Jenis', 'Metode', 'Kartu Etoll', 'Nominal', 'Keterangan'].map((x, i) => el('th', { class: i === 7 ? 'text-end' : '', text: x })))]),
         el('tbody', {}, h.isi.map((l) => el('tr', {}, [
           el('td', { text: fmtDateId(l.tanggal) }), el('td', { text: l.kode_cabang || '-' }), el('td', { text: l.plat_nomor || '-' }),
           el('td', { text: l.supir || '-' }),
@@ -270,6 +275,7 @@ export async function renderRekap(view) {
           el('td', {}, [el('span', { class: `badge ${l.metode === 'ETOLL' ? 'text-bg-primary' : 'text-bg-warning'}`, text: l.metode === 'ETOLL' ? 'Etoll' : 'Tunai' })]),
           el('td', { text: l.kartu || '-' }),
           el('td', { class: 'text-end', text: rp(l.amount) }),
+          el('td', { class: 'small text-muted', text: l.keterangan || '-' }),
         ]))),
       ])]),
       tersaring.length ? navHalaman(h.total, h.aktif, (ke) => { nomor = ke; gambarIsi(); }) : el('div', { class: 'text-muted small', text: 'Tidak ada baris yang cocok.' }),
@@ -314,7 +320,7 @@ export async function renderRekap(view) {
       const XLSX = await muatSheetJS();
       const { dari: d, sampai: s, wh: kodeWh } = filterDimuat;
       const sheets = susunExcel(lines, { dari: d, sampai: s, warehouse: kodeWh ? namaCabang[kodeWh] || kodeWh : 'Semua Warehouse', namaCabang });
-      XLSX.writeFile(bukuExcel(XLSX, sheets), `rekap-pengeluaran-${d}_${s}${kodeWh ? '-' + kodeWh : ''}.xlsx`);
+      XLSX.writeFile(bukuExcel(XLSX, sheets), namaFileRekap(d, s, kodeWh));
     } catch (err) {
       toast(err.message || 'Gagal membuat file Excel.', 'error');
     } finally {

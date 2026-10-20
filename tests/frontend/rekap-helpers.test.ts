@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import * as XLSX from 'xlsx';
-import { awalBulan, bukuExcel, kelompokRekap, lebarKolom, ringkasRekap, susunExcel } from '../../static/js/pages/rekap.js';
+import { awalBulan, bukuExcel, kelompokRekap, lebarKolom, namaFileRekap, ringkasRekap, susunExcel } from '../../static/js/pages/rekap.js';
 
-const L = (o: Record<string, unknown>) => ({ tanggal: '2026-10-01', kode_cabang: 'BDG', plat_nomor: 'D 1 A', supir: 'Agus', jenis: 'BBM', metode: 'TUNAI', card_id: '', kartu: '', amount: 0, sumber: 'LAPORAN', ref: 'TRX-1', ...o });
+const L = (o: Record<string, unknown>) => ({ tanggal: '2026-10-01', kode_cabang: 'BDG', plat_nomor: 'D 1 A', supir: 'Agus', jenis: 'BBM', metode: 'TUNAI', card_id: '', kartu: '', amount: 0, keterangan: '', sumber: 'LAPORAN', ref: 'TRX-1', ...o });
 const lines = [
   L({ jenis: 'BBM', metode: 'ETOLL', card_id: 'FLZ-1', kartu: 'E toll 1', amount: 200000 }),
   L({ jenis: 'TOL', metode: 'ETOLL', card_id: 'FLZ-1', kartu: 'E toll 1', amount: 15000 }),
@@ -26,13 +26,17 @@ describe('rekap pengeluaran', () => {
     const wb = XLSX.read(XLSX.write(bukuExcel(XLSX, sheets), { type: 'array', bookType: 'xlsx' }), { type: 'array', cellNF: true });
     expect(wb.SheetNames).toEqual(['Ringkasan', 'Detail', 'Per Kartu Etoll', 'Per Kendaraan']);
     const det = wb.Sheets.Detail!;
-    expect(XLSX.utils.sheet_to_json(det, { header: 1 })[1]).toEqual([1, '01/10/2026', 'WHO BANDUNG (BDG)', 'D 1 A', 'Agus', 'BBM', 'Etoll', 'E toll 1', 200000, 'Laporan harian', 'TRX-1']);
+    expect(XLSX.utils.sheet_to_json(det, { header: 1 })[1]).toEqual([1, '01/10/2026', 'WHO BANDUNG (BDG)', 'D 1 A', 'Agus', 'BBM', 'Etoll', 'E toll 1', 200000, '-', 'Laporan harian', 'TRX-1']);
     expect(det.I2!.z).toBe('#,##0');
     expect(det.I6!.v).toBe(322000);
-    expect(det['!autofilter']!.ref).toBe('A1:K5');
+    expect(det['!autofilter']!.ref).toBe('A1:L5');
     const rk = XLSX.utils.sheet_to_json(wb.Sheets.Ringkasan!, { header: 1 }) as unknown[][];
     expect(rk[1]).toEqual(['Periode', '01/10/2026 s.d. 06/10/2026']);
     expect(rk[7]).toEqual(['Total', 215000, 107000, 322000]);
+  });
+  it('nama file rekap: rentang + kode warehouse', () => {
+    expect(namaFileRekap('2026-10-01', '2026-10-21', 'CKR')).toBe('rekap-pengeluaran-2026-10-01_2026-10-21-CKR.xlsx');
+    expect(namaFileRekap('2026-10-01', '2026-10-21', '')).toBe('rekap-pengeluaran-2026-10-01_2026-10-21.xlsx');
   });
   it('lebar kolom mengikuti isi terpanjang', () => {
     expect(lebarKolom([['No', 'Kendaraan'], [1, 'D 1234 ABC']])).toEqual([{ wch: 6 }, { wch: 12 }]);
