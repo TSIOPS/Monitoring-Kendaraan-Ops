@@ -3,7 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-10-21
-- **Fitur** — Spesifikasi rincian pengeluaran per nota + pengingat unduh Excel setelah rekon — `docs/superpowers/specs/2026-10-21-rincian-pengeluaran-design.md`
+- **Fitur** — Spesifikasi rincian pengeluaran per nota + pengingat unduh Excel setelah rekon + pemberitahuan versi baru & "Yang baru" — `docs/superpowers/specs/2026-10-21-rincian-pengeluaran-design.md`
 - **Perbaikan** — Dokumentasi: *Checklist deploy* di README dengan tabel SQL migrasi tertunda (`db/rincian-pengeluaran.sql`); aturan baru CLAUDE.md §2: setiap file SQL baru wajib dicatat di tabel itu — `README.md`, `CLAUDE.md`
 
 ## 2026-10-20

@@ -133,6 +133,35 @@ Untuk user **PIC CABANG**, pada tanggal hari ini (WIB): ada ≥ 1 jalur hari ini
 - Alamat email = konstanta `EMAIL_KIRIM_REKAP` di `static/js/` (ubah lewat kode bila perlu).
 - Unduhan dari menu Rekap biasa **tidak** menghapus pengingat.
 
+## 3b. Pemberitahuan update aplikasi
+
+Masalah: aplikasi yang terus terbuka (PWA di Layar Utama) tetap menjalankan JS lama setelah deploy,
+tanpa tahu ada versi baru.
+
+### Deteksi versi baru
+- `wrangler.jsonc`: binding `version_metadata` (`CF_VERSION_METADATA`) — id berubah setiap deploy.
+- `GET /api/versi` (publik, `Cache-Control: no-store`) → `{ versi: <id> }`.
+- Klien (`static/js/versi.js`): ambil versi saat aplikasi dimuat; cek ulang tiap 10 menit dan saat
+  tab kembali terlihat (`visibilitychange`). Bila berbeda → banner:
+  > 🔄 Versi baru aplikasi tersedia. **[Muat ulang sekarang]**
+- Banner tidak memuat ulang otomatis. Tombol memanggil `location.reload()`; penjaga "belum disimpan"
+  yang ada (Input/Edit/Jalur) tetap bertanya dulu, draft Input Laporan tetap tersimpan.
+- Gagal jaringan saat cek → diam (coba lagi di jadwal berikutnya).
+
+### "Yang baru di versi ini"
+- `static/js/rilis.js` mengekspor daftar catatan rilis terurut terbaru:
+  `[{ id: '2026-10-21-rincian', judul: 'Yang baru', poin: ['…', '…'] }]` — ditulis manual saat
+  merilis perubahan yang terlihat pengguna (aturan baru di CLAUDE.md §2).
+- Setelah aplikasi dimuat, bila `id` catatan terbaru ≠ yang tersimpan di `localStorage`
+  (`rilis-terakhir-dilihat`, dibungkus try/catch) → pop-up sekali dengan tombol **Mengerti**, lalu id
+  disimpan. Tidak tampil di halaman login.
+- Isi rilis pertama:
+  - Pengeluaran BBM & tol kini diisi per nota (jenis, nominal, dibayar, keterangan); foto struk tetap
+    digabung dalam 1 foto BBM dan 1 foto tol.
+  - Setelah laporan & rekon hari ini selesai: unduh Excel rekap bulan ini lalu kirim ke
+    ceocrew01@gmail.com.
+- Helper murni (`perluTampilRilis(daftar, idTersimpan)`, `versiBerubah(awal, terbaru)`) dites di `node`.
+
 ## 4. Tes
 
 - `tests/logic/rincian.test.ts`: `rincianKeSlot` (1 sumber, 2 sumber, tunai+kartu ditukar, >2 sumber
@@ -146,6 +175,7 @@ Untuk user **PIC CABANG**, pada tanggal hari ini (WIB): ada ≥ 1 jalur hari ini
 - `tests/frontend/rincian-helpers.test.ts`: ringkasan total/per kartu, validasi klien.
 - `tests/frontend/rekap-helpers` (Excel): kolom Keterangan di sheet Detail.
 - Tugas: `unduh_excel` true/false sesuai kondisi; route `unduh-harian` set KV + audit, MANAGEMENT 403.
+- Versi: `GET /api/versi` mengembalikan id binding + `no-store`; `versiBerubah`, `perluTampilRilis`.
 
 ## 5. Di luar cakupan
 - Foto per nota, jam transaksi, OCR/screenshot riwayat kartu Flazz.
