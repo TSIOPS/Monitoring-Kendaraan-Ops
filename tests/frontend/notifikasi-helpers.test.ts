@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { kunciKeBytes, menitWib, MENIT_PERINGATAN, perluPasangDulu, teksTugas, teksBanner } from '../../static/js/notifikasi.js';
+import { teksUnduhExcel, kunciKeBytes, menitWib, MENIT_PERINGATAN, perluPasangDulu, teksTugas, teksBanner } from '../../static/js/notifikasi.js';
+
+import { EMAIL_KIRIM_REKAP, rentangUnduhHarian } from '../../static/js/unduh-rekap.js';
 
 describe('notifikasi', () => {
   it('menit WIB dan ambang 16:30', () => {
@@ -76,5 +78,15 @@ describe('teksBanner', () => {
     expect(t).toBe('Pemantauan: hari ini 3 laporan belum selesai di cabang.');
     expect(teksBanner(teks, false, '17:00', false)).toBe(t);
     expect(t).not.toMatch(/segera/i);
+  });
+});
+
+describe('pengingat unduh Excel', () => {
+  it('teks menyebut email tujuan', () => {
+    expect(EMAIL_KIRIM_REKAP).toBe('ceocrew01@gmail.com');
+    expect(teksUnduhExcel()).toBe('Tugas hari ini selesai. Unduh Excel rekap pengeluaran bulan ini, lalu kirim ke ceocrew01@gmail.com bersama Excel laporan lainnya.');
+  });
+  it('rentang = tanggal 1 bulan berjalan s.d. hari ini', () => {
+    expect(rentangUnduhHarian('2026-10-21')).toEqual({ dari: '2026-10-01', sampai: '2026-10-21' });
   });
 });

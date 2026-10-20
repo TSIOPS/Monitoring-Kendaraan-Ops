@@ -950,7 +950,7 @@ export function perluUnduhExcel(r: RingkasanTugas, sudahUnduh: boolean): boolean
 - Modify: `static/js/notifikasi.js`
 - Test: `tests/frontend/notifikasi-helpers.test.ts`
 
-- [ ] **Step 1: Tes gagal** — tambahkan:
+- [x] **Step 1: Tes gagal** — tambahkan:
 ```ts
 import { teksUnduhExcel } from '../../static/js/notifikasi.js';
 import { EMAIL_KIRIM_REKAP, rentangUnduhHarian } from '../../static/js/unduh-rekap.js';
@@ -965,8 +965,8 @@ describe('pengingat unduh Excel', () => {
   });
 });
 ```
-- [ ] **Step 2:** tes → FAIL.
-- [ ] **Step 3: Implementasi**
+- [x] **Step 2:** tes → FAIL.
+- [x] **Step 3: Implementasi**
 
 `static/js/unduh-rekap.js`:
 ```js
@@ -1050,8 +1050,10 @@ function tampilBannerUnduh(slot, tanggal) {
   document.body.appendChild(latar);
 }
 ```
-- [ ] **Step 4:** tes → PASS; `npm test && npm run typecheck`.
-- [ ] **Step 5:** cek manual (dev): setelah rekon terakhir pop-up muncul, unduh menghasilkan `rekap-pengeluaran-<dari>_<sampai>-<cabang>.xlsx`, banner hilang. Centang, CHANGELOG (UX), commit `feat(notifikasi): pengingat unduh Excel rekap setelah rekon`, push.
+- [x] **Step 4:** tes → PASS; `npm test && npm run typecheck`.
+- [x] **Step 5:** cek manual (dev): setelah rekon terakhir pop-up muncul, unduh menghasilkan `rekap-pengeluaran-<dari>_<sampai>-<cabang>.xlsx`, banner hilang. Centang, CHANGELOG (UX), commit `feat(notifikasi): pengingat unduh Excel rekap setelah rekon`, push.
+
+> Catatan: implementasi sesuai rencana. Cek manual (Step 5) ditunda ke deploy (`.dev.vars` tidak tersedia); gerbang UI/code-review di Task 13.
 
 ---
 

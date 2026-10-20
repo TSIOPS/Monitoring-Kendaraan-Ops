@@ -1,8 +1,9 @@
 import { get, post } from './api.js';
 import { getUser } from './store.js';
 import { bolehTulis } from './peran.js';
-import { el } from './ui.js';
+import { el, toast } from './ui.js';
 import { adaFormTerbuka } from './router.js';
+import { EMAIL_KIRIM_REKAP, unduhRekapHarian } from './unduh-rekap.js';
 
 // ── Helper murni (diuji) ────────────────────────────────────────────────────
 
@@ -37,6 +38,10 @@ export function teksTugas(t) {
   if (t?.rekonsiliasi) bagian.push(`${t.rekonsiliasi} rekonsiliasi`);
   if (!bagian.length) return '';
   return `${bagian.join(' & ')} belum selesai` + (t.tertunggak ? ` (${t.tertunggak} jalur dari hari sebelumnya)` : '');
+}
+
+export function teksUnduhExcel(email = EMAIL_KIRIM_REKAP) {
+  return `Tugas hari ini selesai. Unduh Excel rekap pengeluaran bulan ini, lalu kirim ke ${email} bersama Excel laporan lainnya.`;
 }
 
 // Teks banner tugas. Pengguna read-only (MANAGEMENT) hanya memantau: nada netral, tanpa perintah.
@@ -75,7 +80,11 @@ export async function segarkanBanner(paksa = false) {
     }
   }
   const teks = teksTugas(cache);
-  if (!teks) { slot.replaceChildren(); return; }
+  if (!teks) {
+    if (cache.unduh_excel && bolehTulis(getUser()?.role)) { tampilBannerUnduh(slot, cache.tanggal); return; }
+    slot.replaceChildren();
+    return;
+  }
   const jo = jamOperasional();
   const boleh = bolehTulis(getUser()?.role);
   const akhir = menitWib() >= menitPeringatan();
@@ -93,6 +102,47 @@ export async function segarkanBanner(paksa = false) {
     simpan.set(kunci, '1');
     tampilPopup(teks, cache);
   }
+}
+
+function tombolUnduh(tanggal, kelas, setelah = () => {}) {
+  const b = el('button', { type: 'button', class: kelas }, [el('i', { class: 'bi bi-download me-1', 'aria-hidden': 'true' }), 'Unduh Excel']);
+  b.addEventListener('click', async () => {
+    b.disabled = true;
+    try {
+      await unduhRekapHarian(tanggal);
+      toast('Excel terunduh. Kirim ke ' + EMAIL_KIRIM_REKAP + '.', 'success');
+      setelah();
+      await segarkanBanner(true);
+    } catch (err) {
+      toast(err.message || 'Gagal mengunduh Excel.', 'error');
+      b.disabled = false;
+    }
+  });
+  return b;
+}
+
+function tampilBannerUnduh(slot, tanggal) {
+  slot.replaceChildren(el('div', { class: 'banner-tugas banner-tugas-akhir', role: 'status' }, [
+    el('i', { class: 'bi bi-file-earmark-excel me-2', 'aria-hidden': 'true' }),
+    el('span', { text: teksUnduhExcel() }),
+    tombolUnduh(tanggal, 'btn btn-sm btn-danger ms-2'),
+  ]));
+  // Pop-up sekali per hari per perangkat; ditunda bila form belum disimpan sedang terbuka.
+  const kunci = `unduh-popup:${tanggal}`;
+  if (simpan.get(kunci) || adaFormTerbuka()) return;
+  simpan.set(kunci, '1');
+  const tutup = () => latar.remove();
+  const latar = el('div', { class: 'popup-latar', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Unduh Excel rekap' }, [
+    el('div', { class: 'popup-kotak' }, [
+      el('div', { class: 'h5 text-success fw-bold mb-2' }, [el('i', { class: 'bi bi-check-circle me-2', 'aria-hidden': 'true' }), 'Rekon hari ini selesai']),
+      el('p', { class: 'mb-3', text: teksUnduhExcel() }),
+      el('div', { class: 'd-flex gap-2 justify-content-end' }, [
+        el('button', { class: 'btn btn-outline-secondary', type: 'button', text: 'Nanti', onclick: tutup }),
+        tombolUnduh(tanggal, 'btn btn-success', tutup),
+      ]),
+    ]),
+  ]);
+  document.body.appendChild(latar);
 }
 
 // Nada pengingat (Web Audio, tanpa file): "ding-dong" naik tiga nada, diulang dua kali.
