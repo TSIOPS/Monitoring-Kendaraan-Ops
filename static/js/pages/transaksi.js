@@ -142,6 +142,19 @@ export function selisihOdo(row) {
   return el('div', {}, [el('span', { class: 'badge text-bg-danger', title: w, text: teksSelisihOdo(w) })]);
 }
 
+export function teksBarisRincian(it, labelKartu = (id) => id) {
+  return [it.jenis === 'TOL' ? 'Tol' : 'BBM', `Rp ${fmtNum(it.nominal)}`, it.kartu ? labelKartu(it.kartu) : 'Tunai', it.keterangan].filter(Boolean).join(' · ');
+}
+
+function rincianRingkas(r) {
+  const items = Array.isArray(r.rincian) ? r.rincian : [];
+  if (!items.length) return null;
+  return el('details', { class: 'small mt-1 text-start' }, [
+    el('summary', { text: `Rincian (${items.length})${r.rincian_lama ? ' — total, tanpa rincian' : ''}` }),
+    el('ul', { class: 'mb-0 ps-3' }, items.map((it) => el('li', { text: teksBarisRincian(it) }))),
+  ]);
+}
+
 function barisTabel(r, boleh) {
   const liter = Number(r.isi_bbm) || 0;
   return el('tr', {}, [
@@ -161,6 +174,7 @@ function barisTabel(r, boleh) {
     el('td', { class: 'text-center text-nowrap' }, [
       liter > 0 ? `${fmtNum(liter)} L` : '-',
       pakaiKartu2(r) ? el('div', {}, [el('span', { class: 'badge text-bg-light border', title: 'Dibayar dengan 2 kartu', text: '2 kartu' })]) : null,
+      rincianRingkas(r),
     ]),
     selKonsumsi(r),
     el('td', { class: 'small' }, [String(r.user || '-')]),

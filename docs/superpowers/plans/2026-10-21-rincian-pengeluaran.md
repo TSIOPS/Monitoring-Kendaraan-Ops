@@ -813,7 +813,7 @@ Catatan penyimpangan:
 - Modify: `static/js/pages/transaksi.js`
 - Test: `tests/frontend/transaksi-helpers.test.ts` (baru)
 
-- [ ] **Step 1: Tes gagal**
+- [x] **Step 1: Tes gagal**
 ```ts
 import { describe, expect, it } from 'vitest';
 import { teksBarisRincian } from '../../static/js/pages/transaksi.js';
@@ -826,8 +826,8 @@ describe('teksBarisRincian', () => {
   });
 });
 ```
-- [ ] **Step 2:** tes → FAIL.
-- [ ] **Step 3: Implementasi** `static/js/pages/transaksi.js`:
+- [x] **Step 2:** tes → FAIL.
+- [x] **Step 3: Implementasi** `static/js/pages/transaksi.js`:
 ```js
 export function teksBarisRincian(it, labelKartu = (id) => id) {
   return [it.jenis === 'TOL' ? 'Tol' : 'BBM', `Rp ${fmtNum(it.nominal)}`, it.kartu ? labelKartu(it.kartu) : 'Tunai', it.keterangan].filter(Boolean).join(' · ');
@@ -843,8 +843,10 @@ function rincianRingkas(r) {
 }
 ```
   dan di `barisTabel`, sel liter: tambahkan `rincianRingkas(r)` setelah badge `2 kartu`. (Label kartu memakai id; nama kartu tersedia di halaman Flazz — cukup untuk pemeriksaan cepat.)
-- [ ] **Step 4:** tes → PASS; `npm test && npm run typecheck`.
-- [ ] **Step 5:** centang, CHANGELOG, commit `feat(history): tampilkan rincian per nota`, push.
+- [x] **Step 4:** tes → PASS; `npm test && npm run typecheck`.
+- [x] **Step 5:** centang, CHANGELOG, commit `feat(history): tampilkan rincian per nota`, push.
+
+> Catatan: tes memakai `fmtNum` asli (id-ID, titik ribuan) sesuai harapan; tanpa penyimpangan. Cek manual UI ditunda ke deploy.
 
 ---
 
