@@ -453,6 +453,15 @@ body {
   text-align: center;
 }
 
+.banner-versi {
+  background: #e7f1ff;
+  border-bottom: 1px solid #9ec5fe;
+  color: #084298;
+  padding: 0.5rem 1rem;
+  font-size: 0.92rem;
+  text-align: center;
+}
+
 .banner-tugas-akhir {
   background: #fdecec;
   border-bottom-color: #f1a7a7;

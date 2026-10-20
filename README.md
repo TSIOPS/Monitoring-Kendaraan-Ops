@@ -69,6 +69,7 @@ Akun `MANAGEMENT` dibuat SUPERADMIN lewat Data Master → Pengguna (warehouse ot
 | POST | `/api/login` | publik | login → session token (KV, 12 jam) |
 | POST | `/api/logout` | token | hapus session |
 | GET | `/api/health` | publik | health check |
+| GET | `/api/health/versi` | publik | id versi deploy (binding `CF_VERSION_METADATA`, `Cache-Control: no-store`); dipoll klien untuk banner "Versi baru tersedia" |
 | GET | `/api/master` | role+cabang (MANAGEMENT: semua cabang, tanpa daftar pengguna) | payload master (cache KV 30 dtk) |
 | POST/PUT/DELETE | `/api/master/cabang` | PIC (cabang sendiri), SUPERADMIN semua | CRUD cabang (soft-delete) |
 | POST/PUT/DELETE | `/api/master/kendaraan` | PIC (cabang sendiri), SUPERADMIN semua | CRUD kendaraan |

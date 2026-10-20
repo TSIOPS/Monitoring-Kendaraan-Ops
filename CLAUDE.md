@@ -23,7 +23,8 @@ Setelah perubahan apa pun (kode, skema DB, konfigurasi):
 3. **Perbarui README.md** bila mengubah setup, perintah, variabel env, atau catatan keamanan.
 4. **File SQL baru di `db/`** (migrasi skema/data) wajib ditambahkan ke tabel "SQL migrasi tertunda" di
    [README.md](README.md) bagian *Checklist deploy*, supaya tidak terlupa dijalankan sebelum deploy.
-5. **Perbarui file ini (CLAUDE.md)** bila aturan/kebiasaan proyek berubah.
+5. **Perubahan yang terlihat pengguna:** tambahkan entri di `static/js/rilis.js` (id unik, 1–3 poin) agar muncul pop-up "Yang baru".
+6. **Perbarui file ini (CLAUDE.md)** bila aturan/kebiasaan proyek berubah.
 
 ## 3. Gerbang review wajib (jalankan sebelum commit)
 | Jenis perubahan | Wajib jalankan | Contoh pemicu |

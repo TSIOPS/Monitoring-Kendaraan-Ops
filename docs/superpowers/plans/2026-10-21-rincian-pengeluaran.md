@@ -1064,7 +1064,7 @@ function tampilBannerUnduh(slot, tanggal) {
 - Create: `static/js/versi.js`, `static/js/rilis.js`
 - Test: `tests/app.test.ts` (atau `tests/routes/health.test.ts` baru), `tests/frontend/versi-helpers.test.ts`
 
-- [ ] **Step 1: Tes gagal**
+- [x] **Step 1: Tes gagal**
 `tests/routes/health.test.ts`:
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -1110,8 +1110,8 @@ describe('versi & rilis', () => {
   });
 });
 ```
-- [ ] **Step 2:** tes → FAIL.
-- [ ] **Step 3: Implementasi**
+- [x] **Step 2:** tes → FAIL.
+- [x] **Step 3: Implementasi**
 
 `wrangler.jsonc` — tambah sebelum `"triggers"`:
 ```jsonc
@@ -1223,8 +1223,10 @@ CSS (file yang berisi `.banner-tugas`):
   text-align: center;
 }
 ```
-- [ ] **Step 4:** tes → PASS; `npm test && npm run typecheck`.
-- [ ] **Step 5:** CLAUDE.md §2 tambah butir: "Perubahan yang terlihat pengguna: tambahkan entri di `static/js/rilis.js` (id unik, 1–3 poin) agar muncul pop-up 'Yang baru'." README Arsitektur/catatan: endpoint `/api/health/versi` dan binding `CF_VERSION_METADATA`. Centang, CHANGELOG, commit `feat(app): pemberitahuan versi baru dan catatan Yang baru`, push.
+- [x] **Step 4:** tes → PASS; `npm test && npm run typecheck`.
+- [x] **Step 5:** CLAUDE.md §2 tambah butir: "Perubahan yang terlihat pengguna: tambahkan entri di `static/js/rilis.js` (id unik, 1–3 poin) agar muncul pop-up 'Yang baru'." README Arsitektur/catatan: endpoint `/api/health/versi` dan binding `CF_VERSION_METADATA`. Centang, CHANGELOG, commit `feat(app): pemberitahuan versi baru dan catatan Yang baru`, push.
+
+> Catatan: Task 12 sesuai rencana. Tes `versi-helpers` tanpa `@ts-expect-error` (impor JS lain di repo juga tanpa). Cek manual browser tidak dilakukan (ditunda ke deploy).
 
 ---
 

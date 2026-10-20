@@ -15,4 +15,6 @@ export interface Env {
   BACKUP?: R2Bucket;
   // Token sekali pakai untuk salin foto lama Supabase -> R2 (POST /api/admin/salin-foto).
   MIGRASI_TOKEN?: string;
+  // Metadata versi Worker (berubah setiap deploy).
+  CF_VERSION_METADATA?: { id: string; tag?: string; timestamp?: string };
 }

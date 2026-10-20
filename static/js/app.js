@@ -6,6 +6,7 @@ import { saringMenu } from './peran.js';
 import { renderLogin } from './pages/login.js';
 import { daftarkanServiceWorker, mulaiBanner } from './notifikasi.js';
 import { mulaiLonceng, tombolLonceng } from './lonceng.js';
+import { mulaiCekVersi } from './versi.js';
 
 // Sidebar mengikuti GAS: grup dapat dilipat; item ber-`peran` hanya tampil untuk role tersebut.
 // juga: rute lain yang ikut menyalakan item (mis. halaman edit).
@@ -388,6 +389,7 @@ async function boot() {
   // Banner tugas hari ini (kuning sepanjang hari, merah + pop-up mulai 16:30) & service worker push.
   mulaiBanner();
   mulaiLonceng();
+  mulaiCekVersi();
   daftarkanServiceWorker();
 
   if (!user) {
