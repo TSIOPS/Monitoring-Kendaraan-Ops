@@ -2,6 +2,9 @@
 
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
+## 2026-10-20
+- **UX** — History Laporan: judul tabel "Riwayat Operasional" diganti "Listing Laporan Pengiriman" (judul tab browser ikut berubah) — `static/js/pages/transaksi.js`
+
 ## 2026-10-19
 - **UX** — Perbandingan Pengeluaran kini tiga tab: **Bulan vs Bulan** = total sebulan (pilih Bulan pembanding & Bulan, bawaan bulan lalu vs bulan ini; bulan lampau dihitung tgl 1 s.d. akhir bulan, bulan berjalan s.d. hari ini; selisih = total bulan − total bulan pembanding; proyeksi akhir bulan untuk bulan berjalan), **Rentang Tanggal Sama** (filter dari–sampai dibanding rentang yang sama bulan sebelumnya, dari perubahan sebelumnya), dan **Cabang vs Gudang Pusat**. Fungsi baru `rentangBulan`, `cekPilihanBulan`, `bandingDuaBulan`, `susunExcelBulan`. Diperiksa visual di Chrome (data tiruan) — `static/js/pages/perbandingan.js`, `tests/frontend/perbandingan-helpers.test.ts`
 - **UX** — Perbandingan Pengeluaran, tab Bulan vs Bulan: filter **Dari tanggal – Sampai tanggal** (bawaan tgl 1 s.d. hari ini, maks. 31 hari) yang dibandingkan dengan rentang yang sama di bulan sebelumnya (akhir bulan ikut akhir bulan, mis. 1–31 Okt vs 1–30 Sep); kolom bulan lalu penuh & proyeksi hanya tampil bila rentang = awal bulan s.d. hari ini. Warna selisih dibalik sesuai kebiasaan pengguna: **plus hijau, minus merah**. Excel ikut rentang (sheet Ringkasan, Per Warehouse, Rinci). Fungsi lama berbasis daftar bulan (`bandingBulan`, `susunExcelBulanan`, `kolomBulanan`) diganti `bandingRentang`/`susunExcelRentang`. Diperiksa visual di Chrome (data tiruan); /ui-ux-pro-max tidak tersedia di sesi ini — `static/js/pages/perbandingan.js`, `tests/frontend/perbandingan-helpers.test.ts`

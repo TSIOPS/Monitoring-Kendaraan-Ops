@@ -184,7 +184,7 @@ function panelTransaksi(rows, view, adaFilter = false) {
       : el('p', { class: 'text-muted', text: adaFilter ? 'Tidak ada transaksi yang cocok dengan filter.' : 'Belum ada transaksi.' });
     panel.replaceChildren(
       el('h2', { 'data-judul-halaman': '', class: 'h5 mb-3 pb-2 border-bottom text-success fw-bold' }, [
-        el('i', { class: 'bi bi-clock-history me-2', 'aria-hidden': 'true' }), `Riwayat Operasional (${rows.length})`,
+        el('i', { class: 'bi bi-clock-history me-2', 'aria-hidden': 'true' }), `Listing Laporan Pengiriman (${rows.length})`,
       ]),
       isi,
       navHalaman(h.total, h.aktif, (ke) => {
