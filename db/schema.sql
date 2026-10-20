@@ -111,6 +111,8 @@ alter table penggunaan_bbm add column if not exists nama_supir_2 text not null d
 alter table penggunaan_bbm add column if not exists biaya_bbm_2 numeric not null default 0;
 alter table penggunaan_bbm add column if not exists flazz_card_id_toll_2 text not null default '';
 alter table penggunaan_bbm add column if not exists biaya_toll_2 numeric not null default 0;
+-- Rincian pengeluaran per nota: [{jenis,nominal,kartu,keterangan}]; kartu kosong = tunai.
+alter table penggunaan_bbm add column if not exists rincian jsonb not null default '[]'::jsonb;
 
 create table if not exists pengisian_bbm (
   fuel_id text primary key,

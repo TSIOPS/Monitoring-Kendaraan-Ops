@@ -44,14 +44,14 @@
 - Modify: `README.md` (tabel "SQL migrasi tertunda": status jadi "⏳ belum dijalankan")
 - Test: `tests/schema.test.ts`
 
-- [ ] **Step 1: Tes gagal** — tambahkan di `tests/schema.test.ts` dalam `describe('db/schema.sql')`:
+- [x] **Step 1: Tes gagal** — tambahkan di `tests/schema.test.ts` dalam `describe('db/schema.sql')`:
 ```ts
   it('penggunaan_bbm punya kolom rincian jsonb', () => {
     expect(sql).toMatch(/alter table penggunaan_bbm add column if not exists rincian jsonb not null default '\[\]'::jsonb;/i);
   });
 ```
-- [ ] **Step 2:** `npx vitest run tests/schema.test.ts` → FAIL.
-- [ ] **Step 3: Implementasi**
+- [x] **Step 2:** `npx vitest run tests/schema.test.ts` → FAIL.
+- [x] **Step 3: Implementasi**
 
 `db/rincian-pengeluaran.sql`:
 ```sql
@@ -62,8 +62,8 @@ alter table penggunaan_bbm add column if not exists rincian jsonb not null defau
 `db/schema.sql` — tambahkan baris yang sama (beserta komentar satu baris) setelah `alter table penggunaan_bbm add column if not exists biaya_toll_2 …`.
 
 README "SQL migrasi tertunda": ubah status baris `db/rincian-pengeluaran.sql` menjadi `⏳ belum dijalankan — jalankan sebelum deploy fitur rincian`.
-- [ ] **Step 4:** `npx vitest run tests/schema.test.ts` → PASS.
-- [ ] **Step 5:** `npm test && npm run typecheck`, centang, CHANGELOG (Fitur: kolom rincian), commit `feat(db): kolom rincian pengeluaran per nota`, push.
+- [x] **Step 4:** `npx vitest run tests/schema.test.ts` → PASS.
+- [x] **Step 5:** `npm test && npm run typecheck`, centang, CHANGELOG (Fitur: kolom rincian), commit `feat(db): kolom rincian pengeluaran per nota`, push.
 
 ---
 

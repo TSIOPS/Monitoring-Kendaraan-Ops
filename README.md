@@ -29,7 +29,7 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 ### SQL migrasi tertunda
 | File | Untuk fitur | Status |
 |---|---|---|
-| `db/rincian-pengeluaran.sql` | Rincian pengeluaran per nota (spec `2026-10-21-rincian-pengeluaran-design.md`) | ⏳ belum dibuat — dibuat saat implementasi, jalankan sebelum deploy fitur ini |
+| `db/rincian-pengeluaran.sql` | Rincian pengeluaran per nota (spec `2026-10-21-rincian-pengeluaran-design.md`) | ⏳ belum dijalankan — jalankan sebelum deploy fitur rincian |
 
 ### Sudah dijalankan di production
 | File | Tanggal |

@@ -24,6 +24,9 @@ const REQUIRED_TABLES = [
 ];
 
 describe('db/schema.sql', () => {
+  it('penggunaan_bbm punya kolom rincian jsonb', () => {
+    expect(sql).toMatch(/alter table penggunaan_bbm add column if not exists rincian jsonb not null default '\[\]'::jsonb;/i);
+  });
   it('mendefinisikan semua tabel yang dibutuhkan', () => {
     for (const t of REQUIRED_TABLES) {
       expect(sql, `tabel ${t} harus ada`).toMatch(new RegExp(`create table if not exists ${t}\\s*\\(`, 'i'));
