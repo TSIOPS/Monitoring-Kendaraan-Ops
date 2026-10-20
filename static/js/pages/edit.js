@@ -1,11 +1,12 @@
 import { BATAS_WAKTU_FOTO_MS, get, put } from '../api.js';
 import { getRouteParam, halamanMasihAktif, pasangPenjagaKeluar } from '../router.js';
-import { el, fmtNum, toast, pratinjauFoto, tampilkanGalat, barisForm as baris, bantuRupiah } from '../ui.js';
+import { el, fmtNum, toast, pratinjauFoto, tampilkanGalat, barisForm as baris } from '../ui.js';
+import { tabelRincian, validasiRincian, ringkasRincian } from '../rincian.js';
 import { meteranBensin } from '../meteran.js';
 import { hitungLiter, kompresGambar, namaAman, opsiBbm, pesanDigitKm, STRUK_KUALITAS, STRUK_LEBAR, THUMB_KUALITAS, THUMB_LEBAR } from './input.js';
 
 // Edit transaksi lengkap (M11), setara alur edit GAS: tanggal, supir, KM, bar,
-// liter, pembayaran (grup 1 & 2), dan foto odometer. Kendaraan tetap terkunci.
+// liter, pengeluaran per nota (rincian), dan foto odometer. Kendaraan tetap terkunci.
 
 // Tanggal tampilan daftar transaksi (DD/MM/YYYY) -> nilai input date (YYYY-MM-DD).
 export function tanggalIso(v) {
@@ -30,7 +31,7 @@ export function validateEdit(v) {
     const pesan = pesanDigitKm(label, baru, Number(lama) || null);
     if (pesan) err.push(pesan);
   }
-  if (v.metode_pembayaran === 'FLAZZ' && !v.flazz_card_id) err.push('Pilih kartu Flazz untuk pembayaran.');
+  err.push(...validasiRincian(v.rincian || [], v.label_kartu));
   return err;
 }
 
@@ -59,16 +60,8 @@ export function bodyEdit(trx, v) {
     bar_awal: Number(v.bar_awal),
     bar_akhir: Number(v.bar_akhir),
     liter_bbm: Number(v.liter_bbm),
-    metode_pembayaran: v.metode_pembayaran,
-    biaya_bbm: v.biaya_bbm,
-    biaya_toll: v.biaya_toll,
-    flazz_card_id: v.flazz_card_id,
-    metode_toll: v.metode_toll,
-    flazz_card_id_toll: v.flazz_card_id_toll,
-    flazz_card_id_2: v.flazz_card_id_2,
-    biaya_bbm_2: v.biaya_bbm_2 === '' ? 0 : v.biaya_bbm_2,
-    flazz_card_id_toll_2: v.flazz_card_id_toll_2,
-    biaya_toll_2: v.biaya_toll_2 === '' ? 0 : v.biaya_toll_2,
+    // Server menjumlahkan rincian ke kolom slot lama (grup-1 + grup-2).
+    rincian: v.rincian || [],
   };
   if (Number(v.km_awal) !== Number(trx.km_awal) || Number(v.km_akhir) !== Number(trx.km_akhir)) {
     body.km_awal = Number(v.km_awal);
@@ -153,46 +146,26 @@ export async function renderEdit(view) {
   const fotoStrukBbm = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
   const fotoStrukTol = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
 
-  const metode = el('select', { class: 'form-select' }, [
-    el('option', { value: 'TUNAI', text: 'Tunai' }),
-    el('option', { value: 'FLAZZ', text: 'Flazz' }),
-  ]);
-  metode.value = trx.metode_pembayaran || 'TUNAI';
-  const kartu = el('select', { class: 'form-select' });
-  isiOpsi(kartu, opsiKartu(cards), '— tidak ada —');
-  pilihNilai(kartu, trx.flazz_card_id);
-  const biayaBbm = angka(trx.biaya_bbm ?? 0);
-  const biayaTol = angka(trx.toll ?? 0);
-  const metodeTol = el('select', { class: 'form-select' }, [
-    el('option', { value: '', text: 'Sama seperti pembayaran BBM' }),
-    el('option', { value: 'TUNAI', text: 'Tunai' }),
-    el('option', { value: 'FLAZZ', text: 'Flazz' }),
-  ]);
-  metodeTol.value = trx.metode_toll || '';
-  const kartuTol = el('select', { class: 'form-select' });
-  isiOpsi(kartuTol, opsiKartu(cards), '— tidak ada —');
-  pilihNilai(kartuTol, trx.flazz_card_id_toll);
-
-  // Grup-2 (kartu kedua): kartu kosong berarti nominalnya dicatat tunai.
-  const biayaBbm2 = angka(trx.biaya_bbm_2 || '');
-  jenisBbm.value = tebakJenisBbm(bbmOpsi, Number(trx.biaya_bbm || 0) + Number(trx.biaya_bbm_2 || 0), trx.isi_bbm)
+  // Jenis BBM ditebak dari total BBM (grup-1 + grup-2) dan liter tersimpan.
+  jenisBbm.value = tebakJenisBbm(bbmOpsi, Number(trx.total_bbm || 0), trx.isi_bbm)
     || (bbmOpsi.length === 1 ? bbmOpsi[0].value : '');
-  // Liter mengikuti biaya (kartu 1 + 2) / harga jenis BBM; biaya 0 -> liter 0.
-  const hitungUlangLiter = () => {
-    const total = Number(biayaBbm.value || 0) + Number(biayaBbm2.value || 0);
+  // Liter mengikuti total BBM rincian / harga jenis BBM; total 0 -> liter 0.
+  // Didefinisikan sebagai function: tabelRincian memanggil onUbah saat dibuat.
+  function hitungUlangLiter() {
+    const total = ringkasRincian(tabel.ambil()).bbm;
     const harga = bbmOpsi.find((o) => o.value === jenisBbm.value)?.harga || 0;
     if (!(total > 0)) liter.value = '0';
     else if (harga > 0) liter.value = hitungLiter(total, harga);
-  };
-  for (const x of [biayaBbm, biayaBbm2]) x.addEventListener('input', hitungUlangLiter);
+  }
   jenisBbm.addEventListener('change', hitungUlangLiter);
-  const kartu2 = el('select', { class: 'form-select' });
-  isiOpsi(kartu2, opsiKartu(cards), 'Tanpa kartu (tunai)');
-  pilihNilai(kartu2, trx.flazz_card_id_2);
-  const biayaTol2 = angka(trx.biaya_toll_2 || '');
-  const kartuTol2 = el('select', { class: 'form-select' });
-  isiOpsi(kartuTol2, opsiKartu(cards), 'Tanpa kartu (tunai)');
-  pilihNilai(kartuTol2, trx.flazz_card_id_toll_2);
+  // Penjaga `if (tabel)`: panggilan onUbah saat tabel dibuat tidak menimpa liter tersimpan.
+  let tabel = null;
+  tabel = tabelRincian({
+    opsiKartu: opsiKartu(cards),
+    awal: Array.isArray(trx.rincian) ? trx.rincian : [],
+    onUbah: () => { if (tabel) hitungUlangLiter(); },
+  });
+  const labelKartu = (kartuId) => opsiKartu(cards).find((k) => String(k.value) === kartuId)?.label || kartuId;
 
   const alertBox = el('div', { class: 'alert alert-danger d-none' });
   const submit = el('button', { class: 'btn btn-primary', type: 'submit', text: 'Simpan Perubahan' });
@@ -210,7 +183,7 @@ export async function renderEdit(view) {
       kol(3, baris('KM akhir', kmAkhir, trx.km_sumber === 'ESTIMASI' ? 'KM saat ini hasil estimasi; mengubah KM menjadikannya aktual.' : '')),
       jarum ? null : kol(2, baris('Bar awal', barAwal)),
       jarum ? null : kol(2, baris('Bar akhir', barAkhir)),
-      kol(jarum ? 6 : 2, baris('Liter BBM', liter, 'Otomatis dari biaya')),
+      kol(jarum ? 6 : 2, baris('Liter BBM', liter, 'Otomatis: total BBM ÷ harga per liter')),
     ].filter(Boolean)),
     jarum ? el('div', { class: 'row' }, [
       kol(6, baris('Level bensin awal (berangkat)', meterAwal.elemen)),
@@ -221,29 +194,14 @@ export async function renderEdit(view) {
       kol(6, baris('Foto odometer akhir', el('div', {}, [fotoAkhir, pratinjauFoto(fotoAkhir, trx.foto_odo_akhir || trx.foto_odo_akhir_thumb)]), 'Kosongkan bila tidak diganti.')),
     ]),
     el('div', { class: 'row' }, [
-      kol(6, baris('Foto struk BBM (opsional)', el('div', {}, [fotoStrukBbm, pratinjauFoto(fotoStrukBbm, trx.foto_struk_bbm || trx.foto_struk_bbm_thumb)]), trx.foto_struk_bbm ? 'Kosongkan bila tidak diganti.' : 'Belum ada struk; tambahkan bila ada.')),
-      kol(6, baris('Foto struk / bukti tol (opsional)', el('div', {}, [fotoStrukTol, pratinjauFoto(fotoStrukTol, trx.foto_struk_toll || trx.foto_struk_toll_thumb)]), trx.foto_struk_toll ? 'Kosongkan bila tidak diganti.' : 'Belum ada bukti. Beberapa struk difoto sekaligus dalam 1 foto; e-toll tanpa struk: foto cetak cek pengeluaran kartu.')),
+      kol(6, baris('Foto struk BBM (gabungan semua struk)', el('div', {}, [fotoStrukBbm, pratinjauFoto(fotoStrukBbm, trx.foto_struk_bbm || trx.foto_struk_bbm_thumb)]), trx.foto_struk_bbm ? 'Kosongkan bila tidak diganti.' : 'Belum ada struk; tambahkan bila ada.')),
+      kol(6, baris('Foto bukti tol (gabungan semua bukti)', el('div', {}, [fotoStrukTol, pratinjauFoto(fotoStrukTol, trx.foto_struk_toll || trx.foto_struk_toll_thumb)]), trx.foto_struk_toll ? 'Kosongkan bila tidak diganti.' : 'Belum ada bukti. Beberapa struk difoto sekaligus dalam 1 foto; e-toll tanpa struk: foto cetak cek pengeluaran kartu.')),
     ]),
-    el('h3', { class: 'h6 mt-2', text: 'Pembayaran' }),
-    el('div', { class: 'row' }, [
-      kol(3, baris('Jenis BBM', jenisBbm)),
-      kol(3, baris('Biaya BBM', el('div', {}, [biayaBbm, bantuRupiah(biayaBbm)]), 'Kosongkan/0 bila tidak membeli BBM.')),
-      kol(3, baris('Metode pembayaran', metode)),
-      kol(3, baris('Kartu Flazz (BBM)', kartu)),
-    ]),
-    el('div', { class: 'row' }, [
-      kol(4, baris('Biaya tol', el('div', {}, [biayaTol, bantuRupiah(biayaTol)]))),
-      kol(4, baris('Metode tol', metodeTol)),
-      kol(4, baris('Kartu Flazz (tol)', kartuTol)),
-    ]),
-    el('h3', { class: 'h6 mt-2', text: 'Kartu ke-2 (opsional)' }),
-    el('div', { class: 'form-text mb-2', text: 'Isi bila laporan memakai 2 kartu. Nominal tanpa kartu dihitung sebagai tunai.' }),
-    el('div', { class: 'row' }, [
-      kol(3, baris('Biaya BBM (kartu 2)', el('div', {}, [biayaBbm2, bantuRupiah(biayaBbm2)]))),
-      kol(3, baris('Kartu Flazz BBM (kartu 2)', kartu2)),
-      kol(3, baris('Biaya tol (kartu 2)', el('div', {}, [biayaTol2, bantuRupiah(biayaTol2)]))),
-      kol(3, baris('Kartu Flazz tol (kartu 2)', kartuTol2)),
-    ]),
+    el('h3', { class: 'h6 mt-2', text: 'Pengeluaran BBM & Tol' }),
+    el('div', { class: 'form-text mb-2', text: 'Isi satu baris per nota. Dibayar: kartu etoll atau Tunai. Maks. 2 cara bayar per jenis.' }),
+    trx.rincian_lama ? el('div', { class: 'form-text mb-2', text: 'Laporan lama: total dipecah otomatis menjadi baris. Boleh dirinci per nota.' }) : null,
+    tabel.elemen,
+    el('div', { class: 'row' }, [kol(6, baris('Jenis BBM', jenisBbm))]),
     el('div', { class: 'd-flex gap-2' }, [
       submit,
       el('a', { class: 'btn btn-outline-secondary', href: '#/history', text: 'Batal' }),
@@ -263,9 +221,7 @@ export async function renderEdit(view) {
       tanggal: tanggal.value, nama_supir: supir.value, km_awal: kmAwal.value, km_akhir: kmAkhir.value,
       km_awal_lama: trx.km_awal, km_akhir_lama: trx.km_akhir,
       bar_awal: barAwal.value, bar_akhir: barAkhir.value, liter_bbm: liter.value,
-      metode_pembayaran: metode.value, biaya_bbm: biayaBbm.value, biaya_toll: biayaTol.value, flazz_card_id: kartu.value,
-      metode_toll: metodeTol.value, flazz_card_id_toll: kartuTol.value,
-      flazz_card_id_2: kartu2.value, biaya_bbm_2: biayaBbm2.value, flazz_card_id_toll_2: kartuTol2.value, biaya_toll_2: biayaTol2.value,
+      rincian: tabel.ambil(), label_kartu: labelKartu,
     };
     const err = validateEdit(values);
     if (err.length) {

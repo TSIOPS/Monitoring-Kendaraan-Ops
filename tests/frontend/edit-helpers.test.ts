@@ -4,8 +4,7 @@ import { bodyEdit, tanggalIso, validateEdit } from '../../static/js/pages/edit.j
 const TRX = { km_awal: 1000, km_akhir: 1100 };
 const NILAI = {
   tanggal: '2026-10-05', nama_supir: 'Supir A', km_awal: '1000', km_akhir: '1100', bar_awal: '8', bar_akhir: '4', liter_bbm: '10',
-  metode_pembayaran: 'TUNAI', biaya_bbm: '100000', biaya_toll: '0', flazz_card_id: '', metode_toll: '', flazz_card_id_toll: '',
-  flazz_card_id_2: '', biaya_bbm_2: '', flazz_card_id_toll_2: '', biaya_toll_2: '',
+  rincian: [{ jenis: 'BBM', nominal: 100000, kartu: '', keterangan: '' }],
 };
 
 describe('tanggalIso', () => {
@@ -20,10 +19,10 @@ describe('validateEdit', () => {
   it('menerima nilai valid', () => {
     expect(validateEdit(NILAI)).toEqual([]);
   });
-  it('menolak KM akhir < KM awal, angka negatif, dan Flazz tanpa kartu', () => {
+  it('menolak KM akhir < KM awal, angka negatif, dan rincian tidak valid', () => {
     expect(validateEdit({ ...NILAI, km_akhir: '900' })).toContain('KM akhir tidak boleh lebih kecil dari KM awal.');
     expect(validateEdit({ ...NILAI, liter_bbm: '-1' })).toContain('Liter harus angka dan tidak boleh negatif.');
-    expect(validateEdit({ ...NILAI, metode_pembayaran: 'FLAZZ' })).toContain('Pilih kartu Flazz untuk pembayaran.');
+    expect(validateEdit({ ...NILAI, rincian: [{ jenis: 'BBM', nominal: -1, kartu: '', keterangan: '' }] })).toContain('Baris 1: nominal harus lebih dari 0.');
   });
 });
 
@@ -32,7 +31,8 @@ describe('bodyEdit', () => {
     const b = bodyEdit(TRX, NILAI);
     expect(b).not.toHaveProperty('km_awal');
     expect(b).not.toHaveProperty('km_akhir');
-    expect(b).toMatchObject({ tanggal: '2026-10-05', nama_supir: 'Supir A', bar_awal: 8, bar_akhir: 4, liter_bbm: 10, biaya_bbm_2: 0 });
+    expect(b).toMatchObject({ tanggal: '2026-10-05', nama_supir: 'Supir A', bar_awal: 8, bar_akhir: 4, liter_bbm: 10, rincian: NILAI.rincian });
+    expect(b).not.toHaveProperty('biaya_bbm');
   });
   it('KM dikirim berpasangan bila salah satu berubah', () => {
     expect(bodyEdit(TRX, { ...NILAI, km_akhir: '1150' })).toMatchObject({ km_awal: 1000, km_akhir: 1150 });

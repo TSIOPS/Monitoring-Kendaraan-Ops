@@ -764,15 +764,15 @@ Catatan penyimpangan:
 - Modify: `static/js/pages/edit.js`
 - Test: `tests/frontend/edit-helpers.test.ts`
 
-- [ ] **Step 1: Tes gagal** — `tests/frontend/edit-helpers.test.ts`:
+- [x] **Step 1: Tes gagal** — `tests/frontend/edit-helpers.test.ts`:
   - `NILAI`: hapus field pembayaran lama, tambah `rincian: [{ jenis: 'BBM', nominal: 100000, kartu: '', keterangan: '' }]`.
   - Ganti harapan `validateEdit({ ...NILAI, metode_pembayaran: 'FLAZZ' })` dengan
 ```ts
     expect(validateEdit({ ...NILAI, rincian: [{ jenis: 'BBM', nominal: -1, kartu: '', keterangan: '' }] })).toContain('Baris 1: nominal harus lebih dari 0.');
 ```
   - Ganti `toMatchObject({ …, biaya_bbm_2: 0 })` pada tes `bodyEdit` dengan `toMatchObject({ tanggal: '2026-10-05', nama_supir: 'Supir A', bar_awal: 8, bar_akhir: 4, liter_bbm: 10, rincian: NILAI.rincian })` dan tambah `expect(b).not.toHaveProperty('biaya_bbm');`.
-- [ ] **Step 2:** tes → FAIL.
-- [ ] **Step 3: Implementasi** `static/js/pages/edit.js`:
+- [x] **Step 2:** tes → FAIL.
+- [x] **Step 3: Implementasi** `static/js/pages/edit.js`:
   - Import `tabelRincian, validasiRincian, ringkasRincian` dari `'../rincian.js'`.
   - `validateEdit`: ganti baris Flazz dengan `err.push(...validasiRincian(v.rincian || [], v.label_kartu));`.
   - `bodyEdit`: hapus `metode_pembayaran … biaya_toll_2`; tambah `rincian: v.rincian || [],`.
@@ -796,8 +796,14 @@ Catatan penyimpangan:
 ```
   - Submit `values`: ganti field pembayaran dengan `rincian: tabel.ambil(), label_kartu: (id) => opsiKartu(cards).find((k) => String(k.value) === id)?.label || id,`.
   - Label foto struk diubah "(gabungan semua struk)" seperti Input.
-- [ ] **Step 4:** tes → PASS; `npm test && npm run typecheck`.
-- [ ] **Step 5:** cek manual edit laporan lama (baris turunan tampil) & laporan baru; centang, CHANGELOG, commit `feat(edit): edit pengeluaran per nota`, push.
+- [x] **Step 4:** tes → PASS; `npm test && npm run typecheck`.
+- [x] **Step 5:** cek manual (ditunda ke deploy — `.dev.vars` tidak tersedia) edit laporan lama (baris turunan tampil) & laporan baru; centang, CHANGELOG, commit `feat(edit): edit pengeluaran per nota`, push.
+
+Catatan penyimpangan:
+- Sama dengan Task 7: `tabel` dibuat setelah `function hitungUlangLiter` dengan penjaga `if (tabel)` di `onUbah`, sehingga liter tersimpan (`isi_bbm`) tidak ditimpa saat form dimuat.
+- `total_bbm` di `RecentItem` sudah grup-1 + grup-2 (`rowBbmTotal`), jadi dipakai langsung untuk `tebakJenisBbm`.
+- Ditambah petunjuk "Isi satu baris per nota…" di atas tabel dan hint liter "Otomatis: total BBM ÷ harga per liter" (selaras Input); import `bantuRupiah` dihapus dari edit.js.
+- Kartu pilihan = semua `master.flazzCards` (seperti edit lama); kartu tersimpan yang tidak ada di daftar tampil "(tidak ada di jalur)" oleh komponen.
 
 ---
 
