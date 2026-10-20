@@ -4,10 +4,10 @@ import type { Env } from '../env';
 import type { AppDeps, SessionUser } from '../deps';
 import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
-import { lihatSemuaCabang } from '../auth/peran';
+import { isSuper, lihatSemuaCabang } from '../auth/peran';
 import { HttpError, okPayload } from '../utils/http';
 import { todayWib } from '../logic/jalur';
-import { awalRentangTugas, jamTutupWib, ringkasTugas, teksTugas } from '../logic/tugas';
+import { awalRentangTugas, jamTutupWib, kunciUnduhRekap, perluUnduhExcel, ringkasTugas, teksTugas, TTL_UNDUH_REKAP } from '../logic/tugas';
 import { hashEndpoint, kirimPush, type VapidKunci } from '../push/webpush';
 
 type Ctx = Context<{ Bindings: Env; Variables: AuthVars }>;
@@ -41,7 +41,21 @@ export function pushRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   const app = new Hono<{ Bindings: Env }>();
 
   app.get('/tugas-hari-ini', requireUser(deps), async (c: Ctx) => {
-    return c.json(okPayload({ ...(await tugasUntuk(deps, c.get('user'))) }));
+    const u = c.get('user');
+    const t = await tugasUntuk(deps, u);
+    const pic = !lihatSemuaCabang(u) && !isSuper(u) && !!u.cabang;
+    const sudah = pic ? (await deps.kv.get(kunciUnduhRekap(u.cabang, t.tanggal))) !== null : true;
+    return c.json(okPayload({ ...t, unduh_excel: pic && perluUnduhExcel(t, sudah) }));
+  });
+
+  // Penanda Excel rekap harian sudah diunduh (PIC CABANG, cabang dari sesi).
+  app.post('/rekap/unduh-harian', requireUser(deps), async (c: Ctx) => {
+    const u = c.get('user');
+    if (lihatSemuaCabang(u) || isSuper(u) || !u.cabang) throw new HttpError(403, 'Hanya untuk akun PIC CABANG.', 'FORBIDDEN');
+    const tanggal = todayWib();
+    await deps.kv.put(kunciUnduhRekap(u.cabang, tanggal), new Date().toISOString(), { expirationTtl: TTL_UNDUH_REKAP });
+    await deps.recordAudit({ user_id: u.user_id, username: u.username, action: 'UNDUH_HARIAN', modul: 'rekap', keterangan: `Unduh Excel rekap ${u.cabang} s.d. ${tanggal}` });
+    return c.json(okPayload({}));
   });
 
   app.get('/push/kunci', (c) => {

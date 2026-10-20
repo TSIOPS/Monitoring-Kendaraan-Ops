@@ -19,6 +19,8 @@ export interface RingkasanTugas {
   rekonsiliasi: number;
   // Jumlah jalur dari hari sebelumnya (dalam HARI_TERTUNGGAK hari) yang masih belum tuntas.
   tertunggak: number;
+  // Jumlah jalur bertanggal hari ini (semua status) dalam cakupan.
+  jalur_hari_ini: number;
   item: ItemTugas[];
 }
 
@@ -34,10 +36,12 @@ export function ringkasTugas(rows: JalurFull[], tanggal: string, cabang = ''): R
   const hari = tgl10(tanggal);
   const awal = awalRentangTugas(hari);
   const item: ItemTugas[] = [];
+  let jalurHariIni = 0;
   for (const r of rows) {
     const t = tgl10(r.tanggal);
     if (str(r.is_deleted) === '1' || t > hari || t < awal) continue;
     if (cabang && str(r.kode_cabang) !== cabang) continue;
+    if (t === hari) jalurHariIni++;
     const status = str(r.status) || STATUS_BELUM;
     const perlu: ItemTugas['perlu'] = [];
     if (status === STATUS_BELUM) perlu.push('LAPORAN');
@@ -53,6 +57,7 @@ export function ringkasTugas(rows: JalurFull[], tanggal: string, cabang = ''): R
     laporan: item.filter((i) => i.perlu.includes('LAPORAN')).length,
     rekonsiliasi: item.filter((i) => i.perlu.includes('REKONSILIASI')).length,
     tertunggak: item.filter((i) => i.tanggal < hari).length,
+    jalur_hari_ini: jalurHariIni,
     item,
   };
 }
@@ -69,4 +74,11 @@ export function teksTugas(r: Pick<RingkasanTugas, 'laporan' | 'rekonsiliasi'> & 
   if (r.rekonsiliasi) bagian.push(`${r.rekonsiliasi} rekonsiliasi`);
   if (!bagian.length) return '';
   return `${bagian.join(' & ')} belum selesai` + (r.tertunggak ? ` (${r.tertunggak} jalur dari hari sebelumnya)` : '');
+}
+
+// Pengingat unduh Excel (spec 2026-10-21 §3): semua tugas HARI INI selesai & belum diunduh.
+export const TTL_UNDUH_REKAP = 8 * 86_400;
+export const kunciUnduhRekap = (cabang: string, tanggal: string) => `unduh-rekap:${cabang}:${tgl10(tanggal)}`;
+export function perluUnduhExcel(r: RingkasanTugas, sudahUnduh: boolean): boolean {
+  return r.jalur_hari_ini > 0 && !r.item.some((i) => i.tanggal === r.tanggal) && !sudahUnduh;
 }

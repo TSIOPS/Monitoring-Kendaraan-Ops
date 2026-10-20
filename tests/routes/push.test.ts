@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildApp } from '../../src/app';
 import type { SessionUser } from '../../src/deps';
 import type { JalurFull } from '../../src/logic/jalur';
-import { ringkasTugas, teksTugas } from '../../src/logic/tugas';
+import { kunciUnduhRekap, perluUnduhExcel, ringkasTugas, teksTugas } from '../../src/logic/tugas';
 import { hashEndpoint, kirimPush, vapidJwt } from '../../src/push/webpush';
 import { kirimPengingatHarian } from '../../src/routes/push';
 import { authHeaders, fakeEnv, loginAs, makeDeps, memJalur } from '../helpers';
@@ -118,5 +118,42 @@ describe('jam tutup WIB', () => {
     expect(jamTutupWib(Date.parse('2026-10-17T08:30:00Z'))).toBe('16:00');
     expect(jamTutupWib(Date.parse('2026-10-18T08:30:00Z'))).toBe('16:00');
     expect(jamTutupWib(Date.parse('2026-10-19T09:30:00Z'))).toBe('17:00');
+  });
+});
+
+describe('pengingat unduh Excel', () => {
+  it('perluUnduhExcel: ada jalur hari ini, semua tugas hari ini selesai, belum unduh', () => {
+    const selesai = ringkasTugas([jalur({ status: 'SUDAH_LAPORAN' }), jalur({ id: 'B', flazz_card_id: 'F', status: 'SELESAI' })], HARI);
+    expect(selesai.jalur_hari_ini).toBe(2);
+    expect(perluUnduhExcel(selesai, false)).toBe(true);
+    expect(perluUnduhExcel(selesai, true)).toBe(false);
+    expect(perluUnduhExcel(ringkasTugas([jalur({})], HARI), false)).toBe(false);
+    expect(perluUnduhExcel(ringkasTugas([], HARI), false)).toBe(false);
+    // Tertunggak hari lain tidak menghalangi pengingat hari ini.
+    expect(perluUnduhExcel(ringkasTugas([jalur({ status: 'SUDAH_LAPORAN' }), jalur({ id: 'L', tanggal: '2026-10-06' })], HARI), false)).toBe(true);
+    expect(kunciUnduhRekap('CBG-A', HARI)).toBe('unduh-rekap:CBG-A:2026-10-07');
+  });
+
+  it('GET tugas-hari-ini: unduh_excel true untuk PIC, false setelah POST unduh-harian (audit tercatat)', async () => {
+    const hari = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+    const jl = memJalur([jalur({ tanggal: hari, status: 'SUDAH_LAPORAN' })] as any);
+    const { deps, kv, audits } = makeDeps({ jalur: jl.repo });
+    const app = buildApp(fakeEnv() as any, deps);
+    const tok = await loginAs(kv, PIC);
+    const t1 = (await (await app.request('/api/tugas-hari-ini', { headers: authHeaders(tok) })).json()) as any;
+    expect(t1.unduh_excel).toBe(true);
+    const res = await app.request('/api/rekap/unduh-harian', { method: 'POST', headers: { ...authHeaders(tok), 'Content-Type': 'application/json' }, body: '{}' });
+    expect(res.status).toBe(200);
+    expect(audits.at(-1)).toMatchObject({ action: 'UNDUH_HARIAN', modul: 'rekap' });
+    const t2 = (await (await app.request('/api/tugas-hari-ini', { headers: authHeaders(tok) })).json()) as any;
+    expect(t2.unduh_excel).toBe(false);
+  });
+
+  it('POST unduh-harian: SUPERADMIN 403', async () => {
+    const { deps, kv } = makeDeps({ jalur: memJalur([]).repo });
+    const app = buildApp(fakeEnv() as any, deps);
+    const tok = await loginAs(kv, { ...PIC, role: 'SUPERADMIN', cabang: '' });
+    const res = await app.request('/api/rekap/unduh-harian', { method: 'POST', headers: { ...authHeaders(tok), 'Content-Type': 'application/json' }, body: '{}' });
+    expect(res.status).toBe(403);
   });
 });

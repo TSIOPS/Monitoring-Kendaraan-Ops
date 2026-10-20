@@ -162,6 +162,7 @@ lihat `docs/superpowers/plans/2026-09-21-m3-laporan-transaksi-bbm.md`,
   diberi `?v=` agar logo baru tidak tertahan cache.
   (`GET /api/laporan/rekap-pengeluaran?dari=&sampai=&cabang=`).
   Berikutnya: cutover dari GAS.
+- **Pengingat unduh Excel** — `GET /api/tugas-hari-ini` memuat `jalur_hari_ini` dan `unduh_excel` (true untuk PIC CABANG bila semua tugas hari ini selesai dan Excel rekap belum diunduh); `POST /api/rekap/unduh-harian` (PIC CABANG saja; SUPERADMIN/MANAGEMENT 403) menandai sudah diunduh (penanda KV `unduh-rekap:<cabang>:<tanggal>`, TTL 8 hari) dan mencatat audit `UNDUH_HARIAN`.
 
 Catatan M5: tidak ada perubahan schema dan tidak ada upload evidence. Field
 bukti hanya `evidence_url` (URL http/https), sedangkan upload foto tetap hanya

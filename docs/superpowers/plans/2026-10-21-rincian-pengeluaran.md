@@ -856,7 +856,7 @@ function rincianRingkas(r) {
 - Modify: `src/logic/tugas.ts`, `src/routes/push.ts`
 - Test: `tests/routes/push.test.ts`
 
-- [ ] **Step 1: Tes gagal** — di `tests/routes/push.test.ts`:
+- [x] **Step 1: Tes gagal** — di `tests/routes/push.test.ts`:
 ```ts
 import { kunciUnduhRekap, perluUnduhExcel } from '../../src/logic/tugas';
 
@@ -898,8 +898,8 @@ describe('pengingat unduh Excel', () => {
 });
 ```
 (Pastikan `makeDeps` mengembalikan `audits`; sudah dipakai di `tests/routes/laporan.test.ts`.)
-- [ ] **Step 2:** tes → FAIL.
-- [ ] **Step 3: Implementasi**
+- [x] **Step 2:** tes → FAIL.
+- [x] **Step 3: Implementasi**
 
 `src/logic/tugas.ts`:
 - `RingkasanTugas` tambah `jalur_hari_ini: number;`.
@@ -936,8 +936,10 @@ export function perluUnduhExcel(r: RingkasanTugas, sudahUnduh: boolean): boolean
   });
 ```
   (Periksa signature `deps.recordAudit` di `src/deps.ts`; field `data_sebelum/data_sesudah` opsional.)
-- [ ] **Step 4:** tes → PASS; `npm test && npm run typecheck`.
-- [ ] **Step 5:** centang, CHANGELOG (Fitur), commit `feat(tugas): status & penanda unduh Excel rekap harian`, push.
+- [x] **Step 4:** tes → PASS; `npm test && npm run typecheck`.
+- [x] **Step 5:** centang, CHANGELOG (Fitur), commit `feat(tugas): status & penanda unduh Excel rekap harian`, push.
+
+> Catatan: tidak ada penyimpangan dari rencana; `ringkasTugas` hanya dipakai di `tugasUntuk` (push ringkasan & cron tidak terpengaruh).
 
 ---
 
