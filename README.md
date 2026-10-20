@@ -19,6 +19,23 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 3. Tambah `SUPABASE_URL` di section `vars` `wrangler.jsonc` (atau `.dev.vars` lokal).
 4. `npm run dev` untuk lokal; `npm run deploy` untuk rilis.
 
+## Checklist deploy (WAJIB dibaca sebelum `npm run deploy`)
+1. `git pull origin main` lalu `npm install`.
+2. `npm test` dan `npm run typecheck` harus hijau.
+3. **Jalankan SQL migrasi yang masih tertunda** (tabel di bawah) di Supabase SQL editor **sebelum** deploy,
+   lalu pindahkan barisnya ke bagian "Sudah dijalankan" dan commit.
+4. `npm run deploy`.
+
+### SQL migrasi tertunda
+| File | Untuk fitur | Status |
+|---|---|---|
+| `db/rincian-pengeluaran.sql` | Rincian pengeluaran per nota (spec `2026-10-21-rincian-pengeluaran-design.md`) | ⏳ belum dibuat — dibuat saat implementasi, jalankan sebelum deploy fitur ini |
+
+### Sudah dijalankan di production
+| File | Tanggal |
+|---|---|
+| _(catat di sini setelah dijalankan)_ | |
+
 ## Perintah
 | Script | Fungsi |
 |---|---|

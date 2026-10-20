@@ -20,7 +20,9 @@ Setelah perubahan apa pun (kode, skema DB, konfigurasi):
 2. **Tambahkan entri di [CHANGELOG.md](CHANGELOG.md)** (tanggal, kategori Keamanan/UX/Perbaikan/Fitur, ringkasan,
    file utama).
 3. **Perbarui README.md** bila mengubah setup, perintah, variabel env, atau catatan keamanan.
-4. **Perbarui file ini (CLAUDE.md)** bila aturan/kebiasaan proyek berubah.
+4. **File SQL baru di `db/`** (migrasi skema/data) wajib ditambahkan ke tabel "SQL migrasi tertunda" di
+   [README.md](README.md) bagian *Checklist deploy*, supaya tidak terlupa dijalankan sebelum deploy.
+5. **Perbarui file ini (CLAUDE.md)** bila aturan/kebiasaan proyek berubah.
 
 ## 3. Gerbang review wajib (jalankan sebelum commit)
 | Jenis perubahan | Wajib jalankan | Contoh pemicu |
