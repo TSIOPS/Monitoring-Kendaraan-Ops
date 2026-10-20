@@ -54,10 +54,12 @@ async function assertBelumDirekon(deps: AppDeps, old: { timestamp?: string | nul
 
 // Rincian per nota -> field slot lama di payload (p dimutasi) agar validasi POST/PUT yang ada tetap
 // berlaku. Kembalikan item bersih, atau null bila klien tidak mengirim rincian (klien lama). Galat -> 400.
-function terapkanRincian(p: Record<string, unknown>, labelKartu: (id: string) => string): R.RincianItem[] | null {
+// Kartu yang cocok kanonis dengan kartu master disimpan memakai id master.
+function terapkanRincian(p: Record<string, unknown>, cardMap: Map<string, FlazzCardRow>): R.RincianItem[] | null {
   if (p.rincian === undefined) return null;
-  const { items, galat } = R.normalRincian(p.rincian);
-  const { slot, galat: galatSlot } = R.rincianKeSlot(items, labelKartu);
+  const { items: mentah, galat } = R.normalRincian(p.rincian);
+  const items = mentah.map((it) => (it.kartu ? { ...it, kartu: cardMap.get(L.canonicalCardId(it.kartu))?.id ?? it.kartu } : it));
+  const { slot, galat: galatSlot } = R.rincianKeSlot(items, (id) => cardMap.get(L.canonicalCardId(id))?.card_name || id);
   const semua = galat.length ? galat : galatSlot;
   if (semua.length) throw new HttpError(400, semua.join(' '), 'BAD_REQUEST');
   Object.assign(p, slot);
@@ -219,8 +221,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   app.post('/', requireUser(deps), async (c) => {
     const u = c.get('user');
     const p = await readJson(c);
-    const kartuNama = (await loadCards(deps)).cardMap;
-    const rincian = terapkanRincian(p, (id) => kartuNama.get(L.canonicalCardId(id))?.card_name || id);
+    const { cardMap } = await loadCards(deps);
+    const rincian = terapkanRincian(p, cardMap);
 
     const vehicleId = String(p.vehicle_id ?? '').trim();
     const kendaraan = await deps.master.findKendaraanById(vehicleId);
@@ -295,7 +297,6 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       biayaTol2: L.num(p.biaya_toll_2),
     };
 
-    const { cardMap } = await loadCards(deps);
     const checks = L.buildFlazzChecks(metodeBbm, cardBbm, biayaBbm, effMetodeToll, effCardToll, biayaTol, group2)
       .map((chk) => ({ ...chk, cardId: cardMap.get(L.canonicalCardId(chk.cardId))?.id ?? chk.cardId }));
     for (const chk of checks) {
@@ -487,8 +488,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const u = c.get('user');
     const id = c.req.param('id');
     const p = await readJson(c);
-    const kartuNama = (await loadCards(deps)).cardMap;
-    const rincian = terapkanRincian(p, (id) => kartuNama.get(L.canonicalCardId(id))?.card_name || id);
+    const { cardMap } = await loadCards(deps);
+    const rincian = terapkanRincian(p, cardMap);
 
     const old = await deps.laporan.findById(id);
     if (!old) throw new HttpError(404, L.MSG_TRX_NOT_FOUND, 'NOT_FOUND');
@@ -503,13 +504,25 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const oldMetodeToll = String(old.metode_toll ?? '') !== '' ? String(old.metode_toll) : (oldMetode === 'FLAZZ' ? 'FLAZZ' : 'TUNAI');
     const oldCardToll = (oldMetodeToll === 'FLAZZ' && !String(old.flazz_card_id_toll ?? '')) ? oldCard : String(old.flazz_card_id_toll ?? '');
 
-    const { cardMap } = await loadCards(deps);
     const kendaraan = await deps.master.findKendaraanById(old.vehicle_id);
     const vehicleBranch = cabangAksesLaporan(kendaraan, old.kode_cabang);
     let branch = vehicleBranch;
     if (oldMetode === 'FLAZZ') branch = cardMap.get(L.canonicalCardId(oldCard))?.branch_id ?? vehicleBranch;
     else if (oldMetodeToll === 'FLAZZ' && oldCardToll) branch = cardMap.get(L.canonicalCardId(oldCardToll))?.branch_id ?? vehicleBranch;
     assertTransactionAccess(u, branch);
+
+    // Kartu dianggap "baru" hanya bila tidak ada di laporan lama (dibandingkan kanonis, bukan per
+    // slot): rincian yang diurutkan ulang memindahkan kartu antarslot tanpa menambah kartu baru.
+    const oldCard2 = String(old.flazz_card_id_2 ?? '');
+    const oldCardToll2 = String(old.flazz_card_id_toll_2 ?? '');
+    const oldBbm2 = L.num(old.biaya_bbm_2);
+    const oldTol2 = L.num(old.biaya_toll_2);
+    const oldPayState = {
+      metodeBbm: oldMetode, cardBbm: oldCard, biayaBbm: oldBiaya, metodeTol: oldMetodeToll, cardTol: oldCardToll, biayaTol: oldToll,
+      cardBbm2: oldCard2, biayaBbm2: oldBbm2, cardTol2: oldCardToll2, biayaTol2: oldTol2,
+    };
+    const kartuLama = new Set(L.distinctFlazzCardsOf(oldPayState).map((x) => L.canonicalCardId(x)));
+    const sudahAda = (cid: string) => kartuLama.has(L.canonicalCardId(cid));
 
     const newMetode = L.parseEditMethod(p.metode_pembayaran, oldMetode);
     const newBiaya = L.parseEditAmount(p.biaya_bbm, oldBiaya);
@@ -520,7 +533,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     if (newMetode === 'FLAZZ') {
       newCard = rawCard || (oldMetode === 'FLAZZ' ? oldCard : '');
       if (!newCard) throw new HttpError(400, L.MSG_PICK_FLAZZ, 'BAD_REQUEST');
-      if (newCard !== oldCard) {
+      if (newCard !== oldCard && !sudahAda(newCard)) {
         const target = cardMap.get(L.canonicalCardId(newCard));
         if (!target) throw new HttpError(400, L.MSG_CARD_TARGET_NOT_FOUND, 'BAD_REQUEST');
         assertFlazzAccess(u, target.branch_id);
@@ -533,7 +546,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     if (newMetodeToll === 'FLAZZ') {
       newCardToll = rawCardToll || (oldMetodeToll === 'FLAZZ' ? oldCardToll : '') || (newMetode === 'FLAZZ' ? newCard : '');
       if (!newCardToll) throw new HttpError(400, L.MSG_PICK_FLAZZ_TOLL, 'BAD_REQUEST');
-      if (newCardToll !== oldCardToll) {
+      if (newCardToll !== oldCardToll && !sudahAda(newCardToll)) {
         const target = cardMap.get(L.canonicalCardId(newCardToll));
         if (!target) throw new HttpError(400, L.MSG_CARD_TARGET_NOT_FOUND, 'BAD_REQUEST');
         assertFlazzAccess(u, target.branch_id);
@@ -542,16 +555,12 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
     // Grup-2 (kartu kedua): tidak ada metode, jadi tidak ada "wajib pilih kartu";
     // field yang tidak dikirim mempertahankan nilai lama.
-    const oldCard2 = String(old.flazz_card_id_2 ?? '');
-    const oldCardToll2 = String(old.flazz_card_id_toll_2 ?? '');
-    const oldBbm2 = L.num(old.biaya_bbm_2);
-    const oldTol2 = L.num(old.biaya_toll_2);
     const newCard2 = (p.flazz_card_id_2 !== undefined && p.flazz_card_id_2 !== null) ? String(p.flazz_card_id_2).trim() : oldCard2;
     const newCardToll2 = (p.flazz_card_id_toll_2 !== undefined && p.flazz_card_id_toll_2 !== null) ? String(p.flazz_card_id_toll_2).trim() : oldCardToll2;
     const newBbm2 = L.parseEditAmount(p.biaya_bbm_2, oldBbm2);
     const newTol2 = L.parseEditAmount(p.biaya_toll_2, oldTol2);
     for (const [baru, lama] of [[newCard2, oldCard2], [newCardToll2, oldCardToll2]] as const) {
-      if (!baru || baru === lama) continue;
+      if (!baru || baru === lama || sudahAda(baru)) continue;
       const target = cardMap.get(L.canonicalCardId(baru));
       if (!target) throw new HttpError(400, L.MSG_CARD2_TARGET_NOT_FOUND, 'BAD_REQUEST');
       assertFlazzAccess(u, target.branch_id);
@@ -559,9 +568,11 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
     // Kartu yang DIGANTI harus kartu jalur pengiriman tujuan laporan ini. Kartu lama dibiarkan
     // (data GAS lama boleh tidak konsisten); laporan tanpa jalur yang cocok tidak dicek.
-    const kartuBaru = [[newCard, oldCard], [newCardToll, oldCardToll], [newCard2, oldCard2], [newCardToll2, oldCardToll2]]
-      .filter(([baru, lama]) => baru && L.canonicalCardId(baru) !== L.canonicalCardId(lama))
-      .map(([baru]) => String(baru));
+    const newPayState = {
+      metodeBbm: newMetode, cardBbm: newCard, biayaBbm: newBiaya, metodeTol: newMetodeToll, cardTol: newCardToll, biayaTol: newToll,
+      cardBbm2: newCard2, biayaBbm2: newBbm2, cardTol2: newCardToll2, biayaTol2: newTol2,
+    };
+    const kartuBaru = L.distinctFlazzCardsOf(newPayState).filter((x) => !sudahAda(x));
     if (kartuBaru.length) {
       const tglCek = (p.tanggal !== undefined && p.tanggal !== '') ? String(p.tanggal) : String(old.tanggal);
       const namaCek = (p.nama_supir !== undefined && p.nama_supir !== null && String(p.nama_supir) !== '') ? String(p.nama_supir) : oldNama;
@@ -570,14 +581,6 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       if (pesan) throw new HttpError(409, pesan, 'CONFLICT');
     }
 
-    const oldPayState = {
-      metodeBbm: oldMetode, cardBbm: oldCard, biayaBbm: oldBiaya, metodeTol: oldMetodeToll, cardTol: oldCardToll, biayaTol: oldToll,
-      cardBbm2: oldCard2, biayaBbm2: oldBbm2, cardTol2: oldCardToll2, biayaTol2: oldTol2,
-    };
-    const newPayState = {
-      metodeBbm: newMetode, cardBbm: newCard, biayaBbm: newBiaya, metodeTol: newMetodeToll, cardTol: newCardToll, biayaTol: newToll,
-      cardBbm2: newCard2, biayaBbm2: newBbm2, cardTol2: newCardToll2, biayaTol2: newTol2,
-    };
     const involved = L.distinctFlazzCardsOf(oldPayState)
       .concat(L.distinctFlazzCardsOf(newPayState))
       .filter((x, i, a) => a.indexOf(x) === i);
@@ -708,7 +711,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     if (isTolFlazz && L.shouldAutoCreateUsageOnEdit(wasTolFlazz, isTolFlazz)) newly.push(newCardToll);
     if (newCard2 && L.shouldAutoCreateUsageOnEdit(!!oldCard2, true)) newly.push(newCard2);
     if (newCardToll2 && L.shouldAutoCreateUsageOnEdit(!!oldCardToll2, true)) newly.push(newCardToll2);
-    for (const cardId of newly.filter((x, i, a) => a.indexOf(x) === i)) {
+    for (const cardId of newly.filter((x, i, a) => a.indexOf(x) === i && !sudahAda(x))) {
       const info = cardMap.get(L.canonicalCardId(cardId));
       const masterId = info?.id ?? cardId;
       if (await deps.flazz.hasActiveUsage(masterId)) continue;

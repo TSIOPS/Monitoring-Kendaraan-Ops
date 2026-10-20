@@ -1059,6 +1059,48 @@ describe('rincian pengeluaran', () => {
     expect(lap.state.rows[0]!.rincian).toEqual(awal);
   });
 
+  it('PUT: kartu yang pindah slot (hapus baris tunai) bukan kartu baru -> tanpa usage baru', async () => {
+    const { app, kv, lap, flz } = setup({
+      rows: [{ transaction_id: 'TRX-1', metode_pembayaran: 'TUNAI', biaya_bbm: 100000, flazz_card_id_2: 'FLZ-1', biaya_bbm_2: 200000,
+        rincian: [{ jenis: 'BBM', nominal: 100000, kartu: '', keterangan: '' }, { jenis: 'BBM', nominal: 200000, kartu: 'FLZ-1', keterangan: '' }] }],
+      flazzCard: [flazzCard()],
+    });
+    const tok = await loginAs(kv, PIC);
+    const res = await put(app, '/api/laporan/TRX-1', tok, { rincian: [{ jenis: 'BBM', nominal: 200000, kartu: 'FLZ-1', keterangan: '' }] });
+    expect(res.status).toBe(200);
+    expect(lap.state.rows[0]).toMatchObject({ metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1', biaya_bbm: 200000, biaya_bbm_2: 0 });
+    expect(flz.state.usage).toHaveLength(0);
+    expect(flz.state.cards[0]!.last_balance).toBe(500000);
+  });
+
+  it('PUT laporan lama: urutan kartu berubah bukan kartu baru (tanpa cek jalur); kartu baru tetap dicek', async () => {
+    const { app, kv, lap } = setup({
+      rows: [{ transaction_id: 'TRX-1', metode_pembayaran: 'TUNAI', biaya_bbm: 100000, flazz_card_id_2: 'FLZ-2', biaya_bbm_2: 200000 }],
+      flazzCard: [flazzCard(), flazzCard({ id: 'FLZ-2', card_name: 'Kartu B' }), flazzCard({ id: 'FLZ-9', card_name: 'Kartu Lain' })],
+      jalur: [jalurRow({ tanggal: '2026-09-01', flazz_card_id: 'FLZ-1', flazz_card_id_2: '' } as any)],
+    });
+    const tok = await loginAs(kv, PIC);
+    const ok = await put(app, '/api/laporan/TRX-1', tok, { rincian: [
+      { jenis: 'BBM', nominal: 200000, kartu: 'FLZ-2', keterangan: '' }, { jenis: 'BBM', nominal: 100000, kartu: '', keterangan: '' },
+    ] });
+    expect(ok.status).toBe(200);
+    expect(lap.state.rows[0]).toMatchObject({ metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-2', biaya_bbm: 200000, biaya_bbm_2: 100000, flazz_card_id_2: '' });
+    const tolak = await put(app, '/api/laporan/TRX-1', tok, { rincian: [
+      { jenis: 'BBM', nominal: 200000, kartu: 'FLZ-2', keterangan: '' }, { jenis: 'BBM', nominal: 100000, kartu: 'FLZ-9', keterangan: '' },
+    ] });
+    expect(tolak.status).toBe(409);
+    expect(((await tolak.json()) as any).message).toContain('"Kartu Lain" tidak dikeluarkan di jalur');
+  });
+
+  it('PUT: kartu rincian disimpan memakai id master (penulisan kanonis)', async () => {
+    const { app, kv, lap } = setup({ rows: [{ transaction_id: 'TRX-1', metode_pembayaran: 'TUNAI', biaya_bbm: 100000 }], flazzCard: [flazzCard()] });
+    const tok = await loginAs(kv, PIC);
+    const res = await put(app, '/api/laporan/TRX-1', tok, { rincian: [{ jenis: 'BBM', nominal: 100000, kartu: 'FLZ1', keterangan: '' }] });
+    expect(res.status).toBe(200);
+    expect(lap.state.rows[0]!.rincian).toEqual([{ jenis: 'BBM', nominal: 100000, kartu: 'FLZ-1', keterangan: '' }]);
+    expect(lap.state.rows[0]!.flazz_card_id).toBe('FLZ-1');
+  });
+
   it('Lepas Flazz: baris BBM kartu itu jadi tunai, baris tol tetap', async () => {
     const { app, kv, lap } = setup({
       rows: [{ transaction_id: 'TRX-1', metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1', biaya_bbm: 100000, metode_toll: 'FLAZZ', flazz_card_id_toll: 'FLZ-1', biaya_toll: 5000,

@@ -7,6 +7,8 @@ import type { LaporanRow, RincianItem } from './laporan';
 export type { RincianItem };
 export const MAKS_BARIS = 30;
 export const MAKS_KETERANGAN = 100;
+export const MAKS_NOMINAL = 100_000_000;
+export const MAKS_KARTU = 64;
 export const MSG_RINCIAN_TIDAK_VALID = 'Rincian pengeluaran tidak valid.';
 export const MSG_RINCIAN_MAKS_BARIS = `Rincian pengeluaran maksimal ${MAKS_BARIS} baris.`;
 
@@ -26,11 +28,14 @@ export function normalRincian(raw: unknown): { items: RincianItem[]; galat: stri
     const jenis = String(o.jenis ?? '').trim().toUpperCase();
     const nominal = Math.round(num(o.nominal));
     const keterangan = String(o.keterangan ?? '').trim();
+    const kartu = String(o.kartu ?? '').trim();
     const n = i + 1;
     if (jenis !== 'BBM' && jenis !== 'TOL') galat.push(`Baris ${n}: jenis harus BBM atau Tol.`);
-    if (!(nominal > 0)) galat.push(`Baris ${n}: nominal harus lebih dari 0.`);
+    if (!Number.isFinite(nominal) || !(nominal > 0)) galat.push(`Baris ${n}: nominal harus lebih dari 0.`);
+    else if (nominal > MAKS_NOMINAL) galat.push(`Baris ${n}: nominal maksimal Rp 100.000.000.`);
+    if (kartu.length > MAKS_KARTU) galat.push(`Baris ${n}: kartu tidak valid.`);
     if (keterangan.length > MAKS_KETERANGAN) galat.push(`Baris ${n}: keterangan maksimal ${MAKS_KETERANGAN} karakter.`);
-    items.push({ jenis: jenis as RincianItem['jenis'], nominal, kartu: String(o.kartu ?? '').trim(), keterangan });
+    items.push({ jenis: jenis as RincianItem['jenis'], nominal, kartu, keterangan });
   });
   return { items, galat };
 }

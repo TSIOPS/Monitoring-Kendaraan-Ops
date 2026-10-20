@@ -26,6 +26,14 @@ describe('normalRincian', () => {
       'Baris 4: keterangan maksimal 100 karakter.',
     ]);
   });
+  it('nominal maksimal Rp 100.000.000 per baris, tak hingga ditolak, kartu maksimal 64 karakter', () => {
+    const r = normalRincian([B('BBM', 100000000), B('BBM', 100000001), B('TOL', Infinity), B('TOL', 1, 'K'.repeat(65)), B('TOL', 1, 'K'.repeat(64))]);
+    expect(r.galat).toEqual([
+      'Baris 2: nominal maksimal Rp 100.000.000.',
+      'Baris 3: nominal harus lebih dari 0.',
+      'Baris 4: kartu tidak valid.',
+    ]);
+  });
 });
 
 describe('rincianKeSlot', () => {
