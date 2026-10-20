@@ -522,7 +522,7 @@ export function namaFileRekap(dari, sampai, kodeWh) {
 - Create: `static/js/rincian.js`
 - Test: `tests/frontend/rincian-helpers.test.ts`
 
-- [ ] **Step 1: Tes gagal** — `tests/frontend/rincian-helpers.test.ts`:
+- [x] **Step 1: Tes gagal** — `tests/frontend/rincian-helpers.test.ts`:
 ```ts
 import { describe, expect, it } from 'vitest';
 import { ringkasRincian, validasiRincian, bersihkanRincian } from '../../static/js/rincian.js';
@@ -546,8 +546,8 @@ describe('rincian (klien)', () => {
   });
 });
 ```
-- [ ] **Step 2:** `npx vitest run tests/frontend/rincian-helpers.test.ts` → FAIL.
-- [ ] **Step 3: Implementasi** `static/js/rincian.js`:
+- [x] **Step 2:** `npx vitest run tests/frontend/rincian-helpers.test.ts` → FAIL.
+- [x] **Step 3: Implementasi** `static/js/rincian.js`:
 ```js
 import { el, fmtNum, bantuRupiah } from './ui.js';
 
@@ -660,8 +660,11 @@ export function tabelRincian({ opsiKartu = [], awal = [], onUbah = () => {} } = 
 }
 ```
 Catatan: `bantuRupiah` diimpor dari `ui.js` (sudah dipakai input.js). Komponen tidak dites (butuh DOM); diuji manual di Task 8/13.
-- [ ] **Step 4:** tes → PASS.
-- [ ] **Step 5:** `npm test && npm run typecheck`, centang, CHANGELOG, commit `feat(ui): helper dan komponen tabel rincian pengeluaran`, push.
+- [x] **Step 4:** tes → PASS.
+- [x] **Step 5:** `npm test && npm run typecheck`, centang, CHANGELOG, commit `feat(ui): helper dan komponen tabel rincian pengeluaran`, push.
+
+
+Catatan penyimpangan: tidak ada; kode sesuai rencana (labelKartu di `perbarui()` memakai daftar `kartu` terkini).
 
 ---
 
