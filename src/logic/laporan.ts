@@ -2,6 +2,8 @@
 // Tanpa I/O: tidak menyentuh env, Supabase, KV, atau Storage.
 import { thumbUrlOf } from './foto';
 
+export interface RincianItem { jenis: 'BBM' | 'TOL'; nominal: number; kartu: string; keterangan: string }
+
 export interface LaporanRow {
   seq?: number;
   transaction_id: string;
@@ -42,6 +44,8 @@ export interface LaporanRow {
   biaya_bbm_2: number;
   flazz_card_id_toll_2: string;
   biaya_toll_2: number;
+  // Rincian per nota (spec 2026-10-21); kosong/tidak ada = laporan lama, baca dari slot.
+  rincian?: RincianItem[];
 }
 export type LaporanInsert = Omit<LaporanRow, 'seq'>;
 

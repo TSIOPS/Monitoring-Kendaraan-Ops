@@ -74,7 +74,7 @@ README "SQL migrasi tertunda": ubah status baris `db/rincian-pengeluaran.sql` me
 - Modify: `src/logic/laporan.ts` (tipe)
 - Test: `tests/logic/rincian.test.ts`
 
-- [ ] **Step 1: Tes gagal** — `tests/logic/rincian.test.ts`:
+- [x] **Step 1: Tes gagal** — `tests/logic/rincian.test.ts`:
 ```ts
 import { describe, expect, it } from 'vitest';
 import { normalRincian, rincianKeSlot, slotKeRincian, rincianDariRow, MSG_RINCIAN_MAKS_BARIS } from '../../src/logic/rincian';
@@ -151,8 +151,8 @@ describe('slotKeRincian & rincianDariRow', () => {
   });
 });
 ```
-- [ ] **Step 2:** `npx vitest run tests/logic/rincian.test.ts` → FAIL (modul tidak ada).
-- [ ] **Step 3: Implementasi**
+- [x] **Step 2:** `npx vitest run tests/logic/rincian.test.ts` → FAIL (modul tidak ada).
+- [x] **Step 3: Implementasi**
 
 `src/logic/laporan.ts` — tambahkan tipe sebelum `export interface LaporanRow` dan field opsional di `LaporanRow` (setelah `biaya_toll_2: number;`):
 ```ts
@@ -253,8 +253,8 @@ export function rincianDariRow(row: LaporanRow): { items: RincianItem[]; lama: b
   return r.length ? { items: r, lama: false } : { items: slotKeRincian(row), lama: true };
 }
 ```
-- [ ] **Step 4:** `npx vitest run tests/logic/rincian.test.ts` → PASS. (Bila uji slot-lama gagal karena urutan grup: `cardGroups` mengembalikan grup-1 lalu grup-2 → BBM1, TOL1, BBM2 sesuai harapan.)
-- [ ] **Step 5:** `npm test && npm run typecheck`, centang, CHANGELOG, commit `feat(laporan): logika rincian pengeluaran per nota`, push.
+- [x] **Step 4:** `npx vitest run tests/logic/rincian.test.ts` → PASS. (Bila uji slot-lama gagal karena urutan grup: `cardGroups` mengembalikan grup-1 lalu grup-2 → BBM1, TOL1, BBM2 sesuai harapan.)
+- [x] **Step 5:** `npm test && npm run typecheck`, centang, CHANGELOG, commit `feat(laporan): logika rincian pengeluaran per nota`, push.
 
 ---
 

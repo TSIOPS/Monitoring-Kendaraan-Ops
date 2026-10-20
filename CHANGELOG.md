@@ -3,6 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-10-21
+- **Fitur** — Logika murni rincian pengeluaran per nota (normalisasi/validasi, rincian→slot, slot→rincian) + tipe `RincianItem`/`rincian` di `LaporanRow` — `src/logic/rincian.ts`, `src/logic/laporan.ts`, `tests/logic/rincian.test.ts`
 - **Fitur** — Kolom `rincian jsonb` di `penggunaan_bbm` (rincian pengeluaran per nota) + migrasi SQL + tes skema — `db/rincian-pengeluaran.sql`, `db/schema.sql`, `tests/schema.test.ts`
 - **Fitur** — Rencana implementasi rincian pengeluaran per nota, pengingat unduh Excel, dan notif versi baru (13 task) — `docs/superpowers/plans/2026-10-21-rincian-pengeluaran.md`, `CLAUDE.md`
 - **Fitur** — Spesifikasi rincian pengeluaran per nota + pengingat unduh Excel setelah rekon + pemberitahuan versi baru & "Yang baru" — `docs/superpowers/specs/2026-10-21-rincian-pengeluaran-design.md`
