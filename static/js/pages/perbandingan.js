@@ -277,7 +277,7 @@ export function susunExcelBanding(h, { dari = '', sampai = '' } = {}) {
       ['Periode', `${tglId(dari)} s.d. ${tglId(sampai)}`],
       ['Keterangan', 'BBM + tol, via etoll dan tunai (termasuk kartu ke-2 dan tol manual Flazz). Warehouse nonaktif tidak dihitung.'],
       [],
-      ['Kelompok', 'Jumlah Warehouse', 'Kendaraan', 'BBM (Rp)', 'Tol (Rp)', 'Etoll (Rp)', 'Tunai (Rp)', 'Total (Rp)', '% Total', 'Per Kendaraan (Rp)'],
+      ['Kelompok', 'Jumlah Warehouse', 'Kendaraan', 'BBM (Rp)', 'Tol (Rp)', 'Flazz (Rp)', 'Tunai (Rp)', 'Total (Rp)', '% Total', 'Per Kendaraan (Rp)'],
       ringkas(h.cabang),
       ringkas(h.pusat),
       ['Total', h.cabang.baris.length + h.pusat.baris.length, h.total.kendaraan, h.total.bbm, h.total.tol, h.total.etoll, h.total.tunai, h.total.total, h.total.persen, h.total.perKendaraan],
@@ -289,7 +289,7 @@ export function susunExcelBanding(h, { dari = '', sampai = '' } = {}) {
   const detail = {
     nama: 'Per Warehouse',
     aoa: [
-      ['No', 'Jenis', 'Warehouse', 'Kendaraan', 'BBM Etoll (Rp)', 'BBM Tunai (Rp)', 'Tol Etoll (Rp)', 'Tol Tunai (Rp)', 'BBM (Rp)', 'Tol (Rp)', 'Etoll (Rp)', 'Tunai (Rp)', 'Total (Rp)', '% Total', 'Per Kendaraan (Rp)'],
+      ['No', 'Jenis', 'Warehouse', 'Kendaraan', 'BBM Flazz (Rp)', 'BBM Tunai (Rp)', 'Tol Flazz (Rp)', 'Tol Tunai (Rp)', 'BBM (Rp)', 'Tol (Rp)', 'Flazz (Rp)', 'Tunai (Rp)', 'Total (Rp)', '% Total', 'Per Kendaraan (Rp)'],
       ...urut.map((w, i) => [i + 1, NAMA_JENIS[w.jenis], w.nama, w.kendaraan, w.bbmEtoll, w.bbmTunai, w.tolEtoll, w.tolTunai, w.bbm, w.tol, w.etoll, w.tunai, w.total, w.persen, w.perKendaraan]),
       ['', '', 'TOTAL', h.total.kendaraan, h.total.bbmEtoll, h.total.bbmTunai, h.total.tolEtoll, h.total.tolTunai, h.total.bbm, h.total.tol, h.total.etoll, h.total.tunai, h.total.total, h.total.persen, h.total.perKendaraan],
     ],
@@ -350,7 +350,7 @@ export function susunExcelRentang(h) {
   const detail = {
     nama: 'Rinci',
     aoa: [
-      ['Periode', 'Jenis', 'Warehouse', 'BBM Etoll (Rp)', 'BBM Tunai (Rp)', 'Tol Etoll (Rp)', 'Tol Tunai (Rp)', 'Total (Rp)'],
+      ['Periode', 'Jenis', 'Warehouse', 'BBM Flazz (Rp)', 'BBM Tunai (Rp)', 'Tol Flazz (Rp)', 'Tol Tunai (Rp)', 'Total (Rp)'],
       ...rinci,
       ['TOTAL', '', '', jumlah(3), jumlah(4), jumlah(5), jumlah(6), jumlah(7)],
     ],
@@ -405,7 +405,7 @@ export function susunExcelBulan(h) {
   const detail = {
     nama: 'Rinci',
     aoa: [
-      ['Bulan', 'Jenis', 'Warehouse', 'BBM Etoll (Rp)', 'BBM Tunai (Rp)', 'Tol Etoll (Rp)', 'Tol Tunai (Rp)', 'Total (Rp)'],
+      ['Bulan', 'Jenis', 'Warehouse', 'BBM Flazz (Rp)', 'BBM Tunai (Rp)', 'Tol Flazz (Rp)', 'Tol Tunai (Rp)', 'Total (Rp)'],
       ...rinci,
       ['TOTAL', '', '', jumlah(3), jumlah(4), jumlah(5), jumlah(6), jumlah(7)],
     ],
@@ -449,7 +449,7 @@ function tabelKelompok(k) {
   return el('div', { class: 'mb-4' }, [
     el('h3', { class: 'h6 fw-bold mb-2', text: `${LABEL[k.jenis]} — ${k.baris.length} warehouse` }),
     el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm table-hover align-middle' }, [
-      el('thead', { class: 'table-light' }, [el('tr', {}, ['Warehouse', 'Kendaraan', 'BBM', 'Tol', 'Etoll', 'Tunai', 'Total', '% Total', 'Per kendaraan'].map((h, i) => el('th', { class: i ? 'text-end' : '', text: h })))]),
+      el('thead', { class: 'table-light' }, [el('tr', {}, ['Warehouse', 'Kendaraan', 'BBM', 'Tol', 'Flazz', 'Tunai', 'Total', '% Total', 'Per kendaraan'].map((h, i) => el('th', { class: i ? 'text-end' : '', text: h })))]),
       el('tbody', {}, [
         ...k.baris.map((w) => el('tr', {}, [
           el('td', { class: 'fw-semibold', text: w.nama }),

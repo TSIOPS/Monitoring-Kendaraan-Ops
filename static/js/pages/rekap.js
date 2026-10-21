@@ -72,21 +72,21 @@ export function susunExcel(lines, { dari = '', sampai = '', warehouse = 'Semua W
       ['Periode', `${tglId(dari)} s.d. ${tglId(sampai)}`],
       ['Warehouse', warehouse],
       [],
-      ['Keterangan', 'Etoll (Rp)', 'Tunai (Rp)', 'Total (Rp)'],
+      ['Jenis', 'Flazz (Rp)', 'Tunai (Rp)', 'Total (Rp)'],
       ['BBM', r.bbmEtoll, r.bbmTunai, r.bbmEtoll + r.bbmTunai],
       ['Tol', r.tolEtoll, r.tolTunai, r.tolEtoll + r.tolTunai],
       ['Total', r.totalEtoll, r.totalTunai, r.total],
       [],
-      ['Jumlah pembayaran', r.jumlah],
+      ['Jumlah Pembayaran', r.jumlah],
     ],
     angka: { baris: [5, 6, 7], kolom: [1, 2, 3] },
   };
   const detail = {
     nama: 'Detail',
     aoa: [
-      ['No', 'Tanggal', 'Warehouse', 'Kendaraan', 'Supir', 'Jenis', 'Metode', 'Kartu Etoll', 'Nominal (Rp)', 'Keterangan', 'Sumber', 'Referensi'],
+      ['No', 'Tanggal', 'Warehouse', 'Kendaraan', 'Supir', 'Jenis', 'Metode', 'Kartu Flazz', 'Nominal (Rp)', 'Keterangan', 'Sumber', 'Referensi'],
       ...urut.map((l, i) => [i + 1, tglId(l.tanggal), wh(l.kode_cabang), t(l.plat_nomor) || '-', t(l.supir) || '-', l.jenis === 'TOL' ? 'Tol' : 'BBM',
-        l.metode === 'ETOLL' ? 'Etoll' : 'Tunai', t(l.kartu) || '-', Number(l.amount) || 0, t(l.keterangan) || '-', l.sumber === 'TOL_MANUAL' ? 'Tol manual Flazz' : 'Laporan harian', l.ref]),
+        l.metode === 'ETOLL' ? 'Flazz' : 'Tunai', t(l.kartu) || '-', Number(l.amount) || 0, t(l.keterangan) || '-', l.sumber === 'TOL_MANUAL' ? 'Tol manual Flazz' : 'Laporan harian', l.ref]),
       ['', '', '', '', '', '', '', 'TOTAL', r.total, '', '', ''],
     ],
     angka: { kolom: [8] },
@@ -94,9 +94,9 @@ export function susunExcel(lines, { dari = '', sampai = '', warehouse = 'Semua W
   };
   const kartu = kelompokRekap(lines, 'kartu');
   const perKartu = {
-    nama: 'Per Kartu Etoll',
+    nama: 'Per Kartu Flazz',
     aoa: [
-      ['No', 'Kartu Etoll', 'Warehouse', 'BBM (Rp)', 'Tol (Rp)', 'Total (Rp)', 'Jumlah Pembayaran'],
+      ['No', 'Kartu Flazz', 'Warehouse', 'BBM Flazz (Rp)', 'Tol Flazz (Rp)', 'Total (Rp)', 'Jumlah Pembayaran'],
       ...kartu.map((g, i) => [i + 1, t(g.label), g.cabang.split(', ').map(wh).join(', '), g.bbmEtoll, g.tolEtoll, g.total, g.jumlah]),
       ['', 'TOTAL', '', r.bbmEtoll, r.tolEtoll, r.totalEtoll, kartu.reduce((n, g) => n + g.jumlah, 0)],
     ],
@@ -107,7 +107,7 @@ export function susunExcel(lines, { dari = '', sampai = '', warehouse = 'Semua W
   const perKendaraan = {
     nama: 'Per Kendaraan',
     aoa: [
-      ['No', 'Kendaraan', 'Warehouse', 'BBM Etoll (Rp)', 'Tol Etoll (Rp)', 'BBM Tunai (Rp)', 'Tol Tunai (Rp)', 'Total (Rp)', 'Jumlah Pembayaran'],
+      ['No', 'Kendaraan', 'Warehouse', 'BBM Flazz (Rp)', 'Tol Flazz (Rp)', 'BBM Tunai (Rp)', 'Tol Tunai (Rp)', 'Total (Rp)', 'Jumlah Pembayaran'],
       ...kendaraan.map((g, i) => [i + 1, t(g.label), g.cabang.split(', ').map(wh).join(', '), g.bbmEtoll, g.tolEtoll, g.bbmTunai, g.tolTunai, g.total, g.jumlah]),
       ['', 'TOTAL', '', r.bbmEtoll, r.tolEtoll, r.bbmTunai, r.tolTunai, r.total, r.jumlah],
     ],
@@ -207,7 +207,7 @@ export async function renderRekap(view) {
     el('option', { value: '', text: 'Semua jenis' }), el('option', { value: 'BBM', text: 'BBM' }), el('option', { value: 'TOL', text: 'Tol' }),
   ]);
   const filterMetode = el('select', { class: 'form-select form-select-sm', style: 'width:auto', 'aria-label': 'Filter metode' }, [
-    el('option', { value: '', text: 'Semua metode' }), el('option', { value: 'ETOLL', text: 'Etoll' }), el('option', { value: 'TUNAI', text: 'Tunai' }),
+    el('option', { value: '', text: 'Semua metode' }), el('option', { value: 'ETOLL', text: 'Flazz' }), el('option', { value: 'TUNAI', text: 'Tunai' }),
   ]);
   filterJenis.addEventListener('change', () => { nomor = 1; gambarIsi(); });
   filterMetode.addEventListener('change', () => { nomor = 1; gambarIsi(); });
@@ -242,18 +242,18 @@ export async function renderRekap(view) {
     if (tab.aktif === 'kartu') {
       const grup = kelompokRekap(lines, 'kartu');
       isi.replaceChildren(grup.length ? el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-hover align-middle' }, [
-        th(['Kartu Etoll', 'Warehouse', 'BBM', 'Tol', 'Total', 'Pembayaran']),
+        th(['Kartu Flazz', 'Warehouse', 'BBM Flazz', 'Tol Flazz', 'Total', 'Jumlah Pembayaran']),
         el('tbody', {}, grup.map((g) => el('tr', {}, [
           el('td', { class: 'fw-bold', text: g.label }), el('td', { text: g.cabang || '-' }),
           angka(g.bbmEtoll), angka(g.tolEtoll), el('td', { class: 'text-end fw-bold', text: rp(g.total) }), el('td', { class: 'text-end', text: fmtNum(g.jumlah) }),
         ]))),
-      ])]) : el('div', { class: 'text-center text-muted py-4', text: 'Tidak ada pengeluaran etoll pada periode ini.' }));
+      ])]) : el('div', { class: 'text-center text-muted py-4', text: 'Tidak ada pengeluaran Flazz pada periode ini.' }));
       return;
     }
     if (tab.aktif === 'kendaraan') {
       const grup = kelompokRekap(lines, 'kendaraan');
       isi.replaceChildren(el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-hover align-middle' }, [
-        th(['Kendaraan', 'Warehouse', 'BBM Etoll', 'Tol Etoll', 'BBM Tunai', 'Tol Tunai', 'Total']),
+        th(['Kendaraan', 'Warehouse', 'BBM Flazz', 'Tol Flazz', 'BBM Tunai', 'Tol Tunai', 'Total']),
         el('tbody', {}, grup.map((g) => el('tr', {}, [
           el('td', { class: 'fw-bold', text: g.label }), el('td', { text: g.cabang || '-' }),
           angka(g.bbmEtoll), angka(g.tolEtoll), angka(g.bbmTunai), angka(g.tolTunai), el('td', { class: 'text-end fw-bold', text: rp(g.total) }),
@@ -267,12 +267,12 @@ export async function renderRekap(view) {
     isi.replaceChildren(
       el('div', { class: 'd-flex gap-2 mb-2' }, [filterJenis, filterMetode]),
       el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm table-hover align-middle' }, [
-        el('thead', { class: 'table-light' }, [el('tr', {}, ['Tanggal', 'Warehouse', 'Kendaraan', 'Supir', 'Jenis', 'Metode', 'Kartu Etoll', 'Nominal', 'Keterangan'].map((x, i) => el('th', { class: i === 7 ? 'text-end' : '', text: x })))]),
+        el('thead', { class: 'table-light' }, [el('tr', {}, ['Tanggal', 'Warehouse', 'Kendaraan', 'Supir', 'Jenis', 'Metode', 'Kartu Flazz', 'Nominal', 'Keterangan'].map((x, i) => el('th', { class: i === 7 ? 'text-end' : '', text: x })))]),
         el('tbody', {}, h.isi.map((l) => el('tr', {}, [
           el('td', { text: fmtDateId(l.tanggal) }), el('td', { text: l.kode_cabang || '-' }), el('td', { text: l.plat_nomor || '-' }),
           el('td', { text: l.supir || '-' }),
           el('td', {}, [l.jenis, l.sumber === 'TOL_MANUAL' ? el('span', { class: 'badge text-bg-light border ms-1', title: 'Dicatat di modul Flazz', text: 'manual' }) : null]),
-          el('td', {}, [el('span', { class: `badge ${l.metode === 'ETOLL' ? 'text-bg-primary' : 'text-bg-warning'}`, text: l.metode === 'ETOLL' ? 'Etoll' : 'Tunai' })]),
+          el('td', {}, [el('span', { class: `badge ${l.metode === 'ETOLL' ? 'text-bg-primary' : 'text-bg-warning'}`, text: l.metode === 'ETOLL' ? 'Flazz' : 'Tunai' })]),
           el('td', { text: l.kartu || '-' }),
           el('td', { class: 'text-end', text: rp(l.amount) }),
           el('td', { class: 'small text-muted', text: l.keterangan || '-' }),
@@ -282,7 +282,7 @@ export async function renderRekap(view) {
     );
   }
 
-  const tabTombol = [['kartu', 'Per Kartu Etoll'], ['kendaraan', 'Per Kendaraan'], ['detail', 'Detail Transaksi']].map(([key, label]) => {
+  const tabTombol = [['kartu', 'Per Kartu Flazz'], ['kendaraan', 'Per Kendaraan'], ['detail', 'Detail Transaksi']].map(([key, label]) => {
     const b = el('button', { type: 'button', class: 'btn btn-sm', text: label });
     b.addEventListener('click', () => { tab.aktif = key; nomor = 1; gambarTab(); });
     return { key, b };

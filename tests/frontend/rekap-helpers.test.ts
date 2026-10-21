@@ -24,9 +24,9 @@ describe('rekap pengeluaran', () => {
   it('Excel: 4 sheet, nominal berformat ribuan, total, nama warehouse, autofilter', () => {
     const sheets = susunExcel(lines, { dari: '2026-10-01', sampai: '2026-10-06', warehouse: 'WHO BANDUNG', namaCabang: { BDG: 'WHO BANDUNG' } });
     const wb = XLSX.read(XLSX.write(bukuExcel(XLSX, sheets), { type: 'array', bookType: 'xlsx' }), { type: 'array', cellNF: true });
-    expect(wb.SheetNames).toEqual(['Ringkasan', 'Detail', 'Per Kartu Etoll', 'Per Kendaraan']);
+    expect(wb.SheetNames).toEqual(['Ringkasan', 'Detail', 'Per Kartu Flazz', 'Per Kendaraan']);
     const det = wb.Sheets.Detail!;
-    expect(XLSX.utils.sheet_to_json(det, { header: 1 })[1]).toEqual([1, '01/10/2026', 'WHO BANDUNG (BDG)', 'D 1 A', 'Agus', 'BBM', 'Etoll', 'E toll 1', 200000, '-', 'Laporan harian', 'TRX-1']);
+    expect(XLSX.utils.sheet_to_json(det, { header: 1 })[1]).toEqual([1, '01/10/2026', 'WHO BANDUNG (BDG)', 'D 1 A', 'Agus', 'BBM', 'Flazz', 'E toll 1', 200000, '-', 'Laporan harian', 'TRX-1']);
     expect(det.I2!.z).toBe('#,##0');
     expect(det.I6!.v).toBe(322000);
     expect(det['!autofilter']!.ref).toBe('A1:L5');
