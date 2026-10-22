@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rekapPengeluaran } from '../../src/logic/rekap';
+import { rekapPengeluaran, rekapTopup } from '../../src/logic/rekap';
 
 const row = (over: Record<string, unknown>) => ({
   transaction_id: 'TRX-1', tanggal: '2026-10-01', kode_cabang: 'BDG', vehicle_id: 'V-1', plat_nomor: 'D 1 A', nama_supir: 'Agus',
@@ -63,5 +63,25 @@ describe('rekapPengeluaran', () => {
     ];
     expect(rekapPengeluaran({ ...dasar, rows }).map((l) => l.ref)).toEqual(['B', 'C']);
     expect(rekapPengeluaran({ ...dasar, rows, cabang: 'JKT' }).map((l) => l.ref)).toEqual(['C']);
+  });
+});
+
+describe('rekapTopup', () => {
+  const kartu = [{ id: 'FLZ-1', card_name: 'E toll 1', card_number: '0145', branch_id: 'BDG' }, { id: 'FLZ-2', card_name: 'E toll 2', card_number: '0146', branch_id: 'JKT' }];
+  const tp = (over: Record<string, unknown>) => ({ id: 'TP-1', date: '2026-10-05', card_id: 'FLZ-1', amount: 500000, evidence_url: 'u', notes: '', created_by: 'agus', ...over });
+  const nama = new Map([['agus', 'Agus Setiawan']]);
+  it('menyaring rentang & warehouse, mengurutkan tanggal, memberi nama kartu/pencatat/bukti', () => {
+    const out = rekapTopup({
+      topups: [tp({ id: 'a', date: '2026-10-09' }), tp({ id: 'b', date: '2026-09-30' }), tp({ id: 'c', card_id: 'FLZ-2' }), tp({ id: 'd', evidence_url: '', created_by: 'x' })],
+      cards: kartu, namaPengguna: nama, dari: '2026-10-01', sampai: '2026-10-31', cabang: 'BDG',
+    });
+    expect(out.map((t) => [t.id, t.tanggal, t.kode_cabang, t.kartu, t.nominal, t.dicatat_oleh, t.ada_bukti])).toEqual([
+      ['d', '2026-10-05', 'BDG', 'E toll 1', 500000, 'x', false],
+      ['a', '2026-10-09', 'BDG', 'E toll 1', 500000, 'Agus Setiawan', true],
+    ]);
+  });
+  it('tanpa filter warehouse: semua cabang; kartu tak dikenal tetap tampil', () => {
+    const out = rekapTopup({ topups: [tp({ card_id: 'FLZ-9' }), tp({ id: 'c', card_id: 'FLZ-2' })], cards: kartu, namaPengguna: nama, dari: '2026-10-01', sampai: '2026-10-31', cabang: '' });
+    expect(out.map((t) => [t.kartu, t.kode_cabang])).toEqual([['FLZ-9', ''], ['E toll 2', 'JKT']]);
   });
 });

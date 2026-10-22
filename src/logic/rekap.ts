@@ -87,3 +87,50 @@ export function rekapPengeluaran(input: RekapInput): RekapLine[] {
 
   return out.sort((a, b) => b.tanggal.localeCompare(a.tanggal) || a.plat_nomor.localeCompare(b.plat_nomor));
 }
+
+// Rekap top up Flazz: satu baris per top up (tidak terhapus), urut tanggal terlama.
+export interface RekapTopupInput {
+  topups: { id: string; date: string; card_id: string; amount: number; evidence_url?: string; notes?: string; created_by?: string }[];
+  cards: RekapCard[];
+  namaPengguna: Map<string, string>;
+  dari: string;
+  sampai: string;
+  cabang: string; // '' = semua warehouse
+}
+
+export interface RekapTopupLine {
+  id: string;
+  tanggal: string;
+  kode_cabang: string;
+  card_id: string;
+  kartu: string;
+  nominal: number;
+  keterangan: string;
+  dicatat_oleh: string;
+  ada_bukti: boolean;
+}
+
+export function rekapTopup(input: RekapTopupInput): RekapTopupLine[] {
+  const kartuById = new Map(input.cards.map((c) => [canonicalCardId(c.id), c]));
+  const out: RekapTopupLine[] = [];
+  for (const t of input.topups) {
+    const tanggal = tgl10(t.date);
+    if ((input.dari && tanggal < input.dari) || (input.sampai && tanggal > input.sampai)) continue;
+    const kartu = kartuById.get(canonicalCardId(t.card_id));
+    const kode = String(kartu?.branch_id ?? '');
+    if (input.cabang && kode !== input.cabang) continue;
+    const oleh = String(t.created_by ?? '');
+    out.push({
+      id: t.id,
+      tanggal,
+      kode_cabang: kode,
+      card_id: t.card_id,
+      kartu: kartu ? String(kartu.card_name || kartu.card_number || kartu.id) : t.card_id,
+      nominal: num(t.amount),
+      keterangan: String(t.notes ?? ''),
+      dicatat_oleh: input.namaPengguna.get(oleh) ?? oleh,
+      ada_bukti: Boolean(t.evidence_url),
+    });
+  }
+  return out.sort((a, b) => a.tanggal.localeCompare(b.tanggal));
+}

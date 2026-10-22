@@ -32,13 +32,13 @@ const saveBody = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-function setup(init: { jalur?: JalurRow[]; flazzCard?: FlazzCardRow[]; rows?: Parameters<typeof laporanRow>[0][] } = {}) {
+function setup(init: { jalur?: JalurRow[]; flazzCard?: FlazzCardRow[]; topups?: any[]; rows?: Parameters<typeof laporanRow>[0][] } = {}) {
   const master = memMaster({ cabang: [{ kode_cabang: 'CBG-A', nama_cabang: 'Cabang A', lokasi: '', status: 'Aktif' }], kendaraan: [VEHICLE_ROW] });
   const lap = memLaporan({
     jalur: init.jalur ?? [jalurRow()],
     rows: (init.rows ?? []).map((r) => laporanRow(r)),
   });
-  const flz = memFlazz({ cards: init.flazzCard ?? [] });
+  const flz = memFlazz({ cards: init.flazzCard ?? [], topups: init.topups ?? [] });
   const { deps, kv, audits, storage } = makeDeps({ master: master.repo, laporan: lap.repo, flazz: flz.repo });
   const app = buildApp(fakeEnv() as any, deps);
   return { app, kv, audits, master, lap, flz, storage };
@@ -915,6 +915,21 @@ describe('GET /api/laporan/rekap-pengeluaran', () => {
     const pic = await loginAs(kv, PIC);
     const p = await (await rekap(app, pic, '?dari=2026-10-01&sampai=2026-10-31&cabang=CBG-B')).json() as any;
     expect(p.lines.map((l: any) => [l.ref, l.jenis, l.metode, l.amount])).toEqual([['TRX-A', 'BBM', 'TUNAI', 100000]]);
+  });
+
+  it('menyertakan top up Flazz sesuai rentang & warehouse; PIC hanya cabangnya', async () => {
+    const topups = [
+      { id: 'TP-1', date: '2026-10-02', card_id: 'FLZ-1', amount: 500000, evidence_url: 'u', notes: 'isi', created_by: 'pic', is_deleted: '' },
+      { id: 'TP-2', date: '2026-10-03', card_id: 'FLZ-2', amount: 300000, evidence_url: '', notes: '', created_by: 'x', is_deleted: '' },
+      { id: 'TP-3', date: '2026-09-30', card_id: 'FLZ-1', amount: 100000, evidence_url: 'u', notes: '', created_by: 'pic', is_deleted: '' },
+    ];
+    const { app, kv } = setup({ rows, topups, flazzCard: [flazzCard({ id: 'FLZ-1', branch_id: 'CBG-A' }), flazzCard({ id: 'FLZ-2', card_name: 'Kartu B', branch_id: 'CBG-B' })] });
+    const sup = await loginAs(kv, SUPER);
+    const semua = await (await rekap(app, sup, '?dari=2026-10-01&sampai=2026-10-31')).json() as any;
+    expect(semua.topups.map((t: any) => [t.id, t.kode_cabang, t.nominal, t.ada_bukti])).toEqual([['TP-1', 'CBG-A', 500000, true], ['TP-2', 'CBG-B', 300000, false]]);
+    const pic = await loginAs(kv, PIC);
+    const p = await (await rekap(app, pic, '?dari=2026-10-01&sampai=2026-10-31&cabang=CBG-B')).json() as any;
+    expect(p.topups.map((t: any) => t.id)).toEqual(['TP-1']);
   });
 
   it('tanggal wajib dan berurutan', async () => {

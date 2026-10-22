@@ -16,7 +16,7 @@ import * as L from '../logic/laporan';
 import * as R from '../logic/rincian';
 import { buildOdoMap, computeWarnings, ringkasanPeringatan } from '../logic/warnings';
 import { todayWib } from '../logic/jalur';
-import { rekapPengeluaran } from '../logic/rekap';
+import { rekapPengeluaran, rekapTopup } from '../logic/rekap';
 import { laporanTerkunciRekon, tandaiKunciRekon } from '../logic/flazz-recon';
 import { bolehPakai, cabangPemakai, gabungKonteks, idBersamaUntuk } from '../logic/kendaraan-bersama';
 import type { WarningItem, WarningVehicle } from '../logic/warnings';
@@ -460,16 +460,19 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     if (!pola.test(dari) || !pola.test(sampai)) throw new HttpError(400, 'Rentang tanggal (dari & sampai) wajib diisi.', 'BAD_REQUEST');
     if (dari > sampai) throw new HttpError(400, 'Tanggal "dari" tidak boleh setelah tanggal "sampai".', 'BAD_REQUEST');
     const cabang = lihatSemuaCabang(u) ? String(c.req.query('cabang') ?? '') : u.cabang;
-    if (!lihatSemuaCabang(u) && !cabang) return c.json(okPayload({ lines: [] }));
-    const [rows, tols, cards, all] = await Promise.all([
+    if (!lihatSemuaCabang(u) && !cabang) return c.json(okPayload({ lines: [], topups: [] }));
+    const [rows, tols, cards, all, topupRows] = await Promise.all([
       deps.laporan.rowsBetween(cabang, dari, sampai),
       deps.flazz.listTols(),
       deps.flazz.listCards(),
       deps.master.listAll(),
+      deps.flazz.listTopups(),
     ]);
     const platByVehicle = new Map(all.kendaraan.map((k) => [String(k.vehicle_id), String(k.plat_nomor ?? '')]));
     const lines = rekapPengeluaran({ rows, tols, cards, platByVehicle, dari, sampai, cabang });
-    return c.json(okPayload({ lines }));
+    const namaPengguna = new Map(all.pengguna.map((p) => [String(p.username), String(p.nama || p.username)]));
+    const topups = rekapTopup({ topups: topupRows, cards, namaPengguna, dari, sampai, cabang });
+    return c.json(okPayload({ lines, topups }));
   });
 
   // ── GET /api/laporan/:id (halaman edit; tidak terbatas 200 transaksi terbaru) ──

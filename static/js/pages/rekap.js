@@ -59,7 +59,24 @@ const tglId = (t) => {
 };
 
 /** @param {any[]} lines @param {{ dari?: string, sampai?: string, warehouse?: string, namaCabang?: Record<string, string> }} [opsi] */
-export function susunExcel(lines, { dari = '', sampai = '', warehouse = 'Semua Warehouse', namaCabang = {} } = {}) {
+// Sheet 'Top Up Flazz': satu baris per top up, urut tanggal terlama, ditutup baris TOTAL.
+export function sheetTopup(topups, wh = (k) => k || '-') {
+  const t = (v) => String(v ?? '').trim();
+  const urut = [...topups].sort((x, y) => t(x.tanggal).localeCompare(t(y.tanggal)));
+  const total = urut.reduce((n, x) => n + (Number(x.nominal) || 0), 0);
+  return {
+    nama: 'Top Up Flazz',
+    aoa: [
+      ['No', 'Tanggal', 'Warehouse', 'Kartu Flazz', 'Nominal (Rp)', 'Keterangan', 'Dicatat oleh', 'Bukti'],
+      ...urut.map((x, i) => [i + 1, tglId(x.tanggal), wh(x.kode_cabang), t(x.kartu) || '-', Number(x.nominal) || 0, t(x.keterangan) || '-', t(x.dicatat_oleh) || '-', x.ada_bukti ? 'Ada' : 'Tidak ada']),
+      ['', '', '', 'TOTAL', total, '', '', ''],
+    ],
+    angka: { kolom: [4] },
+    filter: true,
+  };
+}
+
+export function susunExcel(lines, { dari = '', sampai = '', warehouse = 'Semua Warehouse', namaCabang = {}, topups = /** @type {any[] | undefined} */ (undefined) } = {}) {
   const wh = (kode) => (kode ? (namaCabang[kode] ? `${namaCabang[kode]} (${kode})` : kode) : '-');
   // Teks dari data lama kadang berspasi di tepi; Detail diurutkan dari tanggal terlama.
   const t = (v) => String(v ?? '').trim();
@@ -114,7 +131,9 @@ export function susunExcel(lines, { dari = '', sampai = '', warehouse = 'Semua W
     angka: { kolom: [3, 4, 5, 6, 7] },
     filter: true,
   };
-  return [ringkasan, detail, perKartu, perKendaraan];
+  const sheets = [ringkasan, detail, perKartu, perKendaraan];
+  if (Array.isArray(topups)) sheets.push(sheetTopup(topups, wh));
+  return sheets;
 }
 
 // Lebar kolom mengikuti isi terpanjang (karakter), dibatasi 6..45.
@@ -200,6 +219,7 @@ export async function renderRekap(view) {
   const isi = el('div', {});
   const tab = { aktif: 'kartu' };
   let lines = [];
+  let topups = [];
   // Filter yang menghasilkan `lines` saat ini; Excel mengikuti data yang tampil, bukan isian filter terbaru.
   let filterDimuat = { dari: '', sampai: '', wh: '' };
   let nomor = 1;
@@ -234,7 +254,31 @@ export async function renderRekap(view) {
   const th = (cols) => el('thead', { class: 'table-light' }, [el('tr', {}, cols.map((h, i) => el('th', { class: i > 1 ? 'text-end' : '', text: h })))]);
   const angka = (n) => el('td', { class: 'text-end', text: n ? rp(n) : '-' });
 
+  function gambarTopup() {
+    if (!topups.length) {
+      isi.replaceChildren(el('div', { class: 'text-center text-muted py-4', text: 'Tidak ada top up Flazz pada periode ini.' }));
+      return;
+    }
+    const total = topups.reduce((n, x) => n + (Number(x.nominal) || 0), 0);
+    const h = halaman(topups, nomor, PER_HALAMAN);
+    nomor = h.aktif;
+    isi.replaceChildren(
+      el('div', { class: 'mb-2 fw-bold', text: `Total top up: ${rp(total)} (${fmtNum(topups.length)} kali)` }),
+      el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm table-hover align-middle' }, [
+        el('thead', { class: 'table-light' }, [el('tr', {}, ['Tanggal', 'Warehouse', 'Kartu Flazz', 'Nominal', 'Keterangan', 'Dicatat oleh', 'Bukti'].map((x, i) => el('th', { class: i === 3 ? 'text-end' : '', text: x })))]),
+        el('tbody', {}, h.isi.map((x) => el('tr', {}, [
+          el('td', { text: fmtDateId(x.tanggal) }), el('td', { text: x.kode_cabang || '-' }), el('td', { text: x.kartu || '-' }),
+          el('td', { class: 'text-end', text: rp(x.nominal) }),
+          el('td', { class: 'small text-muted', text: x.keterangan || '-' }), el('td', { class: 'small', text: x.dicatat_oleh || '-' }),
+          el('td', {}, [el('span', { class: `badge ${x.ada_bukti ? 'text-bg-success' : 'text-bg-danger'}`, text: x.ada_bukti ? 'Ada' : 'Tidak ada' })]),
+        ]))),
+      ])]),
+      navHalaman(h.total, h.aktif, (ke) => { nomor = ke; gambarIsi(); }),
+    );
+  }
+
   function gambarIsi() {
+    if (tab.aktif === 'topup') { gambarTopup(); return; }
     if (!lines.length) {
       isi.replaceChildren(el('div', { class: 'text-center text-muted py-4', text: 'Tidak ada pengeluaran pada periode ini.' }));
       return;
@@ -282,7 +326,7 @@ export async function renderRekap(view) {
     );
   }
 
-  const tabTombol = [['kartu', 'Per Kartu Flazz'], ['kendaraan', 'Per Kendaraan'], ['detail', 'Detail Transaksi']].map(([key, label]) => {
+  const tabTombol = [['kartu', 'Per Kartu Flazz'], ['kendaraan', 'Per Kendaraan'], ['detail', 'Detail Transaksi'], ['topup', 'Top Up Flazz']].map(([key, label]) => {
     const b = el('button', { type: 'button', class: 'btn btn-sm', text: label });
     b.addEventListener('click', () => { tab.aktif = key; nomor = 1; gambarTab(); });
     return { key, b };
@@ -299,7 +343,7 @@ export async function renderRekap(view) {
     try {
       const q = new URLSearchParams({ dari: dari.value, sampai: sampai.value });
       if (semua && wh.value) q.set('cabang', wh.value);
-      ({ lines = [] } = await get(`/api/laporan/rekap-pengeluaran?${q}`));
+      ({ lines = [], topups = [] } = await get(`/api/laporan/rekap-pengeluaran?${q}`));
       filterDimuat = { dari: dari.value, sampai: sampai.value, wh: semua ? wh.value : String(getUser()?.cabang || '') };
       nomor = 1;
       gambarRingkasan();
@@ -312,14 +356,14 @@ export async function renderRekap(view) {
   }
   tombol.addEventListener('click', muat);
   unduh.addEventListener('click', async () => {
-    if (!lines.length) { toast('Tidak ada data untuk diunduh.', 'error'); return; }
+    if (!lines.length && !topups.length) { toast('Tidak ada data untuk diunduh.', 'error'); return; }
     if ((dari.value !== filterDimuat.dari || sampai.value !== filterDimuat.sampai || (semua && wh.value !== filterDimuat.wh)) &&
         !confirmDialog(`Filter belum diterapkan. File akan berisi data yang sedang tampil: ${fmtDateId(filterDimuat.dari)} s/d ${fmtDateId(filterDimuat.sampai)}. Lanjut unduh?`)) return;
     unduh.disabled = true;
     try {
       const XLSX = await muatSheetJS();
       const { dari: d, sampai: s, wh: kodeWh } = filterDimuat;
-      const sheets = susunExcel(lines, { dari: d, sampai: s, warehouse: kodeWh ? namaCabang[kodeWh] || kodeWh : 'Semua Warehouse', namaCabang });
+      const sheets = susunExcel(lines, { dari: d, sampai: s, warehouse: kodeWh ? namaCabang[kodeWh] || kodeWh : 'Semua Warehouse', namaCabang, topups });
       XLSX.writeFile(bukuExcel(XLSX, sheets), namaFileRekap(d, s, kodeWh));
     } catch (err) {
       toast(err.message || 'Gagal membuat file Excel.', 'error');

@@ -14,8 +14,8 @@ describe('versi & rilis', () => {
     expect(perluTampilRilis([{ id: 'r2' }], 'r2')).toBe(false);
     expect(perluTampilRilis([], null)).toBe(false);
   });
-  it('catatan rilis terbaru = penyeragaman header Flazz', () => {
-    expect(RILIS[0]!.id).toBe('2026-10-21-header-flazz');
+  it('catatan rilis terbaru = rekap top up Flazz', () => {
+    expect(RILIS[0]!.id).toBe('2026-10-22-topup-flazz');
     expect(RILIS[0]!.poin.length).toBeGreaterThan(0);
   });
 });

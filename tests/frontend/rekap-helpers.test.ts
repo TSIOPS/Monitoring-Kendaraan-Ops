@@ -49,3 +49,20 @@ describe('rekap: plat berspasi', () => {
     expect(g.map((x) => [x.label, x.total])).toEqual([['D 8854 FD', 3]]);
   });
 });
+
+describe('sheet Top Up Flazz', () => {
+  const tp = [
+    { tanggal: '2026-10-09', kode_cabang: 'BDG', kartu: 'E toll 1', nominal: 300000, keterangan: '', dicatat_oleh: 'Agus Setiawan', ada_bukti: false },
+    { tanggal: '2026-10-02', kode_cabang: 'BDG', kartu: 'E toll 1', nominal: 500000, keterangan: 'isi awal', dicatat_oleh: 'Agus Setiawan', ada_bukti: true },
+  ];
+  it('hanya muncul bila topups diberikan; urut tanggal terlama, ada baris TOTAL', () => {
+    expect(susunExcel(lines).map((s: any) => s.nama)).toEqual(['Ringkasan', 'Detail', 'Per Kartu Flazz', 'Per Kendaraan']);
+    const sheets = susunExcel(lines, { topups: tp, namaCabang: { BDG: 'WHO BANDUNG' } });
+    const s = sheets.at(-1)!;
+    expect(s.nama).toBe('Top Up Flazz');
+    expect(s.aoa[0]).toEqual(['No', 'Tanggal', 'Warehouse', 'Kartu Flazz', 'Nominal (Rp)', 'Keterangan', 'Dicatat oleh', 'Bukti']);
+    expect(s.aoa[1]).toEqual([1, '02/10/2026', 'WHO BANDUNG (BDG)', 'E toll 1', 500000, 'isi awal', 'Agus Setiawan', 'Ada']);
+    expect(s.aoa[2]![7]).toBe('Tidak ada');
+    expect(s.aoa.at(-1)).toEqual(['', '', '', 'TOTAL', 800000, '', '', '']);
+  });
+});
