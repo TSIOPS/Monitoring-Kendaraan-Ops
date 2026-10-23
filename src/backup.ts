@@ -6,7 +6,8 @@ import type { Env } from './env';
 //   npx wrangler r2 object get monitoring-backup/backup/<tanggal>/<tabel>-0.json --remote
 
 export const TABEL_BACKUP = ['cabang', 'supir', 'bbm', 'pengguna', 'kendaraan', 'penggunaan_bbm', 'pengisian_bbm', 'foto_evidence',
-  'audit_log', 'konfigurasi', 'pengaturan', 'flazz_card', 'flazz_usage', 'flazz_topup', 'flazz_tol', 'flazz_reconciliation', 'jalur_pengiriman'];
+  'audit_log', 'konfigurasi', 'pengaturan', 'flazz_card', 'flazz_usage', 'flazz_topup', 'flazz_tol', 'flazz_reconciliation', 'jalur_pengiriman',
+  'kas_jenis', 'kas_keluar', 'kas_masuk', 'kas_saldo_awal', 'kas_opname'];
 export const SIMPAN_HARI = 30;
 
 // Tanggal WIB (YYYY-MM-DD) untuk nama folder.

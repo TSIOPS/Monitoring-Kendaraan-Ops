@@ -21,6 +21,11 @@ const REQUIRED_TABLES = [
   'flazz_tol',
   'flazz_reconciliation',
   'jalur_pengiriman',
+  'kas_jenis',
+  'kas_keluar',
+  'kas_masuk',
+  'kas_saldo_awal',
+  'kas_opname',
 ];
 
 describe('db/schema.sql', () => {

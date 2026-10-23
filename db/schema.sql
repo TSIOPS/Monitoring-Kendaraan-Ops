@@ -319,3 +319,85 @@ alter table flazz_topup enable row level security;
 alter table flazz_tol enable row level security;
 alter table flazz_reconciliation enable row level security;
 alter table jalur_pengiriman enable row level security;
+
+-- KAS KECIL (docs/superpowers/specs/2026-10-23-kas-kecil-design.md) ----------------
+create table if not exists kas_jenis (
+  id text primary key,
+  kode_akun text not null default '',
+  nama text not null,
+  prefiks_ref text not null default '',          -- 'BO' | 'BP' | '' (tanpa nomor referensi)
+  tipe text not null default 'KELUAR',           -- 'KELUAR' | 'MASUK' (Tambah Saldo)
+  tanpa_penyelesaian boolean not null default false,
+  aktif boolean not null default true,
+  urut integer not null default 0
+);
+
+create table if not exists kas_keluar (
+  id text primary key,                            -- No Kas Keluar: KK-WHO-KWG-202610220121
+  kode_cabang text not null default '',
+  tanggal text not null default '',
+  jam text not null default '',
+  no_referensi text not null default '',          -- BO-/BP-...
+  penerima text not null default '',
+  admin text not null default '',
+  jenis_id text not null default '',
+  kode_akun text not null default '',
+  jenis text not null default '',
+  pecahan jsonb not null default '{}'::jsonb,
+  jumlah numeric not null default 0,
+  keterangan text not null default '',
+  status text not null default 'Open',            -- 'Open' | 'Closed'
+  no_kas_masuk text not null default '',
+  created_by text not null default '',
+  created_at text not null default '',
+  is_deleted text not null default ''
+);
+create index if not exists kas_keluar_cabang_tgl on kas_keluar (kode_cabang, tanggal);
+
+create table if not exists kas_masuk (
+  id text primary key,                            -- No Kas Masuk: KM-WHO-KWG-202610220058
+  kode_cabang text not null default '',
+  tanggal text not null default '',
+  jam text not null default '',
+  no_kas_keluar text not null default '',         -- '' = Tambah Saldo
+  no_referensi text not null default '',
+  penerima text not null default '',
+  admin text not null default '',
+  jenis_id text not null default '',
+  kode_akun text not null default '',
+  jenis text not null default '',
+  pecahan jsonb not null default '{}'::jsonb,
+  jumlah numeric not null default 0,
+  keterangan text not null default '',
+  created_by text not null default '',
+  created_at text not null default '',
+  is_deleted text not null default ''
+);
+create index if not exists kas_masuk_cabang_tgl on kas_masuk (kode_cabang, tanggal);
+
+create table if not exists kas_saldo_awal (
+  kode_cabang text primary key,
+  tanggal text not null default '',
+  jumlah numeric not null default 0
+);
+
+create table if not exists kas_opname (
+  id text primary key,                            -- CO.001/TSI-OPR/KWG/X/2026
+  kode_cabang text not null default '',
+  tanggal text not null default '',
+  pemeriksa text not null default '',
+  pecahan jsonb not null default '{}'::jsonb,     -- hitung fisik per pecahan
+  nilai_fisik numeric not null default 0,
+  nilai_buku numeric not null default 0,
+  selisih numeric not null default 0,
+  catatan text not null default '',
+  created_by text not null default '',
+  created_at text not null default '',
+  is_deleted text not null default ''
+);
+
+alter table kas_jenis enable row level security;
+alter table kas_keluar enable row level security;
+alter table kas_masuk enable row level security;
+alter table kas_saldo_awal enable row level security;
+alter table kas_opname enable row level security;

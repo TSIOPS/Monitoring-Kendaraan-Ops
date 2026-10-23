@@ -2,6 +2,9 @@
 
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
+## 2026-10-23
+- **Fitur** — Kas kecil (BELUM DI-DEPLOY, dikerjakan bertahap): spesifikasi + rencana (docs/superpowers/specs|plans/2026-10-23-kas-kecil*). T1: `db/kas-kecil.sql` (kas_jenis, kas_keluar, kas_masuk, kas_saldo_awal, kas_opname + RLS + seed 26 jenis), schema.sql, rls.sql, backup harian memuat tabel baru, README migrasi tertunda.
+
 ## 2026-10-21
 - **Fitur** — Rekap top up Flazz: tab baru "Top Up Flazz" di Rekap Pengeluaran (detail per top up: tanggal, warehouse, kartu, nominal, keterangan, dicatat oleh [nama lengkap], ada/tidaknya bukti, plus total) dan sheet "Top Up Flazz" di Excel rekap. Mengikuti filter periode & warehouse yang sama; PIC hanya cabangnya. `GET /api/laporan/rekap-pengeluaran` kini juga mengembalikan `topups` (logika murni `rekapTopup` di src/logic/rekap.ts). Tanpa perubahan skema DB. Cek UI manual (/ui-ux-pro-max tidak tersedia). File: src/logic/rekap.ts, src/routes/laporan.ts, static/js/pages/rekap.js, tes terkait.
 - **UX** — Penyeragaman header Rekap Pengeluaran & Perbandingan Pengeluaran (tampilan + Excel): istilah "Etoll" diganti "Flazz" (kolom, filter, badge, sheet "Per Kartu Flazz"); kolom pertama sheet Ringkasan "Keterangan" → "Jenis"; "Pembayaran" → "Jumlah Pembayaran"; sheet Per Kartu/Per Kendaraan memakai "BBM Flazz (Rp)"/"Tol Flazz (Rp)". Nama field internal & nilai 'ETOLL' tidak berubah. Catatan: nama sheet/header Excel berubah (penerima yang memakai rumus per nama sheet perlu menyesuaikan). Cek UI manual (/ui-ux-pro-max tidak tersedia). File: static/js/pages/rekap.js, perbandingan.js, tests/frontend/rekap-helpers.test.ts.

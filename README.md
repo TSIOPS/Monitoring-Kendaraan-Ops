@@ -29,7 +29,7 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 ### SQL migrasi tertunda
 | File | Untuk fitur | Status |
 |---|---|---|
-| _(tidak ada)_ | | |
+| `db/kas-kecil.sql` (5 tabel kas kecil + seed jenis) — **wajib dijalankan SEBELUM deploy fitur kas kecil** (backup harian memuat tabelnya) | Kas Kecil (belum di-deploy) |
 
 ### Sudah dijalankan di production
 | File | Tanggal |

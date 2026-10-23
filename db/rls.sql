@@ -24,6 +24,11 @@ alter table flazz_topup          enable row level security;
 alter table flazz_tol            enable row level security;
 alter table flazz_reconciliation enable row level security;
 alter table jalur_pengiriman     enable row level security;
+alter table kas_jenis            enable row level security;
+alter table kas_keluar           enable row level security;
+alter table kas_masuk            enable row level security;
+alter table kas_saldo_awal       enable row level security;
+alter table kas_opname           enable row level security;
 
 -- Cek: semua baris harus rls_aktif = true.
 select c.relname as tabel, c.relrowsecurity as rls_aktif
