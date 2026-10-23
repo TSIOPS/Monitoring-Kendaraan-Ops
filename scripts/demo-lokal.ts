@@ -2,6 +2,7 @@
 //   npm run demo      -> buka http://localhost:8788
 // TIDAK memakai Supabase/Cloudflare/.dev.vars sama sekali, jadi aman: tidak menyentuh data produksi dan
 // tidak mengubah apa pun di PIC cabang. Data hilang saat server dihentikan (Ctrl+C).
+// Bawaan kas kecil Karawang kosong (hanya saldo awal); npm run demo -- --contoh = dengan contoh transaksi.
 // Akun demo (password semua: demo123): super (SUPERADMIN), pic.kwg (PIC Karawang), pic.bdg (PIC Whp Bandung), mgmt (MANAGEMENT).
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -69,7 +70,9 @@ const buatKK = (d: number, jam: string, namaJenis: string, penerima: string, jum
 };
 const laporan: ReturnType<typeof laporanRow>[] = [];
 const topups: any[] = [];
-for (let d = 1; d <= tanggalSampai; d++) {
+// Bawaan: kas kecil Karawang KOSONG (hanya saldo awal), meniru awal bulan tanpa migrasi transaksi. Contoh transaksi: npm run demo -- --contoh
+const CONTOH = process.argv.includes('--contoh');
+for (let d = 1; CONTOH && d <= tanggalSampai; d++) {
   buatKK(d, '09:10:00', 'Biaya Uang Muka Delivery', 'Haris Riswanto', 100000, d % 2 ? 100000 : 60000, 'Rakhman Hakim');
   buatKK(d, '10:05:00', 'Biaya Retribusi', 'Haris Riswanto', 10000, 0);
   if (d % 2 === 0) {
@@ -82,7 +85,7 @@ for (let d = 1; d <= tanggalSampai; d++) {
     topups.push({ id: 'TOP-1', date: hari(d), card_id: 'FLZ-KWG1', amount: 300000, evidence_url: '', notes: 'top up awal', created_by: 'pic.kwg', created_at: new Date().toISOString(), is_deleted: '0' });
   }
 }
-buatKK(tanggalSampai, '14:00:00', 'Biaya Uang Muka Delivery', 'Haris Riswanto', 150000, null); // Open: belum diselesaikan
+if (CONTOH) buatKK(tanggalSampai, '14:00:00', 'Biaya Uang Muka Delivery', 'Haris Riswanto', 150000, null); // Open: belum diselesaikan
 
 const master = memMaster({ cabang, kendaraan: kendaraan as any, supir: supir as any, pengguna: pengguna as any, flazzCard: [] });
 const lap = memLaporan({ rows: laporan });
@@ -124,5 +127,5 @@ createServer(async (rq, rs) => {
   rs.writeHead(res.status, Object.fromEntries(res.headers));
   rs.end(Buffer.from(await res.arrayBuffer()));
 }).listen(PORT, () => {
-  console.log(`\nDEMO LOKAL (data palsu di memori, tidak terhubung ke produksi)\n  Buka: http://localhost:${PORT}\n  Akun (password ${PASSWORD}): super | pic.kwg | pic.bdg | mgmt\n  Hentikan: Ctrl+C\n`);
+  console.log(`\nDEMO LOKAL (data palsu di memori, tidak terhubung ke produksi)\n  Buka: http://localhost:${PORT}\n  Akun (password ${PASSWORD}): super | pic.kwg | pic.bdg | mgmt (Kas Kecil: login super)\n  Kas kecil Karawang: ${CONTOH ? 'CONTOH transaksi' : 'KOSONG, hanya saldo awal (npm run demo -- --contoh untuk contoh transaksi)'}\n  Hentikan: Ctrl+C\n`);
 });
