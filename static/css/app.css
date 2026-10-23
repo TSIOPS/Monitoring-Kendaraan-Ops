@@ -711,3 +711,28 @@ body.tanpa-sidebar .sidebar, body.tanpa-sidebar .sidebar-latar { display: none; 
 /* Judul halaman difokuskan router (tabindex=-1) agar pembaca layar mengumumkan halaman baru;
    bukan elemen interaktif, jadi tanpa cincin fokus. */
 h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus, [data-judul-halaman]:focus { outline: none; }
+
+/* Kas kecil: lembar cetak (bukti kas keluar, penyelesaian, laporan harian, BA cash opname). */
+.cetak-overlay { position: fixed; inset: 0; z-index: 2000; overflow: auto; padding: 1rem; background: #e9ecef; }
+.cetak-bar { display: flex; gap: .5rem; max-width: 210mm; margin: 0 auto .75rem; }
+.cetak-kertas { max-width: 210mm; margin: 0 auto; padding: 12mm; background: #fff; color: #000; font-size: 13px; line-height: 1.45; }
+.cetak-kepala { text-align: center; margin-bottom: .75rem; }
+.cetak-judul { font-size: 1.15rem; font-weight: 700; margin: .5rem 0 0; text-decoration: underline; }
+.cetak-info { width: 100%; margin-bottom: .75rem; }
+.cetak-info td { padding: .15rem .35rem; vertical-align: top; }
+.cetak-label { width: 11rem; white-space: nowrap; }
+.cetak-tabel { width: 100%; border-collapse: collapse; margin-bottom: .75rem; }
+.cetak-tabel th, .cetak-tabel td { border: 1px solid #000; padding: .2rem .4rem; }
+.cetak-kecil { font-size: 11px; }
+.cetak-terbilang { font-style: italic; font-weight: 600; margin: .25rem 0 .75rem; }
+.cetak-kota { text-align: right; margin: 1rem 0 .5rem; }
+.cetak-ttd { display: flex; justify-content: space-around; text-align: center; margin-top: .5rem; }
+.cetak-garis { margin-top: 3.2rem; border-top: 1px solid #000; min-width: 9rem; padding-top: .15rem; }
+@media print {
+  body.mode-cetak > *:not(.cetak-overlay) { display: none !important; }
+  .cetak-overlay { position: static; padding: 0; overflow: visible; background: #fff; }
+  .cetak-kertas { max-width: none; padding: 0; }
+  .no-print { display: none !important; }
+}
+.kas-selisih { color: #b02a37; font-weight: 600; }
+.kas-cocok { color: #146c43; font-weight: 600; }

@@ -277,6 +277,9 @@ export const IKON_AKSI = {
   lepas: ['bi-credit-card-2-back', 'btn-outline-warning'],
   oli: ['bi-droplet', 'btn-outline-secondary'],
   lihat: ['bi-image', 'btn-outline-secondary'],
+  cetak: ['bi-printer', 'btn-outline-secondary'],
+  selesai: ['bi-check2-circle', 'btn-outline-success'],
+  batalkan: ['bi-arrow-counterclockwise', 'btn-outline-warning'],
 };
 export function tombolIkon(jenis, judul, aksi) {
   const [ikon, kelas] = IKON_AKSI[jenis] || ['bi-three-dots', 'btn-outline-secondary'];

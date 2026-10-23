@@ -45,6 +45,16 @@ const NAV = [
     ],
   },
   {
+    label: 'Kas Kecil',
+    items: [
+      { hash: '#/kaskecil', label: 'Kas Keluar', ikon: 'bi-wallet2' },
+      { hash: '#/kaskecil/laporan', label: 'Laporan Harian', ikon: 'bi-journal-check' },
+      { hash: '#/kaskecil/summary', label: 'Summary', ikon: 'bi-table' },
+      { hash: '#/kaskecil/pembanding', label: 'Pembanding', ikon: 'bi-arrow-left-right' },
+      { hash: '#/kaskecil/opname', label: 'BA Cash Opname', ikon: 'bi-clipboard-check' },
+    ],
+  },
+  {
     label: 'Konfigurasi',
     items: [
       { hash: '#/master', label: 'Data Master', ikon: 'bi-database' },
@@ -318,6 +328,16 @@ registerRoute('#/rekap', async () => {
   const mod = await import('./pages/rekap.js');
   return { render: mod.renderRekap };
 });
+
+const kasKecilPage = (fn) => async () => {
+  const mod = await import('./pages/kaskecil.js');
+  return { render: mod[fn] };
+};
+registerRoute('#/kaskecil', kasKecilPage('renderKasKeluar'));
+registerRoute('#/kaskecil/laporan', kasKecilPage('renderKasLaporan'));
+registerRoute('#/kaskecil/summary', kasKecilPage('renderKasSummary'));
+registerRoute('#/kaskecil/pembanding', kasKecilPage('renderKasPembanding'));
+registerRoute('#/kaskecil/opname', kasKecilPage('renderKasOpname'));
 
 registerRoute('#/performa', async () => {
   const mod = await import('./pages/performa.js');
