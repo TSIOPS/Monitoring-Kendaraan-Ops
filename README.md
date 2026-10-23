@@ -29,12 +29,13 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 ### SQL migrasi tertunda
 | File | Untuk fitur | Status |
 |---|---|---|
-| `db/kas-kecil.sql` (5 tabel kas kecil + seed jenis) — **wajib dijalankan SEBELUM deploy fitur kas kecil** (backup harian memuat tabelnya) | Kas Kecil (belum di-deploy) |
+| _(tidak ada)_ | | |
 
 ### Sudah dijalankan di production
 | File | Tanggal |
 |---|---|
 | `db/rincian-pengeluaran.sql` (kolom `penggunaan_bbm.rincian`) | 2026-10-21 |
+| `db/kas-kecil.sql` (5 tabel kas kecil + seed jenis) | 2026-10-23 |
 
 ## Perintah
 | Script | Fungsi |
@@ -46,8 +47,8 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 | `npm run typecheck` | tsc --noEmit |
 | `node scripts/impor-kas-kecil.mjs <berkas.xlsb> <KODE>` | Impor kas kecil dari Excel lama. Tanpa `--apply` = dry-run (hanya laporan + cek saldo); `--apply` menulis ke DB (butuh `db/kas-kecil.sql` sudah dijalankan). Opsi: `--tanpa-saldo`, `--timpa-saldo` |
 
-## Kas Kecil (BELUM DI-DEPLOY — tunggu pemilik repo menyatakan siap)
-Modul pengganti Excel kas kecil per warehouse: Kas Keluar & Penyelesaian (nomor KK/KM/BO/BP format Excel), Laporan Harian, Summary bulanan, Pembanding dengan aplikasi (BBM tunai ↔ Bensin Delivery, Top Up Flazz ↔ Pengisian ETOLL, Tol tunai ↔ Uang Muka Delivery), BA Cash Opname, cetak 4 dokumen, Excel. Menu **Kas Kecil**; API `/api/kaskecil/*`. **Tahap uji: menu & API Kas Kecil hanya untuk SUPERADMIN** (penjaga server `PERAN_KAS_KECIL` di src/routes/kaskecil.ts + menu `KAS_KECIL` di static/js/app.js). Membuka ke PIC/MANAGEMENT nanti cukup menambah peran di kedua konstanta itu. Rancangan hak akses setelah dibuka: PIC = warehouse sendiri (tulis), MANAGEMENT = baca semua, SUPERADMIN = semua + master jenis + saldo awal. Spesifikasi: `docs/superpowers/specs/2026-10-23-kas-kecil-design.md`. Urutan rilis: (1) jalankan `db/kas-kecil.sql`, (2) impor data lama per cabang (dry-run dulu), (3) deploy, (4) tambah entri `rilis.js`.
+## Kas Kecil (sudah di-deploy 2026-10-23, versi 1250b4c1; tahap uji: hanya SUPERADMIN)
+Modul pengganti Excel kas kecil per warehouse: Kas Keluar & Penyelesaian (nomor KK/KM/BO/BP format Excel), Laporan Harian, Summary bulanan, Pembanding dengan aplikasi (BBM tunai ↔ Bensin Delivery, Top Up Flazz ↔ Pengisian ETOLL, Tol tunai ↔ Uang Muka Delivery), BA Cash Opname, cetak 4 dokumen, Excel. Menu **Kas Kecil**; API `/api/kaskecil/*`. **Tahap uji: menu & API Kas Kecil hanya untuk SUPERADMIN** (penjaga server `PERAN_KAS_KECIL` di src/routes/kaskecil.ts + menu `KAS_KECIL` di static/js/app.js). Membuka ke PIC/MANAGEMENT nanti cukup menambah peran di kedua konstanta itu. Rancangan hak akses setelah dibuka: PIC = warehouse sendiri (tulis), MANAGEMENT = baca semua, SUPERADMIN = semua + master jenis + saldo awal. Spesifikasi: `docs/superpowers/specs/2026-10-23-kas-kecil-design.md`. Status: SQL sudah dijalankan & aplikasi sudah di-deploy; data awal = saldo awal per pecahan tiap warehouse (SUPERADMIN, Laporan Harian) tanpa migrasi transaksi. Saat dibuka untuk PIC: tambah peran di kedua konstanta di atas + tambah entri `rilis.js`.
 
 ## Role pengguna
 | Role | Cakupan data | Bisa mengubah data | Khusus |
