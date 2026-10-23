@@ -24,7 +24,7 @@ function navKas(aktif) {
 // Data dasar: daftar warehouse (nama untuk dokumen cetak) dan jenis transaksi aktif.
 async function muatDasar() {
   const [master, j] = await Promise.all([get('/api/master'), get('/api/kaskecil/jenis')]);
-  return { cabangList: Array.isArray(master.cabangList) ? master.cabangList : [], jenis: j.jenis || [] };
+  return { cabangList: Array.isArray(master.cabangList) ? master.cabangList : [], drivers: Array.isArray(master.drivers) ? master.drivers : [], jenis: j.jenis || [] };
 }
 
 // PIC terkunci ke cabangnya; SUPERADMIN/MANAGEMENT memilih warehouse.
@@ -91,7 +91,15 @@ export async function renderKasKeluar(view) {
   // — Form kas keluar —
   const alertBox = el('div', { class: 'alert alert-danger d-none' });
   const jenis = el('select', { class: 'form-select' }, [el('option', { value: '', text: '— pilih jenis —' }), ...jenisKeluar.map((j) => el('option', { value: j.id, text: j.nama }))]);
-  const penerima = el('input', { class: 'form-control', maxlength: '80', autocomplete: 'off' });
+  // Nama driver dari Data Master warehouse terpilih (saran saja; boleh mengetik nama lain, mis. non-driver).
+  const daftarDriver = el('datalist', { id: 'kas-daftar-driver' });
+  const penerima = el('input', { class: 'form-control', maxlength: '80', autocomplete: 'off', list: 'kas-daftar-driver', placeholder: 'Pilih driver atau ketik nama' });
+  const isiDriver = () => {
+    const kode = cabang.kode();
+    const nama = [...new Set(dasar.drivers.filter((d) => !kode || d.cabang === kode).map((d) => String(d.nama || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    daftarDriver.replaceChildren(...nama.map((n) => el('option', { value: n })));
+  };
+  isiDriver();
   const tanggal = el('input', { type: 'date', class: 'form-control', value: tanggalWib(), max: tanggalWib() });
   const jumlah = el('input', { type: 'number', min: '1', step: '1', class: 'form-control' });
   const ket = el('input', { class: 'form-control', maxlength: '300' });
@@ -102,7 +110,7 @@ export async function renderKasKeluar(view) {
     alertBox,
     el('div', { class: 'row g-2' }, [
       kolom('col-md-4', 'Jenis transaksi', jenis),
-      kolom('col-md-4', 'Nama penerima', penerima),
+      kolom('col-md-4', 'Nama penerima (driver)', el('div', {}, [penerima, daftarDriver])),
       kolom('col-md-4', 'Tanggal', tanggal),
       kolom('col-md-4', 'Jumlah uang keluar', el('div', {}, [jumlah, bantuRupiah(jumlah)])),
       kolom('col-md-8', 'Keterangan / untuk penggunaan', ket),
@@ -278,7 +286,7 @@ export async function renderKasKeluar(view) {
       toast(e.message, 'error');
     }
   }));
-  if (cabang.node) cabang.node.addEventListener('change', muat);
+  if (cabang.node) cabang.node.addEventListener('change', () => { isiDriver(); muat(); });
 
   formBox.replaceChildren(...(tulis() ? [el('div', { class: 'panel' }, [el('h3', { class: 'h6 mb-3', text: 'Kas Keluar Baru / Ubah' }), form])] : []));
   view.replaceChildren(
