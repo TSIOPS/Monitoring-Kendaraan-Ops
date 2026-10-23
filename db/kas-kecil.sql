@@ -57,12 +57,6 @@ create table if not exists kas_masuk (
 );
 create index if not exists kas_masuk_cabang_tgl on kas_masuk (kode_cabang, tanggal);
 
-alter table kas_keluar add column if not exists penerima_2 text not null default '';
-alter table kas_masuk add column if not exists penerima_2 text not null default '';
-alter table kas_keluar add column if not exists bukti_url text not null default '';
-alter table kas_saldo_awal add column if not exists pecahan jsonb not null default '{}'::jsonb;
-alter table kas_saldo_awal add column if not exists dana_mingguan numeric not null default 0;
-
 create table if not exists kas_saldo_awal (
   kode_cabang text primary key,
   tanggal text not null default '',
@@ -85,6 +79,13 @@ create table if not exists kas_opname (
   created_at text not null default '',
   is_deleted text not null default ''
 );
+
+-- Untuk tabel yang sudah terlanjur dibuat dari versi lama (idempotent; harus SETELAH semua CREATE TABLE di atas).
+alter table kas_keluar add column if not exists penerima_2 text not null default '';
+alter table kas_masuk add column if not exists penerima_2 text not null default '';
+alter table kas_keluar add column if not exists bukti_url text not null default '';
+alter table kas_saldo_awal add column if not exists pecahan jsonb not null default '{}'::jsonb;
+alter table kas_saldo_awal add column if not exists dana_mingguan numeric not null default 0;
 
 alter table kas_jenis enable row level security;
 alter table kas_keluar enable row level security;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import schemaSql from '../db/schema.sql?raw';
+import kasKecilSql from '../db/kas-kecil.sql?raw';
 
 const sql = schemaSql;
 
@@ -46,5 +47,28 @@ describe('db/schema.sql', () => {
 
   it('seed pengaturan default ada', () => {
     expect(sql).toMatch(/on conflict\s*\(key\)\s*do nothing/i);
+  });
+});
+
+// Mencegah "relation ... does not exist" saat SQL dijalankan di SQL Editor Supabase: setiap ALTER/INDEX kas_* harus SETELAH CREATE TABLE-nya.
+describe.each([['db/schema.sql', sql], ['db/kas-kecil.sql', kasKecilSql]])('urutan DDL kas kecil — %s', (nama, isi) => {
+  it('ALTER/INDEX/RLS kas_* muncul setelah CREATE TABLE-nya', () => {
+    const pola = /^(?:alter table|create index if not exists \w+ on) (kas_\w+)/gim;
+    let n = 0;
+    for (const m of isi.matchAll(pola)) {
+      const c = isi.search(new RegExp(`create table if not exists ${m[1]}\\s*\\(`, 'i'));
+      expect(c, `${nama}: tabel ${m[1]} tidak dibuat`).toBeGreaterThanOrEqual(0);
+      expect(c, `${nama}: "${m[0]}" muncul sebelum CREATE TABLE ${m[1]}`).toBeLessThan(m.index!);
+      n++;
+    }
+    expect(n).toBeGreaterThan(5);
+  });
+});
+
+describe('db/kas-kecil.sql', () => {
+  it('memuat kolom baru dan seed jenis', () => {
+    for (const kolom of ['penerima_2', 'bukti_url', 'dana_mingguan']) expect(kasKecilSql).toContain(kolom);
+    expect(kasKecilSql).toMatch(/insert into kas_jenis/i);
+    expect((kasKecilSql.match(/\('KJ-\d+'/g) ?? []).length).toBe(26);
   });
 });
