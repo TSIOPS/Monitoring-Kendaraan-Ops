@@ -1,12 +1,12 @@
 // Kas kecil: kas keluar & penyelesaian, laporan harian, summary, pembanding, BA cash opname.
-import { del, get, post, put } from '../api.js';
+import { BATAS_WAKTU_FOTO_MS, del, get, post, put } from '../api.js';
 import { getUser } from '../store.js';
 import { bolehTulis, isSuper, lihatSemuaCabang } from '../peran.js';
 import { aksiSekali, bantuRupiah, barisForm, confirmDialog, el, fmtDateId, fmtNum, grupAksi, halaman, navHalaman, tampilkanGalat, toast, tombolIkon, tombolIkonSekali } from '../ui.js';
-import { tanggalWib } from './input.js';
+import { kompresGambar, namaAman, tanggalWib } from './input.js';
 import { bukuExcel, muatSheetJS } from './rekap.js';
 import {
-  PECAHAN, PECAHAN_OPNAME, bersihkanPecahan, gabungNama, jumlahPecahan, namaFileKas, sheetDaftarKeluar, sheetDaftarMasuk, sheetLaporanHarian, sheetPembanding, sheetSummary, tglId,
+  PECAHAN, PECAHAN_OPNAME, bersihkanPecahan, gabungNama, jumlahPecahan, labelPecahan, namaFileKas, sheetDaftarKeluar, sheetDaftarMasuk, sheetLaporanHarian, sheetPembanding, sheetSaldoPecahan, sheetSummary, tglId,
 } from '../kaskecil-helpers.js';
 import { cetakBuktiKeluar, cetakLaporanHarian, cetakOpname, cetakPenyelesaian } from '../kaskecil-cetak.js';
 
@@ -40,18 +40,39 @@ function pilihanCabang(cabangList, { boleh0 = false } = {}) {
 
 const kolom = (lebar, label, kontrol, catatan) => el('div', { class: lebar }, [barisForm(label, kontrol, catatan || '', 'mb-2')]);
 
-function kotakPecahan(daftar, saatUbah) {
-  const input = new Map(daftar.map(([k]) => [k, el('input', { type: 'number', min: '0', step: '1', class: 'form-control form-control-sm', 'aria-label': 'Jumlah pecahan' })]));
-  const total = el('div', { class: 'fw-bold mt-2', text: 'Total pecahan: Rp 0' });
+// Tabel pecahan uang seperti Excel offline: Pecahan | [Tersedia] | Jumlah (lembar/keping) | Nilai. Total dihitung otomatis.
+function kotakPecahan(daftar, saatUbah, { tersedia = false, judulJumlah = 'Jumlah (lembar/keping)' } = {}) {
+  const input = new Map(daftar.map(([k]) => [k, el('input', { type: 'number', min: '0', step: '1', class: 'form-control form-control-sm text-end', 'aria-label': `Jumlah ${labelPecahan(k)}` })]));
+  const sedia = new Map(daftar.map(([k]) => [k, el('td', { class: 'text-end text-muted', text: '-' })]));
+  const nilaiSel = new Map(daftar.map(([k]) => [k, el('td', { class: 'text-end', text: '0' })]));
+  const total = el('td', { class: 'text-end fw-bold', text: 'Rp 0' });
+  let ada = null;
   const baca = () => bersihkanPecahan(Object.fromEntries([...input].map(([k, i]) => [k, i.value])));
-  const segar = () => { const t = jumlahPecahan(baca()); total.textContent = `Total pecahan: ${rp(t)}`; saatUbah?.(t); };
+  const segar = () => {
+    const p = baca();
+    daftar.forEach(([k]) => {
+      nilaiSel.get(k).textContent = fmtNum(jumlahPecahan({ [k]: p[k] || 0 }));
+      input.get(k).classList.toggle('is-invalid', Boolean(tersedia && ada && ada[k] !== undefined && (p[k] || 0) > ada[k]));
+    });
+    const t = jumlahPecahan(p);
+    total.textContent = rp(t);
+    saatUbah?.(t);
+  };
   input.forEach((i) => i.addEventListener('input', segar));
-  const node = el('details', { class: 'mb-2' }, [
-    el('summary', { class: 'small fw-semibold', text: 'Rincian pecahan uang (opsional)' }),
-    el('div', { class: 'row g-2 mt-1' }, daftar.map(([k, label]) => el('div', { class: 'col-6 col-md-3' }, [el('label', { class: 'form-label small mb-0', text: label }), input.get(k)]))),
-    total,
-  ]);
-  return { node, nilai: baca, set: (p) => { input.forEach((i, k) => { i.value = p?.[k] ? String(p[k]) : ''; }); segar(); }, kosongkan: () => { input.forEach((i) => { i.value = ''; }); segar(); } };
+  const node = el('div', { class: 'table-wrap mb-2' }, [el('table', { class: 'table table-sm align-middle mb-0 tabel-pecahan' }, [
+    el('thead', { class: 'thead-hijau' }, [el('tr', {}, [el('th', { text: 'Pecahan' }), tersedia ? el('th', { class: 'text-end', text: 'Tersedia' }) : null, el('th', { class: 'text-end', text: judulJumlah }), el('th', { class: 'text-end', text: 'Nilai (Rp)' })])]),
+    el('tbody', {}, daftar.map(([k, label]) => el('tr', {}, [el('td', { text: label }), tersedia ? sedia.get(k) : null, el('td', { style: 'min-width:7rem' }, [input.get(k)]), nilaiSel.get(k)]))),
+    el('tfoot', { class: 'table-light' }, [el('tr', {}, [el('td', { class: 'fw-bold', colspan: tersedia ? '3' : '2', text: 'Total' }), total])]),
+  ])]);
+  return {
+    node,
+    nilai: baca,
+    total: () => jumlahPecahan(baca()),
+    set: (p) => { input.forEach((i, k) => { i.value = p?.[k] ? String(p[k]) : ''; }); segar(); },
+    kosongkan: () => { input.forEach((i) => { i.value = ''; }); segar(); },
+    // Jumlah lembar/keping yang tercatat ada di laci (acuan); input melebihi tersedia ditandai merah.
+    setTersedia: (counts) => { ada = counts; sedia.forEach((td, k) => { td.textContent = counts && counts[k] !== undefined ? fmtNum(counts[k]) : '-'; }); segar(); },
+  };
 }
 
 async function unduhExcel(sheets, namaFile) {
@@ -61,6 +82,14 @@ async function unduhExcel(sheets, namaFile) {
   } catch (err) {
     toast(err.message || 'Gagal membuat file Excel.', 'error');
   }
+}
+
+// Tautan foto bukti setor bank (tab baru).
+function ikonBukti(url) {
+  const a = tombolIkon('lihat', 'Lihat bukti setor bank', String(url));
+  a.target = '_blank';
+  a.rel = 'noopener';
+  return a;
 }
 
 const badgeStatus = (s) => el('span', { class: `badge ${s === 'Closed' ? 'text-bg-success' : 'text-bg-warning'}`, text: s });
@@ -102,9 +131,19 @@ export async function renderKasKeluar(view) {
   const penerima2 = el('input', { class: 'form-control', maxlength: '80', autocomplete: 'off', list: 'kas-daftar-driver', placeholder: 'Opsional: pendamping / driver kedua' });
   isiDriver();
   const tanggal = el('input', { type: 'date', class: 'form-control', value: tanggalWib(), max: tanggalWib() });
-  const jumlah = el('input', { type: 'number', min: '1', step: '1', class: 'form-control' });
+  const jumlah = el('input', { class: 'form-control fw-bold', readonly: 'readonly', 'aria-label': 'Jumlah uang keluar' });
   const ket = el('input', { class: 'form-control', maxlength: '300' });
-  const pecahan = kotakPecahan(PECAHAN, (t) => { jumlah.readOnly = t > 0; if (t > 0) { jumlah.value = String(t); jumlah.dispatchEvent(new Event('input')); } });
+  const pecahan = kotakPecahan(PECAHAN, (t) => { jumlah.value = t > 0 ? String(t) : ''; jumlah.dispatchEvent(new Event('input')); }, { tersedia: true });
+  // Saldo per pecahan saat ini (acuan lembar yang tersedia di laci).
+  async function muatTersedia() {
+    if (!cabang.kode()) { pecahan.setTersedia(null); return; }
+    try {
+      const { rincian } = await get(`/api/kaskecil/saldo-pecahan?${new URLSearchParams({ cabang: cabang.kode(), tanggal: tanggalWib() })}`);
+      pecahan.setTersedia(Object.fromEntries(rincian.baris.map((b) => [b.kunci, b.akhir])));
+    } catch {
+      pecahan.setTersedia(null);
+    }
+  }
   const simpan = el('button', { class: 'btn btn-primary', type: 'submit', text: 'Simpan Kas Keluar' });
   const batalUbah = el('button', { class: 'btn btn-outline-secondary d-none', type: 'button', text: 'Batal ubah' });
   const form = el('form', { novalidate: 'novalidate' }, [
@@ -114,7 +153,7 @@ export async function renderKasKeluar(view) {
       kolom('col-md-4', 'Nama penerima 1 (driver)', el('div', {}, [penerima, daftarDriver])),
       kolom('col-md-4', 'Nama penerima 2 (opsional)', penerima2),
       kolom('col-md-4', 'Tanggal', tanggal),
-      kolom('col-md-4', 'Jumlah uang keluar', el('div', {}, [jumlah, bantuRupiah(jumlah)])),
+      kolom('col-md-4', 'Jumlah uang keluar (otomatis dari pecahan)', el('div', {}, [jumlah, bantuRupiah(jumlah)])),
       kolom('col-md-8', 'Keterangan / untuk penggunaan', ket),
     ]),
     pecahan.node,
@@ -124,7 +163,6 @@ export async function renderKasKeluar(view) {
     ubah = null;
     form.reset();
     pecahan.kosongkan();
-    jumlah.readOnly = false;
     jenis.disabled = false;
     tanggal.disabled = false;
     tanggal.value = tanggalWib();
@@ -138,22 +176,23 @@ export async function renderKasKeluar(view) {
     const err = [];
     if (!ubah && !jenis.value) err.push('Pilih jenis transaksi.');
     if (!penerima.value.trim()) err.push('Nama penerima wajib diisi.');
-    if (!(Number(jumlah.value) > 0)) err.push('Jumlah uang harus lebih dari 0.');
+    if (!(pecahan.total() > 0)) err.push('Isi jumlah lembar/keping pada tabel pecahan uang (total harus lebih dari 0).');
     if (!ubah && semua() && !cabang.kode()) err.push('Pilih warehouse pada filter di bawah.');
     if (err.length) { tampilkanGalat(alertBox, err.join(' ')); return; }
     simpan.disabled = true;
     try {
       const p = pecahan.nilai();
-      const badan = { penerima: penerima.value.trim(), penerima_2: penerima2.value.trim(), jumlah: Number(jumlah.value), keterangan: ket.value.trim(), ...(Object.keys(p).length ? { pecahan: p } : {}) };
+      const badan = { penerima: penerima.value.trim(), penerima_2: penerima2.value.trim(), jumlah: pecahan.total(), keterangan: ket.value.trim(), pecahan: p };
       if (ubah) {
         await put(`/api/kaskecil/keluar/${encodeURIComponent(ubah.id)}`, badan);
         toast('Kas keluar diperbarui.', 'success');
       } else {
         const res = await post('/api/kaskecil/keluar', { ...badan, jenis_id: jenis.value, tanggal: tanggal.value, cabang: cabang.kode() });
         toast(`Kas keluar ${res.keluar.id} tersimpan.`, 'success');
+        (res.peringatan || []).forEach((w) => toast(w, 'warning'));
       }
       resetForm();
-      await muat();
+      await Promise.all([muat(), muatTersedia()]);
     } catch (e) {
       tampilkanGalat(alertBox, e.message);
     } finally {
@@ -169,8 +208,6 @@ export async function renderKasKeluar(view) {
     penerima.value = r.penerima;
     penerima2.value = r.penerima_2 || '';
     ket.value = r.keterangan;
-    jumlah.readOnly = false;
-    jumlah.value = String(r.jumlah);
     pecahan.set(r.pecahan);
     simpan.textContent = 'Simpan Perubahan';
     batalUbah.classList.remove('d-none');
@@ -180,12 +217,12 @@ export async function renderKasKeluar(view) {
 
   // — Penyelesaian —
   function bukaSelesai(r) {
-    const kembali = el('input', { type: 'number', min: '0', step: '1', class: 'form-control', value: '0' });
+    const kembali = el('input', { class: 'form-control fw-bold', readonly: 'readonly', value: '0', 'aria-label': 'Uang kembali' });
     const tgl = el('input', { type: 'date', class: 'form-control', value: tanggalWib(), min: r.tanggal, max: tanggalWib() });
     const k = el('input', { class: 'form-control', maxlength: '300' });
     const info = el('div', { class: 'fw-semibold mb-2' });
     const galat = el('div', { class: 'alert alert-danger d-none' });
-    const pk = kotakPecahan(PECAHAN, (t) => { kembali.readOnly = t > 0; if (t > 0) { kembali.value = String(t); kembali.dispatchEvent(new Event('input')); } });
+    const pk = kotakPecahan(PECAHAN, (t) => { kembali.value = String(t); kembali.dispatchEvent(new Event('input')); });
     const segar = () => { info.textContent = `Nominal kas keluar ${rp(r.jumlah)} — penggunaan ${rp(r.jumlah - (Number(kembali.value) || 0))}`; };
     kembali.addEventListener('input', segar);
     segar();
@@ -193,7 +230,7 @@ export async function renderKasKeluar(view) {
     const batal = el('button', { class: 'btn btn-outline-secondary', type: 'button', text: 'Batal', onclick: () => selesaiBox.replaceChildren() });
     const f = el('form', { novalidate: 'novalidate', class: 'panel border' }, [
       el('h3', { class: 'h6', text: `Penyelesaian ${r.id} — ${gabungNama(r)}` }), galat, info,
-      el('div', { class: 'row g-2' }, [kolom('col-md-4', 'Uang kembali (sisa)', el('div', {}, [kembali, bantuRupiah(kembali)])), kolom('col-md-4', 'Tanggal penyelesaian', tgl), kolom('col-md-4', 'Keterangan', k)]),
+      el('div', { class: 'row g-2' }, [kolom('col-md-4', 'Uang kembali (otomatis dari pecahan; kosongkan bila 0)', el('div', {}, [kembali, bantuRupiah(kembali)])), kolom('col-md-4', 'Tanggal penyelesaian', tgl), kolom('col-md-4', 'Keterangan', k)]),
       pk.node, el('div', { class: 'd-flex gap-2' }, [ok, batal]),
     ]);
     f.addEventListener('submit', async (ev) => {
@@ -201,7 +238,7 @@ export async function renderKasKeluar(view) {
       ok.disabled = true;
       try {
         const p = pk.nilai();
-        const res = await post(`/api/kaskecil/keluar/${encodeURIComponent(r.id)}/selesai`, { jumlah: Number(kembali.value) || 0, tanggal: tgl.value, keterangan: k.value.trim(), ...(Object.keys(p).length ? { pecahan: p } : {}) });
+        const res = await post(`/api/kaskecil/keluar/${encodeURIComponent(r.id)}/selesai`, { jumlah: pk.total(), tanggal: tgl.value, keterangan: k.value.trim(), ...(Object.keys(p).length ? { pecahan: p } : {}) });
         toast(`Selesai: ${res.masuk.id}.`, 'success');
         selesaiBox.replaceChildren();
         await muat();
@@ -243,6 +280,7 @@ export async function renderKasKeluar(view) {
           el('td', { class: 'text-end', text: rp(r.jumlah) }), el('td', {}, [badgeStatus(r.status)]),
           el('td', {}, [grupAksi([
             tombolIkon('cetak', 'Cetak bukti kas keluar', () => cetak(r.id, 'keluar')),
+            r.bukti_url ? ikonBukti(r.bukti_url) : null,
             r.status === 'Closed' && r.no_kas_masuk ? tombolIkon('cetak', 'Cetak penyelesaian', () => cetak(r.id, 'selesai')) : null,
             tulis() && r.status === 'Open' ? tombolIkon('selesai', 'Selesaikan (uang kembali)', () => bukaSelesai(r)) : null,
             tulis() && r.status === 'Open' ? tombolIkon('edit', 'Ubah', () => mulaiUbah(r)) : null,
@@ -289,7 +327,7 @@ export async function renderKasKeluar(view) {
       toast(e.message, 'error');
     }
   }));
-  if (cabang.node) cabang.node.addEventListener('change', () => { isiDriver(); muat(); });
+  if (cabang.node) cabang.node.addEventListener('change', () => { isiDriver(); muat(); muatTersedia(); });
 
   formBox.replaceChildren(...(tulis() ? [el('div', { class: 'panel' }, [el('h3', { class: 'h6 mb-3', text: 'Kas Keluar Baru / Ubah' }), form])] : []));
   view.replaceChildren(
@@ -304,7 +342,7 @@ export async function renderKasKeluar(view) {
       hasil,
     ]),
   );
-  await muat();
+  await Promise.all([muat(), muatTersedia()]);
   return { ok: true };
 }
 
@@ -392,11 +430,27 @@ export async function renderKasLaporan(view) {
     }
   }
 
-  function gambar({ laporan: l, awal }) {
+  // Tabel rincian saldo per pecahan (Saldo Awal | Masuk | Keluar | Saldo Akhir | Nilai).
+  function tabelRincian(rin) {
+    return el('div', { class: 'mb-3' }, [
+      el('h3', { class: 'h6', text: 'Rincian Saldo Kas Kecil per Pecahan' }),
+      !rin.sinkron ? el('div', { class: 'alert alert-warning small', text: `Rincian pecahan belum sinkron dengan saldo uang (selisih ${rp(rin.selisih)}${rin.negatif.length ? `; saldo minus pada ${rin.negatif.map(labelPecahan).join(', ')}` : ''}). Periksa pecahan pada transaksi atau saldo awal.` }) : null,
+      el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm table-hover align-middle' }, [
+        th(['Pecahan', 'Saldo Awal', 'Masuk', 'Keluar', 'Saldo Akhir', 'Nilai (Rp)'], [1, 2, 3, 4, 5]),
+        el('tbody', {}, rin.baris.map((b) => el('tr', { class: b.akhir < 0 ? 'table-danger' : '' }, [
+          el('td', { text: labelPecahan(b.kunci) }), el('td', { class: 'text-end', text: fmtNum(b.awal) }), el('td', { class: 'text-end', text: b.masuk ? fmtNum(b.masuk) : '-' }),
+          el('td', { class: 'text-end', text: b.keluar ? fmtNum(b.keluar) : '-' }), el('td', { class: 'text-end fw-semibold', text: fmtNum(b.akhir) }), el('td', { class: 'text-end', text: fmtNum(b.nilaiAkhir) }),
+        ]))),
+        el('tfoot', { class: 'table-light fw-bold' }, [el('tr', {}, [el('td', { colspan: '5', text: 'Total saldo akhir' }), el('td', { class: 'text-end', text: fmtNum(rin.nilaiAkhir) })])]),
+      ])]),
+    ]);
+  }
+
+  function gambar({ laporan: l, rincian: rin, awal }) {
     const r = l.ringkasan;
     const aksi = el('div', { class: 'd-flex gap-2 mb-3 flex-wrap no-print' }, [
-      el('button', { class: 'btn btn-outline-primary btn-sm', type: 'button', text: 'Cetak', onclick: () => cetakLaporanHarian({ laporan: l, cabang: cabangInfo() }) }),
-      el('button', { class: 'btn btn-outline-primary btn-sm', type: 'button', text: 'Unduh Excel', onclick: () => unduhExcel(sheetLaporanHarian(l, { warehouse: cabang.nama() }), namaFileKas('harian', cabang.kode(), l.tanggal)) }),
+      el('button', { class: 'btn btn-outline-primary btn-sm', type: 'button', text: 'Cetak', onclick: () => cetakLaporanHarian({ laporan: l, rincian: rin, cabang: cabangInfo() }) }),
+      el('button', { class: 'btn btn-outline-primary btn-sm', type: 'button', text: 'Unduh Excel', onclick: () => unduhExcel([...sheetLaporanHarian(l, { warehouse: cabang.nama() }), ...sheetSaldoPecahan(rin, { warehouse: cabang.nama(), tanggal: l.tanggal })], namaFileKas('harian', cabang.kode(), l.tanggal)) }),
     ]);
     isi.replaceChildren(...[
       !awal ? el('div', { class: 'alert alert-warning', text: 'Saldo awal kas kecil warehouse ini belum diatur (dianggap Rp 0). SUPERADMIN dapat mengaturnya di bawah.' }) : null,
@@ -419,25 +473,74 @@ export async function renderKasLaporan(view) {
           })] : []),
         ]))),
       ])]) : el('div', { class: 'text-center text-muted py-4', text: 'Tidak ada transaksi pada tanggal ini.' }),
-      tulis() ? panelTambahSaldo() : null,
+      tabelRincian(rin),
+      tulis() ? panelSetoran(l, rin) : null,
+      tulis() ? panelTambahSaldo(awal) : null,
       isSuper(getUser()?.role) ? panelSaldoAwal(awal) : null,
     ].filter(Boolean));
   }
 
-  function panelTambahSaldo() {
-    const jml = el('input', { type: 'number', min: '1', step: '1', class: 'form-control' });
-    const ket = el('input', { class: 'form-control', maxlength: '300', placeholder: 'mis. dari pusat' });
+  // Setor SELURUH saldo kas kecil ke bank, dikeluarkan sesuai pecahan yang ada; foto bukti setor wajib.
+  function panelSetoran(l, rin) {
+    const hariIni = tanggalWib();
+    const alasan = l.tanggal !== hariIni ? 'Setoran hanya dapat dicatat pada tanggal hari ini; ubah tanggal laporan ke hari ini.'
+      : !(rin.nilaiAkhir > 0) ? 'Tidak ada saldo kas kecil untuk disetor.'
+        : !rin.sinkron ? 'Rincian pecahan belum sinkron dengan saldo uang; perbaiki dulu sebelum setoran.' : '';
+    const foto = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
+    const ket = el('input', { class: 'form-control', maxlength: '300', placeholder: 'mis. Setor ke bank hari Senin' });
     const galat = el('div', { class: 'alert alert-danger d-none' });
+    const tombolSetor = el('button', { class: 'btn btn-danger', type: 'submit', text: 'Setor Seluruh Saldo ke Bank' });
+    if (alasan) tombolSetor.disabled = true;
+    const daftar = rin.baris.filter((b) => b.akhir > 0).map((b) => `${labelPecahan(b.kunci)} × ${fmtNum(b.akhir)}`).join(', ');
+    const f = el('form', { novalidate: 'novalidate', class: 'panel border mt-3 no-print' }, [
+      el('h3', { class: 'h6', text: 'Setor Saldo Kas Kecil ke Bank' }), galat,
+      el('div', { class: 'mb-2' }, [el('div', { class: 'fw-semibold', text: `Seluruh saldo ${rp(rin.nilaiAkhir)} akan dikeluarkan sesuai pecahan:` }), el('div', { class: 'small text-muted', text: daftar || '-' })]),
+      alasan ? el('div', { class: 'alert alert-secondary small', text: alasan }) : null,
+      el('div', { class: 'row g-2' }, [kolom('col-md-6', 'Foto bukti setor bank (wajib)', foto), kolom('col-md-6', 'Keterangan', ket)]),
+      tombolSetor,
+    ].filter(Boolean));
+    f.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      galat.classList.add('d-none');
+      if (!(foto.files && foto.files[0])) { tampilkanGalat(galat, 'Foto bukti setor bank wajib diupload.'); return; }
+      if (!confirmDialog(`Setor SELURUH saldo ${rp(rin.nilaiAkhir)} ke bank? Saldo kas kecil menjadi Rp 0.`)) return;
+      tombolSetor.disabled = true;
+      try {
+        const file = foto.files[0];
+        await post('/api/kaskecil/setoran', { cabang: cabang.kode(), tanggal: l.tanggal, keterangan: ket.value.trim(), foto_bukti: await kompresGambar(file), foto_bukti_name: namaAman(file.name) }, { timeoutMs: BATAS_WAKTU_FOTO_MS });
+        toast('Setoran ke bank tersimpan; saldo kas kecil kini Rp 0.', 'success');
+        await muat();
+      } catch (e) {
+        tampilkanGalat(galat, e.message);
+        tombolSetor.disabled = false;
+      }
+    });
+    return f;
+  }
+
+  // Tambah saldo (dana masuk, mis. tiap Senin) per pecahan yang dimasukkan.
+  function panelTambahSaldo(awal) {
+    const ket = el('input', { class: 'form-control', maxlength: '300', placeholder: 'mis. dana kas kecil mingguan' });
+    const galat = el('div', { class: 'alert alert-danger d-none' });
+    const dana = Number(awal?.dana_mingguan) || 0;
+    const banding = el('div', { class: 'small text-muted mb-2' });
+    const segarBanding = (t) => {
+      if (!dana) { banding.textContent = ''; return; }
+      banding.textContent = t === dana ? `Sama dengan dana mingguan (${rp(dana)}).` : `Dana mingguan biasa ${rp(dana)}; yang diisi ${t > dana ? 'lebih' : 'kurang'} ${rp(Math.abs(t - dana))} (boleh, hanya informasi).`;
+    };
+    const pk = kotakPecahan(PECAHAN, segarBanding);
+    segarBanding(0);
     const f = el('form', { novalidate: 'novalidate', class: 'panel border mt-3 no-print' }, [
       el('h3', { class: 'h6', text: 'Tambah Saldo Kas Kecil' }), galat,
-      el('div', { class: 'row g-2 align-items-end' }, [kolom('col-md-4', 'Jumlah', el('div', {}, [jml, bantuRupiah(jml)])), kolom('col-md-6', 'Keterangan', ket),
-        el('div', { class: 'col-md-2 mb-2' }, [el('button', { class: 'btn btn-primary', type: 'submit', text: 'Tambah' })])]),
-    ]);
+      dana ? el('div', { class: 'small mb-2', text: `Dana tetap per Senin: ${rp(dana)} (bisa bertambah/berkurang).` }) : null,
+      pk.node, banding, kolom('col-md-8', 'Keterangan', ket),
+      el('button', { class: 'btn btn-primary', type: 'submit', text: 'Tambah Saldo' }),
+    ].filter(Boolean));
     f.addEventListener('submit', aksiSekali(f.querySelector('button[type=submit]'), async (ev) => {
       ev.preventDefault();
-      if (!(Number(jml.value) > 0)) { tampilkanGalat(galat, 'Jumlah harus lebih dari 0.'); return; }
+      if (!(pk.total() > 0)) { tampilkanGalat(galat, 'Isi jumlah lembar/keping pada tabel pecahan (total harus lebih dari 0).'); return; }
       try {
-        await post('/api/kaskecil/masuk', { cabang: cabang.kode(), jumlah: Number(jml.value), keterangan: ket.value.trim(), tanggal: tgl.value });
+        await post('/api/kaskecil/masuk', { cabang: cabang.kode(), pecahan: pk.nilai(), jumlah: pk.total(), keterangan: ket.value.trim(), tanggal: tgl.value });
         toast('Saldo ditambahkan.', 'success');
         await muat();
       } catch (e) {
@@ -450,16 +553,21 @@ export async function renderKasLaporan(view) {
   function panelSaldoAwal(awal) {
     const t = el('input', { type: 'date', class: 'form-control', value: awal?.tanggal || tanggalWib() });
     const j = el('input', { type: 'number', min: '0', step: '1', class: 'form-control', value: String(awal?.jumlah ?? 0) });
+    const dana = el('input', { type: 'number', min: '0', step: '1', class: 'form-control', value: String(awal?.dana_mingguan ?? 0) });
+    const pk = kotakPecahan(PECAHAN, (tot) => { if (tot > 0) j.value = String(tot); });
+    pk.set(awal?.pecahan || {});
     const f = el('form', { novalidate: 'novalidate', class: 'panel border mt-3 no-print' }, [
-      el('h3', { class: 'h6', text: 'Saldo Awal Kas Kecil (SUPERADMIN)' }),
-      el('div', { class: 'small text-muted mb-2', text: 'Saldo dihitung dari tanggal ini; transaksi sebelum tanggal ini tidak ikut dihitung.' }),
-      el('div', { class: 'row g-2 align-items-end' }, [kolom('col-md-4', 'Tanggal saldo awal', t), kolom('col-md-4', 'Jumlah', el('div', {}, [j, bantuRupiah(j)])),
-        el('div', { class: 'col-md-2 mb-2' }, [el('button', { class: 'btn btn-outline-primary', type: 'submit', text: 'Simpan' })])]),
+      el('h3', { class: 'h6', text: 'Saldo Awal & Dana Mingguan (SUPERADMIN)' }),
+      el('div', { class: 'small text-muted mb-2', text: 'Saldo dihitung dari tanggal ini; transaksi sebelum tanggal ini tidak ikut dihitung. Isi pecahan sesuai hitungan fisik uang pada tanggal itu.' }),
+      el('div', { class: 'row g-2 align-items-end' }, [kolom('col-md-3', 'Tanggal saldo awal', t), kolom('col-md-3', 'Jumlah (otomatis bila pecahan diisi)', el('div', {}, [j, bantuRupiah(j)])), kolom('col-md-3', 'Dana tetap mingguan (acuan)', el('div', {}, [dana, bantuRupiah(dana)]))]),
+      pk.node,
+      el('button', { class: 'btn btn-outline-primary', type: 'submit', text: 'Simpan' }),
     ]);
     f.addEventListener('submit', aksiSekali(f.querySelector('button[type=submit]'), async (ev) => {
       ev.preventDefault();
       try {
-        await put('/api/kaskecil/saldo-awal', { cabang: cabang.kode(), tanggal: t.value, jumlah: Number(j.value) });
+        const p = pk.nilai();
+        await put('/api/kaskecil/saldo-awal', { cabang: cabang.kode(), tanggal: t.value, pecahan: p, jumlah: pk.total() > 0 ? pk.total() : Number(j.value), dana_mingguan: Number(dana.value) || 0 });
         toast('Saldo awal disimpan.', 'success');
         await muat();
       } catch (e) {
@@ -569,14 +677,12 @@ export async function renderKasOpname(view) {
   const galat = el('div', { class: 'alert alert-danger d-none' });
   const total = el('div', { class: 'h6', text: 'Nilai fisik: Rp 0' });
   const pecahan = kotakPecahan(PECAHAN_OPNAME, (t) => { total.textContent = `Nilai fisik: ${rp(t)}`; });
-  pecahan.node.open = true;
-  pecahan.node.querySelector('summary').textContent = 'Hitung fisik uang per pecahan';
   const daftar = el('div', {});
   const simpan = el('button', { class: 'btn btn-primary', type: 'submit', text: 'Simpan BA Cash Opname' });
   const form = el('form', { novalidate: 'novalidate', class: 'panel' }, [
     el('h3', { class: 'h6 mb-3', text: 'Berita Acara Cash Opname' }), galat,
     el('div', { class: 'row g-2' }, [kolom('col-md-3', 'Tanggal', tgl), kolom('col-md-9', 'Catatan', catatan)]),
-    pecahan.node, total,
+    el('div', { class: 'small fw-semibold mb-1', text: 'Hitung fisik uang per pecahan' }), pecahan.node, total,
     el('div', { class: 'small text-muted mb-2', text: 'Nilai buku diambil otomatis dari saldo akhir kas kecil pada tanggal tersebut.' }), simpan,
   ]);
   form.addEventListener('submit', async (ev) => {

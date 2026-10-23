@@ -12,6 +12,7 @@ import { hashPassword } from '../src/auth/password';
 import { todayWib } from '../src/logic/jalur';
 import { laporanRow, makeDeps, memFlazz, memKasKecil, memLaporan, memMaster } from '../tests/helpers';
 import type { KasJenisRow } from '../src/db/kaskecil';
+import { uraiPecahan } from '../src/logic/kaskecil';
 import type { KasKeluarRow, KasMasukRow } from '../src/logic/kaskecil';
 
 const PORT = Number(process.env.PORT || 8788);
@@ -58,9 +59,9 @@ const buatKK = (d: number, jam: string, namaJenis: string, penerima: string, jum
   const j = jenisId(namaJenis);
   const id = `KK-WHO-KWG-${bulan.replace('-', '')}${String(d).padStart(2, '0')}${String(++nomor).padStart(4, '0')}`;
   const ref = j.prefiks_ref ? `${j.prefiks_ref}-WHO-KWG-${bulan.replace('-', '')}${String(d).padStart(2, '0')}${String(nomor).padStart(4, '0')}` : '';
-  const kk: KasKeluarRow = { id, kode_cabang: 'KWG', tanggal: hari(d), jam, no_referensi: ref, penerima, penerima_2: penerima2, admin: 'Gin Gin Ginanjar (demo)', jenis_id: j.id, kode_akun: j.kode_akun, jenis: j.nama, pecahan: {}, jumlah, keterangan: j.nama, status: kembali === null && !j.tanpa_penyelesaian ? 'Open' : 'Closed', no_kas_masuk: '', created_by: 'pic.kwg', created_at: new Date().toISOString(), is_deleted: '' };
+  const kk: KasKeluarRow = { id, kode_cabang: 'KWG', tanggal: hari(d), jam, no_referensi: ref, penerima, penerima_2: penerima2, admin: 'Gin Gin Ginanjar (demo)', jenis_id: j.id, kode_akun: j.kode_akun, jenis: j.nama, pecahan: uraiPecahan(jumlah), jumlah, keterangan: j.nama, status: kembali === null && !j.tanpa_penyelesaian ? 'Open' : 'Closed', no_kas_masuk: '', created_by: 'pic.kwg', created_at: new Date().toISOString(), is_deleted: '' };
   if (kembali !== null && kembali > 0) {
-    const km: KasMasukRow = { id: id.replace('KK-', 'KM-'), kode_cabang: 'KWG', tanggal: hari(d), jam: '16:30:00', no_kas_keluar: id, no_referensi: ref, penerima, penerima_2: penerima2, admin: kk.admin, jenis_id: j.id, kode_akun: j.kode_akun, jenis: j.nama, pecahan: {}, jumlah: kembali, keterangan: '', created_by: 'pic.kwg', created_at: new Date().toISOString(), is_deleted: '' };
+    const km: KasMasukRow = { id: id.replace('KK-', 'KM-'), kode_cabang: 'KWG', tanggal: hari(d), jam: '16:30:00', no_kas_keluar: id, no_referensi: ref, penerima, penerima_2: penerima2, admin: kk.admin, jenis_id: j.id, kode_akun: j.kode_akun, jenis: j.nama, pecahan: uraiPecahan(kembali), jumlah: kembali, keterangan: '', created_by: 'pic.kwg', created_at: new Date().toISOString(), is_deleted: '' };
     masuk.push(km);
     kk.no_kas_masuk = km.id;
   }
@@ -86,7 +87,7 @@ buatKK(tanggalSampai, '14:00:00', 'Biaya Uang Muka Delivery', 'Haris Riswanto', 
 const master = memMaster({ cabang, kendaraan: kendaraan as any, supir: supir as any, pengguna: pengguna as any, flazzCard: [] });
 const lap = memLaporan({ rows: laporan });
 const flz = memFlazz({ cards: kartu as any, topups });
-const kas = memKasKecil({ jenis, saldoAwal: { KWG: { tanggal: hari(1), jumlah: 5_000_000 } }, keluar, masuk });
+const kas = memKasKecil({ jenis, saldoAwal: { KWG: { tanggal: hari(1), jumlah: 5_000_000, dana_mingguan: 2_000_000, pecahan: { '100000': 40, '50000': 6, '20000': 10, '10000': 20, '5000': 20, '2000': 25, '1000': 50, '500': 100, '200': 100, '100': 100, '50': 400 } } }, keluar, masuk });
 const { deps } = makeDeps({
   master: master.repo, laporan: lap.repo, flazz: flz.repo, jalur: undefined as any, kaskecil: kas.repo, now: () => Date.now(),
   findByUsername: async (u) => {

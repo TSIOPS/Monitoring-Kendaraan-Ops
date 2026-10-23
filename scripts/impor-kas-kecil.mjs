@@ -111,11 +111,31 @@ const saldoAwalImpor = saldoAwalHari - bersihSebelum; // saldo pada tglMulai aga
 const saldoAkhirHitung = saldoAwalImpor
   + sum(masuk.filter((x) => x.tanggal <= tglLaporan), (x) => x.jumlah) - sum(keluar.filter((x) => x.tanggal <= tglLaporan), (x) => x.jumlah);
 
+// Saldo per pecahan: kolom "Saldo" di sheet "Input Kas Kecil" (baris 8-19, urutan sama dengan KUNCI_PECAHAN) = lembar/keping di laci saat ini.
+// Saldo awal per pecahan = saldo sekarang − (kas masuk − kas keluar per pecahan) sampai tanggal laporan.
+const kunciUrut = Object.values(KUNCI_PECAHAN);
+const inputKas = XLSX.utils.sheet_to_json(wb.Sheets['Input Kas Kecil'], { header: 1, range: { s: { r: 7, c: 0 }, e: { r: 18, c: 9 } }, defval: '' });
+const saldoPecahanSekarang = Object.fromEntries(kunciUrut.map((k, i) => [k, Math.floor(angka(inputKas[i]?.[8]))]));
+const nilaiKunci = (k) => Number(k.replace('K', ''));
+const gerak = (rows, tanda) => { const out = {}; for (const x of rows.filter((y) => y.tanggal <= tglLaporan)) for (const [k, v] of Object.entries(x.pecahan)) out[k] = (out[k] ?? 0) + tanda * v; return out; };
+const gm = gerak(masuk, 1);
+const gk = gerak(keluar, -1);
+const pecahanAwal = {};
+for (const k of kunciUrut) {
+  const n = (saldoPecahanSekarang[k] ?? 0) - (gm[k] ?? 0) - (gk[k] ?? 0);
+  if (n !== 0) pecahanAwal[k] = n;
+}
+const nilaiPecahanAwal = Object.entries(pecahanAwal).reduce((n, [k, v]) => n + nilaiKunci(k) * v, 0);
+const pecahanNegatif = Object.entries(pecahanAwal).filter(([, v]) => v < 0).map(([k]) => k);
+const nilaiSaldoSekarang = Object.entries(saldoPecahanSekarang).reduce((n, [k, v]) => n + nilaiKunci(k) * v, 0);
+
 console.log(`\n== Impor kas kecil ${kode} dari ${berkas} (${apply ? 'APPLY' : 'DRY-RUN'}) ==`);
 console.log(`Kas keluar : ${keluar.length} baris, total Rp ${sum(keluar, (x) => x.jumlah).toLocaleString('id-ID')} (Open: ${keluar.filter((x) => x.status === 'Open').length})`);
 console.log(`Kas masuk  : ${masuk.length} baris, total Rp ${sum(masuk, (x) => x.jumlah).toLocaleString('id-ID')}`);
 console.log(`Rentang    : ${tglMulai} s.d. ${[...keluar, ...masuk].map((x) => x.tanggal).sort().at(-1) ?? '-'}`);
 console.log(`Saldo awal diusulkan: Rp ${saldoAwalImpor.toLocaleString('id-ID')} per ${tglMulai}`);
+console.log(`Saldo per pecahan di Excel: Rp ${nilaiSaldoSekarang.toLocaleString('id-ID')} (${nilaiSaldoSekarang === saldoAkhirFile ? 'sama dengan saldo uang' : 'BEDA dengan saldo uang'})`);
+console.log(`Saldo awal per pecahan (turunan): Rp ${nilaiPecahanAwal.toLocaleString('id-ID')} ${nilaiPecahanAwal === saldoAwalImpor ? '-> SESUAI' : '-> BEDA dari saldo awal uang'}${pecahanNegatif.length ? `; pecahan MINUS: ${pecahanNegatif.join(', ')} (catatan pecahan Excel tidak konsisten)` : ''}`);
 console.log(`Cek saldo tanggal ${tglLaporan}: hitung Rp ${saldoAkhirHitung.toLocaleString('id-ID')} vs Excel Rp ${saldoAkhirFile.toLocaleString('id-ID')} -> ${saldoAkhirHitung === saldoAkhirFile ? 'SESUAI' : 'BEDA (periksa sebelum --apply)'}`);
 if (peringatan.length) { console.log(`\nPeringatan (${peringatan.length}):`); peringatan.slice(0, 40).forEach((p) => console.log(' -', p)); }
 if (!apply) { console.log('\nDry-run selesai. Tambahkan --apply untuk menulis ke database.'); process.exit(0); }
@@ -142,7 +162,7 @@ if (!opsi.includes('--tanpa-saldo')) {
   const ada = await (await fetch(`${env.SUPABASE_URL}/rest/v1/kas_saldo_awal?kode_cabang=eq.${encodeURIComponent(kode)}&select=*`, { headers: h })).json();
   if (ada.length && !opsi.includes('--timpa-saldo')) console.log('Saldo awal sudah ada — tidak ditimpa (pakai --timpa-saldo bila perlu).');
   else {
-    const res = await fetch(`${env.SUPABASE_URL}/rest/v1/kas_saldo_awal?on_conflict=kode_cabang`, { method: 'POST', headers: { ...h, Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify({ kode_cabang: kode, tanggal: tglMulai, jumlah: saldoAwalImpor }) });
+    const res = await fetch(`${env.SUPABASE_URL}/rest/v1/kas_saldo_awal?on_conflict=kode_cabang`, { method: 'POST', headers: { ...h, Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify({ kode_cabang: kode, tanggal: tglMulai, jumlah: saldoAwalImpor, pecahan: nilaiPecahanAwal === saldoAwalImpor && !pecahanNegatif.length ? pecahanAwal : {} }) });
     if (!res.ok) throw new Error(`kas_saldo_awal: ${res.status} ${await res.text()}`);
     console.log(`Saldo awal diatur: Rp ${saldoAwalImpor.toLocaleString('id-ID')} per ${tglMulai}.`);
   }

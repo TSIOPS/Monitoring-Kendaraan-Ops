@@ -72,3 +72,22 @@ describe('Excel daftar kas keluar & kas masuk', () => {
     expect(wb.Sheets['Kas Keluar']!['!autofilter']!.ref.startsWith('A5:')).toBe(true);
   });
 });
+
+describe('sheet Saldo per Pecahan', () => {
+  it('baris per pecahan + total + selisih, jadi buku Excel valid', async () => {
+    const { sheetSaldoPecahan, labelPecahan } = await import('../../static/js/kaskecil-helpers.js');
+    expect(labelPecahan('K1000')).toBe('Rp 1.000 (koin)');
+    const rin = {
+      baris: [{ kunci: '100000', awal: 5, masuk: 0, keluar: 1, akhir: 4, nilaiAkhir: 400000 }, { kunci: '50000', awal: 2, masuk: 4, keluar: 0, akhir: 6, nilaiAkhir: 300000 }],
+      nilaiAwal: 600000, nilaiAkhir: 700000, saldoUang: 700000, selisih: 0, sinkron: true, negatif: [],
+    };
+    const sheets = sheetSaldoPecahan(rin, { warehouse: 'WHO KARAWANG', tanggal: '2026-10-22' });
+    expect(sheets[0]!.nama).toBe('Saldo per Pecahan');
+    const wb = XLSX.read(XLSX.write(bukuExcel(XLSX, sheets), { type: 'array', bookType: 'xlsx' }), { type: 'array' });
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets['Saldo per Pecahan']!, { header: 1 }) as unknown[][];
+    expect(rows[4]).toEqual(['Pecahan', 'Saldo Awal (lembar)', 'Masuk (lembar)', 'Keluar (lembar)', 'Saldo Akhir (lembar)', 'Nilai Saldo Akhir (Rp)']);
+    expect(rows[5]).toEqual(['Rp 100.000', 5, 0, 1, 4, 400000]);
+    expect(rows[7]).toEqual(['TOTAL', '', '', '', '', 700000]);
+    expect(rows[9]![5]).toBe(0);
+  });
+});

@@ -1,6 +1,6 @@
 // Dokumen cetak kas kecil (mengikuti format Excel): tampil sebagai lembar penuh, dicetak lewat window.print().
 import { el, fmtNum } from './ui.js';
-import { PECAHAN_OPNAME, gabungNama, jumlahPecahan, terbilang, tglId, tglPanjang } from './kaskecil-helpers.js';
+import { PECAHAN_OPNAME, gabungNama, jumlahPecahan, labelPecahan, terbilang, tglId, tglPanjang } from './kaskecil-helpers.js';
 
 const PERUSAHAAN = 'PT. TRIDAYA SINERGI INDONESIA';
 const rp = (n) => `Rp ${fmtNum(n)}`;
@@ -69,7 +69,7 @@ export function cetakPenyelesaian({ keluar: k, masuk: m, cabang }) {
   ]);
 }
 
-export function cetakLaporanHarian({ laporan: l, cabang }) {
+export function cetakLaporanHarian({ laporan: l, rincian: rin, cabang }) {
   const r = l.ringkasan;
   bukaCetak('Laporan Harian Kas Kecil', [
     kepala('LAPORAN HARIAN KAS KECIL', `${cabang?.nama || ''} — ${tglPanjang(l.tanggal)}`),
@@ -77,6 +77,9 @@ export function cetakLaporanHarian({ laporan: l, cabang }) {
     tabel(['No', 'Jam', 'No. Kas Keluar', 'No. Referensi', 'No. Kas Masuk', 'Nama', 'Jenis Transaksi', 'Debit', 'Kredit', 'Saldo', 'Status'],
       l.baris.map((b, i) => [i + 1, b.jam.slice(0, 5), b.nomorKK, b.referensi, b.nomorKM, b.nama, b.namaJenis, b.debit ? fmtNum(b.debit) : '', b.kredit ? fmtNum(b.kredit) : '', fmtNum(b.saldo), b.status]),
       { kanan: [7, 8, 9], kecil: true }),
+    rin ? tabel(['Pecahan', 'Saldo Awal', 'Masuk', 'Keluar', 'Saldo Akhir', 'Nilai (Rp)'],
+      [...rin.baris.map((b) => [labelPecahan(b.kunci), b.awal, b.masuk, b.keluar, b.akhir, fmtNum(b.nilaiAkhir)]), ['TOTAL', '', '', '', '', fmtNum(rin.nilaiAkhir)]],
+      { kanan: [1, 2, 3, 4, 5], kecil: true }) : null,
   ]);
 }
 

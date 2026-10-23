@@ -24,6 +24,12 @@ laporan BBM/tol/top up Flazz. **Tidak boleh di-deploy** sampai pemilik repo meny
 - **BA Cash Opname:** hitung fisik per pecahan (13 baris: 100.000…50) vs nilai buku (saldo akhir hari), selisih, nomor
   `CO.{seq3}/TSI-OPR/{KODE}/{BULAN ROMAWI}/{TAHUN}` (seq per cabang per tahun).
 
+## Saldo per pecahan, setoran Senin & tambah saldo (2026-10-23)
+- Uang SELALU dicatat per pecahan (12 baris seperti Excel; jumlah = total pecahan) untuk kas keluar, uang kembali, tambah saldo, setoran. Saldo per pecahan = saldo awal (pecahan) + KM − KK; ditampilkan sebagai tabel di Laporan Harian (Saldo Awal | Masuk | Keluar | Saldo Akhir | Nilai) dan di form kas keluar (kolom Tersedia; input melebihi tersedia diberi peringatan, tidak memblokir).
+- **Setoran Tunai Kas Kecil** hanya lewat tombol "Setor Seluruh Saldo ke Bank" (POST /api/kaskecil/setoran): mengeluarkan SELURUH saldo sesuai pecahan yang ada (tanpa sisa), foto bukti setor bank wajib, hanya hari ini, ditolak bila rincian pecahan tidak sinkron dengan saldo uang.
+- **Tambah Saldo** per pecahan yang dimasukkan. `dana_mingguan` per warehouse (diatur SUPERADMIN) hanya acuan: form menampilkan lebih/kurang dari dana tetap Senin, tidak membatasi.
+- Saldo awal menyimpan pecahan; impor Excel menurunkannya dari kolom Saldo sheet Input Kas Kecil.
+
 ## Penomoran (per cabang, per bulan, urut naik)
 - `KK-{WHO|WHP}-{KODE}-{YYYYMMDD}{NNNN}`; `KM-…` sama; referensi `BO-…`/`BP-…` (prefiks dari jenis; counter terpisah BO/BP).
 - NNNN = urutan di bulan itu (bukan per hari), sesuai Excel. WHO/WHP dari awalan nama cabang (bawaan WHO).

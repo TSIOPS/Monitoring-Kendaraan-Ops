@@ -160,3 +160,24 @@ export function sheetDaftarMasuk(masuk, { warehouse = '', dari = '', sampai = ''
     filter: true,
   };
 }
+
+export const labelPecahan = (k) => (PECAHAN_OPNAME.find(([x]) => x === k) || [k, k])[1];
+
+// Sheet "Saldo per Pecahan" (seperti tabel Pecahan Uang | Uang Keluar | Saldo di Excel offline).
+export function sheetSaldoPecahan(rin, { warehouse = '', tanggal = '' } = {}) {
+  return [{
+    nama: 'Saldo per Pecahan',
+    aoa: [
+      ['Rincian Saldo Kas Kecil per Pecahan'],
+      ['Warehouse', warehouse],
+      ['Tanggal', tglId(tanggal)],
+      [],
+      ['Pecahan', 'Saldo Awal (lembar)', 'Masuk (lembar)', 'Keluar (lembar)', 'Saldo Akhir (lembar)', 'Nilai Saldo Akhir (Rp)'],
+      ...rin.baris.map((b) => [labelPecahan(b.kunci), b.awal, b.masuk, b.keluar, b.akhir, b.nilaiAkhir]),
+      ['TOTAL', '', '', '', '', rin.nilaiAkhir],
+      ['Saldo uang menurut transaksi', '', '', '', '', rin.saldoUang],
+      ['Selisih', '', '', '', '', rin.selisih],
+    ],
+    angka: { baris: [...rin.baris.map((_, i) => i + 5), 5 + rin.baris.length, 6 + rin.baris.length, 7 + rin.baris.length], kolom: [5] },
+  }];
+}
