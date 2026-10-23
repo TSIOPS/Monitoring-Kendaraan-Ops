@@ -9,6 +9,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
+    "demo": "vite-node scripts/demo-lokal.ts",
     "apply-schema": "node scripts/apply-schema.mjs",
     "verify-schema": "node scripts/verify-schema.mjs"
   },

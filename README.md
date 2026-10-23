@@ -41,6 +41,7 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 |---|---|
 | `npm run dev` | wrangler dev lokal |
 | `npm run deploy` | deploy ke *.workers.dev |
+| `npm run demo` | **Demo lokal terisolasi** (http://localhost:8788): seluruh aplikasi dengan data PALSU di memori, tanpa Supabase/Cloudflare — aman untuk mencoba fitur baru (mis. Kas Kecil) tanpa menyentuh produksi/PIC. Akun (password `demo123`): super, pic.kwg, pic.bdg, mgmt. **Jangan pakai `npm run dev` untuk uji coba**: itu terhubung ke Supabase produksi. |
 | `npm test` | vitest |
 | `npm run typecheck` | tsc --noEmit |
 | `node scripts/impor-kas-kecil.mjs <berkas.xlsb> <KODE>` | Impor kas kecil dari Excel lama. Tanpa `--apply` = dry-run (hanya laporan + cek saldo); `--apply` menulis ke DB (butuh `db/kas-kecil.sql` sudah dijalankan). Opsi: `--tanpa-saldo`, `--timpa-saldo` |
