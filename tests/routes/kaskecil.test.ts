@@ -283,3 +283,17 @@ describe('validasi tambahan', () => {
     expect(await deps.kaskecil.listMasuk({ cabang: 'KWG' })).toHaveLength(0);
   });
 });
+
+describe('pembanding top up via Finance', () => {
+  it('kode GDGBDG/BDG/CBY ditandai topupFinance; cabang lain tidak', async () => {
+    const { CABANG_TOPUP_VIA_FINANCE } = await import('../../src/logic/kaskecil');
+    expect([...CABANG_TOPUP_VIA_FINANCE].sort()).toEqual(['BDG', 'CBY', 'GDGBDG']);
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, PIC_B); // BDG
+    await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-BENSIN', penerima: 'A', jumlah: 1000 });
+    const p = await json(await call(app, 'GET', '/api/kaskecil/pembanding?bulan=' + HARI.slice(0, 7), tok));
+    expect(p.baris[0].topupFinance).toBe(true);
+    const k = await json(await call(app, 'GET', '/api/kaskecil/pembanding?bulan=' + HARI.slice(0, 7), await loginAs(kv, PIC)));
+    expect(k.baris.every((b: any) => b.topupFinance === false)).toBe(true);
+  });
+});

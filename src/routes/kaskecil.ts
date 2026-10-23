@@ -11,7 +11,7 @@ import { rekapPengeluaran, rekapTopup } from '../logic/rekap';
 import { NomorKasBentrok } from '../db/kaskecil';
 import type { KasJenisRow } from '../db/kaskecil';
 import {
-  PECAHAN_OPNAME, jumlahPecahan, laporanHarian, nomorKas, normalPecahan, pembandingHarian, summaryBulanan, tipeWh, urutBerikut,
+  CABANG_TOPUP_VIA_FINANCE, PECAHAN_OPNAME, jumlahPecahan, laporanHarian, nomorKas, normalPecahan, pembandingHarian, summaryBulanan, tipeWh, urutBerikut,
 } from '../logic/kaskecil';
 import type { AppHarian, KasKeluarRow, KasMasukRow } from '../logic/kaskecil';
 
@@ -366,7 +366,7 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     }
     for (const t of topups) hari(t.tanggal).topup += t.nominal;
     const summary = summaryBulanan({ keluar, masuk, bulan });
-    return c.json(okPayload({ baris: pembandingHarian({ summary, app: appHarian }) }));
+    return c.json(okPayload({ baris: pembandingHarian({ summary, app: appHarian, topupFinance: CABANG_TOPUP_VIA_FINANCE.includes(cabang) }) }));
   });
 
   // ── BA Cash Opname ───────────────────────────────────────────────────────

@@ -111,3 +111,13 @@ describe('pembandingHarian', () => {
     ]);
   });
 });
+
+describe('pembandingHarian — top up via Finance', () => {
+  it('cabang via Finance: top up tidak dibandingkan dengan kas kecil dan tidak membuat status Selisih', () => {
+    const summary = { jenis: [], baris: [{ tanggal: '2026-10-01', nilai: {}, total: 0 }], total: {} } as any;
+    const app = new Map([['2026-10-01', { bbmTunai: 0, topup: 500000, tolTunai: 0 }]]);
+    const r = pembandingHarian({ summary, app, topupFinance: true });
+    expect(r[0]).toMatchObject({ topupFinance: true, cocok: true, topup: { app: 500000, selisih: 0 } });
+    expect(pembandingHarian({ summary, app })[0]).toMatchObject({ topupFinance: false, cocok: false, topup: { selisih: 500000 } });
+  });
+});

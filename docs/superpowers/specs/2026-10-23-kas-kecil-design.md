@@ -34,7 +34,7 @@ laporan BBM/tol/top up Flazz. **Tidak boleh di-deploy** sampai pemilik repo meny
 | BBM tunai (rekap pengeluaran) | Biaya Bensin Delivery |
 | Top up Flazz | Biaya Pengisian ETOLL |
 | Tol tunai | Biaya Uang Muka Delivery (indikatif) |
-Selisih ≠ 0 diberi tanda.
+Selisih ≠ 0 diberi tanda. **Pengecualian (2026-10-23):** WHP Bandung (GDGBDG), WHO Bandung (BDG), WHO Cibaduyut (CBY) top up Flazz dibayar langsung Finance → baris top up tampil "Via Finance", tidak dibandingkan.
 
 ## Data (db/kas-kecil.sql, RLS aktif)
 `kas_jenis`, `kas_keluar`, `kas_masuk`, `kas_saldo_awal`, `kas_opname`. Seed jenis dari DbPengeluaran (union semua cabang).

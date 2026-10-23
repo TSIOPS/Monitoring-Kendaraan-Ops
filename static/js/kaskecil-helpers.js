@@ -102,8 +102,8 @@ export function sheetPembanding(baris, { warehouse = '', bulan = '' } = {}) {
       ['Bulan', namaBulan(bulan)],
       [],
       ['Tanggal', 'BBM Tunai Aplikasi', 'Bensin Delivery Kas', 'Selisih BBM', 'Top Up Flazz Aplikasi', 'Pengisian ETOLL Kas', 'Selisih Top Up', 'Tol Tunai Aplikasi', 'Uang Muka Delivery Kas', 'Selisih Tol', 'Keterangan'],
-      ...baris.map((b) => [tglId(b.tanggal), b.bbm.app, b.bbm.kas, b.bbm.selisih, b.topup.app, b.topup.kas, b.topup.selisih, b.tol.app, b.tol.kas, b.tol.selisih, b.cocok ? 'Cocok' : 'Selisih']),
-      ['TOTAL', jumlah((b) => b.bbm.app), jumlah((b) => b.bbm.kas), jumlah((b) => b.bbm.selisih), jumlah((b) => b.topup.app), jumlah((b) => b.topup.kas), jumlah((b) => b.topup.selisih), jumlah((b) => b.tol.app), jumlah((b) => b.tol.kas), jumlah((b) => b.tol.selisih), ''],
+      ...baris.map((b) => [tglId(b.tanggal), b.bbm.app, b.bbm.kas, b.bbm.selisih, b.topup.app, b.topupFinance ? 'Via Finance' : b.topup.kas, b.topupFinance ? '-' : b.topup.selisih, b.tol.app, b.tol.kas, b.tol.selisih, b.cocok ? 'Cocok' : 'Selisih']),
+      ['TOTAL', jumlah((b) => b.bbm.app), jumlah((b) => b.bbm.kas), jumlah((b) => b.bbm.selisih), jumlah((b) => b.topup.app), jumlah((b) => (b.topupFinance ? 0 : b.topup.kas)), jumlah((b) => (b.topupFinance ? 0 : b.topup.selisih)), jumlah((b) => b.tol.app), jumlah((b) => b.tol.kas), jumlah((b) => b.tol.selisih), ''],
     ],
     angka: { baris: baris.map((_, i) => i + 5).concat([5 + baris.length]), kolom: [1, 2, 3, 4, 5, 6, 7, 8, 9] },
   }];

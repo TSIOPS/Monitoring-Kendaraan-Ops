@@ -195,13 +195,17 @@ export function summaryBulanan(i: { keluar: KasKeluarRow[]; masuk: KasMasukRow[]
 // ── Pembanding aplikasi vs kas kecil ────────────────────────────────────────
 export interface AppHarian { bbmTunai: number; topup: number; tolTunai: number }
 export interface PasanganBanding { app: number; kas: number; selisih: number }
-export interface BarisBanding { tanggal: string; bbm: PasanganBanding; topup: PasanganBanding; tol: PasanganBanding; cocok: boolean }
+export interface BarisBanding { tanggal: string; bbm: PasanganBanding; topup: PasanganBanding; tol: PasanganBanding; cocok: boolean; topupFinance: boolean }
+
+// Warehouse yang top up Flazz-nya dibayar langsung oleh divisi Finance (bukan dari kas kecil): WHP Bandung, WHO Bandung, WHO Cibaduyut.
+export const CABANG_TOPUP_VIA_FINANCE: readonly string[] = ['GDGBDG', 'BDG', 'CBY'];
 
 const POLA_BBM = /bensin delivery/i;
 const POLA_TOPUP = /pengisian etoll/i;
 const POLA_TOL = /uang muka delivery/i;
 
-export function pembandingHarian(i: { summary: SummaryBulanan; app: Map<string, AppHarian> }): BarisBanding[] {
+export function pembandingHarian(i: { summary: SummaryBulanan; app: Map<string, AppHarian>; topupFinance?: boolean }): BarisBanding[] {
+  const finance = Boolean(i.topupFinance);
   const kasPer = (nilai: Record<string, number>, pola: RegExp) => Object.entries(nilai).filter(([j]) => pola.test(j)).reduce((n, [, v]) => n + v, 0);
   const tanggal = new Set<string>([...i.app.keys(), ...i.summary.baris.map((b) => b.tanggal)]);
   const kasHari = new Map(i.summary.baris.map((b) => [b.tanggal, b.nilai]));
@@ -210,8 +214,8 @@ export function pembandingHarian(i: { summary: SummaryBulanan; app: Map<string, 
     const a = i.app.get(t) ?? { bbmTunai: 0, topup: 0, tolTunai: 0 };
     const nilai = kasHari.get(t) ?? {};
     const bbm = pasang(a.bbmTunai, kasPer(nilai, POLA_BBM));
-    const topup = pasang(a.topup, kasPer(nilai, POLA_TOPUP));
+    const topup = pasang(a.topup, finance ? a.topup : kasPer(nilai, POLA_TOPUP)); // via Finance: tidak ada padanan di kas kecil, selisih 0
     const tol = pasang(a.tolTunai, kasPer(nilai, POLA_TOL));
-    return { tanggal: t, bbm, topup, tol, cocok: bbm.selisih === 0 && topup.selisih === 0 && tol.selisih === 0 };
+    return { tanggal: t, bbm, topup, tol, cocok: bbm.selisih === 0 && topup.selisih === 0 && tol.selisih === 0, topupFinance: finance };
   });
 }
