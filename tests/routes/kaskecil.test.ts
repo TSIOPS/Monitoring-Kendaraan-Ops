@@ -1,0 +1,239 @@
+import { describe, expect, it } from 'vitest';
+import { buildApp } from '../../src/app';
+import { authHeaders, fakeEnv, loginAs, makeDeps, memKasKecil, memMaster } from '../helpers';
+import type { SessionUser } from '../../src/deps';
+import type { KasJenisRow } from '../../src/db/kaskecil';
+import { todayWib } from '../../src/logic/jalur';
+
+const SUPER: SessionUser = { user_id: 'U-S', username: 'super', nama: 'Super', role: 'SUPERADMIN', cabang: '', exp: 1e15 };
+const PIC: SessionUser = { user_id: 'U-P', username: 'pic', nama: 'Pic Lengkap', role: 'PIC CABANG', cabang: 'KWG', exp: 1e15 };
+const PIC_B: SessionUser = { user_id: 'U-PB', username: 'picb', nama: 'Pic B', role: 'PIC CABANG', cabang: 'BDG', exp: 1e15 };
+const MGMT: SessionUser = { user_id: 'U-M', username: 'mgmt', nama: 'Mgmt', role: 'MANAGEMENT', cabang: '', exp: 1e15 };
+
+const CABANG = [
+  { kode_cabang: 'KWG', nama_cabang: 'Who Karawang', lokasi: '', status: 'Aktif' },
+  { kode_cabang: 'BDG', nama_cabang: 'WHP Bandung', lokasi: '', status: 'Aktif' },
+];
+const J = (id: string, nama: string, o: Partial<KasJenisRow> = {}): KasJenisRow => ({
+  id, kode_akun: '6101-103', nama, prefiks_ref: 'BO', tipe: 'KELUAR', tanpa_penyelesaian: false, aktif: true, urut: 1, ...o,
+});
+const JENIS = [
+  J('KJ-BENSIN', 'Biaya Bensin Delivery', { prefiks_ref: 'BP' }),
+  J('KJ-UM', 'Biaya Uang Muka Delivery'),
+  J('KJ-SETOR', 'Setoran Tunai Kas Kecil', { prefiks_ref: '', tanpa_penyelesaian: true }),
+  J('KJ-TAMBAH', 'Tambah Saldo', { prefiks_ref: '', tipe: 'MASUK' }),
+  J('KJ-OFF', 'Jenis Nonaktif', { aktif: false }),
+];
+
+function setup() {
+  const master = memMaster({ cabang: CABANG });
+  const kas = memKasKecil({ jenis: JENIS });
+  const { deps, kv, audits } = makeDeps({ master: master.repo, kaskecil: kas.repo });
+  const app = buildApp(fakeEnv() as any, deps);
+  return { app, kv, audits, kas };
+}
+type App = ReturnType<typeof buildApp>;
+const h = (t: string) => ({ ...authHeaders(t), 'Content-Type': 'application/json' });
+const call = (app: App, method: string, path: string, t: string, b?: unknown) =>
+  app.request(path, { method, headers: h(t), body: b === undefined ? undefined : JSON.stringify(b) });
+const json = async (r: Response) => (await r.json()) as any;
+const HARI = todayWib();
+const BULAN = HARI.slice(0, 7).replace('-', '');
+
+describe('kas keluar', () => {
+  it('PIC membuat KK: nomor sama format Excel, referensi BP/BO, admin = nama lengkap, status Open', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, PIC);
+    const r1 = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-BENSIN', penerima: 'Agus', jumlah: 250000, keterangan: 'solar' }));
+    expect(r1.keluar.id).toBe(`KK-WHO-KWG-${BULAN}${HARI.slice(8)}0001`);
+    expect(r1.keluar.no_referensi).toBe(`BP-WHO-KWG-${BULAN}${HARI.slice(8)}0001`);
+    expect(r1.keluar).toMatchObject({ admin: 'Pic Lengkap', status: 'Open', jumlah: 250000, kode_akun: '6101-103', jenis: 'Biaya Bensin Delivery', kode_cabang: 'KWG' });
+    const r2 = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'Budi', pecahan: { '50000': 2 } }));
+    expect(r2.keluar.id.endsWith('0002')).toBe(true);
+    expect(r2.keluar.no_referensi).toBe(`BO-WHO-KWG-${BULAN}${HARI.slice(8)}0001`);
+    expect(r2.keluar.jumlah).toBe(100000);
+  });
+
+  it('WHP memakai awalan WHP; jenis tanpa penyelesaian langsung Closed', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, PIC_B);
+    const r = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-SETOR', penerima: 'Bank', jumlah: 500000 }));
+    expect(r.keluar.id.startsWith('KK-WHP-BDG-')).toBe(true);
+    expect(r.keluar.status).toBe('Closed');
+    expect(r.keluar.no_referensi).toBe('');
+  });
+
+  it('validasi: penerima, jenis, nominal, pecahan tidak sama, tanggal masa depan', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, PIC);
+    const kirim = (b: unknown) => call(app, 'POST', '/api/kaskecil/keluar', tok, b);
+    expect((await kirim({ jenis_id: 'KJ-UM', jumlah: 1000 })).status).toBe(400);
+    expect((await kirim({ jenis_id: 'KJ-NOPE', penerima: 'A', jumlah: 1000 })).status).toBe(400);
+    expect((await kirim({ jenis_id: 'KJ-OFF', penerima: 'A', jumlah: 1000 })).status).toBe(400);
+    expect((await kirim({ jenis_id: 'KJ-TAMBAH', penerima: 'A', jumlah: 1000 })).status).toBe(400);
+    expect((await kirim({ jenis_id: 'KJ-UM', penerima: 'A', jumlah: 0 })).status).toBe(400);
+    expect((await kirim({ jenis_id: 'KJ-UM', penerima: 'A', jumlah: 100000001 })).status).toBe(400);
+    expect((await kirim({ jenis_id: 'KJ-UM', penerima: 'A', jumlah: 1.5 })).status).toBe(400);
+    expect((await kirim({ jenis_id: 'KJ-UM', penerima: 'A', jumlah: 90000, pecahan: { '50000': 2 } })).status).toBe(400);
+    expect((await kirim({ jenis_id: 'KJ-UM', penerima: 'A', pecahan: { '777': 1 } })).status).toBe(400);
+    expect((await kirim({ jenis_id: 'KJ-UM', penerima: 'A', jumlah: 1000, tanggal: '2999-01-01' })).status).toBe(400);
+  });
+
+  it('akses: PIC hanya cabangnya; MANAGEMENT baca saja; SUPERADMIN wajib memilih cabang', async () => {
+    const { app, kv } = setup();
+    const pic = await loginAs(kv, PIC);
+    const b = { jenis_id: 'KJ-UM', penerima: 'A', jumlah: 1000 };
+    expect((await call(app, 'POST', '/api/kaskecil/keluar', pic, { ...b, cabang: 'BDG' })).status).toBe(403);
+    expect((await call(app, 'GET', '/api/kaskecil/keluar?cabang=BDG', pic)).status).toBe(403);
+    const mg = await loginAs(kv, MGMT);
+    expect((await call(app, 'POST', '/api/kaskecil/keluar', mg, { ...b, cabang: 'KWG' })).status).toBe(403);
+    expect((await call(app, 'GET', '/api/kaskecil/keluar?cabang=KWG', mg)).status).toBe(200);
+    const su = await loginAs(kv, SUPER);
+    expect((await call(app, 'POST', '/api/kaskecil/keluar', su, b)).status).toBe(400);
+    expect((await call(app, 'POST', '/api/kaskecil/keluar', su, { ...b, cabang: 'BDG' })).status).toBe(200);
+  });
+
+  it('PIC lain tidak bisa membuka/mengubah KK cabang lain', async () => {
+    const { app, kv } = setup();
+    const a = await json(await call(app, 'POST', '/api/kaskecil/keluar', await loginAs(kv, PIC), { jenis_id: 'KJ-UM', penerima: 'A', jumlah: 1000 }));
+    const picB = await loginAs(kv, PIC_B);
+    expect((await call(app, 'GET', '/api/kaskecil/keluar/' + a.keluar.id, picB)).status).toBe(403);
+    expect((await call(app, 'DELETE', '/api/kaskecil/keluar/' + a.keluar.id, picB)).status).toBe(403);
+  });
+
+  it('ubah & hapus selama Open; terkunci setelah diselesaikan', async () => {
+    const { app, kv, kas } = setup();
+    const tok = await loginAs(kv, PIC);
+    const a = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'A', jumlah: 100000 }));
+    const id = a.keluar.id;
+    expect((await call(app, 'PUT', '/api/kaskecil/keluar/' + id, tok, { penerima: 'B', jumlah: 150000 })).status).toBe(200);
+    expect(kas.state.keluar[0]).toMatchObject({ penerima: 'B', jumlah: 150000 });
+    expect((await call(app, 'POST', `/api/kaskecil/keluar/${id}/selesai`, tok, { jumlah: 50000 })).status).toBe(200);
+    expect((await call(app, 'PUT', '/api/kaskecil/keluar/' + id, tok, { penerima: 'C' })).status).toBe(409);
+    expect((await call(app, 'DELETE', '/api/kaskecil/keluar/' + id, tok)).status).toBe(409);
+    expect((await call(app, 'DELETE', `/api/kaskecil/keluar/${id}/selesai`, tok)).status).toBe(200);
+    expect((await call(app, 'DELETE', '/api/kaskecil/keluar/' + id, tok)).status).toBe(200);
+    expect(kas.state.keluar[0]!.is_deleted).toBe('1');
+  });
+});
+
+describe('penyelesaian', () => {
+  it('membuat KM tertaut, KK jadi Closed; uang kembali > nominal ditolak; dobel ditolak', async () => {
+    const { app, kv, kas } = setup();
+    const tok = await loginAs(kv, PIC);
+    const a = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'A', jumlah: 100000 }));
+    const id = a.keluar.id;
+    expect((await call(app, 'POST', `/api/kaskecil/keluar/${id}/selesai`, tok, { jumlah: 100001 })).status).toBe(400);
+    const r = await json(await call(app, 'POST', `/api/kaskecil/keluar/${id}/selesai`, tok, { jumlah: 30000, keterangan: 'sisa' }));
+    expect(r.masuk.id).toBe(`KM-WHO-KWG-${BULAN}${HARI.slice(8)}0001`);
+    expect(r.masuk).toMatchObject({ no_kas_keluar: id, jumlah: 30000, no_referensi: a.keluar.no_referensi, jenis: 'Biaya Uang Muka Delivery' });
+    expect(kas.state.keluar[0]).toMatchObject({ status: 'Closed', no_kas_masuk: r.masuk.id });
+    expect((await call(app, 'POST', `/api/kaskecil/keluar/${id}/selesai`, tok, { jumlah: 0 })).status).toBe(409);
+    const det = await json(await call(app, 'GET', '/api/kaskecil/keluar/' + id, tok));
+    expect(det.masuk.id).toBe(r.masuk.id);
+    expect(det.cabang).toEqual({ kode: 'KWG', nama: 'Who Karawang' });
+  });
+
+  it('uang kembali 0 diperbolehkan (dipakai seluruhnya)', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, PIC);
+    const a = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'A', jumlah: 100000 }));
+    expect((await call(app, 'POST', `/api/kaskecil/keluar/${a.keluar.id}/selesai`, tok, { jumlah: 0 })).status).toBe(200);
+  });
+});
+
+describe('saldo, tambah saldo, laporan harian', () => {
+  it('saldo awal hanya SUPERADMIN; laporan harian menghitung saldo berjalan', async () => {
+    const { app, kv } = setup();
+    const pic = await loginAs(kv, PIC);
+    const su = await loginAs(kv, SUPER);
+    expect((await call(app, 'PUT', '/api/kaskecil/saldo-awal', pic, { tanggal: '2026-10-01', jumlah: 1000000 })).status).toBe(403);
+    expect((await call(app, 'PUT', '/api/kaskecil/saldo-awal', su, { cabang: 'KWG', tanggal: '2026-10-01', jumlah: 1000000 })).status).toBe(200);
+    expect((await call(app, 'POST', '/api/kaskecil/masuk', pic, { jumlah: 500000, keterangan: 'dari pusat' })).status).toBe(200);
+    await call(app, 'POST', '/api/kaskecil/keluar', pic, { jenis_id: 'KJ-UM', penerima: 'A', jumlah: 100000 });
+    const lap = await json(await call(app, 'GET', `/api/kaskecil/laporan-harian?tanggal=${HARI}`, pic));
+    expect(lap.laporan.saldoAwal).toBe(1000000);
+    expect(lap.laporan.baris.map((b: any) => [b.jenis, b.debit, b.kredit]).sort()).toEqual([['KELUAR', 0, 100000], ['MASUK', 500000, 0]]);
+    expect(lap.laporan.baris.at(-1).saldo).toBe(1400000);
+    expect(lap.laporan.ringkasan).toMatchObject({ keluar: 100000, masuk: 500000, belumSelesai: 100000, saldoAkhir: 1400000 });
+  });
+
+  it('tambah saldo bisa dihapus; penyelesaian KK tidak bisa dihapus lewat /masuk', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, PIC);
+    const t = await json(await call(app, 'POST', '/api/kaskecil/masuk', tok, { jumlah: 1000 }));
+    expect((await call(app, 'DELETE', '/api/kaskecil/masuk/' + t.masuk.id, tok)).status).toBe(200);
+    const a = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'A', jumlah: 1000 }));
+    const s = await json(await call(app, 'POST', `/api/kaskecil/keluar/${a.keluar.id}/selesai`, tok, { jumlah: 0 }));
+    expect((await call(app, 'DELETE', '/api/kaskecil/masuk/' + s.masuk.id, tok)).status).toBe(409);
+  });
+
+  it('laporan harian & summary butuh cabang untuk SUPERADMIN/MANAGEMENT', async () => {
+    const { app, kv } = setup();
+    const su = await loginAs(kv, SUPER);
+    expect((await call(app, 'GET', '/api/kaskecil/laporan-harian', su)).status).toBe(400);
+    expect((await call(app, 'GET', '/api/kaskecil/summary', su)).status).toBe(400);
+    expect((await call(app, 'GET', '/api/kaskecil/summary?cabang=KWG&bulan=2026-13', su)).status).toBe(400);
+  });
+});
+
+describe('summary & pembanding', () => {
+  it('summary: nilai bersih KK − KM per jenis', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, PIC);
+    const a = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'A', jumlah: 100000 }));
+    await call(app, 'POST', `/api/kaskecil/keluar/${a.keluar.id}/selesai`, tok, { jumlah: 60000 });
+    await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-BENSIN', penerima: 'A', jumlah: 250000 });
+    const s = await json(await call(app, 'GET', '/api/kaskecil/summary?bulan=' + HARI.slice(0, 7), tok));
+    expect(s.summary.total).toEqual({ 'Biaya Uang Muka Delivery': 40000, 'Biaya Bensin Delivery': 250000, semua: 290000 });
+  });
+
+  it('pembanding: kas bensin tanpa laporan aplikasi → selisih negatif', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, PIC);
+    await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-BENSIN', penerima: 'A', jumlah: 250000 });
+    const p = await json(await call(app, 'GET', '/api/kaskecil/pembanding?bulan=' + HARI.slice(0, 7), tok));
+    expect(p.baris).toHaveLength(1);
+    expect(p.baris[0]).toMatchObject({ tanggal: HARI, cocok: false, bbm: { app: 0, kas: 250000, selisih: -250000 } });
+  });
+});
+
+describe('jenis & opname', () => {
+  it('jenis: semua peran baca yang aktif; hanya SUPERADMIN mengubah', async () => {
+    const { app, kv } = setup();
+    const pic = await loginAs(kv, PIC);
+    const list = await json(await call(app, 'GET', '/api/kaskecil/jenis', pic));
+    expect(list.jenis.map((j: any) => j.id)).not.toContain('KJ-OFF');
+    expect((await call(app, 'PUT', '/api/kaskecil/jenis/KJ-UM', pic, { nama: 'X' })).status).toBe(403);
+    const su = await loginAs(kv, SUPER);
+    expect((await call(app, 'PUT', '/api/kaskecil/jenis/KJ-UM', su, { aktif: false })).status).toBe(200);
+    expect((await call(app, 'PUT', '/api/kaskecil/jenis/NOPE', su, { aktif: false })).status).toBe(404);
+    const semua = await json(await call(app, 'GET', '/api/kaskecil/jenis?semua=1', su));
+    expect(semua.jenis.find((j: any) => j.id === 'KJ-UM').aktif).toBe(false);
+  });
+
+  it('opname: nilai buku = saldo akhir hari, selisih fisik − buku, nomor CO per tahun, bisa dihapus', async () => {
+    const { app, kv, kas } = setup();
+    const su = await loginAs(kv, SUPER);
+    const tok = await loginAs(kv, PIC);
+    await call(app, 'PUT', '/api/kaskecil/saldo-awal', su, { cabang: 'KWG', tanggal: '2026-10-01', jumlah: 1000000 });
+    const r = await json(await call(app, 'POST', '/api/kaskecil/opname', tok, { pecahan: { '100000': 9, '50000': 1 }, catatan: 'rutin' }));
+    const bulanRomawi = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][Number(HARI.slice(5, 7)) - 1];
+    expect(r.opname).toMatchObject({ id: `CO.001/TSI-OPR/KWG/${bulanRomawi}/${HARI.slice(0, 4)}`, nilai_fisik: 950000, nilai_buku: 1000000, selisih: -50000, pemeriksa: 'Pic Lengkap' });
+    const r2 = await json(await call(app, 'POST', '/api/kaskecil/opname', tok, { pecahan: { '75000': 1 } }));
+    expect(r2.opname.id.startsWith('CO.002/')).toBe(true);
+    expect((await call(app, 'POST', '/api/kaskecil/opname', tok, { pecahan: { '777': 1 } })).status).toBe(400);
+    const del = await call(app, 'DELETE', '/api/kaskecil/opname/' + encodeURIComponent(r.opname.id), tok);
+    expect(del.status).toBe(200);
+    expect(kas.state.opname.find((o) => o.id === r.opname.id)!.is_deleted).toBe('1');
+    const daftar = await json(await call(app, 'GET', '/api/kaskecil/opname', tok));
+    expect(daftar.opname).toHaveLength(1);
+  });
+
+  it('semua tulis dicatat di audit log', async () => {
+    const { app, kv, audits } = setup();
+    const tok = await loginAs(kv, PIC);
+    await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'A', jumlah: 1000 });
+    expect(audits.some((a) => a.modul === 'kaskecil' && a.action === 'CREATE')).toBe(true);
+  });
+});

@@ -4,6 +4,7 @@ import type { SettingsRepo } from './db/settings';
 import type { LaporanRepo } from './db/laporan';
 import type { FlazzRepo } from './db/flazz';
 import type { JalurRepo } from './db/jalur';
+import type { KasKecilRepo } from './db/kaskecil';
 import type { StorageUploadResult, UploadEvidenceOpts } from './db/storage';
 import type { Env } from './env';
 
@@ -69,6 +70,7 @@ export interface AppDeps {
   laporan: LaporanRepo;
   flazz: FlazzRepo;
   jalur: JalurRepo;
+  kaskecil: KasKecilRepo;
   uploadEvidence: (env: Env, opts: UploadEvidenceOpts) => Promise<StorageUploadResult>;
   deleteEvidence: (env: Env, key: string) => Promise<void>;
   resetData: (env: Env) => Promise<Record<string, number>>;

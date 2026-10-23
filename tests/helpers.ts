@@ -1,6 +1,9 @@
 import { cocokAudit } from '../src/logic/audit';
 import type { AuditFilter } from '../src/logic/audit';
 import type { JalurRepo } from '../src/db/jalur';
+import { NomorKasBentrok } from '../src/db/kaskecil';
+import type { KasJenisRow, KasKecilRepo, KasOpnameRow, KasRentang } from '../src/db/kaskecil';
+import type { KasKeluarRow, KasMasukRow, SaldoAwal } from '../src/logic/kaskecil';
 import type { JalurFull } from '../src/logic/jalur';
 import type { AppDeps, AuditRow, KVStore, SessionUser } from '../src/deps';
 import type {
@@ -349,6 +352,7 @@ export function makeDeps(over: Partial<AppDeps> = {}) {
   const { state: laporanState, repo: laporan } = memLaporan();
   const { state: flazzState, repo: flazz } = memFlazz();
   const { repo: jalur } = memJalur(laporanState.jalur);
+  const { state: kasState, repo: kaskecil } = memKasKecil();
   const storage = memStorage();
   const deps: AppDeps = {
     kv,
@@ -363,12 +367,13 @@ export function makeDeps(over: Partial<AppDeps> = {}) {
     laporan,
     flazz,
     jalur,
+    kaskecil,
     uploadEvidence: storage.uploadEvidence,
     deleteEvidence: storage.deleteEvidence,
     resetData: async () => ({ penggunaan_bbm: 0 }),
     ...over,
   };
-  return { kv, audits, deps, masterState, settingsValues, laporanState, flazzState, storage };
+  return { kv, audits, deps, masterState, settingsValues, laporanState, flazzState, kasState, storage };
 }
 
 export async function loginAs(kv: KVStore, user: SessionUser): Promise<string> {
@@ -650,4 +655,55 @@ export function memJalur(shared: JalurRow[] = []) {
     },
   };
   return { rows: shared, repo };
+}
+
+// ── Kas kecil (in-memory) ───────────────────────────────────────────────────
+export interface MemKasKecilState {
+  jenis: KasJenisRow[];
+  saldoAwal: Record<string, SaldoAwal>;
+  keluar: KasKeluarRow[];
+  masuk: KasMasukRow[];
+  opname: KasOpnameRow[];
+}
+
+export function memKasKecil(initial?: Partial<MemKasKecilState>) {
+  const state: MemKasKecilState = {
+    jenis: clone(initial?.jenis ?? []),
+    saldoAwal: clone(initial?.saldoAwal ?? {}),
+    keluar: clone(initial?.keluar ?? []),
+    masuk: clone(initial?.masuk ?? []),
+    opname: clone(initial?.opname ?? []),
+  };
+  const dalam = (r: { kode_cabang: string; tanggal: string; is_deleted: string }, f: KasRentang) =>
+    r.is_deleted !== '1' && (!f.cabang || r.kode_cabang === f.cabang) && (!f.dari || r.tanggal >= f.dari) && (!f.sampai || r.tanggal <= f.sampai);
+  const urut = <T extends { tanggal: string; jam?: string }>(a: T[]) => [...a].sort((x, y) => x.tanggal.localeCompare(y.tanggal) || String(x.jam ?? '').localeCompare(String(y.jam ?? '')));
+  const tambah = <T extends { id: string }>(arr: T[], row: T) => {
+    if (arr.some((x) => x.id === row.id)) throw new NomorKasBentrok('Nomor sudah dipakai.');
+    arr.push(clone(row));
+  };
+  const repo: KasKecilRepo = {
+    async listJenis() { return clone(state.jenis).sort((a, b) => a.urut - b.urut); },
+    async upsertJenis(row) {
+      const i = state.jenis.findIndex((j) => j.id === row.id);
+      if (i > -1) state.jenis[i] = clone(row); else state.jenis.push(clone(row));
+    },
+    async getSaldoAwal(cabang) { return state.saldoAwal[cabang] ? clone(state.saldoAwal[cabang]!) : null; },
+    async setSaldoAwal(cabang, awal) { state.saldoAwal[cabang] = clone(awal); },
+    async listKeluar(f) { return clone(urut(state.keluar.filter((r) => dalam(r, f)))); },
+    async findKeluar(id) { const r = state.keluar.find((x) => x.id === id); return r ? clone(r) : null; },
+    async insertKeluar(row) { tambah(state.keluar, row); },
+    async updateKeluar(id, patch) { const r = state.keluar.find((x) => x.id === id); if (r) Object.assign(r, clone(patch)); },
+    async listMasuk(f) { return clone(urut(state.masuk.filter((r) => dalam(r, f)))); },
+    async findMasuk(id) { const r = state.masuk.find((x) => x.id === id); return r ? clone(r) : null; },
+    async insertMasuk(row) { tambah(state.masuk, row); },
+    async updateMasuk(id, patch) { const r = state.masuk.find((x) => x.id === id); if (r) Object.assign(r, clone(patch)); },
+    async nomorBulan(cabang, bulan) {
+      return [...state.keluar, ...state.masuk].filter((r) => r.kode_cabang === cabang && r.tanggal.startsWith(bulan)).flatMap((r) => [r.id, r.no_referensi]).filter(Boolean);
+    },
+    async listOpname(f) { return clone(state.opname.filter((r) => dalam(r, f))); },
+    async findOpname(id) { const r = state.opname.find((x) => x.id === id); return r ? clone(r) : null; },
+    async insertOpname(row) { tambah(state.opname, row); },
+    async updateOpname(id, patch) { const r = state.opname.find((x) => x.id === id); if (r) Object.assign(r, clone(patch)); },
+  };
+  return { state, repo };
 }

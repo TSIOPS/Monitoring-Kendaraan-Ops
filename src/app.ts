@@ -13,11 +13,13 @@ import { supabaseMasterRepo } from './db/master';
 import { supabaseSettingsRepo } from './db/settings';
 import { supabaseLaporanRepo } from './db/laporan';
 import { supabaseFlazzRepo } from './db/flazz';
+import { supabaseKasKecilRepo } from './db/kaskecil';
 import { supabaseJalurRepo } from './db/jalur';
 import { uploadEvidenceStorage, deleteEvidenceStorage } from './db/storage';
 import { resetDataDb } from './db/reset';
 import { laporanRoutes, dashboardRoutes } from './routes/laporan';
 import { flazzRoutes } from './routes/flazz';
+import { kasKecilRoutes } from './routes/kaskecil';
 import { jalurRoutes } from './routes/jalur';
 import { pushRoutes } from './routes/push';
 import { fotoRoutes, salinFotoRoutes } from './routes/foto';
@@ -35,6 +37,7 @@ export function buildDeps(env: Env, overrides: Partial<AppDeps> = {}): AppDeps {
     laporan: supabaseLaporanRepo(env),
     flazz: supabaseFlazzRepo(env),
     jalur: supabaseJalurRepo(env),
+    kaskecil: supabaseKasKecilRepo(env),
     uploadEvidence: uploadEvidenceStorage,
     deleteEvidence: deleteEvidenceStorage,
     resetData: resetDataDb,
@@ -70,6 +73,7 @@ export function buildApp(env: Env, overrides: Partial<AppDeps> = {}): Hono<{ Bin
   app.route('/api/settings', settingsRoutes(deps));
   app.route('/api/audit', auditRoutes(deps));
   app.route('/api/flazz', flazzRoutes(deps));
+  app.route('/api/kaskecil', kasKecilRoutes(deps));
   app.route('/api/jalur', jalurRoutes(deps));
   app.route('/api', pushRoutes(deps));
   app.route('/api/laporan', laporanRoutes(deps));
