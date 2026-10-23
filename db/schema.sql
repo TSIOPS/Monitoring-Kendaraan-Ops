@@ -339,6 +339,7 @@ create table if not exists kas_keluar (
   jam text not null default '',
   no_referensi text not null default '',          -- BO-/BP-...
   penerima text not null default '',
+  penerima_2 text not null default '',             -- nama kedua (opsional), mis. pendamping driver
   admin text not null default '',
   jenis_id text not null default '',
   kode_akun text not null default '',
@@ -362,6 +363,7 @@ create table if not exists kas_masuk (
   no_kas_keluar text not null default '',         -- '' = Tambah Saldo
   no_referensi text not null default '',
   penerima text not null default '',
+  penerima_2 text not null default '',             -- nama kedua (opsional), mis. pendamping driver
   admin text not null default '',
   jenis_id text not null default '',
   kode_akun text not null default '',
@@ -374,6 +376,9 @@ create table if not exists kas_masuk (
   is_deleted text not null default ''
 );
 create index if not exists kas_masuk_cabang_tgl on kas_masuk (kode_cabang, tanggal);
+
+alter table kas_keluar add column if not exists penerima_2 text not null default '';
+alter table kas_masuk add column if not exists penerima_2 text not null default '';
 
 create table if not exists kas_saldo_awal (
   kode_cabang text primary key,

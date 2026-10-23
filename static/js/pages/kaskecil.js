@@ -6,7 +6,7 @@ import { aksiSekali, bantuRupiah, barisForm, confirmDialog, el, fmtDateId, fmtNu
 import { tanggalWib } from './input.js';
 import { bukuExcel, muatSheetJS } from './rekap.js';
 import {
-  PECAHAN, PECAHAN_OPNAME, bersihkanPecahan, jumlahPecahan, namaFileKas, sheetDaftarKeluar, sheetDaftarMasuk, sheetLaporanHarian, sheetPembanding, sheetSummary, tglId,
+  PECAHAN, PECAHAN_OPNAME, bersihkanPecahan, gabungNama, jumlahPecahan, namaFileKas, sheetDaftarKeluar, sheetDaftarMasuk, sheetLaporanHarian, sheetPembanding, sheetSummary, tglId,
 } from '../kaskecil-helpers.js';
 import { cetakBuktiKeluar, cetakLaporanHarian, cetakOpname, cetakPenyelesaian } from '../kaskecil-cetak.js';
 
@@ -99,6 +99,7 @@ export async function renderKasKeluar(view) {
     const nama = [...new Set(dasar.drivers.filter((d) => !kode || d.cabang === kode).map((d) => String(d.nama || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
     daftarDriver.replaceChildren(...nama.map((n) => el('option', { value: n })));
   };
+  const penerima2 = el('input', { class: 'form-control', maxlength: '80', autocomplete: 'off', list: 'kas-daftar-driver', placeholder: 'Opsional: pendamping / driver kedua' });
   isiDriver();
   const tanggal = el('input', { type: 'date', class: 'form-control', value: tanggalWib(), max: tanggalWib() });
   const jumlah = el('input', { type: 'number', min: '1', step: '1', class: 'form-control' });
@@ -110,7 +111,8 @@ export async function renderKasKeluar(view) {
     alertBox,
     el('div', { class: 'row g-2' }, [
       kolom('col-md-4', 'Jenis transaksi', jenis),
-      kolom('col-md-4', 'Nama penerima (driver)', el('div', {}, [penerima, daftarDriver])),
+      kolom('col-md-4', 'Nama penerima 1 (driver)', el('div', {}, [penerima, daftarDriver])),
+      kolom('col-md-4', 'Nama penerima 2 (opsional)', penerima2),
       kolom('col-md-4', 'Tanggal', tanggal),
       kolom('col-md-4', 'Jumlah uang keluar', el('div', {}, [jumlah, bantuRupiah(jumlah)])),
       kolom('col-md-8', 'Keterangan / untuk penggunaan', ket),
@@ -142,7 +144,7 @@ export async function renderKasKeluar(view) {
     simpan.disabled = true;
     try {
       const p = pecahan.nilai();
-      const badan = { penerima: penerima.value.trim(), jumlah: Number(jumlah.value), keterangan: ket.value.trim(), ...(Object.keys(p).length ? { pecahan: p } : {}) };
+      const badan = { penerima: penerima.value.trim(), penerima_2: penerima2.value.trim(), jumlah: Number(jumlah.value), keterangan: ket.value.trim(), ...(Object.keys(p).length ? { pecahan: p } : {}) };
       if (ubah) {
         await put(`/api/kaskecil/keluar/${encodeURIComponent(ubah.id)}`, badan);
         toast('Kas keluar diperbarui.', 'success');
@@ -165,6 +167,7 @@ export async function renderKasKeluar(view) {
     tanggal.value = r.tanggal;
     tanggal.disabled = true;
     penerima.value = r.penerima;
+    penerima2.value = r.penerima_2 || '';
     ket.value = r.keterangan;
     jumlah.readOnly = false;
     jumlah.value = String(r.jumlah);
@@ -189,7 +192,7 @@ export async function renderKasKeluar(view) {
     const ok = el('button', { class: 'btn btn-success', type: 'submit', text: 'Selesaikan' });
     const batal = el('button', { class: 'btn btn-outline-secondary', type: 'button', text: 'Batal', onclick: () => selesaiBox.replaceChildren() });
     const f = el('form', { novalidate: 'novalidate', class: 'panel border' }, [
-      el('h3', { class: 'h6', text: `Penyelesaian ${r.id} — ${r.penerima}` }), galat, info,
+      el('h3', { class: 'h6', text: `Penyelesaian ${r.id} — ${gabungNama(r)}` }), galat, info,
       el('div', { class: 'row g-2' }, [kolom('col-md-4', 'Uang kembali (sisa)', el('div', {}, [kembali, bantuRupiah(kembali)])), kolom('col-md-4', 'Tanggal penyelesaian', tgl), kolom('col-md-4', 'Keterangan', k)]),
       pk.node, el('div', { class: 'd-flex gap-2' }, [ok, batal]),
     ]);
@@ -236,7 +239,7 @@ export async function renderKasKeluar(view) {
         el('tbody', {}, h.isi.map((r) => el('tr', {}, [
           el('td', { class: 'text-nowrap', text: `${fmtDateId(r.tanggal)} ${String(r.jam).slice(0, 5)}` }),
           el('td', { class: 'small', text: r.id }), el('td', { class: 'small', text: r.no_referensi || '-' }),
-          el('td', { text: r.penerima }), el('td', { text: r.jenis }),
+          el('td', { text: gabungNama(r) }), el('td', { text: r.jenis }),
           el('td', { class: 'text-end', text: rp(r.jumlah) }), el('td', {}, [badgeStatus(r.status)]),
           el('td', {}, [grupAksi([
             tombolIkon('cetak', 'Cetak bukti kas keluar', () => cetak(r.id, 'keluar')),
@@ -332,7 +335,7 @@ export async function renderKasMasuk(view) {
         el('tbody', {}, h.isi.map((r) => el('tr', {}, [
           el('td', { class: 'text-nowrap', text: `${fmtDateId(r.tanggal)} ${String(r.jam).slice(0, 5)}` }), el('td', { class: 'small', text: r.id }),
           el('td', { class: 'small', text: r.no_kas_keluar || '(tambah saldo)' }), el('td', { class: 'small', text: r.no_referensi || '-' }),
-          el('td', { text: r.penerima || '-' }), el('td', { text: r.jenis }), el('td', { class: 'text-end', text: rp(r.jumlah) }), el('td', { class: 'small text-muted', text: r.keterangan || '-' }),
+          el('td', { text: gabungNama(r) || '-' }), el('td', { text: r.jenis }), el('td', { class: 'text-end', text: rp(r.jumlah) }), el('td', { class: 'small text-muted', text: r.keterangan || '-' }),
         ]))),
       ])]),
       navHalaman(h.total, h.aktif, (ke) => { nomor = ke; gambar(); }),

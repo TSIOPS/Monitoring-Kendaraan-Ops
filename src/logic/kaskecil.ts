@@ -7,6 +7,7 @@ export interface KasKeluarRow {
   jam: string;
   no_referensi: string;
   penerima: string;
+  penerima_2?: string;
   admin: string;
   jenis_id: string;
   kode_akun: string;
@@ -29,6 +30,7 @@ export interface KasMasukRow {
   no_kas_keluar: string; // '' = Tambah Saldo
   no_referensi: string;
   penerima: string;
+  penerima_2?: string;
   admin: string;
   jenis_id?: string;
   kode_akun?: string;
@@ -46,6 +48,8 @@ export interface SaldoAwal { tanggal: string; jumlah: number }
 const tgl10 = (v: unknown) => String(v ?? '').substring(0, 10);
 const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 const aktif = (r: { is_deleted?: string }) => String(r.is_deleted ?? '') !== '1';
+// Dua nama penerima (driver + pendamping) ditampilkan 'A / B'.
+export const gabungNama = (r: { penerima?: string; penerima_2?: string }) => [r.penerima, r.penerima_2].map((x) => String(x ?? '').trim()).filter(Boolean).join(' / ');
 
 // ── Pecahan uang ────────────────────────────────────────────────────────────
 // Kunci = nilai pecahan; 'K1000' = koin Rp1.000 (Excel punya 2 baris 1000: kertas & koin).
@@ -137,11 +141,11 @@ export function laporanHarian(i: { awal: SaldoAwal | null; keluar: KasKeluarRow[
   type Ev = { waktu: string; baris: Omit<BarisLaporan, 'saldo'> };
   const ev: Ev[] = [];
   for (const r of keluar.filter((x) => tgl10(x.tanggal) === hari)) {
-    ev.push({ waktu: r.jam, baris: { nomor: r.id, tanggal: hari, jam: r.jam, jenis: 'KELUAR', nomorKK: r.id, nomorKM: statusPada(r) === 'Closed' ? r.no_kas_masuk : '', referensi: r.no_referensi, nama: r.penerima, admin: r.admin, kodeAkun: r.kode_akun, namaJenis: r.jenis, debit: 0, kredit: num(r.jumlah), status: statusPada(r) } });
+    ev.push({ waktu: r.jam, baris: { nomor: r.id, tanggal: hari, jam: r.jam, jenis: 'KELUAR', nomorKK: r.id, nomorKM: statusPada(r) === 'Closed' ? r.no_kas_masuk : '', referensi: r.no_referensi, nama: gabungNama(r), admin: r.admin, kodeAkun: r.kode_akun, namaJenis: r.jenis, debit: 0, kredit: num(r.jumlah), status: statusPada(r) } });
   }
   for (const r of masuk.filter((x) => tgl10(x.tanggal) === hari)) {
     const asal = kkById.get(r.no_kas_keluar);
-    ev.push({ waktu: r.jam, baris: { nomor: r.id, tanggal: hari, jam: r.jam, jenis: 'MASUK', nomorKK: r.no_kas_keluar, nomorKM: r.id, referensi: r.no_referensi || asal?.no_referensi || '', nama: r.penerima || asal?.penerima || '', admin: r.admin, kodeAkun: r.kode_akun || asal?.kode_akun || '', namaJenis: r.jenis || asal?.jenis || '', debit: num(r.jumlah), kredit: 0, status: r.no_kas_keluar ? 'Closed' : '' } });
+    ev.push({ waktu: r.jam, baris: { nomor: r.id, tanggal: hari, jam: r.jam, jenis: 'MASUK', nomorKK: r.no_kas_keluar, nomorKM: r.id, referensi: r.no_referensi || asal?.no_referensi || '', nama: gabungNama(r) || (asal ? gabungNama(asal) : ''), admin: r.admin, kodeAkun: r.kode_akun || asal?.kode_akun || '', namaJenis: r.jenis || asal?.jenis || '', debit: num(r.jumlah), kredit: 0, status: r.no_kas_keluar ? 'Closed' : '' } });
   }
   ev.sort((a, b) => a.waktu.localeCompare(b.waktu));
   const baris = ev.map((e) => { saldo += e.baris.debit - e.baris.kredit; return { ...e.baris, saldo }; });

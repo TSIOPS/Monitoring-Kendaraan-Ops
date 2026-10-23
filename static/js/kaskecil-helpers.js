@@ -50,6 +50,8 @@ export function tglPanjang(t) {
   const hari = HARI[new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))).getUTCDay()];
   return `${hari}, ${Number(m[3])} ${BULAN[Number(m[2]) - 1]} ${m[1]}`;
 }
+// Dua nama penerima (driver + pendamping) ditampilkan 'A / B'.
+export const gabungNama = (r) => [r?.penerima, r?.penerima_2].map((x) => String(x ?? '').trim()).filter(Boolean).join(' / ');
 export const tglId = (t) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(t || ''));
   return m ? `${m[3]}/${m[2]}/${m[1]}` : String(t || '');
@@ -121,7 +123,7 @@ export function sheetDaftarKeluar(keluar, masuk, { warehouse = '', dari = '', sa
   const kmById = new Map((masuk || []).map((m) => [m.id, m]));
   const urut = [...keluar].sort(urutWaktu);
   const kembali = (k) => (k.no_kas_masuk ? (kmById.get(k.no_kas_masuk)?.jumlah ?? 0) : 0);
-  const kolomRp = [10 + PECAHAN.length, 11 + PECAHAN.length, 12 + PECAHAN.length];
+  const kolomRp = [11 + PECAHAN.length, 12 + PECAHAN.length, 13 + PECAHAN.length];
   return {
     nama: 'Kas Keluar',
     aoa: [
@@ -129,9 +131,9 @@ export function sheetDaftarKeluar(keluar, masuk, { warehouse = '', dari = '', sa
       ['Warehouse', warehouse],
       ['Periode', `${tglId(dari)} s.d. ${tglId(sampai)}`],
       [],
-      ['No', 'Tanggal', 'Jam', 'No. Kas Keluar', 'No. Referensi', 'No. Kas Masuk', 'Penerima', 'Admin', 'Kode Akun', 'Jenis Transaksi', ...KOLOM_PECAHAN, 'Kas Keluar (Rp)', 'Uang Kembali (Rp)', 'Penggunaan (Rp)', 'Untuk Penggunaan', 'Status'],
-      ...urut.map((k, i) => [i + 1, tglId(k.tanggal), String(k.jam).slice(0, 8), k.id, k.no_referensi || '', k.no_kas_masuk || '', k.penerima, k.admin, k.kode_akun || '', k.jenis, ...barisPecahan(k.pecahan), k.jumlah, kembali(k), k.jumlah - kembali(k), k.keterangan || '', k.status]),
-      ['', '', '', '', '', '', '', '', '', 'TOTAL', ...PECAHAN.map(() => ''), jum(urut, (k) => k.jumlah), jum(urut, kembali), jum(urut, (k) => k.jumlah - kembali(k)), '', ''],
+      ['No', 'Tanggal', 'Jam', 'No. Kas Keluar', 'No. Referensi', 'No. Kas Masuk', 'Penerima', 'Penerima 2', 'Admin', 'Kode Akun', 'Jenis Transaksi', ...KOLOM_PECAHAN, 'Kas Keluar (Rp)', 'Uang Kembali (Rp)', 'Penggunaan (Rp)', 'Untuk Penggunaan', 'Status'],
+      ...urut.map((k, i) => [i + 1, tglId(k.tanggal), String(k.jam).slice(0, 8), k.id, k.no_referensi || '', k.no_kas_masuk || '', k.penerima, k.penerima_2 || '', k.admin, k.kode_akun || '', k.jenis, ...barisPecahan(k.pecahan), k.jumlah, kembali(k), k.jumlah - kembali(k), k.keterangan || '', k.status]),
+      ['', '', '', '', '', '', '', '', '', '', 'TOTAL', ...PECAHAN.map(() => ''), jum(urut, (k) => k.jumlah), jum(urut, kembali), jum(urut, (k) => k.jumlah - kembali(k)), '', ''],
     ],
     angka: { baris: urut.map((_, i) => i + 5).concat([5 + urut.length]), kolom: kolomRp },
     awalTabel: 4,
@@ -141,7 +143,7 @@ export function sheetDaftarKeluar(keluar, masuk, { warehouse = '', dari = '', sa
 
 export function sheetDaftarMasuk(masuk, { warehouse = '', dari = '', sampai = '' } = {}) {
   const urut = [...masuk].sort(urutWaktu);
-  const kolomRp = [10 + PECAHAN.length];
+  const kolomRp = [11 + PECAHAN.length];
   return {
     nama: 'Kas Masuk',
     aoa: [
@@ -149,9 +151,9 @@ export function sheetDaftarMasuk(masuk, { warehouse = '', dari = '', sampai = ''
       ['Warehouse', warehouse],
       ['Periode', `${tglId(dari)} s.d. ${tglId(sampai)}`],
       [],
-      ['No', 'Tanggal', 'Jam', 'No. Kas Masuk', 'No. Kas Keluar', 'No. Referensi', 'Penerima', 'Admin', 'Kode Akun', 'Jenis Transaksi', ...KOLOM_PECAHAN, 'Jumlah (Rp)', 'Keterangan'],
-      ...urut.map((m, i) => [i + 1, tglId(m.tanggal), String(m.jam).slice(0, 8), m.id, m.no_kas_keluar || '', m.no_referensi || '', m.penerima || '', m.admin, m.kode_akun || '', m.jenis, ...barisPecahan(m.pecahan), m.jumlah, m.keterangan || '']),
-      ['', '', '', '', '', '', '', '', '', 'TOTAL', ...PECAHAN.map(() => ''), jum(urut, (m) => m.jumlah), ''],
+      ['No', 'Tanggal', 'Jam', 'No. Kas Masuk', 'No. Kas Keluar', 'No. Referensi', 'Penerima', 'Penerima 2', 'Admin', 'Kode Akun', 'Jenis Transaksi', ...KOLOM_PECAHAN, 'Jumlah (Rp)', 'Keterangan'],
+      ...urut.map((m, i) => [i + 1, tglId(m.tanggal), String(m.jam).slice(0, 8), m.id, m.no_kas_keluar || '', m.no_referensi || '', m.penerima || '', m.penerima_2 || '', m.admin, m.kode_akun || '', m.jenis, ...barisPecahan(m.pecahan), m.jumlah, m.keterangan || '']),
+      ['', '', '', '', '', '', '', '', '', '', 'TOTAL', ...PECAHAN.map(() => ''), jum(urut, (m) => m.jumlah), ''],
     ],
     angka: { baris: urut.map((_, i) => i + 5).concat([5 + urut.length]), kolom: kolomRp },
     awalTabel: 4,

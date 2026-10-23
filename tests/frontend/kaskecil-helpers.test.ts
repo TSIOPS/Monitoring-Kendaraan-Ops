@@ -53,9 +53,9 @@ describe('Excel daftar kas keluar & kas masuk', () => {
     const keluar = [kk({ id: 'KK-2', tanggal: '2026-10-03', no_kas_masuk: 'KM-1', status: 'Closed', jumlah: 100000, pecahan: {} }), kk({})];
     const sk = sheetDaftarKeluar(keluar, [km({})], { warehouse: 'WHO KARAWANG', dari: '2026-10-01', sampai: '2026-10-31' });
     expect(sk.nama).toBe('Kas Keluar');
-    expect(sk.aoa[4]!.slice(0, 10)).toEqual(['No', 'Tanggal', 'Jam', 'No. Kas Keluar', 'No. Referensi', 'No. Kas Masuk', 'Penerima', 'Admin', 'Kode Akun', 'Jenis Transaksi']);
+    expect(sk.aoa[4]!.slice(0, 11)).toEqual(['No', 'Tanggal', 'Jam', 'No. Kas Keluar', 'No. Referensi', 'No. Kas Masuk', 'Penerima', 'Penerima 2', 'Admin', 'Kode Akun', 'Jenis Transaksi']);
     expect(sk.aoa[5]![3]).toBe('KK-1'); // lebih awal dulu
-    expect(sk.aoa[5]![11]).toBe(2); // 50.000 × 2 lembar
+    expect(sk.aoa[5]![12]).toBe(2); // 50.000 × 2 lembar
     const kolom = (b: unknown[], n: string) => b[sk.aoa[4]!.indexOf(n)];
     expect(kolom(sk.aoa[6]!, 'Uang Kembali (Rp)')).toBe(40000);
     expect(kolom(sk.aoa[6]!, 'Penggunaan (Rp)')).toBe(60000);

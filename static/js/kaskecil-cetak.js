@@ -1,6 +1,6 @@
 // Dokumen cetak kas kecil (mengikuti format Excel): tampil sebagai lembar penuh, dicetak lewat window.print().
 import { el, fmtNum } from './ui.js';
-import { PECAHAN_OPNAME, jumlahPecahan, terbilang, tglId, tglPanjang } from './kaskecil-helpers.js';
+import { PECAHAN_OPNAME, gabungNama, jumlahPecahan, terbilang, tglId, tglPanjang } from './kaskecil-helpers.js';
 
 const PERUSAHAAN = 'PT. TRIDAYA SINERGI INDONESIA';
 const rp = (n) => `Rp ${fmtNum(n)}`;
@@ -44,13 +44,13 @@ export function cetakBuktiKeluar({ keluar: k, cabang }) {
   bukaCetak('Bukti Kas Keluar', [
     kepala('BUKTI KAS KELUAR', k.id),
     tabelInfo([
-      ['No. Kas Keluar', k.id], ['No. Referensi', k.no_referensi], ['Tanggal', `${tglId(k.tanggal)} ${k.jam}`], ['Nama', k.penerima],
+      ['No. Kas Keluar', k.id], ['No. Referensi', k.no_referensi], ['Tanggal', `${tglId(k.tanggal)} ${k.jam}`], ['Nama', gabungNama(k)],
       ['Untuk Keperluan', k.jenis], ['Jumlah', rp(k.jumlah)], ['Keterangan', k.keterangan],
     ]),
     el('div', { class: 'cetak-terbilang', text: terbilang(k.jumlah) }),
     pecahan.length ? el('div', { class: 'cetak-kecil mb-2', text: 'Pecahan: ' + pecahan.map(([p, n]) => `${p.replace('K', '')}${p.startsWith('K') ? ' (koin)' : ''} × ${n}`).join(', ') }) : null,
     el('div', { class: 'cetak-kota', text: `${kota}, ${tglPanjang(k.tanggal)}` }),
-    tandaTangan(['Dikeluarkan oleh,', k.admin], ['Diterima oleh,', k.penerima]),
+    tandaTangan(['Dikeluarkan oleh,', k.admin], ['Diterima oleh,', gabungNama(k)]),
   ]);
 }
 
@@ -59,13 +59,13 @@ export function cetakPenyelesaian({ keluar: k, masuk: m, cabang }) {
   const kembali = m ? m.jumlah : 0;
   bukaCetak('Penyelesaian Kas Kecil', [
     kepala('PENYELESAIAN KAS KECIL', m ? m.id : k.id),
-    tabelInfo([['No. Referensi', k.no_referensi], ['Nama', k.penerima], ['Jenis Transaksi', k.jenis]]),
+    tabelInfo([['No. Referensi', k.no_referensi], ['Nama', gabungNama(k)], ['Jenis Transaksi', k.jenis]]),
     tabel(['No. Kas Keluar', 'Tgl KK', 'Nominal KK', 'Nominal KM', 'Tgl KM', 'No. Kas Masuk'], [[k.id, tglId(k.tanggal), fmtNum(k.jumlah), fmtNum(kembali), m ? tglId(m.tanggal) : '-', m ? m.id : '-']], { kanan: [2, 3], kecil: true }),
     tabelInfo([['Jumlah Anggaran', rp(k.jumlah)], ['Sisa Anggaran', rp(kembali)], ['Penggunaan Anggaran', rp(k.jumlah - kembali)]]),
     el('div', { class: 'cetak-terbilang', text: terbilang(k.jumlah) }),
     el('div', { class: 'cetak-kecil mb-2', text: 'Penerimaan dokumen terlampir bukti penggunaan uang.' }),
     el('div', { class: 'cetak-kota', text: `${kota}, ${tglPanjang(m ? m.tanggal : k.tanggal)}` }),
-    tandaTangan(['Admin,', k.admin], ['Penerima,', k.penerima]),
+    tandaTangan(['Admin,', k.admin], ['Penerima,', gabungNama(k)]),
   ]);
 }
 

@@ -54,13 +54,13 @@ const jenisId = (nama: string) => jenis.find((j) => j.nama === nama)!;
 let nomor = 0;
 const keluar: KasKeluarRow[] = [];
 const masuk: KasMasukRow[] = [];
-const buatKK = (d: number, jam: string, namaJenis: string, penerima: string, jumlah: number, kembali: number | null) => {
+const buatKK = (d: number, jam: string, namaJenis: string, penerima: string, jumlah: number, kembali: number | null, penerima2 = '') => {
   const j = jenisId(namaJenis);
   const id = `KK-WHO-KWG-${bulan.replace('-', '')}${String(d).padStart(2, '0')}${String(++nomor).padStart(4, '0')}`;
   const ref = j.prefiks_ref ? `${j.prefiks_ref}-WHO-KWG-${bulan.replace('-', '')}${String(d).padStart(2, '0')}${String(nomor).padStart(4, '0')}` : '';
-  const kk: KasKeluarRow = { id, kode_cabang: 'KWG', tanggal: hari(d), jam, no_referensi: ref, penerima, admin: 'Gin Gin Ginanjar (demo)', jenis_id: j.id, kode_akun: j.kode_akun, jenis: j.nama, pecahan: {}, jumlah, keterangan: j.nama, status: kembali === null && !j.tanpa_penyelesaian ? 'Open' : 'Closed', no_kas_masuk: '', created_by: 'pic.kwg', created_at: new Date().toISOString(), is_deleted: '' };
+  const kk: KasKeluarRow = { id, kode_cabang: 'KWG', tanggal: hari(d), jam, no_referensi: ref, penerima, penerima_2: penerima2, admin: 'Gin Gin Ginanjar (demo)', jenis_id: j.id, kode_akun: j.kode_akun, jenis: j.nama, pecahan: {}, jumlah, keterangan: j.nama, status: kembali === null && !j.tanpa_penyelesaian ? 'Open' : 'Closed', no_kas_masuk: '', created_by: 'pic.kwg', created_at: new Date().toISOString(), is_deleted: '' };
   if (kembali !== null && kembali > 0) {
-    const km: KasMasukRow = { id: id.replace('KK-', 'KM-'), kode_cabang: 'KWG', tanggal: hari(d), jam: '16:30:00', no_kas_keluar: id, no_referensi: ref, penerima, admin: kk.admin, jenis_id: j.id, kode_akun: j.kode_akun, jenis: j.nama, pecahan: {}, jumlah: kembali, keterangan: '', created_by: 'pic.kwg', created_at: new Date().toISOString(), is_deleted: '' };
+    const km: KasMasukRow = { id: id.replace('KK-', 'KM-'), kode_cabang: 'KWG', tanggal: hari(d), jam: '16:30:00', no_kas_keluar: id, no_referensi: ref, penerima, penerima_2: penerima2, admin: kk.admin, jenis_id: j.id, kode_akun: j.kode_akun, jenis: j.nama, pecahan: {}, jumlah: kembali, keterangan: '', created_by: 'pic.kwg', created_at: new Date().toISOString(), is_deleted: '' };
     masuk.push(km);
     kk.no_kas_masuk = km.id;
   }
@@ -69,7 +69,7 @@ const buatKK = (d: number, jam: string, namaJenis: string, penerima: string, jum
 const laporan: ReturnType<typeof laporanRow>[] = [];
 const topups: any[] = [];
 for (let d = 1; d <= tanggalSampai; d++) {
-  buatKK(d, '09:10:00', 'Biaya Uang Muka Delivery', 'Haris Riswanto', 100000, d % 2 ? 100000 : 60000);
+  buatKK(d, '09:10:00', 'Biaya Uang Muka Delivery', 'Haris Riswanto', 100000, d % 2 ? 100000 : 60000, 'Rakhman Hakim');
   buatKK(d, '10:05:00', 'Biaya Retribusi', 'Haris Riswanto', 10000, 0);
   if (d % 2 === 0) {
     buatKK(d, '10:30:00', 'Biaya Bensin Delivery', 'Haris Riswanto', 250000, 0);

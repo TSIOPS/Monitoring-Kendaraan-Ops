@@ -68,7 +68,7 @@ for (const r of rowsKeluar) {
   const nomorKM = m ? str(m[6]) : '';
   const tutup = str(r[27]) === 'Closed' || Boolean(j?.tanpa);
   const row = {
-    id, kode_cabang: kode, tanggal: tanggal(r[2]), jam: jam(r[3]), no_referensi: str(r[5]), penerima: str(r[7]), admin: str(r[25]),
+    id, kode_cabang: kode, tanggal: tanggal(r[2]), jam: jam(r[3]), no_referensi: str(r[5]), penerima: str(r[7]), penerima_2: str(r[8]), admin: str(r[25]),
     jenis_id: j?.id ?? '', kode_akun: str(r[9]) || j?.kode_akun || '', jenis: nama, pecahan: pecahan(r), jumlah: angka(r[23]),
     keterangan: str(r[26]).slice(0, 300), status: tutup ? 'Closed' : 'Open', no_kas_masuk: '', created_by: 'impor', created_at: new Date().toISOString(), is_deleted: '',
   };
@@ -78,7 +78,7 @@ for (const r of rowsKeluar) {
     const idKM = nomorKM || id.replace(/^KK-/, 'KM-');
     row.no_kas_masuk = idKM;
     masuk.push({
-      id: idKM, kode_cabang: kode, tanggal: tanggal(m[2]) || row.tanggal, jam: jam(m[3]), no_kas_keluar: id, no_referensi: row.no_referensi, penerima: row.penerima,
+      id: idKM, kode_cabang: kode, tanggal: tanggal(m[2]) || row.tanggal, jam: jam(m[3]), no_kas_keluar: id, no_referensi: row.no_referensi, penerima: row.penerima, penerima_2: row.penerima_2,
       admin: str(m[25]) || row.admin, jenis_id: row.jenis_id, kode_akun: row.kode_akun, jenis: nama, pecahan: pecahan(m), jumlah: kembali, keterangan: '',
       created_by: 'impor', created_at: new Date().toISOString(), is_deleted: '',
     });

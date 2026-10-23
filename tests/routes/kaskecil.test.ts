@@ -312,3 +312,20 @@ describe('daftar kas masuk', () => {
     expect(kosong.masuk).toEqual([]);
   });
 });
+
+describe('dua nama penerima', () => {
+  it('penerima_2 opsional: tersimpan, bisa diubah, diwarisi penyelesaian, tampil gabungan di laporan harian', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, PIC);
+    const a = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'Haris', penerima_2: 'Aris', jumlah: 100000 }));
+    expect(a.keluar.penerima_2).toBe('Aris');
+    const tanpa = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'Solo', jumlah: 1000 }));
+    expect(tanpa.keluar.penerima_2).toBe('');
+    expect((await call(app, 'PUT', '/api/kaskecil/keluar/' + a.keluar.id, tok, { penerima_2: 'Budi' })).status).toBe(200);
+    const s = await json(await call(app, 'POST', `/api/kaskecil/keluar/${a.keluar.id}/selesai`, tok, { jumlah: 0 }));
+    expect(s.masuk.penerima_2).toBe('Budi');
+    const lap = await json(await call(app, 'GET', `/api/kaskecil/laporan-harian?tanggal=${HARI}`, tok));
+    expect(lap.laporan.baris.map((b: any) => b.nama)).toContain('Haris / Budi');
+    expect(lap.laporan.baris.map((b: any) => b.nama)).toContain('Solo');
+  });
+});

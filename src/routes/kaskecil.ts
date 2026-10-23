@@ -195,7 +195,7 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     if (!penerima) throw new HttpError(400, 'Nama penerima wajib diisi.', 'BAD_REQUEST');
     const { jumlah, pecahan } = ambilJumlah(b);
     const row: KasKeluarRow = {
-      id: '', kode_cabang: kode, tanggal, jam: jamWib(), no_referensi: '', penerima, admin: u.nama || u.username,
+      id: '', kode_cabang: kode, tanggal, jam: jamWib(), no_referensi: '', penerima, penerima_2: str(b.penerima_2).slice(0, 80), admin: u.nama || u.username,
       jenis_id: jenis.id, kode_akun: jenis.kode_akun, jenis: jenis.nama, pecahan, jumlah, keterangan: str(b.keterangan).slice(0, 300),
       status: jenis.tanpa_penyelesaian ? 'Closed' : 'Open', no_kas_masuk: '', created_by: u.username, created_at: new Date(deps.now()).toISOString(), is_deleted: '',
     };
@@ -219,6 +219,7 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       if (!str(b.penerima)) throw new HttpError(400, 'Nama penerima wajib diisi.', 'BAD_REQUEST');
       patch.penerima = str(b.penerima).slice(0, 80);
     }
+    if (b.penerima_2 !== undefined) patch.penerima_2 = str(b.penerima_2).slice(0, 80);
     if (b.keterangan !== undefined) patch.keterangan = str(b.keterangan).slice(0, 300);
     if (b.jumlah !== undefined || b.pecahan !== undefined) Object.assign(patch, ambilJumlah(b));
     await deps.kaskecil.updateKeluar(row.id, patch);
@@ -249,7 +250,7 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const { jumlah, pecahan } = ambilJumlah(b, { boleh0: true, label: 'Uang kembali' });
     if (jumlah > kk.jumlah) throw new HttpError(400, 'Uang kembali tidak boleh melebihi nominal kas keluar.', 'BAD_REQUEST');
     const masuk: KasMasukRow = {
-      id: '', kode_cabang: kk.kode_cabang, tanggal, jam: jamWib(), no_kas_keluar: kk.id, no_referensi: kk.no_referensi, penerima: kk.penerima,
+      id: '', kode_cabang: kk.kode_cabang, tanggal, jam: jamWib(), no_kas_keluar: kk.id, no_referensi: kk.no_referensi, penerima: kk.penerima, penerima_2: kk.penerima_2 ?? '',
       admin: u.nama || u.username, jenis_id: kk.jenis_id, kode_akun: kk.kode_akun, jenis: kk.jenis, pecahan, jumlah,
       keterangan: str(b.keterangan).slice(0, 300), created_by: u.username, created_at: new Date(deps.now()).toISOString(), is_deleted: '',
     };
@@ -294,7 +295,7 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     if (!jenis) throw new HttpError(400, 'Jenis "Tambah Saldo" belum tersedia.', 'BAD_REQUEST');
     const { jumlah, pecahan } = ambilJumlah(b);
     const masuk: KasMasukRow = {
-      id: '', kode_cabang: kode, tanggal, jam: jamWib(), no_kas_keluar: '', no_referensi: '', penerima: str(b.penerima), admin: u.nama || u.username,
+      id: '', kode_cabang: kode, tanggal, jam: jamWib(), no_kas_keluar: '', no_referensi: '', penerima: str(b.penerima).slice(0, 80), penerima_2: '', admin: u.nama || u.username,
       jenis_id: jenis.id, kode_akun: jenis.kode_akun, jenis: jenis.nama, pecahan, jumlah, keterangan: str(b.keterangan).slice(0, 300),
       created_by: u.username, created_at: new Date(deps.now()).toISOString(), is_deleted: '',
     };
