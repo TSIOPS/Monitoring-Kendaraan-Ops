@@ -110,3 +110,51 @@ export function sheetPembanding(baris, { warehouse = '', bulan = '' } = {}) {
 }
 
 export const namaFileKas = (jenis, kode, periode) => `kas-kecil-${jenis}-${kode || 'semua'}-${periode}.xlsx`;
+
+// ── Daftar kas keluar / kas masuk (mengikuti kolom List Kas Keluar/Masuk di Excel lama) ──
+const KOLOM_PECAHAN = PECAHAN.map(([k, label]) => label.replace('Rp ', ''));
+const urutWaktu = (a, b) => String(a.tanggal).localeCompare(String(b.tanggal)) || String(a.jam).localeCompare(String(b.jam)) || String(a.id).localeCompare(String(b.id));
+const barisPecahan = (p) => PECAHAN.map(([k]) => (p && p[k]) || 0);
+const jum = (arr, f) => arr.reduce((n, x) => n + f(x), 0);
+
+export function sheetDaftarKeluar(keluar, masuk, { warehouse = '', dari = '', sampai = '' } = {}) {
+  const kmById = new Map((masuk || []).map((m) => [m.id, m]));
+  const urut = [...keluar].sort(urutWaktu);
+  const kembali = (k) => (k.no_kas_masuk ? (kmById.get(k.no_kas_masuk)?.jumlah ?? 0) : 0);
+  const kolomRp = [10 + PECAHAN.length, 11 + PECAHAN.length, 12 + PECAHAN.length];
+  return {
+    nama: 'Kas Keluar',
+    aoa: [
+      ['Daftar Kas Keluar'],
+      ['Warehouse', warehouse],
+      ['Periode', `${tglId(dari)} s.d. ${tglId(sampai)}`],
+      [],
+      ['No', 'Tanggal', 'Jam', 'No. Kas Keluar', 'No. Referensi', 'No. Kas Masuk', 'Penerima', 'Admin', 'Kode Akun', 'Jenis Transaksi', ...KOLOM_PECAHAN, 'Kas Keluar (Rp)', 'Uang Kembali (Rp)', 'Penggunaan (Rp)', 'Untuk Penggunaan', 'Status'],
+      ...urut.map((k, i) => [i + 1, tglId(k.tanggal), String(k.jam).slice(0, 8), k.id, k.no_referensi || '', k.no_kas_masuk || '', k.penerima, k.admin, k.kode_akun || '', k.jenis, ...barisPecahan(k.pecahan), k.jumlah, kembali(k), k.jumlah - kembali(k), k.keterangan || '', k.status]),
+      ['', '', '', '', '', '', '', '', '', 'TOTAL', ...PECAHAN.map(() => ''), jum(urut, (k) => k.jumlah), jum(urut, kembali), jum(urut, (k) => k.jumlah - kembali(k)), '', ''],
+    ],
+    angka: { baris: urut.map((_, i) => i + 5).concat([5 + urut.length]), kolom: kolomRp },
+    awalTabel: 4,
+    filter: true,
+  };
+}
+
+export function sheetDaftarMasuk(masuk, { warehouse = '', dari = '', sampai = '' } = {}) {
+  const urut = [...masuk].sort(urutWaktu);
+  const kolomRp = [10 + PECAHAN.length];
+  return {
+    nama: 'Kas Masuk',
+    aoa: [
+      ['Daftar Kas Masuk'],
+      ['Warehouse', warehouse],
+      ['Periode', `${tglId(dari)} s.d. ${tglId(sampai)}`],
+      [],
+      ['No', 'Tanggal', 'Jam', 'No. Kas Masuk', 'No. Kas Keluar', 'No. Referensi', 'Penerima', 'Admin', 'Kode Akun', 'Jenis Transaksi', ...KOLOM_PECAHAN, 'Jumlah (Rp)', 'Keterangan'],
+      ...urut.map((m, i) => [i + 1, tglId(m.tanggal), String(m.jam).slice(0, 8), m.id, m.no_kas_keluar || '', m.no_referensi || '', m.penerima || '', m.admin, m.kode_akun || '', m.jenis, ...barisPecahan(m.pecahan), m.jumlah, m.keterangan || '']),
+      ['', '', '', '', '', '', '', '', '', 'TOTAL', ...PECAHAN.map(() => ''), jum(urut, (m) => m.jumlah), ''],
+    ],
+    angka: { baris: urut.map((_, i) => i + 5).concat([5 + urut.length]), kolom: kolomRp },
+    awalTabel: 4,
+    filter: true,
+  };
+}

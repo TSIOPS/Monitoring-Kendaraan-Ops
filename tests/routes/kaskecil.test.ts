@@ -297,3 +297,18 @@ describe('pembanding top up via Finance', () => {
     expect(k.baris.every((b: any) => b.topupFinance === false)).toBe(true);
   });
 });
+
+describe('daftar kas masuk', () => {
+  it('GET /masuk: sesuai rentang & cabang; PIC tidak bisa melihat cabang lain', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, PIC);
+    const a = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'A', jumlah: 100000 }));
+    await call(app, 'POST', `/api/kaskecil/keluar/${a.keluar.id}/selesai`, tok, { jumlah: 30000 });
+    await call(app, 'POST', '/api/kaskecil/masuk', tok, { jumlah: 500000 });
+    const l = await json(await call(app, 'GET', `/api/kaskecil/masuk?dari=${HARI}&sampai=${HARI}`, tok));
+    expect(l.masuk.map((m: any) => m.jumlah).sort((x: number, y: number) => x - y)).toEqual([30000, 500000]);
+    expect((await call(app, 'GET', '/api/kaskecil/masuk?cabang=BDG', tok)).status).toBe(403);
+    const kosong = await json(await call(app, 'GET', '/api/kaskecil/masuk?dari=2000-01-01&sampai=2000-01-02', tok));
+    expect(kosong.masuk).toEqual([]);
+  });
+});

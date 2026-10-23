@@ -171,7 +171,7 @@ export function bukuExcel(XLSX, sheets) {
       });
     }
     if (sh.filter && sh.aoa.length > 2) {
-      ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: sh.aoa.length - 2, c: sh.aoa[0].length - 1 } }) };
+      ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: sh.awalTabel || 0, c: 0 }, e: { r: sh.aoa.length - 2, c: sh.aoa[sh.awalTabel || 0].length - 1 } }) };
     }
     XLSX.utils.book_append_sheet(wb, ws, sh.nama);
   }

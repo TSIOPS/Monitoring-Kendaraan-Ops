@@ -6,7 +6,7 @@ import { aksiSekali, bantuRupiah, barisForm, confirmDialog, el, fmtDateId, fmtNu
 import { tanggalWib } from './input.js';
 import { bukuExcel, muatSheetJS } from './rekap.js';
 import {
-  PECAHAN, PECAHAN_OPNAME, bersihkanPecahan, jumlahPecahan, namaFileKas, sheetLaporanHarian, sheetPembanding, sheetSummary, tglId,
+  PECAHAN, PECAHAN_OPNAME, bersihkanPecahan, jumlahPecahan, namaFileKas, sheetDaftarKeluar, sheetDaftarMasuk, sheetLaporanHarian, sheetPembanding, sheetSummary, tglId,
 } from '../kaskecil-helpers.js';
 import { cetakBuktiKeluar, cetakLaporanHarian, cetakOpname, cetakPenyelesaian } from '../kaskecil-cetak.js';
 
@@ -15,7 +15,7 @@ const tulis = () => bolehTulis(getUser()?.role);
 const semua = () => lihatSemuaCabang(getUser()?.role);
 const PER_HALAMAN = 20;
 
-const MENU = [['#/kaskecil', 'Kas Keluar'], ['#/kaskecil/laporan', 'Laporan Harian'], ['#/kaskecil/summary', 'Summary'], ['#/kaskecil/pembanding', 'Pembanding'], ['#/kaskecil/opname', 'BA Cash Opname']];
+const MENU = [['#/kaskecil', 'Kas Keluar'], ['#/kaskecil/masuk', 'Kas Masuk'], ['#/kaskecil/laporan', 'Laporan Harian'], ['#/kaskecil/summary', 'Summary'], ['#/kaskecil/pembanding', 'Pembanding'], ['#/kaskecil/opname', 'BA Cash Opname']];
 function navKas(aktif) {
   return el('div', { class: 'd-flex flex-wrap gap-2 mb-3 no-print' }, MENU.map(([h, t]) =>
     el('a', { class: `btn btn-sm ${h === aktif ? 'btn-primary' : 'btn-outline-primary'}`, href: h, text: t })));
@@ -264,6 +264,20 @@ export async function renderKasKeluar(view) {
   }
   statusSel.addEventListener('change', () => { nomor = 1; gambar(); });
   const tombolTampil = el('button', { class: 'btn btn-primary', type: 'button', text: 'Tampilkan', onclick: muat });
+  const tombolExcel = el('button', { class: 'btn btn-outline-primary', type: 'button', text: 'Unduh Excel' });
+  tombolExcel.addEventListener('click', aksiSekali(tombolExcel, async () => {
+    const q = new URLSearchParams({ dari: dari.value, sampai: sampai.value });
+    if (semua() && cabang.kode()) q.set('cabang', cabang.kode());
+    try {
+      const { masuk = [] } = await get(`/api/kaskecil/masuk?${q}`);
+      const tersaring = data.filter((r) => !statusSel.value || r.status === statusSel.value);
+      if (!tersaring.length && !masuk.length) { toast('Tidak ada data untuk diunduh.', 'error'); return; }
+      const opsi = { warehouse: cabang.kode() ? cabang.nama() : 'Semua Warehouse', dari: dari.value, sampai: sampai.value };
+      await unduhExcel([sheetDaftarKeluar(tersaring, masuk, opsi), sheetDaftarMasuk(masuk, opsi)], namaFileKas('daftar', cabang.kode(), `${dari.value}_${sampai.value}`));
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }));
   if (cabang.node) cabang.node.addEventListener('change', muat);
 
   formBox.replaceChildren(...(tulis() ? [el('div', { class: 'panel' }, [el('h3', { class: 'h6 mb-3', text: 'Kas Keluar Baru / Ubah' }), form])] : []));
@@ -273,12 +287,71 @@ export async function renderKasKeluar(view) {
     el('div', { class: 'panel' }, [
       el('div', { class: 'row g-2 align-items-end mb-3' }, [
         cabang.node ? kolom('col-md-3', 'Warehouse', cabang.node) : null,
-        kolom('col-md-3', 'Dari tanggal', dari), kolom('col-md-3', 'Sampai tanggal', sampai), kolom('col-md-2', 'Status', statusSel),
-        el('div', { class: 'col-md-1 mb-2' }, [tombolTampil]),
+        kolom('col-md-2', 'Dari tanggal', dari), kolom('col-md-2', 'Sampai tanggal', sampai), kolom('col-md-2', 'Status', statusSel),
+        el('div', { class: 'col-md-2 mb-2 d-flex gap-2' }, [tombolTampil, tombolExcel]),
       ]),
       hasil,
     ]),
   );
+  await muat();
+  return { ok: true };
+}
+
+// ── Daftar Kas Masuk ────────────────────────────────────────────────────────
+export async function renderKasMasuk(view) {
+  let dasar;
+  try {
+    dasar = await muatDasar();
+  } catch (err) {
+    view.replaceChildren(navKas('#/kaskecil/masuk'), el('div', { class: 'alert alert-danger', text: err.message }));
+    return { ok: false };
+  }
+  const cabang = pilihanCabang(dasar.cabangList, { boleh0: true });
+  const dari = el('input', { type: 'date', class: 'form-control', value: `${tanggalWib().slice(0, 8)}01` });
+  const sampai = el('input', { type: 'date', class: 'form-control', value: tanggalWib() });
+  const hasil = el('div', {});
+  const unduh = el('button', { class: 'btn btn-outline-primary', type: 'button', text: 'Unduh Excel', disabled: 'disabled' });
+  let data = [];
+  let nomor = 1;
+  function gambar() {
+    if (!data.length) { hasil.replaceChildren(el('div', { class: 'text-center text-muted py-4', text: 'Belum ada kas masuk pada periode ini.' })); return; }
+    const h = halaman(data, nomor, PER_HALAMAN);
+    nomor = h.aktif;
+    hasil.replaceChildren(
+      el('div', { class: 'mb-2 fw-bold', text: `${fmtNum(data.length)} transaksi — total kas masuk ${rp(data.reduce((n, r) => n + r.jumlah, 0))}` }),
+      el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm table-hover align-middle' }, [
+        th(['Tanggal', 'No. Kas Masuk', 'No. Kas Keluar', 'Referensi', 'Penerima', 'Jenis', 'Jumlah', 'Keterangan'], [6]),
+        el('tbody', {}, h.isi.map((r) => el('tr', {}, [
+          el('td', { class: 'text-nowrap', text: `${fmtDateId(r.tanggal)} ${String(r.jam).slice(0, 5)}` }), el('td', { class: 'small', text: r.id }),
+          el('td', { class: 'small', text: r.no_kas_keluar || '(tambah saldo)' }), el('td', { class: 'small', text: r.no_referensi || '-' }),
+          el('td', { text: r.penerima || '-' }), el('td', { text: r.jenis }), el('td', { class: 'text-end', text: rp(r.jumlah) }), el('td', { class: 'small text-muted', text: r.keterangan || '-' }),
+        ]))),
+      ])]),
+      navHalaman(h.total, h.aktif, (ke) => { nomor = ke; gambar(); }),
+    );
+  }
+  async function muat() {
+    if (dari.value > sampai.value) { toast('Tanggal "dari" tidak boleh setelah "sampai".', 'error'); return; }
+    hasil.replaceChildren(el('div', { class: 'text-muted', text: 'Memuat…' }));
+    try {
+      const q = new URLSearchParams({ dari: dari.value, sampai: sampai.value });
+      if (semua() && cabang.kode()) q.set('cabang', cabang.kode());
+      ({ masuk: data = [] } = await get(`/api/kaskecil/masuk?${q}`));
+      nomor = 1;
+      unduh.disabled = !data.length;
+      gambar();
+    } catch (e) {
+      hasil.replaceChildren(el('div', { class: 'alert alert-danger', text: e.message }));
+    }
+  }
+  unduh.addEventListener('click', () => unduhExcel([sheetDaftarMasuk(data, { warehouse: cabang.kode() ? cabang.nama() : 'Semua Warehouse', dari: dari.value, sampai: sampai.value })], namaFileKas('masuk', cabang.kode(), `${dari.value}_${sampai.value}`)));
+  if (cabang.node) cabang.node.addEventListener('change', muat);
+  view.replaceChildren(el('div', { class: 'panel' }, [
+    navKas('#/kaskecil/masuk'), el('h2', { 'data-judul-halaman': '', class: 'h5 mb-3 pb-2 border-bottom', text: 'Kas Kecil — Daftar Kas Masuk' }),
+    el('div', { class: 'row g-2 align-items-end mb-3' }, [cabang.node ? kolom('col-md-3', 'Warehouse', cabang.node) : null, kolom('col-md-3', 'Dari tanggal', dari), kolom('col-md-3', 'Sampai tanggal', sampai),
+      el('div', { class: 'col-md-3 mb-2 d-flex gap-2' }, [el('button', { class: 'btn btn-primary', type: 'button', text: 'Tampilkan', onclick: muat }), unduh])]),
+    hasil,
+  ]));
   await muat();
   return { ok: true };
 }

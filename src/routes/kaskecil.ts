@@ -171,6 +171,12 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     return c.json(okPayload({ keluar: keluar.reverse() }));
   });
 
+  app.get('/masuk', async (c: Ctx) => {
+    const cabang = cabangBaca(c.get('user'), c.req.query('cabang'));
+    const masuk = await deps.kaskecil.listMasuk({ cabang, dari: str(c.req.query('dari')) || undefined, sampai: str(c.req.query('sampai')) || undefined });
+    return c.json(okPayload({ masuk: masuk.reverse() }));
+  });
+
   app.get('/keluar/:id', async (c: Ctx) => {
     const keluar = await cariKeluar(c.req.param('id') as string, c.get('user'));
     const masuk = keluar.no_kas_masuk ? await deps.kaskecil.findMasuk(keluar.no_kas_masuk) : null;

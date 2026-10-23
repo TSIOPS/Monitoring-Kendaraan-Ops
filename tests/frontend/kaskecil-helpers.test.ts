@@ -44,3 +44,31 @@ describe('helper kas kecil (frontend)', () => {
     expect(rows('Pembanding').at(-1)![0]).toBe('TOTAL');
   });
 });
+
+describe('Excel daftar kas keluar & kas masuk', () => {
+  const kk = (o: Record<string, unknown>) => ({ id: 'KK-1', tanggal: '2026-10-02', jam: '10:00:00', no_referensi: 'BO-1', no_kas_masuk: '', penerima: 'Agus', admin: 'Gin', kode_akun: '6101-103', jenis: 'Uang Muka', pecahan: { '50000': 2 }, jumlah: 100000, keterangan: 'x', status: 'Open', ...o });
+  const km = (o: Record<string, unknown>) => ({ id: 'KM-1', tanggal: '2026-10-02', jam: '16:00:00', no_kas_keluar: 'KK-2', no_referensi: 'BO-2', penerima: 'Budi', admin: 'Gin', kode_akun: '6101-103', jenis: 'Uang Muka', pecahan: {}, jumlah: 40000, keterangan: '', ...o });
+  it('kolom mengikuti Excel lama, penggunaan = keluar − kembali, ada total, urut tanggal', async () => {
+    const { sheetDaftarKeluar, sheetDaftarMasuk } = await import('../../static/js/kaskecil-helpers.js');
+    const keluar = [kk({ id: 'KK-2', tanggal: '2026-10-03', no_kas_masuk: 'KM-1', status: 'Closed', jumlah: 100000, pecahan: {} }), kk({})];
+    const sk = sheetDaftarKeluar(keluar, [km({})], { warehouse: 'WHO KARAWANG', dari: '2026-10-01', sampai: '2026-10-31' });
+    expect(sk.nama).toBe('Kas Keluar');
+    expect(sk.aoa[4]!.slice(0, 10)).toEqual(['No', 'Tanggal', 'Jam', 'No. Kas Keluar', 'No. Referensi', 'No. Kas Masuk', 'Penerima', 'Admin', 'Kode Akun', 'Jenis Transaksi']);
+    expect(sk.aoa[5]![3]).toBe('KK-1'); // lebih awal dulu
+    expect(sk.aoa[5]![11]).toBe(2); // 50.000 × 2 lembar
+    const kolom = (b: unknown[], n: string) => b[sk.aoa[4]!.indexOf(n)];
+    expect(kolom(sk.aoa[6]!, 'Uang Kembali (Rp)')).toBe(40000);
+    expect(kolom(sk.aoa[6]!, 'Penggunaan (Rp)')).toBe(60000);
+    expect(kolom(sk.aoa.at(-1)!, 'Kas Keluar (Rp)')).toBe(200000);
+    expect(kolom(sk.aoa.at(-1)!, 'Penggunaan (Rp)')).toBe(160000);
+    const sm = sheetDaftarMasuk([km({}), km({ id: 'KM-0', jumlah: 500000, no_kas_keluar: '' })], { warehouse: 'X', dari: '2026-10-01', sampai: '2026-10-31' });
+    expect(sm.aoa[4]!.at(-2)).toBe('Jumlah (Rp)');
+    expect(sm.aoa.at(-1)![sm.aoa[4]!.indexOf('Jumlah (Rp)')]).toBe(540000);
+  });
+  it('menjadi buku Excel valid dengan autofilter dimulai dari baris header', async () => {
+    const { sheetDaftarKeluar, sheetDaftarMasuk } = await import('../../static/js/kaskecil-helpers.js');
+    const wb = XLSX.read(XLSX.write(bukuExcel(XLSX, [sheetDaftarKeluar([kk({})], []), sheetDaftarMasuk([km({})])]), { type: 'array', bookType: 'xlsx' }), { type: 'array' });
+    expect(wb.SheetNames).toEqual(['Kas Keluar', 'Kas Masuk']);
+    expect(wb.Sheets['Kas Keluar']!['!autofilter']!.ref.startsWith('A5:')).toBe(true);
+  });
+});

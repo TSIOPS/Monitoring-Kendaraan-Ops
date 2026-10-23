@@ -48,6 +48,7 @@ const NAV = [
     label: 'Kas Kecil',
     items: [
       { hash: '#/kaskecil', label: 'Kas Keluar', ikon: 'bi-wallet2' },
+      { hash: '#/kaskecil/masuk', label: 'Kas Masuk', ikon: 'bi-box-arrow-in-down' },
       { hash: '#/kaskecil/laporan', label: 'Laporan Harian', ikon: 'bi-journal-check' },
       { hash: '#/kaskecil/summary', label: 'Summary', ikon: 'bi-table' },
       { hash: '#/kaskecil/pembanding', label: 'Pembanding', ikon: 'bi-arrow-left-right' },
@@ -334,6 +335,7 @@ const kasKecilPage = (fn) => async () => {
   return { render: mod[fn] };
 };
 registerRoute('#/kaskecil', kasKecilPage('renderKasKeluar'));
+registerRoute('#/kaskecil/masuk', kasKecilPage('renderKasMasuk'));
 registerRoute('#/kaskecil/laporan', kasKecilPage('renderKasLaporan'));
 registerRoute('#/kaskecil/summary', kasKecilPage('renderKasSummary'));
 registerRoute('#/kaskecil/pembanding', kasKecilPage('renderKasPembanding'));
