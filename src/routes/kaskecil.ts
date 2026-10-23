@@ -38,7 +38,8 @@ function jamWib(now = new Date()): string {
 
 function tanggalValid(v: unknown, label: string, hariIni: string): string {
   const t = str(v) || hariIni;
-  if (!POLA_TGL.test(t) || Number.isNaN(Date.parse(t + 'T00:00:00Z'))) throw new HttpError(400, `${label} tidak valid.`, 'BAD_REQUEST');
+  const d = new Date(t + 'T00:00:00Z');
+  if (!POLA_TGL.test(t) || Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== t) throw new HttpError(400, `${label} tidak valid.`, 'BAD_REQUEST');
   if (t > hariIni) throw new HttpError(400, `${label} tidak boleh di masa depan.`, 'BAD_REQUEST');
   return t;
 }
@@ -90,7 +91,7 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     return String(u.cabang);
   };
   const tipeCabang = async (kode: string) => {
-    const c = (await deps.master.listAll()).cabang.find((x) => String(x.kode_cabang) === kode);
+    const c = await deps.master.findCabangByKode(kode);
     return tipeWh(String(c?.nama_cabang ?? ''));
   };
   const cariKeluar = async (id: string, u: SessionUser): Promise<KasKeluarRow> => {
@@ -111,7 +112,7 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const tipe = await tipeCabang(kode);
     for (let i = 0; i < 6; i++) {
       const ids = await deps.kaskecil.nomorBulan(kode, tanggal.slice(0, 7));
-      const nomor = nomorKas(awalan, tipe, kode, tanggal, urutBerikut(ids, awalan, tipe, kode, tanggal) + i);
+      const nomor = nomorKas(awalan, tipe, kode, tanggal, urutBerikut(ids, awalan, tipe, kode, tanggal));
       const ref = prefiksRef ? nomorKas(prefiksRef as 'BO' | 'BP', tipe, kode, tanggal, urutBerikut(ids, prefiksRef as 'BO' | 'BP', tipe, kode, tanggal)) : '';
       try {
         await buat(nomor, ref);
@@ -156,8 +157,8 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const b = await readJson(c);
     const cabang = cabangTulis(u, b.cabang);
     const tanggal = tanggalValid(b.tanggal, 'Tanggal saldo awal', todayWib());
-    const jumlah = Number(b.jumlah);
-    if (!Number.isFinite(jumlah) || jumlah < 0 || jumlah > 10 * MAKS_NOMINAL) throw new HttpError(400, 'Saldo awal tidak valid.', 'BAD_REQUEST');
+    const jumlah = str(b.jumlah) === '' ? NaN : Number(b.jumlah);
+    if (!Number.isInteger(jumlah) || jumlah < 0 || jumlah > 10 * MAKS_NOMINAL) throw new HttpError(400, 'Saldo awal tidak valid.', 'BAD_REQUEST');
     await deps.kaskecil.setSaldoAwal(cabang, { tanggal, jumlah });
     await audit(c, { action: 'UPDATE', modul: 'kaskecil', keterangan: `Saldo awal kas kecil ${cabang}: ${tanggal} Rp ${jumlah}` });
     return c.json(okPayload({ awal: { tanggal, jumlah } }));
@@ -173,7 +174,7 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   app.get('/keluar/:id', async (c: Ctx) => {
     const keluar = await cariKeluar(c.req.param('id') as string, c.get('user'));
     const masuk = keluar.no_kas_masuk ? await deps.kaskecil.findMasuk(keluar.no_kas_masuk) : null;
-    const cabang = (await deps.master.listAll()).cabang.find((x) => String(x.kode_cabang) === keluar.kode_cabang);
+    const cabang = await deps.master.findCabangByKode(keluar.kode_cabang);
     return c.json(okPayload({ keluar, masuk: masuk && masuk.is_deleted !== '1' ? masuk : null, cabang: cabang ? { kode: cabang.kode_cabang, nama: cabang.nama_cabang } : null }));
   });
 
@@ -250,8 +251,16 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       masuk.id = nomor;
       await deps.kaskecil.insertMasuk(masuk);
     });
-    if (!(await deps.kaskecil.tutupKeluar(kk.id, masuk.id))) {
-      await deps.kaskecil.updateMasuk(masuk.id, { is_deleted: '1' }); // diselesaikan bersamaan oleh pihak lain: batalkan KM ganda
+    // KM sudah tersimpan; bila penutupan KK gagal/kalah balapan, KM dibatalkan agar uang kembali tidak terhitung ganda.
+    let tertutup = false;
+    try {
+      tertutup = await deps.kaskecil.tutupKeluar(kk.id, masuk.id);
+    } catch (e) {
+      await deps.kaskecil.updateMasuk(masuk.id, { is_deleted: '1' }).catch(() => {});
+      throw e;
+    }
+    if (!tertutup) {
+      await deps.kaskecil.updateMasuk(masuk.id, { is_deleted: '1' });
       throw new HttpError(409, 'Kas keluar ini sudah selesai.', 'CONFLICT');
     }
     await audit(c, { action: 'CREATE', modul: 'kaskecil', keterangan: `Penyelesaian ${kk.id} → ${masuk.id}, uang kembali Rp ${jumlah}` });

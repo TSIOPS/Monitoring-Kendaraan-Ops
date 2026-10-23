@@ -4,18 +4,18 @@ import { bukuExcel } from '../../static/js/pages/rekap.js';
 import {
   PECAHAN, PECAHAN_OPNAME, bersihkanPecahan, jumlahPecahan, namaBulan, sheetLaporanHarian, sheetPembanding, sheetSummary, terbilang, tglId, tglPanjang,
 } from '../../static/js/kaskecil-helpers.js';
-import { PECAHAN as PECAHAN_SERVER, PECAHAN_OPNAME as OPNAME_SERVER, terbilang as terbilangServer } from '../../src/logic/kaskecil';
+import { PECAHAN as PECAHAN_SERVER, PECAHAN_OPNAME as OPNAME_SERVER } from '../../src/logic/kaskecil';
 
 describe('helper kas kecil (frontend)', () => {
   it('daftar pecahan identik dengan server', () => {
     expect((PECAHAN as string[][]).map((p) => p[0])).toEqual([...PECAHAN_SERVER]);
     expect((PECAHAN_OPNAME as string[][]).map((p) => p[0])).toEqual([...OPNAME_SERVER]);
   });
-  it('terbilang sama dengan server untuk berbagai angka', () => {
-    for (const n of [0, 1, 11, 100, 1000, 10000, 15000, 100000, 215000, 2103000, 11500, 1250000000, 999999, 2000000]) {
-      expect(terbilang(n)).toBe(terbilangServer(n));
-    }
-  });
+  it.each([
+    [0, 'Nol Rupiah'], [10000, 'Sepuluh Ribu Rupiah'], [100000, 'Seratus Ribu Rupiah'], [1000, 'Seribu Rupiah'],
+    [215000, 'Dua Ratus Lima Belas Ribu Rupiah'], [2103000, 'Dua Juta Seratus Tiga Ribu Rupiah'], [11500, 'Sebelas Ribu Lima Ratus Rupiah'],
+    [1250000000, 'Satu Miliar Dua Ratus Lima Puluh Juta Rupiah'], [2000000, 'Dua Juta Rupiah'],
+  ])('terbilang %i', (n, t) => expect(terbilang(n as number)).toBe(t));
   it('jumlahPecahan & bersihkanPecahan', () => {
     expect(jumlahPecahan({ '100000': 2, K1000: 3 })).toBe(203000);
     expect(bersihkanPecahan({ '50000': '2', '20000': 0, '10000': '', '5000': -1, '2000': 1.9 })).toEqual({ '50000': 2, '2000': 1 });

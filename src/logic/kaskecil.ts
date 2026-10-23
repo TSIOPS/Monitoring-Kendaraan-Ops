@@ -70,25 +70,6 @@ export function jumlahPecahan(p: Record<string, number>): number {
   return Object.entries(p ?? {}).reduce((n, [k, v]) => n + nilaiPecahan(k) * num(v), 0);
 }
 
-// ── Terbilang rupiah ────────────────────────────────────────────────────────
-const SATUAN = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'];
-function eja(n: number): string {
-  if (n < 12) return SATUAN[n]!;
-  if (n < 20) return eja(n - 10) + ' Belas';
-  if (n < 100) return eja(Math.floor(n / 10)) + ' Puluh' + (n % 10 ? ' ' + eja(n % 10) : '');
-  if (n < 200) return 'Seratus' + (n % 100 ? ' ' + eja(n % 100) : '');
-  if (n < 1000) return eja(Math.floor(n / 100)) + ' Ratus' + (n % 100 ? ' ' + eja(n % 100) : '');
-  if (n < 2000) return 'Seribu' + (n % 1000 ? ' ' + eja(n % 1000) : '');
-  if (n < 1e6) return eja(Math.floor(n / 1000)) + ' Ribu' + (n % 1000 ? ' ' + eja(n % 1000) : '');
-  if (n < 1e9) return eja(Math.floor(n / 1e6)) + ' Juta' + (n % 1e6 ? ' ' + eja(n % 1e6) : '');
-  if (n < 1e12) return eja(Math.floor(n / 1e9)) + ' Miliar' + (n % 1e9 ? ' ' + eja(n % 1e9) : '');
-  return eja(Math.floor(n / 1e12)) + ' Triliun' + (n % 1e12 ? ' ' + eja(n % 1e12) : '');
-}
-export function terbilang(n: number): string {
-  const v = Math.floor(Math.abs(num(n)));
-  return (v === 0 ? 'Nol' : eja(v)) + ' Rupiah';
-}
-
 // ── Penomoran ───────────────────────────────────────────────────────────────
 export type AwalanNomor = 'KK' | 'KM' | 'BO' | 'BP';
 
@@ -150,10 +131,13 @@ export function laporanHarian(i: { awal: SaldoAwal | null; keluar: KasKeluarRow[
   const saldoAwal = saldo;
 
   const kkById = new Map(i.keluar.map((r) => [r.id, r]));
+  // Status KK pada tanggal laporan: baru Closed bila KM-nya bertanggal ≤ hari itu (laporan lama tidak berubah saat KK diselesaikan kemudian).
+  const tglKM = new Map(i.masuk.filter(aktif).map((m) => [m.id, tgl10(m.tanggal)]));
+  const statusPada = (r: KasKeluarRow) => (r.status === 'Closed' && (!r.no_kas_masuk || (tglKM.get(r.no_kas_masuk) ?? '') <= hari) ? 'Closed' : 'Open');
   type Ev = { waktu: string; baris: Omit<BarisLaporan, 'saldo'> };
   const ev: Ev[] = [];
   for (const r of keluar.filter((x) => tgl10(x.tanggal) === hari)) {
-    ev.push({ waktu: r.jam, baris: { nomor: r.id, tanggal: hari, jam: r.jam, jenis: 'KELUAR', nomorKK: r.id, nomorKM: r.no_kas_masuk, referensi: r.no_referensi, nama: r.penerima, admin: r.admin, kodeAkun: r.kode_akun, namaJenis: r.jenis, debit: 0, kredit: num(r.jumlah), status: r.status } });
+    ev.push({ waktu: r.jam, baris: { nomor: r.id, tanggal: hari, jam: r.jam, jenis: 'KELUAR', nomorKK: r.id, nomorKM: statusPada(r) === 'Closed' ? r.no_kas_masuk : '', referensi: r.no_referensi, nama: r.penerima, admin: r.admin, kodeAkun: r.kode_akun, namaJenis: r.jenis, debit: 0, kredit: num(r.jumlah), status: statusPada(r) } });
   }
   for (const r of masuk.filter((x) => tgl10(x.tanggal) === hari)) {
     const asal = kkById.get(r.no_kas_keluar);
@@ -171,7 +155,7 @@ export function laporanHarian(i: { awal: SaldoAwal | null; keluar: KasKeluarRow[
       saldoAwal,
       keluar: hariIni.reduce((n, r) => n + num(r.jumlah), 0),
       masuk: masuk.filter((x) => tgl10(x.tanggal) === hari).reduce((n, r) => n + num(r.jumlah), 0),
-      belumSelesai: keluar.filter((x) => tgl10(x.tanggal) <= hari && x.status !== 'Closed').reduce((n, r) => n + num(r.jumlah), 0),
+      belumSelesai: keluar.filter((x) => tgl10(x.tanggal) <= hari && statusPada(x) !== 'Closed').reduce((n, r) => n + num(r.jumlah), 0),
       saldoAkhir: saldo,
     },
   };

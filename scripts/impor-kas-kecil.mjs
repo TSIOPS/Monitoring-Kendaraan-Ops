@@ -21,7 +21,9 @@ const apply = opsi.includes('--apply');
 const wb = XLSX.read(readFileSync(berkas), { type: 'buffer', cellFormula: false });
 const sheet = (n) => {
   if (!wb.Sheets[n]) throw new Error(`Sheet "${n}" tidak ada di ${berkas}`);
-  return XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, range: { s: { r: 3, c: 0 }, e: { r: 5000, c: 30 } }, defval: '' });
+  const akhir = XLSX.utils.decode_range(wb.Sheets[n]['!ref'] || 'A1').e.r;
+  if (akhir > 100000) throw new Error(`Sheet "${n}" terlalu besar (${akhir} baris).`);
+  return XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, range: { s: { r: 3, c: 0 }, e: { r: akhir, c: 30 } }, defval: '' });
 };
 const KUNCI_PECAHAN = { 11: '100000', 12: '50000', 13: '20000', 14: '10000', 15: '5000', 16: '2000', 17: '1000', 18: 'K1000', 19: '500', 20: '200', 21: '100', 22: '50' };
 const str = (v) => String(v ?? '').trim();
@@ -72,6 +74,7 @@ for (const r of rowsKeluar) {
   };
   if (!row.tanggal) { peringatan.push(`Tanggal kosong pada ${id} — dilewati.`); continue; }
   if (m && (kembali > 0 || nomorKM)) {
+    row.status = 'Closed'; // punya penyelesaian = selesai
     const idKM = nomorKM || id.replace(/^KK-/, 'KM-');
     row.no_kas_masuk = idKM;
     masuk.push({

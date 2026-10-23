@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  PECAHAN, jumlahPecahan, laporanHarian, nomorKas, normalPecahan, pembandingHarian, summaryBulanan, terbilang, tipeWh, urutBerikut,
+  PECAHAN, jumlahPecahan, laporanHarian, nomorKas, normalPecahan, pembandingHarian, summaryBulanan, tipeWh, urutBerikut,
 } from '../../src/logic/kaskecil';
 
 const kk = (o: Record<string, unknown>) => ({
@@ -24,14 +24,6 @@ describe('pecahan', () => {
     expect(() => normalPecahan({ '50000': -1 })).toThrow();
     expect(() => normalPecahan({ '50000': 1.5 })).toThrow();
   });
-});
-
-describe('terbilang', () => {
-  it.each([
-    [0, 'Nol Rupiah'], [10000, 'Sepuluh Ribu Rupiah'], [100000, 'Seratus Ribu Rupiah'], [1000, 'Seribu Rupiah'],
-    [215000, 'Dua Ratus Lima Belas Ribu Rupiah'], [2103000, 'Dua Juta Seratus Tiga Ribu Rupiah'], [11500, 'Sebelas Ribu Lima Ratus Rupiah'],
-    [1250000000, 'Satu Miliar Dua Ratus Lima Puluh Juta Rupiah'],
-  ])('%i', (n, t) => expect(terbilang(n)).toBe(t));
 });
 
 describe('penomoran', () => {
@@ -67,6 +59,15 @@ describe('laporanHarian', () => {
     const r = laporanHarian({ awal, keluar: [kk({ id: 'KK-X', tanggal: '2026-09-30', jumlah: 999 }), kk({ id: 'KK-D', is_deleted: '1', jumlah: 777 })], masuk: [], tanggal: '2026-10-22' });
     expect(r.saldoAwal).toBe(1000000);
     expect(r.ringkasan.saldoAkhir).toBe(1000000);
+  });
+  it('status & belum selesai mengikuti tanggal laporan: KK yang diselesaikan kemudian masih Open pada laporan lama', () => {
+    const kkLama = kk({ id: 'KK-L', tanggal: '2026-10-10', jumlah: 100000, status: 'Closed', no_kas_masuk: 'KM-L' });
+    const kmLama = km({ id: 'KM-L', tanggal: '2026-10-20', no_kas_keluar: 'KK-L', jumlah: 40000 });
+    const lama = laporanHarian({ awal, keluar: [kkLama], masuk: [kmLama], tanggal: '2026-10-15' });
+    expect(lama.ringkasan.belumSelesai).toBe(100000);
+    const baru = laporanHarian({ awal, keluar: [kkLama], masuk: [kmLama], tanggal: '2026-10-20' });
+    expect(baru.ringkasan.belumSelesai).toBe(0);
+    expect(laporanHarian({ awal, keluar: [kk({ id: 'KK-H', tanggal: '2026-10-15', status: 'Closed', no_kas_masuk: 'KM-L' })], masuk: [kmLama], tanggal: '2026-10-15' }).baris[0]!.status).toBe('Open');
   });
   it('tanpa saldo awal dianggap 0', () => {
     expect(laporanHarian({ awal: null, keluar: [], masuk: [], tanggal: '2026-10-22' }).saldoAwal).toBe(0);

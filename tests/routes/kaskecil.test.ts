@@ -257,3 +257,29 @@ describe('penyelesaian bersamaan', () => {
     expect(r.keluar.penerima).toHaveLength(80);
   });
 });
+
+describe('validasi tambahan', () => {
+  it('tanggal yang tidak ada di kalender ditolak', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, PIC);
+    expect((await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'A', jumlah: 1000, tanggal: '2026-02-31' })).status).toBe(400);
+  });
+  it('saldo awal: jumlah kosong/null/pecahan ditolak (tidak menimpa menjadi 0)', async () => {
+    const { app, kv, kas } = setup();
+    const su = await loginAs(kv, SUPER);
+    await call(app, 'PUT', '/api/kaskecil/saldo-awal', su, { cabang: 'KWG', tanggal: '2026-10-01', jumlah: 500000 });
+    for (const jumlah of [null, '', 1.5, 'abc', -1]) {
+      expect((await call(app, 'PUT', '/api/kaskecil/saldo-awal', su, { cabang: 'KWG', tanggal: '2026-10-01', jumlah })).status).toBe(400);
+    }
+    expect(kas.state.saldoAwal.KWG!.jumlah).toBe(500000);
+  });
+  it('penutupan KK gagal (galat DB) → KM yang sempat dibuat dibatalkan dan galat diteruskan', async () => {
+    const asli = memKasKecil({ jenis: JENIS, keluar: [{ id: 'KK-WHO-KWG-1', kode_cabang: 'KWG', tanggal: '2026-10-01', jam: '09:00:00', no_referensi: 'BO-1', penerima: 'A', admin: 'x', jenis_id: 'KJ-UM', kode_akun: '', jenis: 'Biaya Uang Muka Delivery', pecahan: {}, jumlah: 100000, keterangan: '', status: 'Open', no_kas_masuk: '', is_deleted: '' }] });
+    const { deps } = makeDeps({ master: memMaster({ cabang: CABANG }).repo, kaskecil: { ...asli.repo, tutupKeluar: async () => { throw new Error('DB mati'); } } });
+    const app2 = buildApp(fakeEnv() as any, deps);
+    const tok = await loginAs(deps.kv, PIC);
+    const res = await call(app2, 'POST', '/api/kaskecil/keluar/KK-WHO-KWG-1/selesai', tok, { jumlah: 10000 });
+    expect(res.status).toBe(500);
+    expect(await deps.kaskecil.listMasuk({ cabang: 'KWG' })).toHaveLength(0);
+  });
+});

@@ -79,7 +79,8 @@ export function supabaseKasKecilRepo(env: Env): KasKecilRepo {
     if (f.cabang) q = q.eq('kode_cabang', f.cabang);
     if (f.dari) q = q.gte('tanggal', f.dari);
     if (f.sampai) q = q.lte('tanggal', f.sampai);
-    return q.order('tanggal', { ascending: true }).order(urut, { ascending: true }).range(from, to);
+    // id = pembeda terakhir agar urutan stabil antar halaman (jam bisa sama).
+    return q.order('tanggal', { ascending: true }).order(urut, { ascending: true }).order('id', { ascending: true }).range(from, to);
   };
   const cari = async <T>(tabel: string, id: string, kind: string): Promise<T | null> => {
     const { data, error } = await sb().from(tabel).select('*').eq('id', id).maybeSingle();
@@ -133,10 +134,10 @@ export function supabaseKasKecilRepo(env: Env): KasKecilRepo {
     async nomorBulan(cabang, bulan) {
       const out: string[] = [];
       const kk = await semua<{ id: string; no_referensi: string }>('nomorBulan', (from, to) =>
-        sb().from('kas_keluar').select('id,no_referensi').eq('kode_cabang', cabang).like('tanggal', bulan + '%').range(from, to));
+        sb().from('kas_keluar').select('id,no_referensi').eq('kode_cabang', cabang).like('tanggal', bulan + '%').order('id', { ascending: true }).range(from, to));
       for (const r of kk) out.push(r.id, r.no_referensi);
       const km = await semua<{ id: string; no_referensi: string }>('nomorBulan', (from, to) =>
-        sb().from('kas_masuk').select('id,no_referensi').eq('kode_cabang', cabang).like('tanggal', bulan + '%').range(from, to));
+        sb().from('kas_masuk').select('id,no_referensi').eq('kode_cabang', cabang).like('tanggal', bulan + '%').order('id', { ascending: true }).range(from, to));
       for (const r of km) out.push(r.id, r.no_referensi);
       return out.filter(Boolean);
     },
