@@ -184,7 +184,7 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const hariIni = todayWib();
     const tanggal = tanggalValid(b.tanggal, 'Tanggal', hariIni);
     const jenis = await jenisDari(str(b.jenis_id), 'KELUAR');
-    const penerima = str(b.penerima);
+    const penerima = str(b.penerima).slice(0, 80);
     if (!penerima) throw new HttpError(400, 'Nama penerima wajib diisi.', 'BAD_REQUEST');
     const { jumlah, pecahan } = ambilJumlah(b);
     const row: KasKeluarRow = {
@@ -210,7 +210,7 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const patch: Partial<KasKeluarRow> = {};
     if (b.penerima !== undefined) {
       if (!str(b.penerima)) throw new HttpError(400, 'Nama penerima wajib diisi.', 'BAD_REQUEST');
-      patch.penerima = str(b.penerima);
+      patch.penerima = str(b.penerima).slice(0, 80);
     }
     if (b.keterangan !== undefined) patch.keterangan = str(b.keterangan).slice(0, 300);
     if (b.jumlah !== undefined || b.pecahan !== undefined) Object.assign(patch, ambilJumlah(b));
@@ -250,7 +250,10 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       masuk.id = nomor;
       await deps.kaskecil.insertMasuk(masuk);
     });
-    await deps.kaskecil.updateKeluar(kk.id, { status: 'Closed', no_kas_masuk: masuk.id });
+    if (!(await deps.kaskecil.tutupKeluar(kk.id, masuk.id))) {
+      await deps.kaskecil.updateMasuk(masuk.id, { is_deleted: '1' }); // diselesaikan bersamaan oleh pihak lain: batalkan KM ganda
+      throw new HttpError(409, 'Kas keluar ini sudah selesai.', 'CONFLICT');
+    }
     await audit(c, { action: 'CREATE', modul: 'kaskecil', keterangan: `Penyelesaian ${kk.id} → ${masuk.id}, uang kembali Rp ${jumlah}` });
     return c.json(okPayload({ keluar: { ...kk, status: 'Closed', no_kas_masuk: masuk.id }, masuk }));
   });

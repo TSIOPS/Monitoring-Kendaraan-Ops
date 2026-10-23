@@ -237,3 +237,23 @@ describe('jenis & opname', () => {
     expect(audits.some((a) => a.modul === 'kaskecil' && a.action === 'CREATE')).toBe(true);
   });
 });
+
+describe('penyelesaian bersamaan', () => {
+  it('bila kas keluar sudah ditutup pihak lain saat menyimpan, KM ganda dibatalkan & 409', async () => {
+    const asli = memKasKecil({ jenis: JENIS, keluar: [{ id: 'KK-WHO-KWG-1', kode_cabang: 'KWG', tanggal: '2026-10-01', jam: '09:00:00', no_referensi: 'BO-1', penerima: 'A', admin: 'x', jenis_id: 'KJ-UM', kode_akun: '', jenis: 'Biaya Uang Muka Delivery', pecahan: {}, jumlah: 100000, keterangan: '', status: 'Open', no_kas_masuk: '', is_deleted: '' }] });
+    // Balapan: pihak lain menutup kas keluar tepat sebelum penutupan oleh permintaan ini.
+    const { deps } = makeDeps({ master: memMaster({ cabang: CABANG }).repo, kaskecil: { ...asli.repo, tutupKeluar: async () => false } });
+    const app2 = buildApp(fakeEnv() as any, deps);
+    const tok2 = await loginAs(deps.kv, PIC);
+    const res = await call(app2, 'POST', '/api/kaskecil/keluar/KK-WHO-KWG-1/selesai', tok2, { jumlah: 0 });
+    expect(res.status).toBe(409);
+    expect(await deps.kaskecil.listMasuk({ cabang: 'KWG' })).toHaveLength(0); // KM yang sempat dibuat sudah dibatalkan (soft delete)
+  });
+  it('pecahan terlalu besar & penerima kepanjangan ditolak/dipotong', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, PIC);
+    expect((await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'A', pecahan: { '50000': 2000000 } })).status).toBe(400);
+    const r = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'X'.repeat(200), jumlah: 1000 }));
+    expect(r.keluar.penerima).toHaveLength(80);
+  });
+});

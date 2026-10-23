@@ -60,7 +60,7 @@ export function normalPecahan(input: unknown, daftar: readonly string[] = PECAHA
   for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
     if (!daftar.includes(k)) throw new Error('Pecahan tidak dikenal: ' + k);
     const n = Number(v);
-    if (!Number.isInteger(n) || n < 0) throw new Error('Jumlah lembar/keping pecahan ' + k + ' harus bilangan bulat ≥ 0.');
+    if (!Number.isInteger(n) || n < 0 || n > 1_000_000) throw new Error('Jumlah lembar/keping pecahan ' + k + ' harus bilangan bulat 0–1.000.000.');
     if (n > 0) out[k] = n;
   }
   return out;

@@ -43,6 +43,10 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 | `npm run deploy` | deploy ke *.workers.dev |
 | `npm test` | vitest |
 | `npm run typecheck` | tsc --noEmit |
+| `node scripts/impor-kas-kecil.mjs <berkas.xlsb> <KODE>` | Impor kas kecil dari Excel lama. Tanpa `--apply` = dry-run (hanya laporan + cek saldo); `--apply` menulis ke DB (butuh `db/kas-kecil.sql` sudah dijalankan). Opsi: `--tanpa-saldo`, `--timpa-saldo` |
+
+## Kas Kecil (BELUM DI-DEPLOY — tunggu pemilik repo menyatakan siap)
+Modul pengganti Excel kas kecil per warehouse: Kas Keluar & Penyelesaian (nomor KK/KM/BO/BP format Excel), Laporan Harian, Summary bulanan, Pembanding dengan aplikasi (BBM tunai ↔ Bensin Delivery, Top Up Flazz ↔ Pengisian ETOLL, Tol tunai ↔ Uang Muka Delivery), BA Cash Opname, cetak 4 dokumen, Excel. Menu **Kas Kecil**; API `/api/kaskecil/*`. Hak akses: PIC = warehouse sendiri (tulis), MANAGEMENT = baca semua, SUPERADMIN = semua + master jenis + saldo awal. Spesifikasi: `docs/superpowers/specs/2026-10-23-kas-kecil-design.md`. Urutan rilis: (1) jalankan `db/kas-kecil.sql`, (2) impor data lama per cabang (dry-run dulu), (3) deploy, (4) tambah entri `rilis.js`.
 
 ## Role pengguna
 | Role | Cakupan data | Bisa mengubah data | Khusus |

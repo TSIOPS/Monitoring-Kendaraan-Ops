@@ -42,6 +42,8 @@ export interface KasKecilRepo {
   findKeluar(id: string): Promise<KasKeluarRow | null>;
   insertKeluar(row: KasKeluarRow): Promise<void>;
   updateKeluar(id: string, patch: Partial<KasKeluarRow>): Promise<void>;
+  // Tutup kas keluar hanya bila masih Open (atomik); false = sudah diselesaikan pihak lain.
+  tutupKeluar(id: string, noKasMasuk: string): Promise<boolean>;
   listMasuk(f: KasRentang): Promise<KasMasukRow[]>;
   findMasuk(id: string): Promise<KasMasukRow | null>;
   insertMasuk(row: KasMasukRow): Promise<void>;
@@ -119,6 +121,11 @@ export function supabaseKasKecilRepo(env: Env): KasKecilRepo {
     findKeluar: (id) => cari<KasKeluarRow>('kas_keluar', id, 'findKeluar'),
     insertKeluar: (row) => sisip('kas_keluar', row, 'insertKeluar'),
     updateKeluar: (id, patch) => ubah('kas_keluar', id, patch, 'updateKeluar'),
+    async tutupKeluar(id, noKasMasuk) {
+      const { data, error } = await sb().from('kas_keluar').update({ status: 'Closed', no_kas_masuk: noKasMasuk }).eq('id', id).eq('status', 'Open').select('id');
+      if (error) throw fail('tutupKeluar')(error);
+      return ((data as unknown[] | null) ?? []).length > 0;
+    },
     listMasuk: (f) => semua<KasMasukRow>('listMasuk', rentang('kas_masuk', f, 'jam')),
     findMasuk: (id) => cari<KasMasukRow>('kas_masuk', id, 'findMasuk'),
     insertMasuk: (row) => sisip('kas_masuk', row, 'insertMasuk'),

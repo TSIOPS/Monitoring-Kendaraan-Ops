@@ -693,6 +693,13 @@ export function memKasKecil(initial?: Partial<MemKasKecilState>) {
     async findKeluar(id) { const r = state.keluar.find((x) => x.id === id); return r ? clone(r) : null; },
     async insertKeluar(row) { tambah(state.keluar, row); },
     async updateKeluar(id, patch) { const r = state.keluar.find((x) => x.id === id); if (r) Object.assign(r, clone(patch)); },
+    async tutupKeluar(id, noKasMasuk) {
+      const r = state.keluar.find((x) => x.id === id);
+      if (!r || r.status !== 'Open') return false;
+      r.status = 'Closed';
+      r.no_kas_masuk = noKasMasuk;
+      return true;
+    },
     async listMasuk(f) { return clone(urut(state.masuk.filter((r) => dalam(r, f)))); },
     async findMasuk(id) { const r = state.masuk.find((x) => x.id === id); return r ? clone(r) : null; },
     async insertMasuk(row) { tambah(state.masuk, row); },
