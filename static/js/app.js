@@ -13,6 +13,9 @@ import { mulaiCekVersi } from './versi.js';
 const TULIS = ['SUPERADMIN', 'PIC CABANG']; // bukan MANAGEMENT
 const PANTAU = ['SUPERADMIN', 'MANAGEMENT'];
 const SUPER = ['SUPERADMIN'];
+// Tahap uji: menu Kas Kecil hanya untuk SUPERADMIN. Setelah 100% siap, ganti menjadi ['SUPERADMIN', 'PIC CABANG', 'MANAGEMENT']
+// (dan PERAN_KAS_KECIL di src/routes/kaskecil.ts).
+const KAS_KECIL = SUPER;
 
 const NAV = [
   { hash: '#/dashboard', label: 'Dashboard', ikon: 'bi-speedometer2', badge: true },
@@ -47,12 +50,12 @@ const NAV = [
   {
     label: 'Kas Kecil',
     items: [
-      { hash: '#/kaskecil', label: 'Kas Keluar', ikon: 'bi-wallet2' },
-      { hash: '#/kaskecil/masuk', label: 'Kas Masuk', ikon: 'bi-box-arrow-in-down' },
-      { hash: '#/kaskecil/laporan', label: 'Laporan Harian', ikon: 'bi-journal-check' },
-      { hash: '#/kaskecil/summary', label: 'Summary', ikon: 'bi-table' },
-      { hash: '#/kaskecil/pembanding', label: 'Pembanding', ikon: 'bi-arrow-left-right' },
-      { hash: '#/kaskecil/opname', label: 'BA Cash Opname', ikon: 'bi-clipboard-check' },
+      { hash: '#/kaskecil', label: 'Kas Keluar', ikon: 'bi-wallet2', peran: KAS_KECIL },
+      { hash: '#/kaskecil/masuk', label: 'Kas Masuk', ikon: 'bi-box-arrow-in-down', peran: KAS_KECIL },
+      { hash: '#/kaskecil/laporan', label: 'Laporan Harian', ikon: 'bi-journal-check', peran: KAS_KECIL },
+      { hash: '#/kaskecil/summary', label: 'Summary', ikon: 'bi-table', peran: KAS_KECIL },
+      { hash: '#/kaskecil/pembanding', label: 'Pembanding', ikon: 'bi-arrow-left-right', peran: KAS_KECIL },
+      { hash: '#/kaskecil/opname', label: 'BA Cash Opname', ikon: 'bi-clipboard-check', peran: KAS_KECIL },
     ],
   },
   {
@@ -331,6 +334,10 @@ registerRoute('#/rekap', async () => {
 });
 
 const kasKecilPage = (fn) => async () => {
+  if (!KAS_KECIL.includes(String(getUser()?.role || '').trim().toUpperCase())) {
+    window.location.hash = '#/dashboard';
+    return { render: async () => ({ ok: true }) };
+  }
   const mod = await import('./pages/kaskecil.js');
   return { render: mod[fn] };
 };

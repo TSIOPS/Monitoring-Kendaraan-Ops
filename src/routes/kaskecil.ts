@@ -4,7 +4,7 @@ import type { Env } from '../env';
 import type { AppDeps, SessionUser } from '../deps';
 import type { AuthVars } from '../auth/middleware';
 import { requireUser } from '../auth/middleware';
-import { isSuper, lihatSemuaCabang } from '../auth/peran';
+import { isSuper, lihatSemuaCabang, normalPeran } from '../auth/peran';
 import { HttpError, okPayload, reqIp } from '../utils/http';
 import { todayWib } from '../logic/jalur';
 import { rekapPengeluaran, rekapTopup } from '../logic/rekap';
@@ -20,6 +20,9 @@ type Ctx = Context<{ Bindings: Env; Variables: AuthVars }>;
 
 const MAKS_NOMINAL = 100_000_000;
 const POLA_TGL = /^\d{4}-\d{2}-\d{2}$/;
+// Tahap uji: Kas Kecil hanya untuk SUPERADMIN. Untuk membuka ke PIC/MANAGEMENT setelah 100% siap, tambahkan 'PIC CABANG' dan 'MANAGEMENT' di sini
+// dan di NAV static/js/app.js (peran: KAS_KECIL).
+export const PERAN_KAS_KECIL: readonly string[] = ['SUPERADMIN'];
 const POLA_SETORAN = /^setor/i;
 const ROMAWI = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
@@ -69,6 +72,12 @@ function ambilJumlah(b: Record<string, any>, { boleh0 = false, label = 'Jumlah u
 export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   const app = new Hono<{ Bindings: Env }>();
   app.use('*', requireUser(deps));
+  // Penjaga peran (server): berlaku untuk semua endpoint kas kecil, bukan hanya menu.
+  app.use('*', async (c: Ctx, next) => {
+    const boleh = deps.kasKecilPeran ?? PERAN_KAS_KECIL;
+    if (!boleh.includes(normalPeran(c.get('user')))) throw new HttpError(403, 'Modul Kas Kecil belum dibuka untuk peran Anda.', 'FORBIDDEN');
+    await next();
+  });
 
   const audit = (c: Ctx, entry: Omit<Parameters<AppDeps['recordAudit']>[0], 'user_id' | 'username' | 'ip'>) =>
     deps.recordAudit({ ...entry, user_id: c.get('user').user_id, username: c.get('user').username, ip: reqIp(c) });

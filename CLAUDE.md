@@ -67,5 +67,5 @@ Jangan klaim "selesai" tanpa output kedua perintah di atas.
   (penjaga di `requireUser` — cakupan baca pakai `lihatSemuaCabang()`, cek tulis tetap `isSuper()`); SUPERADMIN-only
   untuk pengguna/pengaturan/reset/audit. Pakai helper `src/auth/peran.ts` / `static/js/peran.js`, jangan bandingkan
   string role langsung.
-- **Kas Kecil** (spec `docs/superpowers/specs/2026-10-23-kas-kecil-design.md`, rencana `docs/superpowers/plans/2026-10-23-kas-kecil.md`): modul dikerjakan tapi **JANGAN `wrangler deploy`** sebelum pemilik repo menyatakan siap (urutan rilis di README bagian Kas Kecil). Commit & push ke `main` tetap jalan. Entri `rilis.js` ditambahkan saat deploy.
+- **Kas Kecil** (spec `docs/superpowers/specs/2026-10-23-kas-kecil-design.md`, rencana `docs/superpowers/plans/2026-10-23-kas-kecil.md`): modul dikerjakan tapi **JANGAN `wrangler deploy`** sebelum pemilik repo menyatakan siap (urutan rilis di README bagian Kas Kecil). Commit & push ke `main` tetap jalan. Entri `rilis.js` ditambahkan saat deploy. Tahap uji: menu & API Kas Kecil hanya SUPERADMIN (`PERAN_KAS_KECIL` + `KAS_KECIL` di app.js); buka ke PIC hanya atas perintah pemilik.
 - Commit kecil per tugas, pesan gaya `fix(area): …` / `feat(area): …` dalam Bahasa Indonesia.

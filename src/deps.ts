@@ -71,6 +71,8 @@ export interface AppDeps {
   flazz: FlazzRepo;
   jalur: JalurRepo;
   kaskecil: KasKecilRepo;
+  // Peran yang boleh memakai modul Kas Kecil (kosong = bawaan PERAN_KAS_KECIL di src/routes/kaskecil.ts). Dipakai tes.
+  kasKecilPeran?: readonly string[];
   uploadEvidence: (env: Env, opts: UploadEvidenceOpts) => Promise<StorageUploadResult>;
   deleteEvidence: (env: Env, key: string) => Promise<void>;
   resetData: (env: Env) => Promise<Record<string, number>>;

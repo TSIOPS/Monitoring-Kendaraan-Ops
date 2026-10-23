@@ -9,6 +9,8 @@ import { uraiPecahan } from '../../src/logic/kaskecil';
 const SUPER: SessionUser = { user_id: 'U-S', username: 'super', nama: 'Super', role: 'SUPERADMIN', cabang: '', exp: 1e15 };
 const PIC: SessionUser = { user_id: 'U-P', username: 'pic', nama: 'Pic Lengkap', role: 'PIC CABANG', cabang: 'KWG', exp: 1e15 };
 const PIC_B: SessionUser = { user_id: 'U-PB', username: 'picb', nama: 'Pic B', role: 'PIC CABANG', cabang: 'BDG', exp: 1e15 };
+// Modul masih terbatas SUPERADMIN (PERAN_KAS_KECIL); tes fungsional membuka semua peran lewat deps, tes 'penjaga peran' memakai bawaan.
+const SEMUA_PERAN = ['SUPERADMIN', 'PIC CABANG', 'MANAGEMENT'];
 const MGMT: SessionUser = { user_id: 'U-M', username: 'mgmt', nama: 'Mgmt', role: 'MANAGEMENT', cabang: '', exp: 1e15 };
 
 const CABANG = [
@@ -30,7 +32,7 @@ const JENIS = [
 function setup() {
   const master = memMaster({ cabang: CABANG });
   const kas = memKasKecil({ jenis: JENIS });
-  const { deps, kv, audits } = makeDeps({ master: master.repo, kaskecil: kas.repo });
+  const { deps, kv, audits } = makeDeps({ kasKecilPeran: SEMUA_PERAN, master: master.repo, kaskecil: kas.repo });
   const app = buildApp(fakeEnv() as any, deps);
   return { app, kv, audits, kas };
 }
@@ -250,7 +252,7 @@ describe('penyelesaian bersamaan', () => {
   it('bila kas keluar sudah ditutup pihak lain saat menyimpan, KM ganda dibatalkan & 409', async () => {
     const asli = memKasKecil({ jenis: JENIS, keluar: [{ id: 'KK-WHO-KWG-1', kode_cabang: 'KWG', tanggal: '2026-10-01', jam: '09:00:00', no_referensi: 'BO-1', penerima: 'A', admin: 'x', jenis_id: 'KJ-UM', kode_akun: '', jenis: 'Biaya Uang Muka Delivery', pecahan: {}, jumlah: 100000, keterangan: '', status: 'Open', no_kas_masuk: '', is_deleted: '' }] });
     // Balapan: pihak lain menutup kas keluar tepat sebelum penutupan oleh permintaan ini.
-    const { deps } = makeDeps({ master: memMaster({ cabang: CABANG }).repo, kaskecil: { ...asli.repo, tutupKeluar: async () => false } });
+    const { deps } = makeDeps({ kasKecilPeran: SEMUA_PERAN, master: memMaster({ cabang: CABANG }).repo, kaskecil: { ...asli.repo, tutupKeluar: async () => false } });
     const app2 = buildApp(fakeEnv() as any, deps);
     const tok2 = await loginAs(deps.kv, PIC);
     const res = await call(app2, 'POST', '/api/kaskecil/keluar/KK-WHO-KWG-1/selesai', tok2, { jumlah: 0 });
@@ -283,7 +285,7 @@ describe('validasi tambahan', () => {
   });
   it('penutupan KK gagal (galat DB) → KM yang sempat dibuat dibatalkan dan galat diteruskan', async () => {
     const asli = memKasKecil({ jenis: JENIS, keluar: [{ id: 'KK-WHO-KWG-1', kode_cabang: 'KWG', tanggal: '2026-10-01', jam: '09:00:00', no_referensi: 'BO-1', penerima: 'A', admin: 'x', jenis_id: 'KJ-UM', kode_akun: '', jenis: 'Biaya Uang Muka Delivery', pecahan: {}, jumlah: 100000, keterangan: '', status: 'Open', no_kas_masuk: '', is_deleted: '' }] });
-    const { deps } = makeDeps({ master: memMaster({ cabang: CABANG }).repo, kaskecil: { ...asli.repo, tutupKeluar: async () => { throw new Error('DB mati'); } } });
+    const { deps } = makeDeps({ kasKecilPeran: SEMUA_PERAN, master: memMaster({ cabang: CABANG }).repo, kaskecil: { ...asli.repo, tutupKeluar: async () => { throw new Error('DB mati'); } } });
     const app2 = buildApp(fakeEnv() as any, deps);
     const tok = await loginAs(deps.kv, PIC);
     const res = await call(app2, 'POST', '/api/kaskecil/keluar/KK-WHO-KWG-1/selesai', tok, { jumlah: 10000 });
@@ -412,5 +414,25 @@ describe('pecahan wajib, tambah saldo & setoran seluruh saldo', () => {
     expect(kas.state.saldoAwal.KWG).toMatchObject({ jumlah: 100000, pecahan: { '50000': 2 }, dana_mingguan: 2000000 });
     const l = await json(await call(app, 'GET', `/api/kaskecil/laporan-harian?cabang=KWG&tanggal=${HARI}`, su));
     expect(l.rincian.baris.find((b: any) => b.kunci === '50000')).toMatchObject({ awal: 2, akhir: 2 });
+  });
+});
+
+describe('penjaga peran Kas Kecil (tahap uji: hanya SUPERADMIN)', () => {
+  it('bawaan: PIC CABANG & MANAGEMENT ditolak di semua endpoint; SUPERADMIN diizinkan', async () => {
+    const { PERAN_KAS_KECIL } = await import('../../src/routes/kaskecil');
+    expect([...PERAN_KAS_KECIL]).toEqual(['SUPERADMIN']);
+    const master = memMaster({ cabang: CABANG });
+    const kas = memKasKecil({ jenis: JENIS });
+    const { deps, kv } = makeDeps({ master: master.repo, kaskecil: kas.repo }); // tanpa kasKecilPeran -> bawaan
+    const app = buildApp(fakeEnv() as any, deps);
+    for (const u of [PIC, MGMT]) {
+      const tok = await loginAs(kv, u);
+      for (const [m, p] of [['GET', '/api/kaskecil/jenis'], ['GET', '/api/kaskecil/keluar'], ['POST', '/api/kaskecil/keluar'], ['POST', '/api/kaskecil/setoran'], ['GET', '/api/kaskecil/laporan-harian']]) {
+        const res = await callMentah(app, m!, p!, tok, m === 'POST' ? {} : undefined);
+        expect(res.status, `${u.role} ${m} ${p}`).toBe(403);
+        expect((await json(res)).message).toMatch(/belum dibuka|hanya dapat melihat/);
+      }
+    }
+    expect((await callMentah(app, 'GET', '/api/kaskecil/jenis', await loginAs(kv, SUPER))).status).toBe(200);
   });
 });
