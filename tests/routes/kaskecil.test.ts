@@ -4,6 +4,7 @@ import { authHeaders, fakeEnv, loginAs, makeDeps, memKasKecil, memMaster } from 
 import type { SessionUser } from '../../src/deps';
 import type { KasJenisRow } from '../../src/db/kaskecil';
 import { todayWib } from '../../src/logic/jalur';
+import { uraiPecahan } from '../../src/logic/kaskecil';
 
 const SUPER: SessionUser = { user_id: 'U-S', username: 'super', nama: 'Super', role: 'SUPERADMIN', cabang: '', exp: 1e15 };
 const PIC: SessionUser = { user_id: 'U-P', username: 'pic', nama: 'Pic Lengkap', role: 'PIC CABANG', cabang: 'KWG', exp: 1e15 };
@@ -21,6 +22,7 @@ const JENIS = [
   J('KJ-BENSIN', 'Biaya Bensin Delivery', { prefiks_ref: 'BP' }),
   J('KJ-UM', 'Biaya Uang Muka Delivery'),
   J('KJ-SETOR', 'Setoran Tunai Kas Kecil', { prefiks_ref: '', tanpa_penyelesaian: true }),
+  J('KJ-CLOSING', 'Closing Kas', { prefiks_ref: '', tanpa_penyelesaian: true }),
   J('KJ-TAMBAH', 'Tambah Saldo', { prefiks_ref: '', tipe: 'MASUK' }),
   J('KJ-OFF', 'Jenis Nonaktif', { aktif: false }),
 ];
@@ -34,8 +36,14 @@ function setup() {
 }
 type App = ReturnType<typeof buildApp>;
 const h = (t: string) => ({ ...authHeaders(t), 'Content-Type': 'application/json' });
-const call = (app: App, method: string, path: string, t: string, b?: unknown) =>
+// Uang selalu dicatat per pecahan (aturan server). Agar tes lama tetap ringkas, body ber-`jumlah` bulat tanpa `pecahan` otomatis diurai; `callMentah` mengirim apa adanya.
+const callMentah = (app: App, method: string, path: string, t: string, b?: unknown) =>
   app.request(path, { method, headers: h(t), body: b === undefined ? undefined : JSON.stringify(b) });
+const PERLU_PECAHAN = /\/api\/kaskecil\/(keluar|masuk)(\/[^/]+\/selesai)?$/;
+const call = (app: App, method: string, path: string, t: string, b?: any) => {
+  if (method === 'POST' && PERLU_PECAHAN.test(path) && b && Number.isInteger(b.jumlah) && b.jumlah > 0 && b.jumlah <= 100_000_000 && !b.pecahan) b = { ...b, pecahan: uraiPecahan(b.jumlah) };
+  return callMentah(app, method, path, t, b);
+};
 const json = async (r: Response) => (await r.json()) as any;
 const HARI = todayWib();
 const BULAN = HARI.slice(0, 7).replace('-', '');
@@ -57,7 +65,7 @@ describe('kas keluar', () => {
   it('WHP memakai awalan WHP; jenis tanpa penyelesaian langsung Closed', async () => {
     const { app, kv } = setup();
     const tok = await loginAs(kv, PIC_B);
-    const r = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-SETOR', penerima: 'Bank', jumlah: 500000 }));
+    const r = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-CLOSING', penerima: 'Bank', jumlah: 500000 }));
     expect(r.keluar.id.startsWith('KK-WHP-BDG-')).toBe(true);
     expect(r.keluar.status).toBe('Closed');
     expect(r.keluar.no_referensi).toBe('');
@@ -106,7 +114,7 @@ describe('kas keluar', () => {
     const tok = await loginAs(kv, PIC);
     const a = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'A', jumlah: 100000 }));
     const id = a.keluar.id;
-    expect((await call(app, 'PUT', '/api/kaskecil/keluar/' + id, tok, { penerima: 'B', jumlah: 150000 })).status).toBe(200);
+    expect((await call(app, 'PUT', '/api/kaskecil/keluar/' + id, tok, { penerima: 'B', jumlah: 150000, pecahan: uraiPecahan(150000) })).status).toBe(200);
     expect(kas.state.keluar[0]).toMatchObject({ penerima: 'B', jumlah: 150000 });
     expect((await call(app, 'POST', `/api/kaskecil/keluar/${id}/selesai`, tok, { jumlah: 50000 })).status).toBe(200);
     expect((await call(app, 'PUT', '/api/kaskecil/keluar/' + id, tok, { penerima: 'C' })).status).toBe(409);
@@ -327,5 +335,82 @@ describe('dua nama penerima', () => {
     const lap = await json(await call(app, 'GET', `/api/kaskecil/laporan-harian?tanggal=${HARI}`, tok));
     expect(lap.laporan.baris.map((b: any) => b.nama)).toContain('Haris / Budi');
     expect(lap.laporan.baris.map((b: any) => b.nama)).toContain('Solo');
+  });
+});
+
+describe('pecahan wajib, tambah saldo & setoran seluruh saldo', () => {
+  const FOTO = { foto_bukti: 'aGVsbG8=', foto_bukti_name: 'bukti.jpg' };
+  const siapSaldo = async (app: App, kv: any, pecahan: Record<string, number>, jumlah?: number) => {
+    const su = await loginAs(kv, SUPER);
+    const res = await callMentah(app, 'PUT', '/api/kaskecil/saldo-awal', su, { cabang: 'KWG', tanggal: '2026-10-01', pecahan, ...(jumlah !== undefined ? { jumlah } : {}), dana_mingguan: 2000000 });
+    expect(res.status).toBe(200);
+  };
+
+  it('uang tanpa rincian pecahan ditolak; jumlah diturunkan dari pecahan', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, PIC);
+    const r = await callMentah(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'A', jumlah: 100000 });
+    expect(r.status).toBe(400);
+    expect((await json(r)).message).toMatch(/pecahan/i);
+    expect((await callMentah(app, 'POST', '/api/kaskecil/masuk', tok, { jumlah: 1000 })).status).toBe(400);
+    const ok = await json(await callMentah(app, 'POST', '/api/kaskecil/masuk', tok, { pecahan: { '100000': 2 } }));
+    expect(ok.masuk.jumlah).toBe(200000);
+  });
+
+  it('setoran lewat /keluar ditolak (harus lewat /setoran)', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, PIC);
+    expect((await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-SETOR', penerima: 'Bank', jumlah: 1000 })).status).toBe(400);
+  });
+
+  it('setoran: seluruh saldo sesuai pecahan, foto wajib, Closed, saldo jadi nol, tidak bisa dua kali', async () => {
+    const { app, kv, kas } = setup();
+    await siapSaldo(app, kv, { '100000': 5, '50000': 2, '5000': 3 });
+    const tok = await loginAs(kv, PIC);
+    await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'A', pecahan: { '100000': 1 } });
+    expect((await callMentah(app, 'POST', '/api/kaskecil/setoran', tok, {})).status).toBe(400); // tanpa foto
+    const res = await json(await callMentah(app, 'POST', '/api/kaskecil/setoran', tok, { ...FOTO, keterangan: 'Senin' }));
+    expect(res.keluar).toMatchObject({ jumlah: 515000, status: 'Closed', jenis: 'Setoran Tunai Kas Kecil', pecahan: { '100000': 4, '50000': 2, '5000': 3 } });
+    expect(res.keluar.bukti_url).toBeTruthy();
+    expect(kas.state.keluar.some((k) => k.id === res.keluar.id && k.status === 'Closed')).toBe(true);
+    const s = await json(await call(app, 'GET', '/api/kaskecil/saldo-pecahan', tok));
+    expect(s.rincian).toMatchObject({ nilaiAkhir: 0, saldoUang: 0, sinkron: true });
+    expect((await callMentah(app, 'POST', '/api/kaskecil/setoran', tok, FOTO)).status).toBe(400); // tidak ada saldo
+  });
+
+  it('setoran ditolak bila rincian pecahan tidak sinkron dengan saldo uang', async () => {
+    const { app, kv } = setup();
+    await siapSaldo(app, kv, {}, 100000); // saldo uang ada, tapi pecahan tidak tercatat
+    const tok = await loginAs(kv, PIC);
+    const r = await callMentah(app, 'POST', '/api/kaskecil/setoran', tok, FOTO);
+    expect(r.status).toBe(409);
+    expect((await json(r)).message).toMatch(/tidak sama/);
+  });
+
+  it('PIC hanya setor cabangnya; MANAGEMENT tidak bisa', async () => {
+    const { app, kv } = setup();
+    await siapSaldo(app, kv, { '100000': 1 });
+    expect((await callMentah(app, 'POST', '/api/kaskecil/setoran', await loginAs(kv, PIC_B), { ...FOTO, cabang: 'KWG' })).status).toBe(403);
+    expect((await callMentah(app, 'POST', '/api/kaskecil/setoran', await loginAs(kv, MGMT), { ...FOTO, cabang: 'KWG' })).status).toBe(403);
+  });
+
+  it('peringatan bila pecahan yang dikeluarkan melebihi saldo tercatat (tidak memblokir)', async () => {
+    const { app, kv } = setup();
+    await siapSaldo(app, kv, { '100000': 1 });
+    const tok = await loginAs(kv, PIC);
+    const r = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'A', pecahan: { '100000': 2 } }));
+    expect(r.keluar.jumlah).toBe(200000);
+    expect(r.peringatan).toHaveLength(1);
+    expect(r.peringatan[0]).toMatch(/100000/);
+  });
+
+  it('saldo awal: jumlah dari pecahan, harus sama bila keduanya diisi; dana mingguan tersimpan', async () => {
+    const { app, kv, kas } = setup();
+    const su = await loginAs(kv, SUPER);
+    expect((await callMentah(app, 'PUT', '/api/kaskecil/saldo-awal', su, { cabang: 'KWG', tanggal: '2026-10-01', jumlah: 1, pecahan: { '50000': 2 } })).status).toBe(400);
+    await siapSaldo(app, kv, { '50000': 2 });
+    expect(kas.state.saldoAwal.KWG).toMatchObject({ jumlah: 100000, pecahan: { '50000': 2 }, dana_mingguan: 2000000 });
+    const l = await json(await call(app, 'GET', `/api/kaskecil/laporan-harian?cabang=KWG&tanggal=${HARI}`, su));
+    expect(l.rincian.baris.find((b: any) => b.kunci === '50000')).toMatchObject({ awal: 2, akhir: 2 });
   });
 });

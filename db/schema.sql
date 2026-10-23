@@ -347,6 +347,7 @@ create table if not exists kas_keluar (
   pecahan jsonb not null default '{}'::jsonb,
   jumlah numeric not null default 0,
   keterangan text not null default '',
+  bukti_url text not null default '',                -- foto bukti setor bank (Setoran Tunai Kas Kecil)
   status text not null default 'Open',            -- 'Open' | 'Closed'
   no_kas_masuk text not null default '',
   created_by text not null default '',
@@ -379,11 +380,16 @@ create index if not exists kas_masuk_cabang_tgl on kas_masuk (kode_cabang, tangg
 
 alter table kas_keluar add column if not exists penerima_2 text not null default '';
 alter table kas_masuk add column if not exists penerima_2 text not null default '';
+alter table kas_keluar add column if not exists bukti_url text not null default '';
+alter table kas_saldo_awal add column if not exists pecahan jsonb not null default '{}'::jsonb;
+alter table kas_saldo_awal add column if not exists dana_mingguan numeric not null default 0;
 
 create table if not exists kas_saldo_awal (
   kode_cabang text primary key,
   tanggal text not null default '',
-  jumlah numeric not null default 0
+  jumlah numeric not null default 0,
+  pecahan jsonb not null default '{}'::jsonb,       -- saldo awal per pecahan (lembar/keping)
+  dana_mingguan numeric not null default 0          -- dana tetap yang masuk tiap Senin (acuan, bukan batasan)
 );
 
 create table if not exists kas_opname (

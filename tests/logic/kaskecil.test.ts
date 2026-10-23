@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  PECAHAN, jumlahPecahan, laporanHarian, nomorKas, normalPecahan, pembandingHarian, summaryBulanan, tipeWh, urutBerikut,
+  PECAHAN, jumlahPecahan, laporanHarian, nomorKas, normalPecahan, pembandingHarian, rincianPecahanHarian, saldoPecahan, summaryBulanan, tipeWh, uraiPecahan, urutBerikut,
 } from '../../src/logic/kaskecil';
 
 const kk = (o: Record<string, unknown>) => ({
@@ -119,5 +119,32 @@ describe('pembandingHarian — top up via Finance', () => {
     const r = pembandingHarian({ summary, app, topupFinance: true });
     expect(r[0]).toMatchObject({ topupFinance: true, cocok: true, topup: { app: 500000, selisih: 0 } });
     expect(pembandingHarian({ summary, app })[0]).toMatchObject({ topupFinance: false, cocok: false, topup: { selisih: 500000 } });
+  });
+});
+
+describe('saldo per pecahan', () => {
+  const awal = { tanggal: '2026-10-01', jumlah: 615000, pecahan: { '100000': 5, '50000': 2, '5000': 3 } };
+  const kkP = (o: Record<string, unknown>) => kk({ ...o });
+  it('uraiPecahan memecah nominal dengan pecahan terbesar dulu', () => {
+    expect(uraiPecahan(215000)).toEqual({ '100000': 2, '10000': 1, '5000': 1 });
+    expect(uraiPecahan(0)).toEqual({});
+  });
+  it('saldo = awal + masuk − keluar per pecahan; hari berjalan & sebelum hari', () => {
+    const keluar = [kkP({ id: 'A', tanggal: '2026-10-05', pecahan: { '100000': 1, '5000': 1 }, jumlah: 105000 })];
+    const masuk = [km({ id: 'M', tanggal: '2026-10-06', no_kas_keluar: '', pecahan: { '50000': 4 }, jumlah: 200000 })];
+    expect(saldoPecahan({ awal, keluar, masuk, tanggal: '2026-10-05' })).toMatchObject({ '100000': 4, '50000': 2, '5000': 2 });
+    expect(saldoPecahan({ awal, keluar, masuk, tanggal: '2026-10-06' })).toMatchObject({ '100000': 4, '50000': 6, '5000': 2 });
+    expect(saldoPecahan({ awal, keluar, masuk, tanggal: '2026-10-05', sebelum: true })).toMatchObject({ '100000': 5, '5000': 3 });
+    expect(Object.keys(saldoPecahan({ awal: null, keluar: [], masuk: [] })).sort()).toEqual([...PECAHAN].sort());
+  });
+  it('rincian harian: baris awal/masuk/keluar/akhir, nilai, sinkron & negatif', () => {
+    const keluar = [kkP({ id: 'A', tanggal: '2026-10-05', pecahan: { '100000': 1, '5000': 1 }, jumlah: 105000 })];
+    const r = rincianPecahanHarian({ awal, keluar, masuk: [], tanggal: '2026-10-05' });
+    const b100 = r.baris.find((x) => x.kunci === '100000')!;
+    expect(b100).toMatchObject({ awal: 5, masuk: 0, keluar: 1, akhir: 4, nilaiAkhir: 400000 });
+    expect(r).toMatchObject({ nilaiAwal: 615000, nilaiAkhir: 510000, saldoUang: 510000, selisih: 0, sinkron: true, negatif: [] });
+    const rusak = rincianPecahanHarian({ awal: { tanggal: '2026-10-01', jumlah: 100000, pecahan: {} }, keluar: [kkP({ id: 'B', tanggal: '2026-10-05', pecahan: { '50000': 1 }, jumlah: 50000 })], masuk: [], tanggal: '2026-10-05' });
+    expect(rusak.sinkron).toBe(false);
+    expect(rusak.negatif).toEqual(['50000']);
   });
 });

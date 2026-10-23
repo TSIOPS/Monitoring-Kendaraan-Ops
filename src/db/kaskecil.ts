@@ -110,12 +110,12 @@ export function supabaseKasKecilRepo(env: Env): KasKecilRepo {
       if (error) throw fail('upsertJenis')(error);
     },
     async getSaldoAwal(cabang) {
-      const { data, error } = await sb().from('kas_saldo_awal').select('tanggal,jumlah').eq('kode_cabang', cabang).maybeSingle();
+      const { data, error } = await sb().from('kas_saldo_awal').select('tanggal,jumlah,pecahan,dana_mingguan').eq('kode_cabang', cabang).maybeSingle();
       if (error) throw fail('getSaldoAwal')(error);
-      return data ? { tanggal: String((data as any).tanggal), jumlah: Number((data as any).jumlah) || 0 } : null;
+      return data ? { tanggal: String((data as any).tanggal), jumlah: Number((data as any).jumlah) || 0, pecahan: ((data as any).pecahan as Record<string, number>) ?? {}, dana_mingguan: Number((data as any).dana_mingguan) || 0 } : null;
     },
     async setSaldoAwal(cabang, awal) {
-      const { error } = await sb().from('kas_saldo_awal').upsert({ kode_cabang: cabang, tanggal: awal.tanggal, jumlah: awal.jumlah }, { onConflict: 'kode_cabang' });
+      const { error } = await sb().from('kas_saldo_awal').upsert({ kode_cabang: cabang, tanggal: awal.tanggal, jumlah: awal.jumlah, pecahan: awal.pecahan ?? {}, dana_mingguan: awal.dana_mingguan ?? 0 }, { onConflict: 'kode_cabang' });
       if (error) throw fail('setSaldoAwal')(error);
     },
     listKeluar: (f) => semua<KasKeluarRow>('listKeluar', rentang('kas_keluar', f, 'jam')),

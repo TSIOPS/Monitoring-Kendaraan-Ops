@@ -15,6 +15,7 @@ export interface KasKeluarRow {
   pecahan: Record<string, number>;
   jumlah: number;
   keterangan: string;
+  bukti_url?: string; // foto bukti setor bank
   status: string; // 'Open' | 'Closed'
   no_kas_masuk: string;
   created_by?: string;
@@ -43,7 +44,7 @@ export interface KasMasukRow {
   is_deleted: string;
 }
 
-export interface SaldoAwal { tanggal: string; jumlah: number }
+export interface SaldoAwal { tanggal: string; jumlah: number; pecahan?: Record<string, number>; dana_mingguan?: number }
 
 const tgl10 = (v: unknown) => String(v ?? '').substring(0, 10);
 const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
@@ -222,4 +223,69 @@ export function pembandingHarian(i: { summary: SummaryBulanan; app: Map<string, 
     const tol = pasang(a.tolTunai, kasPer(nilai, POLA_TOL));
     return { tanggal: t, bbm, topup, tol, cocok: bbm.selisih === 0 && topup.selisih === 0 && tol.selisih === 0, topupFinance: finance };
   });
+}
+
+// ── Rincian saldo per pecahan (seperti tabel Pecahan Uang | Uang Keluar | Saldo di Excel) ──
+// Pecahan terbesar dulu; dipakai untuk memecah nominal bulat menjadi lembar/keping (data demo, tes).
+const URUTAN_URAI = ['100000', '50000', '20000', '10000', '5000', '2000', '1000', '500', '200', '100', '50'];
+export function uraiPecahan(n: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  let sisa = Math.floor(num(n));
+  for (const k of URUTAN_URAI) {
+    const c = Math.floor(sisa / Number(k));
+    if (c > 0) { out[k] = c; sisa -= c * Number(k); }
+  }
+  return out;
+}
+
+const tambahPecahan = (akum: Record<string, number>, p: Record<string, number> | undefined, tanda: 1 | -1) => {
+  for (const [k, v] of Object.entries(p ?? {})) akum[k] = (akum[k] ?? 0) + tanda * num(v);
+};
+
+// Jumlah lembar/keping per pecahan = saldo awal + KM − KK, dari tanggal saldo awal sampai `tanggal`
+// (inklusif; `sebelum` = tanpa hari itu). Hasil bisa negatif bila catatan pecahan tidak lengkap.
+export function saldoPecahan(i: { awal: SaldoAwal | null; keluar: KasKeluarRow[]; masuk: KasMasukRow[]; tanggal?: string; sebelum?: boolean }): Record<string, number> {
+  const batas = i.tanggal ? tgl10(i.tanggal) : '';
+  const mulai = i.awal ? tgl10(i.awal.tanggal) : '';
+  const dalam = (t: string) => (!mulai || t >= mulai) && (!batas || (i.sebelum ? t < batas : t <= batas));
+  const akum: Record<string, number> = {};
+  tambahPecahan(akum, i.awal?.pecahan, 1);
+  for (const m of i.masuk.filter(aktif)) if (dalam(tgl10(m.tanggal))) tambahPecahan(akum, m.pecahan, 1);
+  for (const k of i.keluar.filter(aktif)) if (dalam(tgl10(k.tanggal))) tambahPecahan(akum, k.pecahan, -1);
+  const out: Record<string, number> = {};
+  for (const k of PECAHAN) out[k] = akum[k] ?? 0;
+  return out;
+}
+
+export interface BarisPecahan { kunci: string; awal: number; masuk: number; keluar: number; akhir: number; nilaiAkhir: number }
+export interface RincianPecahan {
+  baris: BarisPecahan[];
+  nilaiAwal: number;
+  nilaiAkhir: number;
+  saldoUang: number; // saldo uang menurut transaksi (laporan harian)
+  selisih: number; // nilaiAkhir − saldoUang; ≠ 0 berarti catatan pecahan belum lengkap
+  sinkron: boolean;
+  negatif: string[]; // pecahan yang saldonya minus
+}
+
+export function rincianPecahanHarian(i: { awal: SaldoAwal | null; keluar: KasKeluarRow[]; masuk: KasMasukRow[]; tanggal: string }): RincianPecahan {
+  const hari = tgl10(i.tanggal);
+  const awal = saldoPecahan({ ...i, tanggal: hari, sebelum: true });
+  const akhir = saldoPecahan({ ...i, tanggal: hari });
+  const mHari: Record<string, number> = {};
+  const kHari: Record<string, number> = {};
+  for (const m of i.masuk.filter(aktif)) if (tgl10(m.tanggal) === hari) tambahPecahan(mHari, m.pecahan, 1);
+  for (const k of i.keluar.filter(aktif)) if (tgl10(k.tanggal) === hari) tambahPecahan(kHari, k.pecahan, 1);
+  const baris: BarisPecahan[] = PECAHAN.map((k) => ({ kunci: k, awal: awal[k] ?? 0, masuk: mHari[k] ?? 0, keluar: kHari[k] ?? 0, akhir: akhir[k] ?? 0, nilaiAkhir: (akhir[k] ?? 0) * nilaiPecahan(k) }));
+  const nilaiAkhir = jumlahPecahan(akhir);
+  const saldoUang = laporanHarian(i).ringkasan.saldoAkhir;
+  return {
+    baris,
+    nilaiAwal: jumlahPecahan(awal),
+    nilaiAkhir,
+    saldoUang,
+    selisih: nilaiAkhir - saldoUang,
+    sinkron: nilaiAkhir === saldoUang && baris.every((b) => b.akhir >= 0),
+    negatif: baris.filter((b) => b.akhir < 0).map((b) => b.kunci),
+  };
 }

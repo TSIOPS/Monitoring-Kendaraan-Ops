@@ -8,10 +8,11 @@ import { isSuper, lihatSemuaCabang } from '../auth/peran';
 import { HttpError, okPayload, reqIp } from '../utils/http';
 import { todayWib } from '../logic/jalur';
 import { rekapPengeluaran, rekapTopup } from '../logic/rekap';
+import { decodeBase64, extOf } from './laporan';
 import { NomorKasBentrok } from '../db/kaskecil';
 import type { KasJenisRow } from '../db/kaskecil';
 import {
-  CABANG_TOPUP_VIA_FINANCE, PECAHAN_OPNAME, jumlahPecahan, laporanHarian, nomorKas, normalPecahan, pembandingHarian, summaryBulanan, tipeWh, urutBerikut,
+  CABANG_TOPUP_VIA_FINANCE, PECAHAN_OPNAME, jumlahPecahan, laporanHarian, nomorKas, normalPecahan, pembandingHarian, rincianPecahanHarian, saldoPecahan, summaryBulanan, tipeWh, urutBerikut,
 } from '../logic/kaskecil';
 import type { AppHarian, KasKeluarRow, KasMasukRow } from '../logic/kaskecil';
 
@@ -19,6 +20,7 @@ type Ctx = Context<{ Bindings: Env; Variables: AuthVars }>;
 
 const MAKS_NOMINAL = 100_000_000;
 const POLA_TGL = /^\d{4}-\d{2}-\d{2}$/;
+const POLA_SETORAN = /^setor/i;
 const ROMAWI = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
 const str = (v: unknown) => String(v ?? '').trim();
@@ -59,6 +61,8 @@ function ambilJumlah(b: Record<string, any>, { boleh0 = false, label = 'Jumlah u
     throw new HttpError(400, `${label} harus bilangan bulat ${boleh0 ? '≥ 0' : '> 0'} dan maksimal Rp 100.000.000.`, 'BAD_REQUEST');
   }
   if (dariPecahan > 0 && diisi && angka !== dariPecahan) throw new HttpError(400, `${label} tidak sama dengan total pecahan uang.`, 'BAD_REQUEST');
+  // Seperti Excel: uang selalu dicatat per pecahan (lembar/keping) agar saldo per pecahan bisa dihitung.
+  if (angka > 0 && dariPecahan === 0) throw new HttpError(400, `Rincian pecahan uang wajib diisi (${label.toLowerCase()} = total pecahan).`, 'BAD_REQUEST');
   return { jumlah: angka, pecahan };
 }
 
@@ -124,6 +128,15 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     throw new HttpError(409, 'Gagal membuat nomor kas, coba lagi.', 'CONFLICT');
   };
 
+  // Saldo per pecahan sesudah transaksi tersimpan negatif = uang yang dikeluarkan melebihi lembar/keping yang tercatat ada (peringatan, tidak memblokir).
+  const peringatanPecahan = async (kode: string, tanggal: string, dikeluarkan: Record<string, number>): Promise<string[]> => {
+    const awal = await deps.kaskecil.getSaldoAwal(kode);
+    if (!awal) return [];
+    const { keluar, masuk } = await dataKas(kode, tanggal);
+    const saldo = saldoPecahan({ awal, keluar, masuk, tanggal });
+    return Object.keys(dikeluarkan).filter((k) => (saldo[k] ?? 0) < 0).map((k) => `Pecahan ${k.replace('K', '')}${k.startsWith('K') ? ' (koin)' : ''}: saldo tercatat ${saldo[k]} (kurang dari yang dikeluarkan). Periksa pecahan yang diinput.`);
+  };
+
   // ── Master jenis ─────────────────────────────────────────────────────────
   app.get('/jenis', async (c: Ctx) => {
     const semua = isSuper(c.get('user')) && c.req.query('semua') === '1';
@@ -157,11 +170,21 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const b = await readJson(c);
     const cabang = cabangTulis(u, b.cabang);
     const tanggal = tanggalValid(b.tanggal, 'Tanggal saldo awal', todayWib());
-    const jumlah = str(b.jumlah) === '' ? NaN : Number(b.jumlah);
+    let pecahan: Record<string, number>;
+    try {
+      pecahan = normalPecahan(b.pecahan);
+    } catch (e) {
+      throw new HttpError(400, (e as Error).message, 'BAD_REQUEST');
+    }
+    const dariPecahan = jumlahPecahan(pecahan);
+    const jumlah = dariPecahan > 0 && (b.jumlah === undefined || str(b.jumlah) === '') ? dariPecahan : str(b.jumlah) === '' ? NaN : Number(b.jumlah);
     if (!Number.isInteger(jumlah) || jumlah < 0 || jumlah > 10 * MAKS_NOMINAL) throw new HttpError(400, 'Saldo awal tidak valid.', 'BAD_REQUEST');
-    await deps.kaskecil.setSaldoAwal(cabang, { tanggal, jumlah });
+    if (dariPecahan > 0 && dariPecahan !== jumlah) throw new HttpError(400, 'Saldo awal tidak sama dengan total pecahan uang.', 'BAD_REQUEST');
+    const dana = b.dana_mingguan === undefined || str(b.dana_mingguan) === '' ? ((await deps.kaskecil.getSaldoAwal(cabang))?.dana_mingguan ?? 0) : Number(b.dana_mingguan);
+    if (!Number.isInteger(dana) || dana < 0 || dana > MAKS_NOMINAL) throw new HttpError(400, 'Dana mingguan tidak valid.', 'BAD_REQUEST');
+    await deps.kaskecil.setSaldoAwal(cabang, { tanggal, jumlah, pecahan, dana_mingguan: dana });
     await audit(c, { action: 'UPDATE', modul: 'kaskecil', keterangan: `Saldo awal kas kecil ${cabang}: ${tanggal} Rp ${jumlah}` });
-    return c.json(okPayload({ awal: { tanggal, jumlah } }));
+    return c.json(okPayload({ awal: { tanggal, jumlah, pecahan, dana_mingguan: dana } }));
   });
 
   // ── Kas keluar ───────────────────────────────────────────────────────────
@@ -191,6 +214,7 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const hariIni = todayWib();
     const tanggal = tanggalValid(b.tanggal, 'Tanggal', hariIni);
     const jenis = await jenisDari(str(b.jenis_id), 'KELUAR');
+    if (POLA_SETORAN.test(jenis.nama)) throw new HttpError(400, 'Setoran ke bank dicatat lewat tombol "Setor Seluruh Saldo ke Bank" di Laporan Harian.', 'BAD_REQUEST');
     const penerima = str(b.penerima).slice(0, 80);
     if (!penerima) throw new HttpError(400, 'Nama penerima wajib diisi.', 'BAD_REQUEST');
     const { jumlah, pecahan } = ambilJumlah(b);
@@ -205,7 +229,7 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       await deps.kaskecil.insertKeluar(row);
     });
     await audit(c, { action: 'CREATE', modul: 'kaskecil', keterangan: `Kas keluar ${row.id} ${jenis.nama} Rp ${jumlah}` });
-    return c.json(okPayload({ keluar: row }));
+    return c.json(okPayload({ keluar: row, peringatan: await peringatanPecahan(kode, tanggal, pecahan) }));
   });
 
   app.put('/keluar/:id', async (c: Ctx) => {
@@ -330,7 +354,53 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const cabang = cabangBaca(c.get('user'), c.req.query('cabang'), { wajib: true });
     const tanggal = tanggalValid(c.req.query('tanggal'), 'Tanggal', todayWib());
     const { awal, keluar, masuk } = await dataKas(cabang, tanggal);
-    return c.json(okPayload({ laporan: laporanHarian({ awal, keluar, masuk, tanggal }), awal }));
+    return c.json(okPayload({ laporan: laporanHarian({ awal, keluar, masuk, tanggal }), rincian: rincianPecahanHarian({ awal, keluar, masuk, tanggal }), awal }));
+  });
+
+  // Saldo per pecahan saat ini (acuan form kas keluar / setoran).
+  app.get('/saldo-pecahan', async (c: Ctx) => {
+    const cabang = cabangBaca(c.get('user'), c.req.query('cabang'), { wajib: true });
+    const tanggal = tanggalValid(c.req.query('tanggal'), 'Tanggal', todayWib());
+    const { awal, keluar, masuk } = await dataKas(cabang, tanggal);
+    return c.json(okPayload({ rincian: rincianPecahanHarian({ awal, keluar, masuk, tanggal }), awal }));
+  });
+
+  // Setor SELURUH saldo kas kecil ke bank, dikeluarkan sesuai pecahan yang ada; foto bukti setor wajib.
+  app.post('/setoran', async (c: Ctx) => {
+    const u = c.get('user');
+    const b = await readJson(c);
+    const kode = cabangTulis(u, b.cabang);
+    const tanggal = tanggalValid(b.tanggal, 'Tanggal', todayWib());
+    const jenis = (await deps.kaskecil.listJenis()).find((j) => j.tipe === 'KELUAR' && j.aktif && POLA_SETORAN.test(j.nama));
+    if (!jenis) throw new HttpError(400, 'Jenis "Setoran Tunai Kas Kecil" belum tersedia.', 'BAD_REQUEST');
+    if (!b.foto_bukti) throw new HttpError(400, 'Foto bukti setor bank wajib diupload.', 'BAD_REQUEST');
+    const { awal, keluar, masuk } = await dataKas(kode, tanggal);
+    const rincian = rincianPecahanHarian({ awal, keluar, masuk, tanggal });
+    if (rincian.negatif.length) throw new HttpError(409, 'Rincian pecahan saldo tidak sinkron (ada pecahan bersaldo minus). Perbaiki catatan pecahan dulu sebelum setoran.', 'CONFLICT');
+    if (!rincian.sinkron) throw new HttpError(409, `Saldo uang (Rp ${rincian.saldoUang}) tidak sama dengan total pecahan (Rp ${rincian.nilaiAkhir}). Perbaiki catatan pecahan dulu sebelum setoran.`, 'CONFLICT');
+    const pecahan: Record<string, number> = {};
+    for (const bar of rincian.baris) if (bar.akhir > 0) pecahan[bar.kunci] = bar.akhir;
+    const jumlah = jumlahPecahan(pecahan);
+    if (jumlah <= 0) throw new HttpError(400, 'Tidak ada saldo kas kecil untuk disetor.', 'BAD_REQUEST');
+    let buktiUrl: string;
+    try {
+      const bytes = decodeBase64(b.foto_bukti);
+      const { ext, contentType } = extOf(b.foto_bukti_name);
+      buktiUrl = (await deps.uploadEvidence(c.env as Env, { branch: kode, folder: 'Kas_Setoran', bytes, ext, contentType })).url;
+    } catch (e) {
+      throw new HttpError(422, 'Upload foto bukti gagal: ' + (e as Error).message, 'UNPROCESSABLE');
+    }
+    const row: KasKeluarRow = {
+      id: '', kode_cabang: kode, tanggal, jam: jamWib(), no_referensi: '', penerima: str(b.penerima).slice(0, 80) || 'Setoran Bank', penerima_2: '', admin: u.nama || u.username,
+      jenis_id: jenis.id, kode_akun: jenis.kode_akun, jenis: jenis.nama, pecahan, jumlah, keterangan: str(b.keterangan).slice(0, 300) || 'Setor seluruh saldo kas kecil ke bank',
+      bukti_url: buktiUrl, status: 'Closed', no_kas_masuk: '', created_by: u.username, created_at: new Date(deps.now()).toISOString(), is_deleted: '',
+    };
+    await sisipBernomor(kode, tanggal, 'KK', '', async (nomor) => {
+      row.id = nomor;
+      await deps.kaskecil.insertKeluar(row);
+    });
+    await audit(c, { action: 'CREATE', modul: 'kaskecil', keterangan: `Setoran bank ${row.id} Rp ${jumlah}` });
+    return c.json(okPayload({ keluar: row }));
   });
 
   const bulanValid = (v: unknown): string => {
