@@ -98,7 +98,7 @@ insert into kas_jenis (id, kode_akun, nama, prefiks_ref, tipe, tanpa_penyelesaia
   ('KJ-01', '6101-101', 'Biaya Pengiriman via Pihak ketiga', 'BP', 'KELUAR', false, true, 1),
   ('KJ-02', '5101-102', 'Biaya Jamuan Supir dari Pabrik', 'BO', 'KELUAR', false, true, 2),
   ('KJ-03', '6101-103', 'Biaya Bensin Delivery', 'BP', 'KELUAR', false, true, 3),
-  ('KJ-04', '6101-103', 'Biaya Pengisian ETOLL', 'BP', 'KELUAR', false, true, 4),
+  ('KJ-04', '6101-103', 'Biaya Pengisian ETOLL', 'BO', 'KELUAR', false, true, 4),
   ('KJ-05', '6101-103', 'Biaya Parkir Untuk Delivery', 'BP', 'KELUAR', false, true, 5),
   ('KJ-06', '6101-103', 'Biaya Uang Muka Delivery', 'BO', 'KELUAR', false, true, 6),
   ('KJ-07', '7101-109', 'Biaya Iuran Lingkungan Kantor', 'BO', 'KELUAR', false, true, 7),
@@ -122,7 +122,3 @@ insert into kas_jenis (id, kode_akun, nama, prefiks_ref, tipe, tanpa_penyelesaia
   ('KJ-25', '', 'Tukar Denom', '', 'KELUAR', true, true, 25),
   ('KJ-26', '', 'Tambah Saldo', '', 'MASUK', false, true, 26)
 on conflict (id) do nothing;
-
--- Nomor BP (dari form Excel WHO) mencakup isi bensin, top up etoll, dan parkir delivery: Pengisian ETOLL memakai BP (bukan BO).
--- Idempotent; berlaku juga untuk database yang seed-nya sudah terlanjur dijalankan.
-update kas_jenis set prefiks_ref = 'BP' where id = 'KJ-04';
