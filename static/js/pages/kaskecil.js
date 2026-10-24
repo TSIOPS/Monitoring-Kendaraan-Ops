@@ -177,7 +177,7 @@ export async function renderKasKeluar(view) {
     if (!ubah && !jenis.value) err.push('Pilih jenis transaksi.');
     if (!penerima.value.trim()) err.push('Nama penerima wajib diisi.');
     if (!(pecahan.total() > 0)) err.push('Isi jumlah lembar/keping pada tabel pecahan uang (total harus lebih dari 0).');
-    if (!ubah && semua() && !cabang.kode()) err.push('Pilih warehouse pada filter di bawah.');
+    if (!ubah && semua() && !cabang.kode()) err.push('Pilih warehouse pada filter di atas.');
     if (err.length) { tampilkanGalat(alertBox, err.join(' ')); return; }
     simpan.disabled = true;
     try {
@@ -332,15 +332,16 @@ export async function renderKasKeluar(view) {
   formBox.replaceChildren(...(tulis() ? [el('div', { class: 'panel' }, [el('h3', { class: 'h6 mb-3', text: 'Kas Keluar Baru / Ubah' }), form])] : []));
   view.replaceChildren(
     el('div', { class: 'panel' }, [navKas('#/kaskecil'), el('h2', { 'data-judul-halaman': '', class: 'h5 mb-3 pb-2 border-bottom', text: 'Kas Kecil — Kas Keluar' })]),
-    formBox, selesaiBox,
+    // Filter (warehouse, periode, status) di atas form: warehouse dipilih dulu, form & tabel pecahan mengikutinya.
     el('div', { class: 'panel' }, [
-      el('div', { class: 'row g-2 align-items-end mb-3' }, [
+      el('div', { class: 'row g-2 align-items-end' }, [
         cabang.node ? kolom('col-md-3', 'Warehouse', cabang.node) : null,
         kolom('col-md-2', 'Dari tanggal', dari), kolom('col-md-2', 'Sampai tanggal', sampai), kolom('col-md-2', 'Status', statusSel),
         el('div', { class: 'col-md-2 mb-2 d-flex gap-2' }, [tombolTampil, tombolExcel]),
       ]),
-      hasil,
     ]),
+    formBox, selesaiBox,
+    el('div', { class: 'panel' }, [hasil]),
   );
   await Promise.all([muat(), muatTersedia()]);
   return { ok: true };

@@ -2,6 +2,9 @@
 
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
+## 2026-10-24
+- **UX** — Kas Kecil › Kas Keluar: panel filter (Warehouse, periode, status, Tampilkan, Unduh Excel) dipindah ke ATAS form input; SUPERADMIN memilih warehouse dulu, lalu form (kolom Tersedia pecahan) mengikutinya. Pesan validasi diubah menjadi "pada filter di atas". static/js/pages/kaskecil.js.
+
 ## 2026-10-23
 - **Fitur** — Kas kecil (BELUM DI-DEPLOY, dikerjakan bertahap): spesifikasi + rencana (docs/superpowers/specs|plans/2026-10-23-kas-kecil*). T1: `db/kas-kecil.sql` (kas_jenis, kas_keluar, kas_masuk, kas_saldo_awal, kas_opname + RLS + seed 26 jenis), schema.sql, rls.sql, backup harian memuat tabel baru, README migrasi tertunda.
 - **Fitur** — Kas kecil T2–T4 (BELUM DI-DEPLOY): logika murni src/logic/kaskecil.ts (pecahan, terbilang, penomoran KK/KM/BO/BP, laporan harian, summary, pembanding), repo src/db/kaskecil.ts, route /api/kaskecil (jenis, saldo awal, kas keluar, penyelesaian, tambah saldo, laporan harian, summary, pembanding vs aplikasi, BA cash opname). PIC terkunci ke cabangnya, MANAGEMENT baca saja, SUPERADMIN master jenis & saldo awal. Tes: tests/logic/kaskecil.test.ts, tests/routes/kaskecil.test.ts.
