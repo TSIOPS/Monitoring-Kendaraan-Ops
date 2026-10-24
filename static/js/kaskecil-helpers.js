@@ -73,6 +73,7 @@ export function sheetLaporanHarian(lap, { warehouse = '' } = {}) {
       ...lap.baris.map((b, i) => [i + 1, b.jam, b.nomorKK, b.referensi, b.nomorKM, b.nama, b.admin, b.kodeAkun, b.namaJenis, b.debit, b.kredit, b.saldo, b.status]),
       ['', '', '', '', '', '', '', '', 'TOTAL', lap.baris.reduce((n, b) => n + b.debit, 0), lap.baris.reduce((n, b) => n + b.kredit, 0), r.saldoAkhir, ''],
     ],
+    stripNol: true,
     angka: { kolom: [1, 3, 5, 7, 9, 10, 11] },
   }];
 }
@@ -90,6 +91,7 @@ export function sheetSummary(summary, { warehouse = '', bulan = '' } = {}) {
       ...summary.baris.map((b) => [tglId(b.tanggal), ...jenis.map((j) => b.nilai[j] ?? 0), b.total]),
       ['TOTAL', ...jenis.map((j) => summary.total[j] ?? 0), summary.total.semua ?? 0],
     ],
+    stripNol: true,
     angka: { baris: summary.baris.map((_, i) => i + 5).concat([5 + summary.baris.length]), kolom: jenis.map((_, i) => i + 1).concat([jenis.length + 1]) },
   }];
 }
@@ -107,6 +109,7 @@ export function sheetPembanding(baris, { warehouse = '', bulan = '' } = {}) {
       ...baris.map((b) => [tglId(b.tanggal), b.bbm.app, b.bbm.kas, b.bbm.selisih, b.topup.app, b.topupFinance ? 'Via Finance' : b.topup.kas, b.topupFinance ? '-' : b.topup.selisih, b.tol.app, b.tol.kas, b.tol.selisih, b.cocok ? 'Cocok' : 'Selisih']),
       ['TOTAL', jumlah((b) => b.bbm.app), jumlah((b) => b.bbm.kas), jumlah((b) => b.bbm.selisih), jumlah((b) => b.topup.app), jumlah((b) => (b.topupFinance ? 0 : b.topup.kas)), jumlah((b) => (b.topupFinance ? 0 : b.topup.selisih)), jumlah((b) => b.tol.app), jumlah((b) => b.tol.kas), jumlah((b) => b.tol.selisih), ''],
     ],
+    stripNol: true,
     angka: { baris: baris.map((_, i) => i + 5).concat([5 + baris.length]), kolom: [1, 2, 3, 4, 5, 6, 7, 8, 9] },
   }];
 }
@@ -123,7 +126,7 @@ export function sheetDaftarKeluar(keluar, masuk, { warehouse = '', dari = '', sa
   const kmById = new Map((masuk || []).map((m) => [m.id, m]));
   const urut = [...keluar].sort(urutWaktu);
   const kembali = (k) => (k.no_kas_masuk ? (kmById.get(k.no_kas_masuk)?.jumlah ?? 0) : 0);
-  const kolomRp = [11 + PECAHAN.length, 12 + PECAHAN.length, 13 + PECAHAN.length];
+  const kolomRp = [...PECAHAN.map((_, i) => 11 + i), 11 + PECAHAN.length, 12 + PECAHAN.length, 13 + PECAHAN.length];
   return {
     nama: 'Kas Keluar',
     aoa: [
@@ -135,6 +138,7 @@ export function sheetDaftarKeluar(keluar, masuk, { warehouse = '', dari = '', sa
       ...urut.map((k, i) => [i + 1, tglId(k.tanggal), String(k.jam).slice(0, 8), k.id, k.no_referensi || '', k.no_kas_masuk || '', k.penerima, k.penerima_2 || '', k.admin, k.kode_akun || '', k.jenis, ...barisPecahan(k.pecahan), k.jumlah, kembali(k), k.jumlah - kembali(k), k.keterangan || '', k.status]),
       ['', '', '', '', '', '', '', '', '', '', 'TOTAL', ...PECAHAN.map(() => ''), jum(urut, (k) => k.jumlah), jum(urut, kembali), jum(urut, (k) => k.jumlah - kembali(k)), '', ''],
     ],
+    stripNol: true,
     angka: { baris: urut.map((_, i) => i + 5).concat([5 + urut.length]), kolom: kolomRp },
     awalTabel: 4,
     filter: true,
@@ -143,7 +147,7 @@ export function sheetDaftarKeluar(keluar, masuk, { warehouse = '', dari = '', sa
 
 export function sheetDaftarMasuk(masuk, { warehouse = '', dari = '', sampai = '' } = {}) {
   const urut = [...masuk].sort(urutWaktu);
-  const kolomRp = [11 + PECAHAN.length];
+  const kolomRp = [...PECAHAN.map((_, i) => 11 + i), 11 + PECAHAN.length];
   return {
     nama: 'Kas Masuk',
     aoa: [
@@ -155,6 +159,7 @@ export function sheetDaftarMasuk(masuk, { warehouse = '', dari = '', sampai = ''
       ...urut.map((m, i) => [i + 1, tglId(m.tanggal), String(m.jam).slice(0, 8), m.id, m.no_kas_keluar || '', m.no_referensi || '', m.penerima || '', m.penerima_2 || '', m.admin, m.kode_akun || '', m.jenis, ...barisPecahan(m.pecahan), m.jumlah, m.keterangan || '']),
       ['', '', '', '', '', '', '', '', '', '', 'TOTAL', ...PECAHAN.map(() => ''), jum(urut, (m) => m.jumlah), ''],
     ],
+    stripNol: true,
     angka: { baris: urut.map((_, i) => i + 5).concat([5 + urut.length]), kolom: kolomRp },
     awalTabel: 4,
     filter: true,
@@ -178,6 +183,7 @@ export function sheetSaldoPecahan(rin, { warehouse = '', tanggal = '' } = {}) {
       ['Saldo uang menurut transaksi', '', '', '', '', rin.saldoUang],
       ['Selisih', '', '', '', '', rin.selisih],
     ],
-    angka: { baris: [...rin.baris.map((_, i) => i + 5), 5 + rin.baris.length, 6 + rin.baris.length, 7 + rin.baris.length], kolom: [5] },
+    stripNol: true,
+    angka: { baris: [...rin.baris.map((_, i) => i + 5), 5 + rin.baris.length, 6 + rin.baris.length, 7 + rin.baris.length], kolom: [1, 2, 3, 4, 5] },
   }];
 }

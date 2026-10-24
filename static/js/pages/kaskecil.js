@@ -11,6 +11,9 @@ import {
 import { cetakBuktiKeluar, cetakLaporanHarian, cetakOpname, cetakPenyelesaian, siapkanLogo } from '../kaskecil-cetak.js';
 
 const rp = (n) => `Rp ${fmtNum(n)}`;
+// Angka nol ditampilkan sebagai strip (-) di tabel & kartu Kas Kecil.
+const angka = (n) => (Number(n) ? fmtNum(n) : '-');
+const rpStrip = (n) => (Number(n) ? rp(n) : '-');
 const tulis = () => bolehTulis(getUser()?.role);
 const semua = () => lihatSemuaCabang(getUser()?.role);
 const PER_HALAMAN = 20;
@@ -44,18 +47,18 @@ const kolom = (lebar, label, kontrol, catatan) => el('div', { class: lebar }, [b
 function kotakPecahan(daftar, saatUbah, { tersedia = false, judulJumlah = 'Jumlah (lembar/keping)' } = {}) {
   const input = new Map(daftar.map(([k]) => [k, el('input', { type: 'number', min: '0', step: '1', class: 'form-control form-control-sm text-end', 'aria-label': `Jumlah ${labelPecahan(k)}` })]));
   const sedia = new Map(daftar.map(([k]) => [k, el('td', { class: 'text-end text-muted', text: '-' })]));
-  const nilaiSel = new Map(daftar.map(([k]) => [k, el('td', { class: 'text-end', text: '0' })]));
-  const total = el('td', { class: 'text-end fw-bold', text: 'Rp 0' });
+  const nilaiSel = new Map(daftar.map(([k]) => [k, el('td', { class: 'text-end', text: '-' })]));
+  const total = el('td', { class: 'text-end fw-bold', text: '-' });
   let ada = null;
   const baca = () => bersihkanPecahan(Object.fromEntries([...input].map(([k, i]) => [k, i.value])));
   const segar = () => {
     const p = baca();
     daftar.forEach(([k]) => {
-      nilaiSel.get(k).textContent = fmtNum(jumlahPecahan({ [k]: p[k] || 0 }));
+      nilaiSel.get(k).textContent = angka(jumlahPecahan({ [k]: p[k] || 0 }));
       input.get(k).classList.toggle('is-invalid', Boolean(tersedia && ada && ada[k] !== undefined && (p[k] || 0) > ada[k]));
     });
     const t = jumlahPecahan(p);
-    total.textContent = rp(t);
+    total.textContent = rpStrip(t);
     saatUbah?.(t);
   };
   input.forEach((i) => i.addEventListener('input', segar));
@@ -71,7 +74,7 @@ function kotakPecahan(daftar, saatUbah, { tersedia = false, judulJumlah = 'Jumla
     set: (p) => { input.forEach((i, k) => { i.value = p?.[k] ? String(p[k]) : ''; }); segar(); },
     kosongkan: () => { input.forEach((i) => { i.value = ''; }); segar(); },
     // Jumlah lembar/keping yang tercatat ada di laci (acuan); input melebihi tersedia ditandai merah.
-    setTersedia: (counts) => { ada = counts; sedia.forEach((td, k) => { td.textContent = counts && counts[k] !== undefined ? fmtNum(counts[k]) : '-'; }); segar(); },
+    setTersedia: (counts) => { ada = counts; sedia.forEach((td, k) => { td.textContent = counts && counts[k] !== undefined ? angka(counts[k]) : '-'; }); segar(); },
   };
 }
 
@@ -277,7 +280,7 @@ export async function renderKasKeluar(view) {
           el('td', { class: 'text-nowrap', text: `${fmtDateId(r.tanggal)} ${String(r.jam).slice(0, 5)}` }),
           el('td', { class: 'small', text: r.id }), el('td', { class: 'small', text: r.no_referensi || '-' }),
           el('td', { text: gabungNama(r) }), el('td', { text: r.jenis }),
-          el('td', { class: 'text-end', text: rp(r.jumlah) }), el('td', {}, [badgeStatus(r.status)]),
+          el('td', { class: 'text-end', text: rpStrip(r.jumlah) }), el('td', {}, [badgeStatus(r.status)]),
           el('td', {}, [grupAksi([
             tombolIkon('cetak', 'Cetak bukti kas keluar', () => cetak(r.id, 'keluar')),
             r.bukti_url ? ikonBukti(r.bukti_url) : null,
@@ -374,7 +377,7 @@ export async function renderKasMasuk(view) {
         el('tbody', {}, h.isi.map((r) => el('tr', {}, [
           el('td', { class: 'text-nowrap', text: `${fmtDateId(r.tanggal)} ${String(r.jam).slice(0, 5)}` }), el('td', { class: 'small', text: r.id }),
           el('td', { class: 'small', text: r.no_kas_keluar || '(tambah saldo)' }), el('td', { class: 'small', text: r.no_referensi || '-' }),
-          el('td', { text: gabungNama(r) || '-' }), el('td', { text: r.jenis }), el('td', { class: 'text-end', text: rp(r.jumlah) }), el('td', { class: 'small text-muted', text: r.keterangan || '-' }),
+          el('td', { text: gabungNama(r) || '-' }), el('td', { text: r.jenis }), el('td', { class: 'text-end', text: rpStrip(r.jumlah) }), el('td', { class: 'small text-muted', text: r.keterangan || '-' }),
         ]))),
       ])]),
       navHalaman(h.total, h.aktif, (ke) => { nomor = ke; gambar(); }),
@@ -439,10 +442,10 @@ export async function renderKasLaporan(view) {
       el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm table-hover align-middle' }, [
         th(['Pecahan', 'Saldo Awal', 'Masuk', 'Keluar', 'Saldo Akhir', 'Nilai (Rp)'], [1, 2, 3, 4, 5]),
         el('tbody', {}, rin.baris.map((b) => el('tr', { class: b.akhir < 0 ? 'table-danger' : '' }, [
-          el('td', { text: labelPecahan(b.kunci) }), el('td', { class: 'text-end', text: fmtNum(b.awal) }), el('td', { class: 'text-end', text: b.masuk ? fmtNum(b.masuk) : '-' }),
-          el('td', { class: 'text-end', text: b.keluar ? fmtNum(b.keluar) : '-' }), el('td', { class: 'text-end fw-semibold', text: fmtNum(b.akhir) }), el('td', { class: 'text-end', text: fmtNum(b.nilaiAkhir) }),
+          el('td', { text: labelPecahan(b.kunci) }), el('td', { class: 'text-end', text: angka(b.awal) }), el('td', { class: 'text-end', text: b.masuk ? angka(b.masuk) : '-' }),
+          el('td', { class: 'text-end', text: b.keluar ? angka(b.keluar) : '-' }), el('td', { class: 'text-end fw-semibold', text: angka(b.akhir) }), el('td', { class: 'text-end', text: angka(b.nilaiAkhir) }),
         ]))),
-        el('tfoot', { class: 'table-light fw-bold' }, [el('tr', {}, [el('td', { colspan: '5', text: 'Total saldo akhir' }), el('td', { class: 'text-end', text: fmtNum(rin.nilaiAkhir) })])]),
+        el('tfoot', { class: 'table-light fw-bold' }, [el('tr', {}, [el('td', { colspan: '5', text: 'Total saldo akhir' }), el('td', { class: 'text-end', text: angka(rin.nilaiAkhir) })])]),
       ])]),
     ]);
   }
@@ -456,9 +459,9 @@ export async function renderKasLaporan(view) {
     isi.replaceChildren(...[
       !awal ? el('div', { class: 'alert alert-warning', text: 'Saldo awal kas kecil warehouse ini belum diatur (dianggap Rp 0). SUPERADMIN dapat mengaturnya di bawah.' }) : null,
       el('div', { class: 'row g-2 mb-3' }, [
-        kotakInfo('border bg-white', 'Saldo Awal', rp(r.saldoAwal)), kotakInfo('bg-warning-subtle', 'Kas Keluar', rp(r.keluar)),
-        kotakInfo('bg-primary text-white', 'Kas Masuk', rp(r.masuk)), kotakInfo('border bg-white', 'Belum Selesai', rp(r.belumSelesai)),
-        kotakInfo('bg-success text-white', 'Saldo Akhir', rp(r.saldoAkhir)),
+        kotakInfo('border bg-white', 'Saldo Awal', rpStrip(r.saldoAwal)), kotakInfo('bg-warning-subtle', 'Kas Keluar', rpStrip(r.keluar)),
+        kotakInfo('bg-primary text-white', 'Kas Masuk', rpStrip(r.masuk)), kotakInfo('border bg-white', 'Belum Selesai', rpStrip(r.belumSelesai)),
+        kotakInfo('bg-success text-white', 'Saldo Akhir', rpStrip(r.saldoAkhir)),
       ]),
       aksi,
       l.baris.length ? el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm table-hover align-middle' }, [
@@ -466,8 +469,8 @@ export async function renderKasLaporan(view) {
         el('tbody', {}, l.baris.map((b) => el('tr', {}, [
           el('td', { text: String(b.jam).slice(0, 5) }), el('td', { class: 'small', text: b.nomorKK || '-' }), el('td', { class: 'small', text: b.referensi || '-' }),
           el('td', { class: 'small', text: b.nomorKM || '-' }), el('td', { text: b.nama || '-' }), el('td', { text: b.namaJenis }),
-          el('td', { class: 'text-end', text: b.debit ? fmtNum(b.debit) : '' }), el('td', { class: 'text-end', text: b.kredit ? fmtNum(b.kredit) : '' }),
-          el('td', { class: 'text-end fw-semibold', text: fmtNum(b.saldo) }), el('td', {}, b.status ? [badgeStatus(b.status)] : []),
+          el('td', { class: 'text-end', text: angka(b.debit) }), el('td', { class: 'text-end', text: angka(b.kredit) }),
+          el('td', { class: 'text-end fw-semibold', text: angka(b.saldo) }), el('td', {}, b.status ? [badgeStatus(b.status)] : []),
           el('td', {}, tulis() && b.jenis === 'MASUK' && !b.nomorKK ? [tombolIkonSekali('hapus', 'Hapus tambah saldo', async () => {
             if (!confirmDialog(`Hapus tambah saldo ${b.nomor} (${rp(b.debit)})?`)) return;
             try { await del(`/api/kaskecil/masuk/${encodeURIComponent(b.nomor)}`); toast('Tambah saldo dihapus.', 'success'); await muat(); } catch (e) { toast(e.message, 'error'); }
@@ -636,8 +639,8 @@ export function renderKasSummary(view) {
       if (!s.baris.length) return el('div', { class: 'text-center text-muted py-4', text: 'Belum ada kas keluar pada bulan ini.' });
       return el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm table-hover align-middle' }, [
         th(['Tanggal', ...s.jenis, 'Total'], s.jenis.map((_, i) => i + 1).concat([s.jenis.length + 1])),
-        el('tbody', {}, s.baris.map((b) => el('tr', {}, [el('td', { class: 'text-nowrap', text: fmtDateId(b.tanggal) }), ...s.jenis.map((j) => el('td', { class: 'text-end', text: b.nilai[j] ? fmtNum(b.nilai[j]) : '-' })), el('td', { class: 'text-end fw-bold', text: fmtNum(b.total) })]))),
-        el('tfoot', { class: 'table-light fw-bold' }, [el('tr', {}, [el('td', { text: 'Total' }), ...s.jenis.map((j) => el('td', { class: 'text-end', text: fmtNum(s.total[j] ?? 0) })), el('td', { class: 'text-end', text: fmtNum(s.total.semua ?? 0) })])]),
+        el('tbody', {}, s.baris.map((b) => el('tr', {}, [el('td', { class: 'text-nowrap', text: fmtDateId(b.tanggal) }), ...s.jenis.map((j) => el('td', { class: 'text-end', text: b.nilai[j] ? angka(b.nilai[j]) : '-' })), el('td', { class: 'text-end fw-bold', text: angka(b.total) })]))),
+        el('tfoot', { class: 'table-light fw-bold' }, [el('tr', {}, [el('td', { text: 'Total' }), ...s.jenis.map((j) => el('td', { class: 'text-end', text: angka(s.total[j] ?? 0) })), el('td', { class: 'text-end', text: angka(s.total.semua ?? 0) })])]),
       ])]);
     },
   });
@@ -648,7 +651,7 @@ export function renderKasPembanding(view) {
     aktif: '#/kaskecil/pembanding', judul: 'Kas Kecil — Pembanding dengan Aplikasi', endpoint: '/api/kaskecil/pembanding', kunci: 'baris', sheet: sheetPembanding,
     gambar: (baris) => {
       if (!baris.length) return el('div', { class: 'text-center text-muted py-4', text: 'Belum ada data pada bulan ini.' });
-      const sel = (p) => [el('td', { class: 'text-end', text: fmtNum(p.app) }), el('td', { class: 'text-end', text: fmtNum(p.kas) }), el('td', { class: `text-end ${p.selisih ? 'kas-selisih' : 'kas-cocok'}`, text: p.selisih ? fmtNum(p.selisih) : '0' })];
+      const sel = (p) => [el('td', { class: 'text-end', text: angka(p.app) }), el('td', { class: 'text-end', text: angka(p.kas) }), el('td', { class: `text-end ${p.selisih ? 'kas-selisih' : 'kas-cocok'}`, text: p.selisih ? angka(p.selisih) : '0' })];
       return el('div', {}, [
         el('div', { class: 'small text-muted mb-2', text: 'Selisih = aplikasi − kas kecil. BBM tunai ↔ Bensin Delivery; Top Up Flazz ↔ Pengisian ETOLL (WHP Bandung, WHO Bandung, WHO Cibaduyut: top up dibayar langsung Finance, tidak dibandingkan); Tol tunai ↔ Uang Muka Delivery (indikatif).' }),
         el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm table-hover align-middle' }, [
@@ -656,7 +659,7 @@ export function renderKasPembanding(view) {
             el('tr', {}, [el('th', { rowspan: '2', text: 'Tanggal' }), el('th', { colspan: '3', class: 'text-center', text: 'BBM Tunai' }), el('th', { colspan: '3', class: 'text-center', text: 'Top Up Flazz' }), el('th', { colspan: '3', class: 'text-center', text: 'Tol Tunai' }), el('th', { rowspan: '2', text: 'Status' })]),
             el('tr', {}, ['Aplikasi', 'Kas', 'Selisih', 'Aplikasi', 'Kas', 'Selisih', 'Aplikasi', 'Kas', 'Selisih'].map((x) => el('th', { class: 'text-end', text: x }))),
           ]),
-          el('tbody', {}, baris.map((b) => el('tr', {}, [el('td', { class: 'text-nowrap', text: tglId(b.tanggal) }), ...sel(b.bbm), ...(b.topupFinance ? [el('td', { class: 'text-end', text: fmtNum(b.topup.app) }), el('td', { class: 'text-end text-muted', colspan: '2', text: 'Via Finance' })] : sel(b.topup)), ...sel(b.tol), el('td', {}, [el('span', { class: b.cocok ? 'kas-cocok' : 'kas-selisih', text: b.cocok ? 'Cocok' : 'Selisih' })])]))),
+          el('tbody', {}, baris.map((b) => el('tr', {}, [el('td', { class: 'text-nowrap', text: tglId(b.tanggal) }), ...sel(b.bbm), ...(b.topupFinance ? [el('td', { class: 'text-end', text: angka(b.topup.app) }), el('td', { class: 'text-end text-muted', colspan: '2', text: 'Via Finance' })] : sel(b.topup)), ...sel(b.tol), el('td', {}, [el('span', { class: b.cocok ? 'kas-cocok' : 'kas-selisih', text: b.cocok ? 'Cocok' : 'Selisih' })])]))),
         ])]),
       ]);
     },
@@ -713,7 +716,7 @@ export async function renderKasOpname(view) {
         th(['Tanggal', 'Nomor BA', 'Pemeriksa', 'Nilai Fisik', 'Nilai Buku', 'Selisih', 'Aksi'], [3, 4, 5]),
         el('tbody', {}, opname.map((o) => el('tr', {}, [
           el('td', { text: fmtDateId(o.tanggal) }), el('td', { class: 'small', text: o.id }), el('td', { text: o.pemeriksa }),
-          el('td', { class: 'text-end', text: rp(o.nilai_fisik) }), el('td', { class: 'text-end', text: rp(o.nilai_buku) }),
+          el('td', { class: 'text-end', text: rpStrip(o.nilai_fisik) }), el('td', { class: 'text-end', text: rpStrip(o.nilai_buku) }),
           el('td', { class: `text-end ${o.selisih ? 'kas-selisih' : 'kas-cocok'}`, text: o.selisih ? rp(o.selisih) : 'Sesuai' }),
           el('td', {}, [grupAksi([
             tombolIkon('cetak', 'Cetak BA', () => cetakOpname({ opname: o, cabang: { nama: dasar.cabangList.find((c) => c.kode === o.kode_cabang)?.nama || o.kode_cabang } })),

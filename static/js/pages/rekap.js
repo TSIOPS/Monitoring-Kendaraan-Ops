@@ -53,6 +53,7 @@ export function namaFileRekap(dari, sampai, kodeWh) {
 // ── Ekspor Excel ──────────────────────────────────────────────────────────
 // Spesifikasi sheet (array-of-arrays) dipisah dari SheetJS agar bisa diuji.
 const FORMAT_RUPIAH = '#,##0';
+const FORMAT_RUPIAH_STRIP = '#,##0;-#,##0;"-"'; // sheet Kas Kecil: nol tampil strip
 const tglId = (t) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(t || ''));
   return m ? `${m[3]}/${m[2]}/${m[1]}` : String(t || '');
@@ -157,7 +158,7 @@ export function bukuExcel(XLSX, sheets) {
       if (sh.angka.baris && !sh.angka.baris.includes(r)) return;
       for (const c of sh.angka.kolom) {
         const cell = ws[XLSX.utils.encode_cell({ r, c })];
-        if (cell && typeof cell.v === 'number') cell.z = FORMAT_RUPIAH;
+        if (cell && typeof cell.v === 'number') cell.z = sh.stripNol ? FORMAT_RUPIAH_STRIP : FORMAT_RUPIAH;
       }
     });
     // Persen disimpan sebagai angka biasa (12,5 = 12,5%) dengan format 0.0"%".

@@ -5,6 +5,9 @@ import { PECAHAN_OPNAME, gabungNama, jumlahPecahan, labelPecahan, terbilang, tgl
 
 const PERUSAHAAN = 'PT. TRIDAYA SINERGI INDONESIA';
 const rp = (n) => `Rp ${fmtNum(n)}`;
+// Angka nol dicetak sebagai strip (-).
+const angka = (n) => (Number(n) ? fmtNum(n) : '-');
+const rpStrip = (n) => (Number(n) ? rp(n) : '-');
 
 function bukaCetak(judul, isi) {
   document.body.classList.add('mode-cetak');
@@ -72,8 +75,8 @@ export function cetakPenyelesaian({ keluar: k, masuk: m, cabang }) {
   bukaCetak('Penyelesaian Kas Kecil', [
     kepala('PENYELESAIAN KAS KECIL', m ? m.id : k.id),
     tabelInfo([['No. Referensi', k.no_referensi], ['Nama', gabungNama(k)], ['Jenis Transaksi', k.jenis]]),
-    tabel(['No. Kas Keluar', 'Tgl KK', 'Nominal KK', 'Nominal KM', 'Tgl KM', 'No. Kas Masuk'], [[k.id, tglId(k.tanggal), fmtNum(k.jumlah), fmtNum(kembali), m ? tglId(m.tanggal) : '-', m ? m.id : '-']], { kanan: [2, 3], kecil: true }),
-    tabelInfo([['Jumlah Anggaran', rp(k.jumlah)], ['Sisa Anggaran', rp(kembali)], ['Penggunaan Anggaran', rp(k.jumlah - kembali)]]),
+    tabel(['No. Kas Keluar', 'Tgl KK', 'Nominal KK', 'Nominal KM', 'Tgl KM', 'No. Kas Masuk'], [[k.id, tglId(k.tanggal), angka(k.jumlah), angka(kembali), m ? tglId(m.tanggal) : '-', m ? m.id : '-']], { kanan: [2, 3], kecil: true }),
+    tabelInfo([['Jumlah Anggaran', rpStrip(k.jumlah)], ['Sisa Anggaran', rpStrip(kembali)], ['Penggunaan Anggaran', rpStrip(k.jumlah - kembali)]]),
     el('div', { class: 'cetak-terbilang', text: terbilang(k.jumlah) }),
     el('div', { class: 'cetak-kecil mb-2', text: 'Penerimaan dokumen terlampir bukti penggunaan uang.' }),
     el('div', { class: 'cetak-kota', text: `${kota}, ${tglPanjang(m ? m.tanggal : k.tanggal)}` }),
@@ -85,12 +88,12 @@ export function cetakLaporanHarian({ laporan: l, rincian: rin, cabang }) {
   const r = l.ringkasan;
   bukaCetak('Laporan Harian Kas Kecil', [
     kepala('LAPORAN HARIAN KAS KECIL', `${cabang?.nama || ''} — ${tglPanjang(l.tanggal)}`),
-    tabelInfo([['Saldo Awal', rp(r.saldoAwal)], ['Kas Keluar', rp(r.keluar)], ['Kas Masuk', rp(r.masuk)], ['Belum Selesai', rp(r.belumSelesai)], ['Saldo Akhir', rp(r.saldoAkhir)]]),
+    tabelInfo([['Saldo Awal', rpStrip(r.saldoAwal)], ['Kas Keluar', rpStrip(r.keluar)], ['Kas Masuk', rpStrip(r.masuk)], ['Belum Selesai', rpStrip(r.belumSelesai)], ['Saldo Akhir', rpStrip(r.saldoAkhir)]]),
     tabel(['No', 'Jam', 'No. Kas Keluar', 'No. Referensi', 'No. Kas Masuk', 'Nama', 'Jenis Transaksi', 'Debit', 'Kredit', 'Saldo', 'Status'],
-      l.baris.map((b, i) => [i + 1, b.jam.slice(0, 5), b.nomorKK, b.referensi, b.nomorKM, b.nama, b.namaJenis, b.debit ? fmtNum(b.debit) : '', b.kredit ? fmtNum(b.kredit) : '', fmtNum(b.saldo), b.status]),
+      l.baris.map((b, i) => [i + 1, b.jam.slice(0, 5), b.nomorKK, b.referensi, b.nomorKM, b.nama, b.namaJenis, angka(b.debit), angka(b.kredit), angka(b.saldo), b.status]),
       { kanan: [7, 8, 9], kecil: true }),
     rin ? tabel(['Pecahan', 'Saldo Awal', 'Masuk', 'Keluar', 'Saldo Akhir', 'Nilai (Rp)'],
-      [...rin.baris.map((b) => [labelPecahan(b.kunci), b.awal, b.masuk, b.keluar, b.akhir, fmtNum(b.nilaiAkhir)]), ['TOTAL', '', '', '', '', fmtNum(rin.nilaiAkhir)]],
+      [...rin.baris.map((b) => [labelPecahan(b.kunci), angka(b.awal), angka(b.masuk), angka(b.keluar), angka(b.akhir), angka(b.nilaiAkhir)]), ['TOTAL', '', '', '', '', angka(rin.nilaiAkhir)]],
       { kanan: [1, 2, 3, 4, 5], kecil: true }) : null,
   ]);
 }

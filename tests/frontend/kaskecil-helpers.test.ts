@@ -91,3 +91,15 @@ describe('sheet Saldo per Pecahan', () => {
     expect(rows[9]![5]).toBe(0);
   });
 });
+
+describe('angka nol tampil strip di Excel kas kecil', () => {
+  it('sheet kas kecil memakai format ber-strip untuk nol; sheet rekap tidak', async () => {
+    const { sheetSaldoPecahan, sheetDaftarMasuk } = await import('../../static/js/kaskecil-helpers.js');
+    const rin = { baris: [{ kunci: '100000', awal: 0, masuk: 0, keluar: 0, akhir: 0, nilaiAkhir: 0 }], nilaiAwal: 0, nilaiAkhir: 0, saldoUang: 0, selisih: 0, sinkron: true, negatif: [] };
+    const wb = bukuExcel(XLSX, [...sheetSaldoPecahan(rin, { warehouse: 'X', tanggal: '2026-10-01' }), sheetDaftarMasuk([], { warehouse: 'X' })]);
+    expect(wb.Sheets['Saldo per Pecahan']!.B6!.z).toBe('#,##0;-#,##0;"-"');
+    expect(wb.Sheets['Saldo per Pecahan']!.F6!.z).toBe('#,##0;-#,##0;"-"');
+    const rekap = bukuExcel(XLSX, [{ nama: 'A', aoa: [['x', 5]], angka: { kolom: [1] } }]);
+    expect(rekap.Sheets.A!.B1!.z).toBe('#,##0');
+  });
+});

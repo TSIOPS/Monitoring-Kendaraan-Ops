@@ -3,6 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-10-24
+- **UX** — Kas Kecil: angka nol ditampilkan sebagai strip (-) di semua tabel & kartu (rincian saldo per pecahan, tabel input pecahan, laporan harian, summary, pembanding, daftar, opname), dokumen cetak, dan Excel (format angka "#,##0;-#,##0;"-"", nilai tetap numerik; flag stripNol di sheet kas kecil). static/js/pages/kaskecil.js, kaskecil-cetak.js, kaskecil-helpers.js, rekap.js (bukuExcel).
 - **UX** — Kas Kecil › Laporan Harian: satu baris per kas keluar seperti Excel — penyelesaian di hari yang sama digabung ke baris kas keluarnya (Debit = uang kembali, status & No. Kas Masuk di baris yang sama); penyelesaian di hari lain tampil sebagai baris "Penyelesaian …" pada hari penyelesaiannya; Tambah Saldo tetap baris sendiri. Saldo berjalan & ringkasan tidak berubah. Berlaku juga di cetak & Excel. src/logic/kaskecil.ts (laporanHarian), tes diperbarui.
 - **UX** — Kas Kecil › cetak: teks terbilang nominal rata tengah; blok kota+tanggal dan tanda tangan diturunkan (jarak lebih longgar ke bawah, ruang tanda tangan lebih lega). static/css/app.css.
 - **UX** — Kas Kecil › cetak: kepala dokumen ditata ulang — logo di kiri, blok teks (perusahaan, judul, lalu nomor dokumen di bawah judul) rata tengah secara vertikal terhadap logo. static/js/kaskecil-cetak.js, static/css/app.css.
