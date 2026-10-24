@@ -1,4 +1,5 @@
 // Dokumen cetak kas kecil (mengikuti format Excel): tampil sebagai lembar penuh, dicetak lewat window.print().
+import { get } from './api.js';
 import { el, fmtNum } from './ui.js';
 import { PECAHAN_OPNAME, gabungNama, jumlahPecahan, labelPecahan, terbilang, tglId, tglPanjang } from './kaskecil-helpers.js';
 
@@ -19,7 +20,16 @@ function bukaCetak(judul, isi) {
   overlay.querySelector('button')?.focus();
 }
 
+// Logo perusahaan (Pengaturan › logo) di pojok kiri atas dokumen. Dimuat sekali oleh halaman Kas Kecil; tanpa logo = tanpa gambar.
+let logoUrl = '';
+let logoSiap = null;
+export function siapkanLogo() {
+  logoSiap ??= get('/api/settings').then((s) => { logoUrl = String(s.logo_url || ''); }).catch(() => {});
+  return logoSiap;
+}
+
 const kepala = (judul, kode) => el('div', { class: 'cetak-kepala' }, [
+  logoUrl ? el('img', { class: 'cetak-logo', src: logoUrl, alt: 'Logo perusahaan' }) : null,
   el('div', { class: 'fw-bold', text: PERUSAHAAN }),
   el('div', { text: kode }),
   el('h2', { class: 'cetak-judul', text: judul }),
@@ -40,7 +50,6 @@ const tabel = (kolom, baris, { kanan = [], kecil = false } = {}) => el('table', 
 
 export function cetakBuktiKeluar({ keluar: k, cabang }) {
   const kota = cabang?.nama || k.kode_cabang;
-  const pecahan = Object.entries(k.pecahan || {});
   bukaCetak('Bukti Kas Keluar', [
     kepala('BUKTI KAS KELUAR', k.id),
     tabelInfo([
@@ -48,7 +57,6 @@ export function cetakBuktiKeluar({ keluar: k, cabang }) {
       ['Untuk Keperluan', k.jenis], ['Jumlah', rp(k.jumlah)], ['Keterangan', k.keterangan],
     ]),
     el('div', { class: 'cetak-terbilang', text: terbilang(k.jumlah) }),
-    pecahan.length ? el('div', { class: 'cetak-kecil mb-2', text: 'Pecahan: ' + pecahan.map(([p, n]) => `${p.replace('K', '')}${p.startsWith('K') ? ' (koin)' : ''} × ${n}`).join(', ') }) : null,
     el('div', { class: 'cetak-kota', text: `${kota}, ${tglPanjang(k.tanggal)}` }),
     tandaTangan(['Dikeluarkan oleh,', k.admin], ['Diterima oleh,', gabungNama(k)]),
   ]);

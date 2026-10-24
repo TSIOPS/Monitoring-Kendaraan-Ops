@@ -8,7 +8,7 @@ import { bukuExcel, muatSheetJS } from './rekap.js';
 import {
   PECAHAN, PECAHAN_OPNAME, bersihkanPecahan, gabungNama, jumlahPecahan, labelPecahan, namaFileKas, sheetDaftarKeluar, sheetDaftarMasuk, sheetLaporanHarian, sheetPembanding, sheetSaldoPecahan, sheetSummary, tglId,
 } from '../kaskecil-helpers.js';
-import { cetakBuktiKeluar, cetakLaporanHarian, cetakOpname, cetakPenyelesaian } from '../kaskecil-cetak.js';
+import { cetakBuktiKeluar, cetakLaporanHarian, cetakOpname, cetakPenyelesaian, siapkanLogo } from '../kaskecil-cetak.js';
 
 const rp = (n) => `Rp ${fmtNum(n)}`;
 const tulis = () => bolehTulis(getUser()?.role);
@@ -23,7 +23,7 @@ function navKas(aktif) {
 
 // Data dasar: daftar warehouse (nama untuk dokumen cetak) dan jenis transaksi aktif.
 async function muatDasar() {
-  const [master, j] = await Promise.all([get('/api/master'), get('/api/kaskecil/jenis')]);
+  const [master, j] = await Promise.all([get('/api/master'), get('/api/kaskecil/jenis'), siapkanLogo()]);
   return { cabangList: Array.isArray(master.cabangList) ? master.cabangList : [], drivers: Array.isArray(master.drivers) ? master.drivers : [], jenis: j.jenis || [] };
 }
 
