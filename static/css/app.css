@@ -716,9 +716,11 @@ h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus, [data-judul-halaman]:focus { o
 .cetak-overlay { position: fixed; inset: 0; z-index: 2000; overflow: auto; padding: 1rem; background: #e9ecef; }
 .cetak-bar { display: flex; gap: .5rem; max-width: 210mm; margin: 0 auto .75rem; }
 .cetak-kertas { max-width: 210mm; margin: 0 auto; padding: 12mm; background: #fff; color: #000; font-size: 13px; line-height: 1.45; }
-.cetak-kepala { position: relative; text-align: center; margin-bottom: .75rem; min-height: 3.5rem; }
-.cetak-logo { position: absolute; left: 0; top: 0; max-height: 3.75rem; max-width: 9rem; object-fit: contain; }
-.cetak-judul { font-size: 1.15rem; font-weight: 700; margin: .5rem 0 0; text-decoration: underline; }
+.cetak-kepala { display: flex; align-items: center; margin-bottom: .75rem; min-height: 3.75rem; }
+.cetak-kepala-sisi { flex: 0 0 9rem; }
+.cetak-kepala-teks { flex: 1; text-align: center; }
+.cetak-logo { display: block; max-height: 3.75rem; max-width: 9rem; object-fit: contain; }
+.cetak-judul { font-size: 1.15rem; font-weight: 700; margin: .25rem 0 .2rem; text-decoration: underline; }
 .cetak-info { width: 100%; margin-bottom: .75rem; }
 .cetak-info td { padding: .15rem .35rem; vertical-align: top; }
 .cetak-label { width: 11rem; white-space: nowrap; }

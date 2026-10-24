@@ -3,6 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-10-24
+- **UX** — Kas Kecil › cetak: kepala dokumen ditata ulang — logo di kiri, blok teks (perusahaan, judul, lalu nomor dokumen di bawah judul) rata tengah secara vertikal terhadap logo. static/js/kaskecil-cetak.js, static/css/app.css.
 - **UX** — Kas Kecil › cetak: logo perusahaan (Pengaturan › logo) tampil di pojok kiri atas semua dokumen cetak (Bukti Kas Keluar, Penyelesaian, Laporan Harian, BA Cash Opname); baris "Pecahan" dihapus dari Bukti Kas Keluar. static/js/kaskecil-cetak.js, static/css/app.css.
 - **UX** — Kas Kecil › Kas Keluar: panel filter (Warehouse, periode, status, Tampilkan, Unduh Excel) dipindah ke ATAS form input; SUPERADMIN memilih warehouse dulu, lalu form (kolom Tersedia pecahan) mengikutinya. Pesan validasi diubah menjadi "pada filter di atas". static/js/pages/kaskecil.js.
 

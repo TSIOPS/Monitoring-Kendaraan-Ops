@@ -28,11 +28,15 @@ export function siapkanLogo() {
   return logoSiap;
 }
 
+// Kiri: logo; tengah: perusahaan, judul, lalu nomor dokumen (blok teks rata tengah secara vertikal terhadap logo).
 const kepala = (judul, kode) => el('div', { class: 'cetak-kepala' }, [
-  logoUrl ? el('img', { class: 'cetak-logo', src: logoUrl, alt: 'Logo perusahaan' }) : null,
-  el('div', { class: 'fw-bold', text: PERUSAHAAN }),
-  el('div', { text: kode }),
-  el('h2', { class: 'cetak-judul', text: judul }),
+  el('div', { class: 'cetak-kepala-sisi' }, [logoUrl ? el('img', { class: 'cetak-logo', src: logoUrl, alt: 'Logo perusahaan' }) : null]),
+  el('div', { class: 'cetak-kepala-teks' }, [
+    el('div', { class: 'fw-bold', text: PERUSAHAAN }),
+    el('h2', { class: 'cetak-judul', text: judul }),
+    el('div', { text: kode }),
+  ]),
+  el('div', { class: 'cetak-kepala-sisi' }),
 ]);
 
 const barisInfo = (label, nilai) => el('tr', {}, [el('td', { class: 'cetak-label', text: label }), el('td', { text: ':' }), el('td', { class: 'fw-semibold', text: nilai || '-' })]);
