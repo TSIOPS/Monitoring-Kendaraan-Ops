@@ -29,7 +29,7 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 ### SQL migrasi tertunda
 | File | Untuk fitur | Status |
 |---|---|---|
-| _(tidak ada)_ | | |
+| `db/kas-kecil.sql` — hanya statement `update kas_jenis set prefiks_ref = 'BP' where id = 'KJ-04';` (Pengisian ETOLL ikut nomor BP) | Kas Kecil: nomor BP manual |
 
 ### Sudah dijalankan di production
 | File | Tanggal |

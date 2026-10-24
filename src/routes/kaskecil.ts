@@ -120,14 +120,23 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     return j;
   };
 
-  // Satu driver boleh punya satu nomor BP/BO untuk beberapa pengeluaran: kelompok referensi milik penerima itu (14 hari terakhir, awalan sama).
+  // Nomor BP = nomor dari form Excel WHO (surat jalan: isi bensin, top up etoll, parkir delivery), DIINPUT MANUAL dan boleh sama untuk beberapa
+  // pengeluaran satu driver. Nomor BO dibuat otomatis, baru untuk setiap pengeluaran.
   const normNama = (v: unknown) => str(v).toLowerCase().replace(/\s+/g, ' ');
-  const kelompokReferensi = async (kode: string, penerima: string, prefiks: string) => {
+  const ambilNomorBP = (v: unknown): string => {
+    const n = str(v).toUpperCase().replace(/\s+/g, ' ');
+    if (!n) throw new HttpError(400, 'Nomor BP wajib diisi (nomor dari form Excel WHO).', 'BAD_REQUEST');
+    if (!/^[A-Z0-9][A-Z0-9\-/. ]{2,39}$/.test(n)) throw new HttpError(400, 'Nomor BP tidak valid (3–40 karakter: huruf, angka, - / . dan spasi).', 'BAD_REQUEST');
+    return n;
+  };
+  // Saran: nomor BP yang sudah dipakai driver itu dalam 14 hari terakhir.
+  const kelompokReferensi = async (kode: string, penerima: string) => {
+    const idBP = new Set((await deps.kaskecil.listJenis()).filter((j) => j.prefiks_ref === 'BP').map((j) => j.id));
     const dari = todayWib(new Date(deps.now() - 14 * 86_400_000));
     const keluar = await deps.kaskecil.listKeluar({ cabang: kode, dari });
     const peta = new Map<string, { ref: string; tanggal: string; jumlah: number; transaksi: number; jenis: string[] }>();
     for (const k of keluar) {
-      if (!k.no_referensi || !k.no_referensi.startsWith(prefiks + '-') || normNama(k.penerima) !== normNama(penerima)) continue;
+      if (!k.no_referensi || !idBP.has(k.jenis_id) || normNama(k.penerima) !== normNama(penerima)) continue;
       const g = peta.get(k.no_referensi) ?? { ref: k.no_referensi, tanggal: k.tanggal, jumlah: 0, transaksi: 0, jenis: [] };
       g.jumlah += Number(k.jumlah) || 0;
       g.transaksi += 1;
@@ -227,13 +236,12 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     return c.json(okPayload({ masuk: masuk.reverse() }));
   });
 
-  // Daftar nomor referensi (BP/BO) milik satu driver untuk dipakai ulang oleh pengeluaran berikutnya.
+  // Saran nomor BP yang sudah dipakai satu driver (untuk pengeluaran berikutnya dengan nomor BP yang sama).
   app.get('/referensi', async (c: Ctx) => {
     const cabang = cabangBaca(c.get('user'), c.req.query('cabang'), { wajib: true });
-    const jenis = (await deps.kaskecil.listJenis()).find((j) => j.id === str(c.req.query('jenis_id')));
     const penerima = str(c.req.query('penerima'));
-    if (!jenis || !jenis.prefiks_ref || !penerima) return c.json(okPayload({ referensi: [] }));
-    return c.json(okPayload({ referensi: await kelompokReferensi(cabang, penerima, jenis.prefiks_ref) }));
+    if (!penerima) return c.json(okPayload({ referensi: [] }));
+    return c.json(okPayload({ referensi: await kelompokReferensi(cabang, penerima) }));
   });
 
   app.get('/keluar/:id', async (c: Ctx) => {
@@ -254,21 +262,16 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const penerima = str(b.penerima).slice(0, 80);
     if (!penerima) throw new HttpError(400, 'Nama penerima wajib diisi.', 'BAD_REQUEST');
     const { jumlah, pecahan } = ambilJumlah(b);
-    // Nomor referensi bersama: boleh memakai BP/BO yang sudah ada milik driver yang sama (awalan harus sesuai jenis).
-    const refPilih = str(b.no_referensi);
-    if (refPilih) {
-      if (!jenis.prefiks_ref) throw new HttpError(400, 'Jenis transaksi ini tidak memakai nomor referensi.', 'BAD_REQUEST');
-      const ada = (await kelompokReferensi(kode, penerima, jenis.prefiks_ref)).some((g) => g.ref === refPilih);
-      if (!ada) throw new HttpError(400, 'Nomor referensi tidak ditemukan untuk penerima & jenis ini (hanya 14 hari terakhir dengan awalan ' + jenis.prefiks_ref + ').', 'BAD_REQUEST');
-    }
+    // BP: nomor dari form Excel WHO, input manual (wajib). BO: otomatis, baru tiap pengeluaran (input dari klien diabaikan).
+    const nomorBP = jenis.prefiks_ref === 'BP' ? ambilNomorBP(b.no_referensi) : '';
     const row: KasKeluarRow = {
       id: '', kode_cabang: kode, tanggal, jam: jamWib(), no_referensi: '', penerima, penerima_2: str(b.penerima_2).slice(0, 80), admin: u.nama || u.username,
       jenis_id: jenis.id, kode_akun: jenis.kode_akun, jenis: jenis.nama, pecahan, jumlah, keterangan: str(b.keterangan).slice(0, 300),
       status: jenis.tanpa_penyelesaian ? 'Closed' : 'Open', no_kas_masuk: '', created_by: u.username, created_at: new Date(deps.now()).toISOString(), is_deleted: '',
     };
-    await sisipBernomor(kode, tanggal, 'KK', jenis.prefiks_ref, async (nomor, ref) => {
+    await sisipBernomor(kode, tanggal, 'KK', jenis.prefiks_ref === 'BO' ? 'BO' : '', async (nomor, ref) => {
       row.id = nomor;
-      row.no_referensi = refPilih || ref;
+      row.no_referensi = nomorBP || ref;
       await deps.kaskecil.insertKeluar(row);
     });
     await audit(c, { action: 'CREATE', modul: 'kaskecil', keterangan: `Kas keluar ${row.id} ${jenis.nama} Rp ${jumlah}` });
@@ -287,6 +290,7 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       patch.penerima = str(b.penerima).slice(0, 80);
     }
     if (b.penerima_2 !== undefined) patch.penerima_2 = str(b.penerima_2).slice(0, 80);
+    if (b.no_referensi !== undefined && (await deps.kaskecil.listJenis()).some((j) => j.id === row.jenis_id && j.prefiks_ref === 'BP')) patch.no_referensi = ambilNomorBP(b.no_referensi);
     if (b.keterangan !== undefined) patch.keterangan = str(b.keterangan).slice(0, 300);
     if (b.jumlah !== undefined || b.pecahan !== undefined) Object.assign(patch, ambilJumlah(b));
     await deps.kaskecil.updateKeluar(row.id, patch);
