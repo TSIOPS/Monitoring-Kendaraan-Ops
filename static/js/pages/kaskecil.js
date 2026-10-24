@@ -134,6 +134,23 @@ export async function renderKasKeluar(view) {
   const penerima2 = el('input', { class: 'form-control', maxlength: '80', autocomplete: 'off', list: 'kas-daftar-driver', placeholder: 'Opsional: pendamping / driver kedua' });
   isiDriver();
   const tanggal = el('input', { type: 'date', class: 'form-control', value: tanggalWib(), max: tanggalWib() });
+  // Nomor referensi BP/BO: satu driver boleh memakai satu nomor untuk beberapa pengeluaran (pilih yang sudah ada) atau membuat baru.
+  const refSel = el('select', { class: 'form-select', 'aria-label': 'Nomor referensi' }, [el('option', { value: '', text: 'Baru (otomatis)' })]);
+  async function muatReferensi() {
+    refSel.replaceChildren(el('option', { value: '', text: 'Baru (otomatis)' }));
+    const j = jenisKeluar.find((x) => x.id === jenis.value);
+    if (ubah || !j || !j.prefiks_ref || !penerima.value.trim() || !cabang.kode()) return;
+    try {
+      const { referensi = [] } = await get(`/api/kaskecil/referensi?${new URLSearchParams({ cabang: cabang.kode(), penerima: penerima.value.trim(), jenis_id: j.id })}`);
+      referensi.forEach((rf) => refSel.appendChild(el('option', { value: rf.ref, text: `${rf.ref} — ${fmtDateId(rf.tanggal)} · ${rf.transaksi} transaksi · ${rp(rf.jumlah)}` })));
+      const hariIni = referensi.find((rf) => rf.tanggal === tanggal.value);
+      if (hariIni) refSel.value = hariIni.ref; // bawaan: pakai nomor driver ini yang sudah ada hari ini
+    } catch {
+      /* saran saja; gagal = tetap buat baru */
+    }
+  }
+  [jenis, tanggal].forEach((k) => k.addEventListener('change', muatReferensi));
+  penerima.addEventListener('change', muatReferensi);
   const jumlah = el('input', { class: 'form-control fw-bold', readonly: 'readonly', 'aria-label': 'Jumlah uang keluar' });
   const ket = el('input', { class: 'form-control', maxlength: '300' });
   const pecahan = kotakPecahan(PECAHAN, (t) => { jumlah.value = t > 0 ? String(t) : ''; jumlah.dispatchEvent(new Event('input')); }, { tersedia: true });
@@ -156,6 +173,7 @@ export async function renderKasKeluar(view) {
       kolom('col-md-4', 'Nama penerima 1 (driver)', el('div', {}, [penerima, daftarDriver])),
       kolom('col-md-4', 'Nama penerima 2 (opsional)', penerima2),
       kolom('col-md-4', 'Tanggal', tanggal),
+      kolom('col-md-4', 'Nomor referensi (BP/BO)', refSel, 'Satu driver boleh memakai satu nomor untuk beberapa pengeluaran.'),
       kolom('col-md-4', 'Jumlah uang keluar (otomatis dari pecahan)', el('div', {}, [jumlah, bantuRupiah(jumlah)])),
       kolom('col-md-8', 'Keterangan / untuk penggunaan', ket),
     ]),
@@ -169,6 +187,8 @@ export async function renderKasKeluar(view) {
     jenis.disabled = false;
     tanggal.disabled = false;
     tanggal.value = tanggalWib();
+    refSel.disabled = false;
+    muatReferensi();
     simpan.textContent = 'Simpan Kas Keluar';
     batalUbah.classList.add('d-none');
   }
@@ -190,7 +210,7 @@ export async function renderKasKeluar(view) {
         await put(`/api/kaskecil/keluar/${encodeURIComponent(ubah.id)}`, badan);
         toast('Kas keluar diperbarui.', 'success');
       } else {
-        const res = await post('/api/kaskecil/keluar', { ...badan, jenis_id: jenis.value, tanggal: tanggal.value, cabang: cabang.kode() });
+        const res = await post('/api/kaskecil/keluar', { ...badan, jenis_id: jenis.value, tanggal: tanggal.value, cabang: cabang.kode(), no_referensi: refSel.value });
         toast(`Kas keluar ${res.keluar.id} tersimpan.`, 'success');
         (res.peringatan || []).forEach((w) => toast(w, 'warning'));
       }
@@ -208,6 +228,8 @@ export async function renderKasKeluar(view) {
     jenis.disabled = true;
     tanggal.value = r.tanggal;
     tanggal.disabled = true;
+    refSel.replaceChildren(el('option', { value: '', text: r.no_referensi || '(tanpa referensi)' }));
+    refSel.disabled = true;
     penerima.value = r.penerima;
     penerima2.value = r.penerima_2 || '';
     ket.value = r.keterangan;
@@ -330,7 +352,7 @@ export async function renderKasKeluar(view) {
       toast(e.message, 'error');
     }
   }));
-  if (cabang.node) cabang.node.addEventListener('change', () => { isiDriver(); muat(); muatTersedia(); });
+  if (cabang.node) cabang.node.addEventListener('change', () => { isiDriver(); muat(); muatTersedia(); muatReferensi(); });
 
   formBox.replaceChildren(...(tulis() ? [el('div', { class: 'panel' }, [el('h3', { class: 'h6 mb-3', text: 'Kas Keluar Baru / Ubah' }), form])] : []));
   view.replaceChildren(

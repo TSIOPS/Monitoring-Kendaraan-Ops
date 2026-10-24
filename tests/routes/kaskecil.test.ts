@@ -436,3 +436,50 @@ describe('penjaga peran Kas Kecil (tahap uji: hanya SUPERADMIN)', () => {
     expect((await callMentah(app, 'GET', '/api/kaskecil/jenis', await loginAs(kv, SUPER))).status).toBe(200);
   });
 });
+
+describe('nomor referensi bersama (satu driver, satu BP/BO, banyak pengeluaran)', () => {
+  const kirim = (app: App, tok: string, b: Record<string, unknown>) => call(app, 'POST', '/api/kaskecil/keluar', tok, { penerima: 'Haris', ...b });
+
+  it('pengeluaran kedua driver yang sama dapat memakai nomor BP yang sudah ada; tanpa memilih tetap membuat nomor baru', async () => {
+    const { app, kv, kas } = setup();
+    const tok = await loginAs(kv, PIC);
+    const a = await json(await kirim(app, tok, { jenis_id: 'KJ-BENSIN', jumlah: 250000 }));
+    const b = await json(await kirim(app, tok, { jenis_id: 'KJ-BENSIN', jumlah: 50000, no_referensi: a.keluar.no_referensi }));
+    expect(b.keluar.no_referensi).toBe(a.keluar.no_referensi);
+    expect(b.keluar.id).not.toBe(a.keluar.id);
+    const c = await json(await kirim(app, tok, { jenis_id: 'KJ-BENSIN', jumlah: 1000 }));
+    expect(c.keluar.no_referensi).not.toBe(a.keluar.no_referensi);
+    expect(kas.state.keluar.filter((k) => k.no_referensi === a.keluar.no_referensi)).toHaveLength(2);
+  });
+
+  it('GET /referensi: kelompok milik driver itu dengan jumlah & jumlah transaksi', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, PIC);
+    const a = await json(await kirim(app, tok, { jenis_id: 'KJ-BENSIN', jumlah: 250000 }));
+    await kirim(app, tok, { jenis_id: 'KJ-BENSIN', jumlah: 50000, no_referensi: a.keluar.no_referensi });
+    await kirim(app, tok, { jenis_id: 'KJ-BENSIN', jumlah: 7000, penerima: 'Orang Lain' });
+    const l = await json(await call(app, 'GET', '/api/kaskecil/referensi?penerima=haris&jenis_id=KJ-BENSIN', tok));
+    expect(l.referensi).toHaveLength(1);
+    expect(l.referensi[0]).toMatchObject({ ref: a.keluar.no_referensi, jumlah: 300000, transaksi: 2, tanggal: HARI });
+    expect((await json(await call(app, 'GET', '/api/kaskecil/referensi?penerima=haris&jenis_id=KJ-UM', tok))).referensi).toEqual([]); // awalan BO ≠ BP
+    expect((await json(await call(app, 'GET', '/api/kaskecil/referensi?penerima=&jenis_id=KJ-BENSIN', tok))).referensi).toEqual([]);
+  });
+
+  it('ditolak: referensi driver lain, awalan tidak sesuai jenis, jenis tanpa referensi, nomor sembarang', async () => {
+    const { app, kv } = setup();
+    const tok = await loginAs(kv, PIC);
+    const a = await json(await kirim(app, tok, { jenis_id: 'KJ-BENSIN', jumlah: 250000 }));
+    const ref = a.keluar.no_referensi;
+    expect((await kirim(app, tok, { jenis_id: 'KJ-BENSIN', jumlah: 1000, penerima: 'Budi', no_referensi: ref })).status).toBe(400); // driver lain
+    expect((await kirim(app, tok, { jenis_id: 'KJ-UM', jumlah: 1000, no_referensi: ref })).status).toBe(400); // BO ≠ BP
+    expect((await kirim(app, tok, { jenis_id: 'KJ-CLOSING', jumlah: 1000, no_referensi: ref })).status).toBe(400); // tanpa awalan
+    expect((await kirim(app, tok, { jenis_id: 'KJ-BENSIN', jumlah: 1000, no_referensi: 'BP-WHO-KWG-20200101-9999' })).status).toBe(400); // tidak ada
+  });
+
+  it('PIC cabang lain tidak bisa memakai referensi cabang ini', async () => {
+    const { app, kv } = setup();
+    const a = await json(await kirim(app, await loginAs(kv, PIC), { jenis_id: 'KJ-BENSIN', jumlah: 250000 }));
+    const b = await kirim(app, await loginAs(kv, PIC_B), { jenis_id: 'KJ-BENSIN', jumlah: 1000, no_referensi: a.keluar.no_referensi });
+    expect(b.status).toBe(400);
+  });
+});

@@ -32,6 +32,7 @@ laporan BBM/tol/top up Flazz. **Tidak boleh di-deploy** sampai pemilik repo meny
 
 ## Penomoran (per cabang, per bulan, urut naik)
 - `KK-{WHO|WHP}-{KODE}-{YYYYMMDD}{NNNN}`; `KM-…` sama; referensi `BO-…`/`BP-…` (prefiks dari jenis; counter terpisah BO/BP).
+- Satu driver boleh memakai satu nomor BP/BO untuk beberapa pengeluaran (pilih nomor yang sudah ada pada form; validasi driver sama, awalan sesuai jenis, 14 hari terakhir); nomor baru hanya dibuat bila tidak memilih.
 - NNNN = urutan di bulan itu (bukan per hari), sesuai Excel. WHO/WHP dari awalan nama cabang (bawaan WHO).
 
 ## Pembanding (harian, per warehouse)

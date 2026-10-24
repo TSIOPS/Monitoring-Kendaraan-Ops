@@ -120,6 +120,24 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     return j;
   };
 
+  // Satu driver boleh punya satu nomor BP/BO untuk beberapa pengeluaran: kelompok referensi milik penerima itu (14 hari terakhir, awalan sama).
+  const normNama = (v: unknown) => str(v).toLowerCase().replace(/\s+/g, ' ');
+  const kelompokReferensi = async (kode: string, penerima: string, prefiks: string) => {
+    const dari = todayWib(new Date(deps.now() - 14 * 86_400_000));
+    const keluar = await deps.kaskecil.listKeluar({ cabang: kode, dari });
+    const peta = new Map<string, { ref: string; tanggal: string; jumlah: number; transaksi: number; jenis: string[] }>();
+    for (const k of keluar) {
+      if (!k.no_referensi || !k.no_referensi.startsWith(prefiks + '-') || normNama(k.penerima) !== normNama(penerima)) continue;
+      const g = peta.get(k.no_referensi) ?? { ref: k.no_referensi, tanggal: k.tanggal, jumlah: 0, transaksi: 0, jenis: [] };
+      g.jumlah += Number(k.jumlah) || 0;
+      g.transaksi += 1;
+      if (!g.jenis.includes(k.jenis)) g.jenis.push(k.jenis);
+      if (k.tanggal > g.tanggal) g.tanggal = k.tanggal;
+      peta.set(k.no_referensi, g);
+    }
+    return [...peta.values()].sort((a, b) => b.tanggal.localeCompare(a.tanggal) || b.ref.localeCompare(a.ref));
+  };
+
   // Sisip dengan nomor baru; ulangi bila bentrok (dua admin menyimpan bersamaan).
   const sisipBernomor = async (kode: string, tanggal: string, awalan: 'KK' | 'KM', prefiksRef: string, buat: (nomor: string, ref: string) => Promise<void>) => {
     const tipe = await tipeCabang(kode);
@@ -209,6 +227,15 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     return c.json(okPayload({ masuk: masuk.reverse() }));
   });
 
+  // Daftar nomor referensi (BP/BO) milik satu driver untuk dipakai ulang oleh pengeluaran berikutnya.
+  app.get('/referensi', async (c: Ctx) => {
+    const cabang = cabangBaca(c.get('user'), c.req.query('cabang'), { wajib: true });
+    const jenis = (await deps.kaskecil.listJenis()).find((j) => j.id === str(c.req.query('jenis_id')));
+    const penerima = str(c.req.query('penerima'));
+    if (!jenis || !jenis.prefiks_ref || !penerima) return c.json(okPayload({ referensi: [] }));
+    return c.json(okPayload({ referensi: await kelompokReferensi(cabang, penerima, jenis.prefiks_ref) }));
+  });
+
   app.get('/keluar/:id', async (c: Ctx) => {
     const keluar = await cariKeluar(c.req.param('id') as string, c.get('user'));
     const masuk = keluar.no_kas_masuk ? await deps.kaskecil.findMasuk(keluar.no_kas_masuk) : null;
@@ -227,6 +254,13 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const penerima = str(b.penerima).slice(0, 80);
     if (!penerima) throw new HttpError(400, 'Nama penerima wajib diisi.', 'BAD_REQUEST');
     const { jumlah, pecahan } = ambilJumlah(b);
+    // Nomor referensi bersama: boleh memakai BP/BO yang sudah ada milik driver yang sama (awalan harus sesuai jenis).
+    const refPilih = str(b.no_referensi);
+    if (refPilih) {
+      if (!jenis.prefiks_ref) throw new HttpError(400, 'Jenis transaksi ini tidak memakai nomor referensi.', 'BAD_REQUEST');
+      const ada = (await kelompokReferensi(kode, penerima, jenis.prefiks_ref)).some((g) => g.ref === refPilih);
+      if (!ada) throw new HttpError(400, 'Nomor referensi tidak ditemukan untuk penerima & jenis ini (hanya 14 hari terakhir dengan awalan ' + jenis.prefiks_ref + ').', 'BAD_REQUEST');
+    }
     const row: KasKeluarRow = {
       id: '', kode_cabang: kode, tanggal, jam: jamWib(), no_referensi: '', penerima, penerima_2: str(b.penerima_2).slice(0, 80), admin: u.nama || u.username,
       jenis_id: jenis.id, kode_akun: jenis.kode_akun, jenis: jenis.nama, pecahan, jumlah, keterangan: str(b.keterangan).slice(0, 300),
@@ -234,7 +268,7 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     };
     await sisipBernomor(kode, tanggal, 'KK', jenis.prefiks_ref, async (nomor, ref) => {
       row.id = nomor;
-      row.no_referensi = ref;
+      row.no_referensi = refPilih || ref;
       await deps.kaskecil.insertKeluar(row);
     });
     await audit(c, { action: 'CREATE', modul: 'kaskecil', keterangan: `Kas keluar ${row.id} ${jenis.nama} Rp ${jumlah}` });
