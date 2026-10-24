@@ -51,7 +51,7 @@ describe('laporanHarian', () => {
     const r = laporanHarian({ awal, keluar, masuk, tanggal: '2026-10-22' });
     expect(r.saldoAwal).toBe(800000); // 1.000.000 - 300.000 + 100.000
     expect(r.baris.map((b) => [b.nomor, b.debit, b.kredit, b.saldo])).toEqual([
-      ['KM-T', 500000, 0, 1300000], ['KK-B', 0, 100000, 1200000], ['KK-C', 0, 50000, 1150000], ['KM-C', 20000, 0, 1170000],
+      ['KM-T', 500000, 0, 1300000], ['KK-B', 0, 100000, 1200000], ['KK-C', 20000, 50000, 1170000], // KM-C diselesaikan di hari yang sama: digabung ke baris KK-C
     ]);
     expect(r.ringkasan).toEqual({ saldoAwal: 800000, keluar: 150000, masuk: 520000, belumSelesai: 100000, saldoAkhir: 1170000 });
   });
@@ -68,6 +68,17 @@ describe('laporanHarian', () => {
     const baru = laporanHarian({ awal, keluar: [kkLama], masuk: [kmLama], tanggal: '2026-10-20' });
     expect(baru.ringkasan.belumSelesai).toBe(0);
     expect(laporanHarian({ awal, keluar: [kk({ id: 'KK-H', tanggal: '2026-10-15', status: 'Closed', no_kas_masuk: 'KM-L' })], masuk: [kmLama], tanggal: '2026-10-15' }).baris[0]!.status).toBe('Open');
+  });
+  it('penyelesaian di hari lain tampil sebagai baris Penyelesaian; di hari yang sama digabung (satu baris per kas keluar)', () => {
+    const kkA = kk({ id: 'KK-A2', tanggal: '2026-10-10', jam: '09:00:00', jumlah: 100000, status: 'Closed', no_kas_masuk: 'KM-A2' });
+    const kmA = km({ id: 'KM-A2', tanggal: '2026-10-12', jam: '15:00:00', no_kas_keluar: 'KK-A2', jumlah: 40000 });
+    const hari10 = laporanHarian({ awal, keluar: [kkA], masuk: [kmA], tanggal: '2026-10-10' });
+    expect(hari10.baris.map((b) => [b.nomor, b.debit, b.kredit, b.status])).toEqual([['KK-A2', 0, 100000, 'Open']]);
+    const hari12 = laporanHarian({ awal, keluar: [kkA], masuk: [kmA], tanggal: '2026-10-12' });
+    expect(hari12.baris.map((b) => [b.nomor, b.nomorKK, b.debit, b.kredit, b.namaJenis, b.status])).toEqual([['KM-A2', 'KK-A2', 40000, 0, 'Penyelesaian Biaya Bensin Delivery', 'Closed']]);
+    const sama = laporanHarian({ awal, keluar: [kk({ id: 'K1', jumlah: 50000, status: 'Closed', no_kas_masuk: 'M1' })], masuk: [km({ id: 'M1', no_kas_keluar: 'K1', jumlah: 0 })], tanggal: '2026-10-22' });
+    expect(sama.baris).toHaveLength(1);
+    expect(sama.baris[0]).toMatchObject({ nomorKM: 'M1', debit: 0, kredit: 50000, status: 'Closed' });
   });
   it('tanpa saldo awal dianggap 0', () => {
     expect(laporanHarian({ awal: null, keluar: [], masuk: [], tanggal: '2026-10-22' }).saldoAwal).toBe(0);

@@ -141,12 +141,19 @@ export function laporanHarian(i: { awal: SaldoAwal | null; keluar: KasKeluarRow[
   const statusPada = (r: KasKeluarRow) => (r.status === 'Closed' && (!r.no_kas_masuk || (tglKM.get(r.no_kas_masuk) ?? '') <= hari) ? 'Closed' : 'Open');
   type Ev = { waktu: string; baris: Omit<BarisLaporan, 'saldo'> };
   const ev: Ev[] = [];
+  // Seperti Excel: satu baris per kas keluar. Bila diselesaikan di hari yang sama, uang kembali (Debit) digabung ke baris itu;
+  // penyelesaian di hari lain tampil sebagai baris "Penyelesaian" pada hari penyelesaiannya.
+  const kmHari = new Map(masuk.filter((x) => tgl10(x.tanggal) === hari).map((m) => [m.id, m]));
+  const kmDigabung = new Set<string>();
   for (const r of keluar.filter((x) => tgl10(x.tanggal) === hari)) {
-    ev.push({ waktu: r.jam, baris: { nomor: r.id, tanggal: hari, jam: r.jam, jenis: 'KELUAR', nomorKK: r.id, nomorKM: statusPada(r) === 'Closed' ? r.no_kas_masuk : '', referensi: r.no_referensi, nama: gabungNama(r), admin: r.admin, kodeAkun: r.kode_akun, namaJenis: r.jenis, debit: 0, kredit: num(r.jumlah), status: statusPada(r) } });
+    const km = r.no_kas_masuk ? kmHari.get(r.no_kas_masuk) : undefined;
+    if (km) kmDigabung.add(km.id);
+    ev.push({ waktu: r.jam, baris: { nomor: r.id, tanggal: hari, jam: r.jam, jenis: 'KELUAR', nomorKK: r.id, nomorKM: km ? km.id : '', referensi: r.no_referensi, nama: gabungNama(r), admin: r.admin, kodeAkun: r.kode_akun, namaJenis: r.jenis, debit: km ? num(km.jumlah) : 0, kredit: num(r.jumlah), status: statusPada(r) } });
   }
-  for (const r of masuk.filter((x) => tgl10(x.tanggal) === hari)) {
+  for (const r of masuk.filter((x) => tgl10(x.tanggal) === hari && !kmDigabung.has(x.id))) {
     const asal = kkById.get(r.no_kas_keluar);
-    ev.push({ waktu: r.jam, baris: { nomor: r.id, tanggal: hari, jam: r.jam, jenis: 'MASUK', nomorKK: r.no_kas_keluar, nomorKM: r.id, referensi: r.no_referensi || asal?.no_referensi || '', nama: gabungNama(r) || (asal ? gabungNama(asal) : ''), admin: r.admin, kodeAkun: r.kode_akun || asal?.kode_akun || '', namaJenis: r.jenis || asal?.jenis || '', debit: num(r.jumlah), kredit: 0, status: r.no_kas_keluar ? 'Closed' : '' } });
+    const penyelesaian = Boolean(r.no_kas_keluar);
+    ev.push({ waktu: r.jam, baris: { nomor: r.id, tanggal: hari, jam: r.jam, jenis: 'MASUK', nomorKK: r.no_kas_keluar, nomorKM: r.id, referensi: r.no_referensi || asal?.no_referensi || '', nama: gabungNama(r) || (asal ? gabungNama(asal) : ''), admin: r.admin, kodeAkun: r.kode_akun || asal?.kode_akun || '', namaJenis: (penyelesaian ? 'Penyelesaian ' : '') + (r.jenis || asal?.jenis || ''), debit: num(r.jumlah), kredit: 0, status: penyelesaian ? 'Closed' : '' } });
   }
   ev.sort((a, b) => a.waktu.localeCompare(b.waktu));
   const baris = ev.map((e) => { saldo += e.baris.debit - e.baris.kredit; return { ...e.baris, saldo }; });

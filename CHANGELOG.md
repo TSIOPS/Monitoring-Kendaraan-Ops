@@ -3,6 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-10-24
+- **UX** — Kas Kecil › Laporan Harian: satu baris per kas keluar seperti Excel — penyelesaian di hari yang sama digabung ke baris kas keluarnya (Debit = uang kembali, status & No. Kas Masuk di baris yang sama); penyelesaian di hari lain tampil sebagai baris "Penyelesaian …" pada hari penyelesaiannya; Tambah Saldo tetap baris sendiri. Saldo berjalan & ringkasan tidak berubah. Berlaku juga di cetak & Excel. src/logic/kaskecil.ts (laporanHarian), tes diperbarui.
 - **UX** — Kas Kecil › cetak: teks terbilang nominal rata tengah; blok kota+tanggal dan tanda tangan diturunkan (jarak lebih longgar ke bawah, ruang tanda tangan lebih lega). static/css/app.css.
 - **UX** — Kas Kecil › cetak: kepala dokumen ditata ulang — logo di kiri, blok teks (perusahaan, judul, lalu nomor dokumen di bawah judul) rata tengah secara vertikal terhadap logo. static/js/kaskecil-cetak.js, static/css/app.css.
 - **UX** — Kas Kecil › cetak: logo perusahaan (Pengaturan › logo) tampil di pojok kiri atas semua dokumen cetak (Bukti Kas Keluar, Penyelesaian, Laporan Harian, BA Cash Opname); baris "Pecahan" dihapus dari Bukti Kas Keluar. static/js/kaskecil-cetak.js, static/css/app.css.
