@@ -32,7 +32,7 @@ laporan BBM/tol/top up Flazz. **Tidak boleh di-deploy** sampai pemilik repo meny
 
 ## Penomoran (per cabang, per bulan, urut naik)
 - `KK-{WHO|WHP}-{KODE}-{YYYYMMDD}{NNNN}`; `KM-…` sama; referensi `BO-…`/`BP-…` (prefiks dari jenis; counter terpisah BO/BP).
-- **BP** = nomor dari form Excel WHO (surat jalan: isi bensin, top up etoll, parkir delivery) — DIINPUT MANUAL (wajib, 3–40 karakter, huruf besar), boleh sama untuk beberapa pengeluaran satu driver; saran nomor driver itu (14 hari) muncul di form. Jenis ber-BP: Pengiriman via Pihak ketiga, Bensin Delivery, Parkir Untuk Delivery, Uang Jalan Distribusi. **Pengisian ETOLL tetap BO** (keputusan pemilik 2026-10-24). **BO** = otomatis, baru untuk setiap pengeluaran (tidak berhubungan dengan BP). Jenis lain tanpa referensi.
+- **BP** = nomor dari form Excel WHO (surat jalan: isi bensin, top up etoll, parkir delivery) — PIC hanya mengisi NOMOR URUT (1–9999, wajib); awalan BP-{WHO|WHP}-{kode}-{tanggal YYYYMMDD} dibuat otomatis (hasil mis. BP-WHO-BDG-202610280012), sehingga beberapa pengeluaran satu driver di hari yang sama dengan urut sama memperoleh nomor BP yang sama; saran nomor urut driver itu (14 hari) muncul di form. Jenis ber-BP: Pengiriman via Pihak ketiga, Bensin Delivery, Parkir Untuk Delivery, Uang Jalan Distribusi. **Pengisian ETOLL tetap BO** (keputusan pemilik 2026-10-24). **BO** = otomatis, baru untuk setiap pengeluaran (tidak berhubungan dengan BP). Jenis lain tanpa referensi.
 - NNNN = urutan di bulan itu (bukan per hari), sesuai Excel. WHO/WHP dari awalan nama cabang (bawaan WHO).
 
 ## Pembanding (harian, per warehouse)

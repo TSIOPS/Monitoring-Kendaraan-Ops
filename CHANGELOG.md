@@ -2,6 +2,9 @@
 
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
+## 2026-10-28
+- **UX** — Kas Kecil: nomor BP kini hanya NOMOR URUT yang diinput PIC (1–9999, mengikuti form Excel WHO); awalan otomatis BP-{WHO|WHP}-{kode}-{tanggal} + urut 4 digit (mis. BP-WHO-BDG-202610280012), dengan pratinjau nomor lengkap di form. Menggantikan input teks bebas (yang menolak angka pendek). API: urut_bp (POST/PUT); GET /referensi menambah field urut. src/routes/kaskecil.ts, static/js/pages/kaskecil.js, kaskecil-helpers.js, tes.
+
 ## 2026-10-24
 - **Fitur** — Kas Kecil: nomor BP kini DIINPUT MANUAL (nomor dari form Excel WHO untuk isi bensin, top up etoll, parkir delivery; wajib untuk jenis ber-BP, boleh sama untuk beberapa pengeluaran satu driver, bisa dikoreksi selama Open) dengan saran nomor driver itu 14 hari terakhir; nomor BO tetap otomatis dan baru tiap pengeluaran. Menggantikan pemilih "nomor referensi bersama" sebelumnya. "Biaya Pengisian ETOLL" TETAP BO (otomatis, baru tiap pengeluaran) sesuai keputusan pemilik; tidak ada perubahan SQL. src/routes/kaskecil.ts, static/js/pages/kaskecil.js, tes.
 - **Fitur** — Kas Kecil: satu driver boleh memakai satu nomor referensi BP/BO untuk beberapa pengeluaran. Form kas keluar punya pilihan "Nomor referensi (BP/BO)": Baru (otomatis) atau nomor driver itu yang sudah ada (14 hari terakhir, awalan sama dengan jenis; bawaan memilih nomor hari ini bila ada). Server memvalidasi (driver sama, awalan BP/BO sesuai jenis, cabang sama). Endpoint baru GET /api/kaskecil/referensi. src/routes/kaskecil.ts, static/js/pages/kaskecil.js, tes.

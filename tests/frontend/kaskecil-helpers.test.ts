@@ -103,3 +103,16 @@ describe('angka nol tampil strip di Excel kas kecil', () => {
     expect(rekap.Sheets.A!.B1!.z).toBe('#,##0');
   });
 });
+
+describe('nomor BP: awalan otomatis + nomor urut dari PIC', () => {
+  it('format sama dengan server; urut dari 4 digit terakhir', async () => {
+    const { awalanBP, nomorBP, urutDariRef } = await import('../../static/js/kaskecil-helpers.js');
+    const { nomorKas } = await import('../../src/logic/kaskecil');
+    expect(awalanBP(false, 'BDG', '2026-10-28')).toBe('BP-WHO-BDG-20261028');
+    expect(nomorBP(true, 'GDGBDG', '2026-10-28', 7)).toBe('BP-WHP-GDGBDG-202610280007');
+    expect(nomorBP(false, 'KWG', '2026-10-28', 12)).toBe(nomorKas('BP', 'WHO', 'KWG', '2026-10-28', 12));
+    expect(awalanBP(false, '', '2026-10-28')).toBe('BP-WHO-…-20261028');
+    expect(urutDariRef('BP-WHO-BDG-202610280012')).toBe(12);
+    expect(urutDariRef('')).toBe(0);
+  });
+});

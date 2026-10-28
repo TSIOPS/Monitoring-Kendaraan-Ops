@@ -45,7 +45,7 @@ const PERLU_PECAHAN = /\/api\/kaskecil\/(keluar|masuk)(\/[^/]+\/selesai)?$/;
 const call = (app: App, method: string, path: string, t: string, b?: any) => {
   if (method === 'POST' && PERLU_PECAHAN.test(path) && b && Number.isInteger(b.jumlah) && b.jumlah > 0 && b.jumlah <= 100_000_000 && !b.pecahan) b = { ...b, pecahan: uraiPecahan(b.jumlah) };
   // Jenis ber-BP butuh nomor BP manual (dari form Excel WHO); tes lama diberi nomor bawaan.
-  if (method === 'POST' && /\/api\/kaskecil\/keluar$/.test(path) && b && b.jenis_id === 'KJ-BENSIN' && !b.no_referensi) b = { ...b, no_referensi: 'BP-TEST-0001' };
+  if (method === 'POST' && /\/api\/kaskecil\/keluar$/.test(path) && b && b.jenis_id === 'KJ-BENSIN' && !b.urut_bp) b = { ...b, urut_bp: 1 };
   return callMentah(app, method, path, t, b);
 };
 const json = async (r: Response) => (await r.json()) as any;
@@ -58,7 +58,7 @@ describe('kas keluar', () => {
     const tok = await loginAs(kv, PIC);
     const r1 = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-BENSIN', penerima: 'Agus', jumlah: 250000, keterangan: 'solar' }));
     expect(r1.keluar.id).toBe(`KK-WHO-KWG-${BULAN}${HARI.slice(8)}0001`);
-    expect(r1.keluar.no_referensi).toBe('BP-TEST-0001'); // BP = nomor manual dari form Excel WHO
+    expect(r1.keluar.no_referensi).toBe(`BP-WHO-KWG-${BULAN}${HARI.slice(8)}0001`); // BP = awalan otomatis + nomor urut dari PIC
     expect(r1.keluar).toMatchObject({ admin: 'Pic Lengkap', status: 'Open', jumlah: 250000, kode_akun: '6101-103', jenis: 'Biaya Bensin Delivery', kode_cabang: 'KWG' });
     const r2 = await json(await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: 'KJ-UM', penerima: 'Budi', pecahan: { '50000': 2 } }));
     expect(r2.keluar.id.endsWith('0002')).toBe(true);
@@ -439,28 +439,37 @@ describe('penjaga peran Kas Kecil (tahap uji: hanya SUPERADMIN)', () => {
   });
 });
 
-describe('nomor BP manual (form Excel WHO) & nomor BO otomatis', () => {
+describe('nomor BP: awalan otomatis + nomor urut dari PIC; nomor BO otomatis', () => {
   const kirim = (app: App, tok: string, b: Record<string, unknown>) => callMentah(app, 'POST', '/api/kaskecil/keluar', tok, { penerima: 'Haris', ...b });
   const rp = (n: number) => ({ pecahan: uraiPecahan(n) });
+  const TGL = HARI.replace(/-/g, '');
 
-  it('jenis ber-BP: nomor BP wajib diinput; boleh sama untuk beberapa pengeluaran satu driver; disimpan huruf besar', async () => {
+  it('jenis ber-BP: nomor urut wajib (1–9999); nomor BP = awalan otomatis + urut 4 digit; sama untuk beberapa pengeluaran', async () => {
     const { app, kv, kas } = setup();
     const tok = await loginAs(kv, PIC);
-    expect((await kirim(app, tok, { jenis_id: 'KJ-BENSIN', ...rp(250000) })).status).toBe(400);
-    expect((await kirim(app, tok, { jenis_id: 'KJ-BENSIN', ...rp(250000), no_referensi: '  ' })).status).toBe(400);
-    expect((await kirim(app, tok, { jenis_id: 'KJ-BENSIN', ...rp(250000), no_referensi: 'a<b>' })).status).toBe(400);
-    const a = await json(await kirim(app, tok, { jenis_id: 'KJ-BENSIN', ...rp(250000), no_referensi: ' bp/wh-2610/001 ' }));
-    expect(a.keluar.no_referensi).toBe('BP/WH-2610/001');
-    const b = await json(await kirim(app, tok, { jenis_id: 'KJ-BENSIN', ...rp(50000), no_referensi: 'BP/WH-2610/001' }));
-    expect(b.keluar.no_referensi).toBe('BP/WH-2610/001');
+    for (const urut of [undefined, '', '  ', 0, '0', -1, 'abc', '12345', 1.5, '1e3']) {
+      expect((await kirim(app, tok, { jenis_id: 'KJ-BENSIN', ...rp(250000), ...(urut === undefined ? {} : { urut_bp: urut }) })).status, `urut_bp=${String(urut)}`).toBe(400);
+    }
+    const a = await json(await kirim(app, tok, { jenis_id: 'KJ-BENSIN', ...rp(250000), urut_bp: 12 }));
+    expect(a.keluar.no_referensi).toBe(`BP-WHO-KWG-${TGL}0012`);
+    const b = await json(await kirim(app, tok, { jenis_id: 'KJ-BENSIN', ...rp(50000), urut_bp: '12' }));
+    expect(b.keluar.no_referensi).toBe(`BP-WHO-KWG-${TGL}0012`);
     expect(b.keluar.id).not.toBe(a.keluar.id);
-    expect(kas.state.keluar.filter((k) => k.no_referensi === 'BP/WH-2610/001')).toHaveLength(2);
+    expect(kas.state.keluar.filter((k) => k.no_referensi === `BP-WHO-KWG-${TGL}0012`)).toHaveLength(2);
+    const c = await json(await kirim(app, tok, { jenis_id: 'KJ-BENSIN', ...rp(1000), urut_bp: 9999 }));
+    expect(c.keluar.no_referensi).toBe(`BP-WHO-KWG-${TGL}9999`);
   });
 
-  it('jenis ber-BO: nomor otomatis & baru tiap pengeluaran; input nomor dari klien diabaikan', async () => {
+  it('WHP memakai awalan BP-WHP; tanggal transaksi masuk ke nomor', async () => {
+    const { app, kv } = setup();
+    const a = await json(await kirim(app, await loginAs(kv, PIC_B), { jenis_id: 'KJ-BENSIN', ...rp(1000), urut_bp: 3, tanggal: '2026-10-01' }));
+    expect(a.keluar.no_referensi).toBe('BP-WHP-BDG-202610010003');
+  });
+
+  it('jenis ber-BO: nomor otomatis & baru tiap pengeluaran; input dari klien diabaikan', async () => {
     const { app, kv } = setup();
     const tok = await loginAs(kv, PIC);
-    const a = await json(await kirim(app, tok, { jenis_id: 'KJ-UM', ...rp(100000) }));
+    const a = await json(await kirim(app, tok, { jenis_id: 'KJ-UM', ...rp(100000), urut_bp: 5, no_referensi: 'BO-PALSU' }));
     const b = await json(await kirim(app, tok, { jenis_id: 'KJ-UM', ...rp(50000), no_referensi: a.keluar.no_referensi }));
     expect(a.keluar.no_referensi).toMatch(/^BO-WHO-KWG-\d{8}0001$/);
     expect(b.keluar.no_referensi).toMatch(/^BO-WHO-KWG-\d{8}0002$/);
@@ -469,34 +478,35 @@ describe('nomor BP manual (form Excel WHO) & nomor BO otomatis', () => {
   it('jenis tanpa referensi (Closing Kas) tidak memakai nomor', async () => {
     const { app, kv } = setup();
     const tok = await loginAs(kv, PIC);
-    const a = await json(await kirim(app, tok, { jenis_id: 'KJ-CLOSING', ...rp(1000), no_referensi: 'BP-1' }));
+    const a = await json(await kirim(app, tok, { jenis_id: 'KJ-CLOSING', ...rp(1000), urut_bp: 1 }));
     expect(a.keluar.no_referensi).toBe('');
   });
 
-  it('nomor BP bisa dikoreksi selama Open; penyelesaian mewarisi nomor; BO tidak bisa diubah', async () => {
+  it('nomor urut BP bisa dikoreksi selama Open (memakai tanggal kas keluar); penyelesaian mewarisi nomor; BO tidak berubah', async () => {
     const { app, kv } = setup();
     const tok = await loginAs(kv, PIC);
-    const a = await json(await kirim(app, tok, { jenis_id: 'KJ-BENSIN', ...rp(250000), no_referensi: 'BP-SALAH' }));
-    expect((await call(app, 'PUT', '/api/kaskecil/keluar/' + a.keluar.id, tok, { no_referensi: '' })).status).toBe(400);
-    expect((await call(app, 'PUT', '/api/kaskecil/keluar/' + a.keluar.id, tok, { no_referensi: 'bp-benar' })).status).toBe(200);
+    const a = await json(await kirim(app, tok, { jenis_id: 'KJ-BENSIN', ...rp(250000), urut_bp: 5, tanggal: '2026-10-02' }));
+    expect(a.keluar.no_referensi).toBe('BP-WHO-KWG-202610020005');
+    expect((await call(app, 'PUT', '/api/kaskecil/keluar/' + a.keluar.id, tok, { urut_bp: '' })).status).toBe(400);
+    expect((await call(app, 'PUT', '/api/kaskecil/keluar/' + a.keluar.id, tok, { urut_bp: 6 })).status).toBe(200);
     const s = await json(await callMentah(app, 'POST', `/api/kaskecil/keluar/${a.keluar.id}/selesai`, tok, { pecahan: {} }));
-    expect(s.masuk.no_referensi).toBe('BP-BENAR');
+    expect(s.masuk.no_referensi).toBe('BP-WHO-KWG-202610020006');
     const o = await json(await kirim(app, tok, { jenis_id: 'KJ-UM', ...rp(100000) }));
-    await call(app, 'PUT', '/api/kaskecil/keluar/' + o.keluar.id, tok, { no_referensi: 'BO-PALSU' });
+    await call(app, 'PUT', '/api/kaskecil/keluar/' + o.keluar.id, tok, { urut_bp: 9 });
     const l = await json(await call(app, 'GET', `/api/kaskecil/keluar?dari=${HARI}&sampai=${HARI}`, tok));
     expect(l.keluar.find((k: any) => k.id === o.keluar.id).no_referensi).toBe(o.keluar.no_referensi);
   });
 
-  it('GET /referensi: saran nomor BP driver itu (BP saja, 14 hari), total & jumlah transaksi', async () => {
+  it('GET /referensi: saran nomor urut BP driver itu (BP saja, 14 hari), total & jumlah transaksi', async () => {
     const { app, kv } = setup();
     const tok = await loginAs(kv, PIC);
-    await kirim(app, tok, { jenis_id: 'KJ-BENSIN', ...rp(250000), no_referensi: 'BP-1' });
-    await kirim(app, tok, { jenis_id: 'KJ-BENSIN', ...rp(50000), no_referensi: 'BP-1' });
-    await kirim(app, tok, { jenis_id: 'KJ-BENSIN', ...rp(7000), no_referensi: 'BP-2', penerima: 'Orang Lain' });
+    await kirim(app, tok, { jenis_id: 'KJ-BENSIN', ...rp(250000), urut_bp: 1 });
+    await kirim(app, tok, { jenis_id: 'KJ-BENSIN', ...rp(50000), urut_bp: 1 });
+    await kirim(app, tok, { jenis_id: 'KJ-BENSIN', ...rp(7000), urut_bp: 2, penerima: 'Orang Lain' });
     await kirim(app, tok, { jenis_id: 'KJ-UM', ...rp(100000) }); // BO tidak ikut saran
     const l = await json(await call(app, 'GET', '/api/kaskecil/referensi?penerima=haris', tok));
     expect(l.referensi).toHaveLength(1);
-    expect(l.referensi[0]).toMatchObject({ ref: 'BP-1', jumlah: 300000, transaksi: 2, tanggal: HARI });
+    expect(l.referensi[0]).toMatchObject({ ref: `BP-WHO-KWG-${TGL}0001`, urut: 1, jumlah: 300000, transaksi: 2, tanggal: HARI });
     expect((await json(await call(app, 'GET', '/api/kaskecil/referensi?penerima=', tok))).referensi).toEqual([]);
     expect((await call(app, 'GET', '/api/kaskecil/referensi?cabang=BDG&penerima=haris', tok)).status).toBe(403);
   });

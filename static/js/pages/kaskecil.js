@@ -6,7 +6,7 @@ import { aksiSekali, bantuRupiah, barisForm, confirmDialog, el, fmtDateId, fmtNu
 import { kompresGambar, namaAman, tanggalWib } from './input.js';
 import { bukuExcel, muatSheetJS } from './rekap.js';
 import {
-  PECAHAN, PECAHAN_OPNAME, bersihkanPecahan, gabungNama, jumlahPecahan, labelPecahan, namaFileKas, sheetDaftarKeluar, sheetDaftarMasuk, sheetLaporanHarian, sheetPembanding, sheetSaldoPecahan, sheetSummary, tglId,
+  PECAHAN, PECAHAN_OPNAME, bersihkanPecahan, gabungNama, jumlahPecahan, awalanBP, labelPecahan, namaFileKas, nomorBP, urutDariRef, sheetDaftarKeluar, sheetDaftarMasuk, sheetLaporanHarian, sheetPembanding, sheetSaldoPecahan, sheetSummary, tglId,
 } from '../kaskecil-helpers.js';
 import { cetakBuktiKeluar, cetakLaporanHarian, cetakOpname, cetakPenyelesaian, siapkanLogo } from '../kaskecil-cetak.js';
 
@@ -134,34 +134,45 @@ export async function renderKasKeluar(view) {
   const penerima2 = el('input', { class: 'form-control', maxlength: '80', autocomplete: 'off', list: 'kas-daftar-driver', placeholder: 'Opsional: pendamping / driver kedua' });
   isiDriver();
   const tanggal = el('input', { type: 'date', class: 'form-control', value: tanggalWib(), max: tanggalWib() });
-  // Nomor BP = nomor dari form Excel WHO (surat jalan: isi bensin, top up etoll, parkir delivery): DIINPUT MANUAL, boleh sama untuk beberapa
-  // pengeluaran satu driver. Nomor BO dibuat otomatis (baru untuk tiap pengeluaran), jadi kolom ini hanya muncul untuk jenis ber-BP.
+  // Nomor BP: PIC hanya mengisi nomor URUT (dari form Excel WHO); awalan BP-WHO/WHP-kode-tanggal dibuat otomatis. Satu driver boleh memakai
+  // nomor urut yang sama untuk beberapa pengeluaran (isi bensin, top up etoll, parkir). Nomor BO otomatis, jadi kolom ini hanya untuk jenis ber-BP.
   const daftarBP = el('datalist', { id: 'kas-daftar-bp' });
-  const refInput = el('input', { class: 'form-control', maxlength: '40', autocomplete: 'off', list: 'kas-daftar-bp', placeholder: 'Nomor BP dari form Excel WHO', 'aria-label': 'Nomor BP' });
-  const refKolom = kolom('col-md-4 d-none', 'Nomor BP (dari form Excel WHO)', el('div', {}, [refInput, daftarBP]), 'Boleh sama untuk beberapa pengeluaran satu driver (isi bensin, top up etoll, parkir).');
+  const refAwalan = el('span', { class: 'input-group-text small', text: 'BP-…' });
+  const refInput = el('input', { type: 'number', min: '1', max: '9999', step: '1', inputmode: 'numeric', class: 'form-control', list: 'kas-daftar-bp', placeholder: 'No. urut', 'aria-label': 'Nomor urut BP' });
+  const refPratinjau = el('div', { class: 'form-text fw-semibold' });
+  const refKolom = kolom('col-md-4 d-none', 'Nomor BP (isi nomor urut dari form Excel WHO)', el('div', {}, [el('div', { class: 'input-group' }, [refAwalan, refInput, daftarBP]), refPratinjau]), 'Boleh sama untuk beberapa pengeluaran satu driver.');
   const refInfoBO = el('div', { class: 'col-md-4 d-none small text-muted align-self-center', text: 'Nomor BO dibuat otomatis (baru untuk setiap pengeluaran).' });
   const jenisBP = () => jenisKeluar.find((x) => x.id === jenis.value)?.prefiks_ref === 'BP';
   const jenisBO = () => jenisKeluar.find((x) => x.id === jenis.value)?.prefiks_ref === 'BO';
+  const urutBPValid = () => /^\d{1,4}$/.test(refInput.value.trim()) && Number(refInput.value) >= 1;
+  function segarPratinjau() {
+    const whp = /^\s*whp\b/i.test(cabang.nama());
+    refAwalan.textContent = awalanBP(whp, cabang.kode(), tanggal.value);
+    refPratinjau.textContent = urutBPValid() ? `Nomor BP: ${nomorBP(whp, cabang.kode(), tanggal.value, refInput.value)}` : '';
+  }
   function aturReferensi() {
     refKolom.classList.toggle('d-none', !jenisBP());
     refInfoBO.classList.toggle('d-none', !jenisBO());
+    segarPratinjau();
   }
-  // Saran: nomor BP yang sudah dipakai driver ini 14 hari terakhir; nomor hari ini terisi otomatis (pengeluaran lain di perjalanan yang sama).
+  // Saran: nomor urut BP yang sudah dipakai driver ini 14 hari terakhir; nomor hari ini terisi otomatis (pengeluaran lain di perjalanan yang sama).
   async function muatReferensi() {
     aturReferensi();
     daftarBP.replaceChildren();
     if (ubah || !jenisBP() || !penerima.value.trim() || !cabang.kode()) return;
     try {
       const { referensi = [] } = await get(`/api/kaskecil/referensi?${new URLSearchParams({ cabang: cabang.kode(), penerima: penerima.value.trim() })}`);
-      daftarBP.replaceChildren(...referensi.map((rf) => el('option', { value: rf.ref, label: `${fmtDateId(rf.tanggal)} · ${rf.transaksi} transaksi · ${rp(rf.jumlah)}` })));
+      daftarBP.replaceChildren(...referensi.map((rf) => el('option', { value: String(rf.urut), label: `${rf.ref} · ${fmtDateId(rf.tanggal)} · ${rf.transaksi} transaksi · ${rp(rf.jumlah)}` })));
       const hariIni = referensi.find((rf) => rf.tanggal === tanggal.value);
-      if (hariIni && !refInput.value.trim()) refInput.value = hariIni.ref;
+      if (hariIni && !refInput.value.trim()) refInput.value = String(hariIni.urut);
+      segarPratinjau();
     } catch {
       /* saran saja */
     }
   }
   [jenis, tanggal].forEach((k) => k.addEventListener('change', muatReferensi));
   penerima.addEventListener('change', muatReferensi);
+  refInput.addEventListener('input', segarPratinjau);
   const jumlah = el('input', { class: 'form-control fw-bold', readonly: 'readonly', 'aria-label': 'Jumlah uang keluar' });
   const ket = el('input', { class: 'form-control', maxlength: '300' });
   const pecahan = kotakPecahan(PECAHAN, (t) => { jumlah.value = t > 0 ? String(t) : ''; jumlah.dispatchEvent(new Event('input')); }, { tersedia: true });
@@ -211,18 +222,18 @@ export async function renderKasKeluar(view) {
     if (!ubah && !jenis.value) err.push('Pilih jenis transaksi.');
     if (!penerima.value.trim()) err.push('Nama penerima wajib diisi.');
     if (!(pecahan.total() > 0)) err.push('Isi jumlah lembar/keping pada tabel pecahan uang (total harus lebih dari 0).');
-    if (jenisBP() && !refInput.value.trim()) err.push('Nomor BP wajib diisi (nomor dari form Excel WHO).');
+    if (jenisBP() && !urutBPValid()) err.push('Nomor urut BP wajib diisi (angka 1–9999, sesuai nomor di form Excel WHO).');
     if (!ubah && semua() && !cabang.kode()) err.push('Pilih warehouse pada filter di atas.');
     if (err.length) { tampilkanGalat(alertBox, err.join(' ')); return; }
     simpan.disabled = true;
     try {
       const p = pecahan.nilai();
-      const badan = { penerima: penerima.value.trim(), penerima_2: penerima2.value.trim(), jumlah: pecahan.total(), keterangan: ket.value.trim(), pecahan: p, ...(ubah && jenisBP() ? { no_referensi: refInput.value.trim() } : {}) };
+      const badan = { penerima: penerima.value.trim(), penerima_2: penerima2.value.trim(), jumlah: pecahan.total(), keterangan: ket.value.trim(), pecahan: p, ...(ubah && jenisBP() ? { urut_bp: Number(refInput.value) } : {}) };
       if (ubah) {
         await put(`/api/kaskecil/keluar/${encodeURIComponent(ubah.id)}`, badan);
         toast('Kas keluar diperbarui.', 'success');
       } else {
-        const res = await post('/api/kaskecil/keluar', { ...badan, jenis_id: jenis.value, tanggal: tanggal.value, cabang: cabang.kode(), ...(jenisBP() ? { no_referensi: refInput.value.trim() } : {}) });
+        const res = await post('/api/kaskecil/keluar', { ...badan, jenis_id: jenis.value, tanggal: tanggal.value, cabang: cabang.kode(), ...(jenisBP() ? { urut_bp: Number(refInput.value) } : {}) });
         toast(`Kas keluar ${res.keluar.id} tersimpan.`, 'success');
         (res.peringatan || []).forEach((w) => toast(w, 'warning'));
       }
@@ -240,7 +251,7 @@ export async function renderKasKeluar(view) {
     jenis.disabled = true;
     tanggal.value = r.tanggal;
     tanggal.disabled = true;
-    refInput.value = r.no_referensi || '';
+    refInput.value = String(urutDariRef(r.no_referensi) || '');
     aturReferensi();
     penerima.value = r.penerima;
     penerima2.value = r.penerima_2 || '';
@@ -365,6 +376,7 @@ export async function renderKasKeluar(view) {
     }
   }));
   if (cabang.node) cabang.node.addEventListener('change', () => { isiDriver(); muat(); muatTersedia(); muatReferensi(); });
+  aturReferensi();
 
   formBox.replaceChildren(...(tulis() ? [el('div', { class: 'panel' }, [el('h3', { class: 'h6 mb-3', text: 'Kas Keluar Baru / Ubah' }), form])] : []));
   view.replaceChildren(

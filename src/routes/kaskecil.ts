@@ -120,24 +120,23 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     return j;
   };
 
-  // Nomor BP = nomor dari form Excel WHO (surat jalan: isi bensin, top up etoll, parkir delivery), DIINPUT MANUAL dan boleh sama untuk beberapa
-  // pengeluaran satu driver. Nomor BO dibuat otomatis, baru untuk setiap pengeluaran.
+  // Nomor BP: PIC hanya mengisi nomor URUT (1–9999) sesuai form Excel WHO; awalan BP-{WHO|WHP}-{kode}-{tanggal} dibuat otomatis. Beberapa
+  // pengeluaran satu driver pada hari yang sama dengan nomor urut yang sama memperoleh nomor BP yang sama. Nomor BO otomatis (baru tiap pengeluaran).
   const normNama = (v: unknown) => str(v).toLowerCase().replace(/\s+/g, ' ');
-  const ambilNomorBP = (v: unknown): string => {
-    const n = str(v).toUpperCase().replace(/\s+/g, ' ');
-    if (!n) throw new HttpError(400, 'Nomor BP wajib diisi (nomor dari form Excel WHO).', 'BAD_REQUEST');
-    if (!/^[A-Z0-9][A-Z0-9\-/. ]{2,39}$/.test(n)) throw new HttpError(400, 'Nomor BP tidak valid (3–40 karakter: huruf, angka, - / . dan spasi).', 'BAD_REQUEST');
-    return n;
+  const buatNomorBP = async (urut: unknown, kode: string, tanggal: string): Promise<string> => {
+    const t = str(urut);
+    if (!/^\d{1,4}$/.test(t) || Number(t) < 1) throw new HttpError(400, 'Nomor urut BP wajib diisi (angka 1–9999, sesuai nomor di form Excel WHO).', 'BAD_REQUEST');
+    return nomorKas('BP', await tipeCabang(kode), kode, tanggal, Number(t));
   };
   // Saran: nomor BP yang sudah dipakai driver itu dalam 14 hari terakhir.
   const kelompokReferensi = async (kode: string, penerima: string) => {
     const idBP = new Set((await deps.kaskecil.listJenis()).filter((j) => j.prefiks_ref === 'BP').map((j) => j.id));
     const dari = todayWib(new Date(deps.now() - 14 * 86_400_000));
     const keluar = await deps.kaskecil.listKeluar({ cabang: kode, dari });
-    const peta = new Map<string, { ref: string; tanggal: string; jumlah: number; transaksi: number; jenis: string[] }>();
+    const peta = new Map<string, { ref: string; urut: number; tanggal: string; jumlah: number; transaksi: number; jenis: string[] }>();
     for (const k of keluar) {
       if (!k.no_referensi || !idBP.has(k.jenis_id) || normNama(k.penerima) !== normNama(penerima)) continue;
-      const g = peta.get(k.no_referensi) ?? { ref: k.no_referensi, tanggal: k.tanggal, jumlah: 0, transaksi: 0, jenis: [] };
+      const g = peta.get(k.no_referensi) ?? { ref: k.no_referensi, urut: Number(k.no_referensi.slice(-4)) || 0, tanggal: k.tanggal, jumlah: 0, transaksi: 0, jenis: [] };
       g.jumlah += Number(k.jumlah) || 0;
       g.transaksi += 1;
       if (!g.jenis.includes(k.jenis)) g.jenis.push(k.jenis);
@@ -262,8 +261,8 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const penerima = str(b.penerima).slice(0, 80);
     if (!penerima) throw new HttpError(400, 'Nama penerima wajib diisi.', 'BAD_REQUEST');
     const { jumlah, pecahan } = ambilJumlah(b);
-    // BP: nomor dari form Excel WHO, input manual (wajib). BO: otomatis, baru tiap pengeluaran (input dari klien diabaikan).
-    const nomorBP = jenis.prefiks_ref === 'BP' ? ambilNomorBP(b.no_referensi) : '';
+    // BP: awalan otomatis + nomor urut dari PIC (wajib, urut_bp). BO: otomatis, baru tiap pengeluaran (input dari klien diabaikan).
+    const nomorBP = jenis.prefiks_ref === 'BP' ? await buatNomorBP(b.urut_bp, kode, tanggal) : '';
     const row: KasKeluarRow = {
       id: '', kode_cabang: kode, tanggal, jam: jamWib(), no_referensi: '', penerima, penerima_2: str(b.penerima_2).slice(0, 80), admin: u.nama || u.username,
       jenis_id: jenis.id, kode_akun: jenis.kode_akun, jenis: jenis.nama, pecahan, jumlah, keterangan: str(b.keterangan).slice(0, 300),
@@ -290,7 +289,7 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       patch.penerima = str(b.penerima).slice(0, 80);
     }
     if (b.penerima_2 !== undefined) patch.penerima_2 = str(b.penerima_2).slice(0, 80);
-    if (b.no_referensi !== undefined && (await deps.kaskecil.listJenis()).some((j) => j.id === row.jenis_id && j.prefiks_ref === 'BP')) patch.no_referensi = ambilNomorBP(b.no_referensi);
+    if (b.urut_bp !== undefined && (await deps.kaskecil.listJenis()).some((j) => j.id === row.jenis_id && j.prefiks_ref === 'BP')) patch.no_referensi = await buatNomorBP(b.urut_bp, row.kode_cabang, row.tanggal);
     if (b.keterangan !== undefined) patch.keterangan = str(b.keterangan).slice(0, 300);
     if (b.jumlah !== undefined || b.pecahan !== undefined) Object.assign(patch, ambilJumlah(b));
     await deps.kaskecil.updateKeluar(row.id, patch);

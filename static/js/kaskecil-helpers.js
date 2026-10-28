@@ -166,6 +166,11 @@ export function sheetDaftarMasuk(masuk, { warehouse = '', dari = '', sampai = ''
   };
 }
 
+// Nomor BP: awalan otomatis + nomor urut dari PIC (sama dengan server: nomorKas('BP', ...)).
+export const awalanBP = (whp, kode, tanggal) => `BP-${whp ? 'WHP' : 'WHO'}-${kode || '…'}-${String(tanggal || '').replace(/-/g, '')}`;
+export const nomorBP = (whp, kode, tanggal, urut) => `${awalanBP(whp, kode, tanggal)}${String(Math.floor(Number(urut) || 0)).padStart(4, '0')}`;
+export const urutDariRef = (ref) => Number(String(ref || '').slice(-4)) || 0;
+
 export const labelPecahan = (k) => (PECAHAN_OPNAME.find(([x]) => x === k) || [k, k])[1];
 
 // Sheet "Saldo per Pecahan" (seperti tabel Pecahan Uang | Uang Keluar | Saldo di Excel offline).
