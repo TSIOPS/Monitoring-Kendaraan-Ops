@@ -1,6 +1,13 @@
 // Catatan "Yang baru" (terbaru di atas). Tambahkan entri saat merilis perubahan yang terlihat pengguna.
 export const RILIS = [
   {
+    id: '2026-10-30-excel-pajak-kir',
+    judul: 'Yang baru',
+    poin: [
+      'Dashboard › Peringatan Dini kini punya tombol "Excel Pajak & KIR": mengunduh data pajak tahunan, pajak 5 tahunan, dan KIR seluruh kendaraan aktif (jatuh tempo, sisa hari, status), mengikuti filter warehouse.',
+    ],
+  },
+  {
     id: '2026-10-22-topup-flazz',
     judul: 'Yang baru',
     poin: [

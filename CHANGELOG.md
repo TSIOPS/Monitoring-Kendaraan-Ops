@@ -2,6 +2,9 @@
 
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
+## 2026-10-30
+- **Fitur** — Dashboard › Peringatan Dini: tombol "Excel Pajak & KIR" mengunduh data pajak tahunan, pajak 5 tahunan, dan KIR SELURUH kendaraan aktif (bukan hanya yang kritis): Warehouse, plat, nama, jenis, per dokumen jatuh tempo/sisa hari/status (LEWAT ≤0, KRITIS ≤30, WASPADA ≤60, AMAN), status terburuk, ringkasan di atas, total di bawah; urut paling mendesak; motor tanpa pajak 5 tahunan & KIR dikosongkan; mengikuti filter warehouse (SUPERADMIN/MANAGEMENT). Berlaku untuk semua peran (data sesuai cakupan akses). static/js/pajak-kir.js (fungsi murni + tes), static/js/pages/dashboard.js, rilis.js. Cek UI: smoke jsdom manual (/ui-ux-pro-max tidak tersedia).
+
 ## 2026-10-28
 - **UX** — Kas Kecil: nomor BP kini hanya NOMOR URUT yang diinput PIC (1–9999, mengikuti form Excel WHO); awalan otomatis BP-{WHO|WHP}-{kode}-{tanggal} + urut 4 digit (mis. BP-WHO-BDG-202610280012), dengan pratinjau nomor lengkap di form. Menggantikan input teks bebas (yang menolak angka pendek). API: urut_bp (POST/PUT); GET /referensi menambah field urut. src/routes/kaskecil.ts, static/js/pages/kaskecil.js, kaskecil-helpers.js, tes.
 

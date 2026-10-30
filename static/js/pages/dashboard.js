@@ -1,7 +1,9 @@
 import { get, post } from '../api.js';
 import { getUser, setJumlahPeringatan } from '../store.js';
 import { bolehTulis, isSuper as superRole, lihatSemuaCabang } from '../peran.js';
-import { autoRefresh, confirmDialog, el, fmtDateId, fmtNum, labelDari, petaMaster, toast } from '../ui.js';
+import { aksiSekali, autoRefresh, confirmDialog, el, fmtDateId, fmtNum, labelDari, petaMaster, toast } from '../ui.js';
+import { bukuExcel, muatSheetJS } from './rekap.js';
+import { barisPajakKir, hariIniWib, namaFilePajakKir, sheetPajakKir } from '../pajak-kir.js';
 import { aktifkanNotifikasi, bunyiTugasSekarang, matikanNotifikasi, segarkanBanner, statusNotifikasi, tesNotifikasi } from '../notifikasi.js';
 
 // ── Helper murni (diuji) ────────────────────────────────────────────────────
@@ -102,8 +104,10 @@ export async function renderDashboard(view) {
   const jumlahWarn = el('span', { class: 'badge rounded-pill text-bg-danger ms-1', text: '0' });
   const pilihCabang = el('select', { class: 'form-select form-select-sm d-none', style: 'width:auto', 'aria-label': 'Filter warehouse' }, [el('option', { value: '', text: 'Semua Warehouse' })]);
   const tombolWarn = el('button', { class: 'btn btn-outline-primary btn-sm', type: 'button', text: 'Refresh' });
+  const tombolExcelPajak = el('button', { class: 'btn btn-outline-success btn-sm', type: 'button', title: 'Unduh data pajak & KIR seluruh kendaraan aktif (sesuai filter warehouse)', text: 'Excel Pajak & KIR' });
+  let dataMaster = null;
   const isiWarn = el('div', { class: 'text-muted', text: 'Memeriksa peringatan…' });
-  const panelWarn = kartuPanel(['Peringatan Dini', jumlahWarn], el('div', { class: 'd-flex gap-2 align-items-center' }, [pilihCabang, tombolWarn]), isiWarn);
+  const panelWarn = kartuPanel(['Peringatan Dini', jumlahWarn], el('div', { class: 'd-flex gap-2 align-items-center' }, [pilihCabang, tombolExcelPajak, tombolWarn]), isiWarn);
   let cacheWarn = null;
 
   function itemPajak(r) {
@@ -197,6 +201,21 @@ export async function renderDashboard(view) {
   }
   tombolWarn.addEventListener('click', () => muatWarn(true));
   pilihCabang.addEventListener('change', gambarWarn);
+  // Excel data pajak & KIR SELURUH kendaraan aktif (bukan hanya yang kritis), mengikuti filter warehouse.
+  tombolExcelPajak.addEventListener('click', aksiSekali(tombolExcelPajak, async () => {
+    try {
+      dataMaster ??= await get('/api/master');
+      const kode = semua ? pilihCabang.value : '';
+      const namaCabang = Object.fromEntries((dataMaster.cabangList || []).map((c) => [c.kode, c.nama || c.kode]));
+      const today = hariIniWib();
+      const baris = barisPajakKir(dataMaster.vehicles, { today, cabang: kode, namaCabang });
+      if (!baris.length) { toast('Tidak ada kendaraan aktif untuk diunduh.', 'error'); return; }
+      const XLSX = await muatSheetJS();
+      XLSX.writeFile(bukuExcel(XLSX, sheetPajakKir(baris, { warehouse: kode ? namaCabang[kode] || kode : 'Semua Warehouse', today })), namaFilePajakKir(kode, today));
+    } catch (err) {
+      toast(err.message || 'Gagal membuat file Excel.', 'error');
+    }
+  }));
 
   let peta = petaMaster(null);
 
@@ -306,6 +325,7 @@ export async function renderDashboard(view) {
 
   try {
     const master = await get('/api/master');
+    dataMaster = master;
     peta = petaMaster(master);
     const cabang = Array.isArray(master.cabangList) ? master.cabangList : [];
     if (semua && cabang.length > 1) {
