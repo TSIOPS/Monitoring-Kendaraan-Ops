@@ -1130,3 +1130,44 @@ describe('rincian pengeluaran', () => {
     ]);
   });
 });
+
+describe('edit laporan tidak mengubah metode tol (tol Flazz + BBM tunai/kosong)', () => {
+  const baris = (o: Record<string, unknown> = {}) => ({
+    transaction_id: 'TRX-1', tanggal: '2026-10-30', metode_pembayaran: 'TUNAI', biaya_bbm: 300000, liter_bbm: 30, metode_toll: 'FLAZZ', flazz_card_id_toll: 'FLZ-1', biaya_toll: 34000,
+    rincian: [{ jenis: 'BBM' as const, nominal: 300000, kartu: '', keterangan: '' }, { jenis: 'TOL' as const, nominal: 34000, kartu: 'FLZ-1', keterangan: '' }], ...o,
+  });
+  it('edit tanpa field pembayaran (mis. ubah bar/liter/supir): tol tetap Flazz, saldo kartu tidak berubah', async () => {
+    const { app, kv, lap, flz } = setup({ rows: [baris()], flazzCard: [flazzCard({ last_balance: 500000 })] });
+    const tok = await loginAs(kv, PIC);
+    const res = await put(app, '/api/laporan/TRX-1', tok, { bar_awal: 8, bar_akhir: 5, liter_bbm: 30, nama_supir: 'Supir B' });
+    expect(res.status).toBe(200);
+    expect(lap.state.rows[0]).toMatchObject({ metode_toll: 'FLAZZ', flazz_card_id_toll: 'FLZ-1', biaya_toll: 34000 });
+    expect(flz.state.cards[0]!.last_balance).toBe(500000);
+  });
+  it('laporan tol saja (tanpa BBM): edit KM tidak mengubah tol Flazz', async () => {
+    const { app, kv, lap, flz } = setup({
+      rows: [baris({ metode_pembayaran: '', biaya_bbm: 0, liter_bbm: 0, biaya_toll: 11000, rincian: [{ jenis: 'TOL' as const, nominal: 11000, kartu: 'FLZ-1', keterangan: '' }] })],
+      flazzCard: [flazzCard({ last_balance: 500000 })],
+    });
+    const tok = await loginAs(kv, PIC);
+    expect((await put(app, '/api/laporan/TRX-1', tok, { km_awal: 100, km_akhir: 150 })).status).toBe(200);
+    expect(lap.state.rows[0]).toMatchObject({ metode_toll: 'FLAZZ', flazz_card_id_toll: 'FLZ-1', biaya_toll: 11000 });
+    expect(flz.state.cards[0]!.last_balance).toBe(500000);
+  });
+  it('perubahan eksplisit tetap bekerja: metode_toll TUNAI mengembalikan saldo kartu', async () => {
+    const { app, kv, lap, flz } = setup({ rows: [baris()], flazzCard: [flazzCard({ last_balance: 500000 })] });
+    const tok = await loginAs(kv, PIC);
+    expect((await put(app, '/api/laporan/TRX-1', tok, { metode_toll: 'TUNAI', flazz_card_id_toll: '' })).status).toBe(200);
+    expect(lap.state.rows[0]).toMatchObject({ metode_toll: 'TUNAI', flazz_card_id_toll: '' });
+    expect(flz.state.cards[0]!.last_balance).toBe(534000);
+  });
+  it('laporan lama tanpa metode_toll tersimpan: tol tetap mengikuti metode BBM saat BBM diubah', async () => {
+    const { app, kv, lap } = setup({
+      rows: [{ transaction_id: 'TRX-1', tanggal: '2026-09-01', metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1', biaya_bbm: 100000, metode_toll: '', flazz_card_id_toll: '', biaya_toll: 0 }],
+      flazzCard: [flazzCard({ last_balance: 500000 })],
+    });
+    const tok = await loginAs(kv, PIC);
+    expect((await put(app, '/api/laporan/TRX-1', tok, { metode_pembayaran: 'TUNAI' })).status).toBe(200);
+    expect(lap.state.rows[0]).toMatchObject({ metode_pembayaran: 'TUNAI', metode_toll: 'TUNAI' });
+  });
+});

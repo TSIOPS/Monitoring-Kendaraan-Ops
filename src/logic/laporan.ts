@@ -239,6 +239,15 @@ export function resolveTollMethod(explicitValue: unknown, bbmMethod: unknown, ex
   return 'TUNAI';
 }
 
+// Metode tol saat EDIT. Edit dari form hanya mengirim rincian bila berubah (bukan kolom pembayaran), jadi tanpa field tol di body
+// metode tol LAMA harus dipertahankan. Jika dulu bergantung pada metode BBM (laporan lama tanpa metode_toll tersimpan), ikuti metode BBM baru.
+export function resolveEditTollMethod(explicitValue: unknown, explicitCard: unknown, storedTollMethod: unknown, bbmMethod: unknown): string {
+  if (explicitValue !== undefined && explicitValue !== null && String(explicitValue) !== '') return String(explicitValue);
+  if (explicitCard !== undefined && explicitCard !== null && String(explicitCard).trim() !== '') return 'FLAZZ';
+  if (storedTollMethod !== undefined && storedTollMethod !== null && String(storedTollMethod) !== '') return String(storedTollMethod);
+  return resolveTollMethod(undefined, bbmMethod, undefined);
+}
+
 export function resolveTollCard(explicitCard: unknown, tollMethod: unknown, bbmMethod: unknown, bbmCard: unknown): string {
   if (String(tollMethod) !== 'FLAZZ') return '';
   const c = String(explicitCard ?? '').trim();

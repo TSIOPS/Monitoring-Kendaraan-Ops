@@ -2,6 +2,9 @@
 
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
+## 2026-11-01
+- **Perbaikan** — Edit laporan: metode tol Flazz tidak lagi berubah menjadi Tunai diam-diam. PUT /api/laporan/:id yang tidak mengirim field tol (form edit hanya mengirim rincian bila berubah) memakai metode BBM sebagai metode tol, sehingga laporan dengan tol Flazz tetapi BBM Tunai/kosong (termasuk laporan tol saja) berubah ke Tunai pada edit apa pun (KM, bar, liter, supir), saldo kartu dikembalikan, dan rincian nota tetap tertulis kartu. Akibatnya saldo kartu tidak berkurang saat rekonsiliasi. Kini metode tol lama dipertahankan (resolveEditTollMethod di src/logic/laporan.ts); laporan lama tanpa metode_toll tersimpan tetap mengikuti metode BBM. Audit: 4 laporan terdampak sejak 1 Okt (45c7, 0a1b — sudah dikembalikan manual; 2760-7b9b CBY — perlu dikoreksi; 1346-31ff — sudah terhapus). Tes baru di tests/routes/laporan.test.ts.
+
 ## 2026-10-30
 - **Fitur** — Dashboard › Peringatan Dini: tombol "Excel Pajak & KIR" mengunduh data pajak tahunan, pajak 5 tahunan, dan KIR SELURUH kendaraan aktif (bukan hanya yang kritis): Warehouse, plat, nama, jenis, per dokumen jatuh tempo/sisa hari/status (LEWAT ≤0, KRITIS ≤30, WASPADA ≤60, AMAN), status terburuk, ringkasan di atas, total di bawah; urut paling mendesak; motor tanpa pajak 5 tahunan & KIR dikosongkan; mengikuti filter warehouse (SUPERADMIN/MANAGEMENT). Berlaku untuk semua peran (data sesuai cakupan akses). static/js/pajak-kir.js (fungsi murni + tes), static/js/pages/dashboard.js, rilis.js. Cek UI: smoke jsdom manual (/ui-ux-pro-max tidak tersedia).
 

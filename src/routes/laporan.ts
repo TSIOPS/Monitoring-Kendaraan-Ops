@@ -543,7 +543,9 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       }
     }
 
-    const newMetodeToll = L.resolveTollMethod(p.metode_toll, newMetode, p.flazz_card_id_toll);
+    // Tanpa field tol di body (edit form mengirim rincian hanya bila berubah) metode tol lama dipertahankan; sebelumnya tol ikut metode BBM
+    // sehingga tol Flazz berubah menjadi Tunai dan saldo kartu dikembalikan diam-diam.
+    const newMetodeToll = L.resolveEditTollMethod(p.metode_toll, p.flazz_card_id_toll, old.metode_toll, newMetode);
     const rawCardToll = (p.flazz_card_id_toll !== undefined && p.flazz_card_id_toll !== null) ? String(p.flazz_card_id_toll).trim() : '';
     let newCardToll = '';
     if (newMetodeToll === 'FLAZZ') {
