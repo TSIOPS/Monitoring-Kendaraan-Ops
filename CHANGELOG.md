@@ -3,6 +3,7 @@
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
 ## 2026-11-06
+- **UX** — Dashboard › Peringatan Dini › Pajak & KIR Kendaraan: catatan arahan untuk PIC/admin (bukan MANAGEMENT) bila ada peringatan: pajak tahunan, pajak 5 tahunan, dan/atau KIR yang sudah diperpanjang diperbarui di Konfigurasi › Data Master (tab Kendaraan, ikon Edit) agar peringatan hilang, dengan tautan ke #/master. Pop-up "Yang baru" (id 2026-11-06-info-perpanjang) memuat arahan ini, ringkasan batas data master PIC, dan perbaikan edit tol. Cek UI: smoke jsdom manual (/ui-ux-pro-max tidak tersedia). static/js/pages/dashboard.js, rilis.js.
 - **Keamanan** — Data master untuk PIC CABANG dibatasi: PUT /api/master/kendaraan oleh PIC hanya mengubah tanggal pajak tahunan, pajak 5 tahunan, KIR (YYYY-MM-DD valid atau kosong) dan interval ganti oli (bilangan bulat 500–100000); isian lain pada body diabaikan (plat, nama, cabang, kendaraan bersama, KM oli). POST/DELETE kendaraan, POST/PUT/DELETE supir, dan POST/PUT/DELETE kartu Flazz (/api/flazz/card) hanya SUPERADMIN; 403 mengarahkan ke SnD Staff (mutasi kendaraan sementara, dsb.). Reset oli tetap boleh untuk PIC. UI Data Master: catatan arahan, PIC hanya Edit (4 isian) + Reset oli pada kendaraan; supir & kartu hanya lihat. Review keamanan: /security-review tanpa temuan. static/js/pages/master.js, src/routes/master.ts, src/routes/flazz.ts, tes.
 
 ## 2026-11-01

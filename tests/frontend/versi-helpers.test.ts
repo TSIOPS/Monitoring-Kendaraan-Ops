@@ -15,7 +15,7 @@ describe('versi & rilis', () => {
     expect(perluTampilRilis([], null)).toBe(false);
   });
   it('catatan rilis terbaru = master PIC & perbaikan edit tol', () => {
-    expect(RILIS[0]!.id).toBe('2026-11-06-master-pic');
+    expect(RILIS[0]!.id).toBe('2026-11-06-info-perpanjang');
     expect(RILIS[0]!.poin.length).toBeGreaterThan(0);
   });
 });

@@ -172,6 +172,14 @@ export async function renderDashboard(view) {
     ? el('div', { class: 'list-group list-group-flush' }, items.map(render))
     : kosong(teksKosong));
 
+  // Arahan untuk PIC/admin: peringatan hilang setelah tanggal jatuh tempo baru dicatat di Data Master.
+  const infoPerpanjang = () => el('div', { class: 'alert alert-info small py-2 mb-2', role: 'note' }, [
+    el('strong', { text: 'Sudah diperpanjang? ' }),
+    'Jika pajak kendaraan tahunan, pajak 5 tahunan, dan/atau KIR sudah diperpanjang, silakan perbarui tanggalnya di menu ',
+    el('a', { href: '#/master', text: 'Konfigurasi › Data Master' }),
+    ' (tab Kendaraan, ikon Edit) agar peringatan ini hilang.',
+  ]);
+
   function gambarWarn() {
     if (!cacheWarn) return;
     const w = saringPeringatan(cacheWarn, semua ? pilihCabang.value : '');
@@ -179,7 +187,7 @@ export async function renderDashboard(view) {
     setJumlahPeringatan(w.total);
     isiWarn.className = 'row';
     isiWarn.replaceChildren(
-      el('div', { class: 'col-lg-6 mb-3' }, [judulSeksi('Pajak & KIR Kendaraan'), daftar(w.pajakKIR, itemPajak, 'Semua aman - tidak ada kendaraan yang pajak/KIR-nya kritis.')]),
+      el('div', { class: 'col-lg-6 mb-3' }, [judulSeksi('Pajak & KIR Kendaraan'), w.pajakKIR.length && tulis ? infoPerpanjang() : null, daftar(w.pajakKIR, itemPajak, 'Semua aman - tidak ada kendaraan yang pajak/KIR-nya kritis.')]),
       el('div', { class: 'col-lg-6 mb-3' }, [judulSeksi('Saldo Kartu Etoll < Rp100.000'), daftar(w.saldo, itemSaldo, 'Semua aman - tidak ada kartu etoll di bawah Rp100.000.')]),
       el('div', { class: 'col-12 mb-3' }, [judulSeksi('Ganti Oli Kendaraan'), daftar(w.oli, itemOli, 'Semua aman - jarak tempuh oli seluruh kendaraan masih di bawah ambang.')]),
       el('div', { class: 'col-12 mb-3' }, [judulSeksi('Odometer Tidak Terbaca (Estimasi)'), daftar(w.odoEstimasi, itemOdo, 'Semua aman - tidak ada kendaraan dengan odometer tidak terbaca.')]),

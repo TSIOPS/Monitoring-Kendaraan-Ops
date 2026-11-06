@@ -1,6 +1,15 @@
 // Catatan "Yang baru" (terbaru di atas). Tambahkan entri saat merilis perubahan yang terlihat pengguna.
 export const RILIS = [
   {
+    id: '2026-11-06-info-perpanjang',
+    judul: 'Yang baru',
+    poin: [
+      'Pajak tahunan, pajak 5 tahunan, dan/atau KIR sudah diperpanjang? Perbarui tanggalnya di Konfigurasi › Data Master (tab Kendaraan, ikon Edit) agar peringatan di Dashboard hilang.',
+      'PIC cabang hanya dapat mengubah tanggal pajak/KIR dan interval ganti oli. Hubungi SnD Staff untuk perubahan data master lain atau mutasi kendaraan sementara.',
+      'Edit laporan: tol yang dibayar Flazz tidak lagi berubah menjadi Tunai saat laporan diedit.',
+    ],
+  },
+  {
     id: '2026-11-06-master-pic',
     judul: 'Yang baru',
     poin: [
