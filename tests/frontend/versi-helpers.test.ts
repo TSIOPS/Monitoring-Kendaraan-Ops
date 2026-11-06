@@ -14,8 +14,8 @@ describe('versi & rilis', () => {
     expect(perluTampilRilis([{ id: 'r2' }], 'r2')).toBe(false);
     expect(perluTampilRilis([], null)).toBe(false);
   });
-  it('catatan rilis terbaru = excel pajak & KIR', () => {
-    expect(RILIS[0]!.id).toBe('2026-10-30-excel-pajak-kir');
+  it('catatan rilis terbaru = master PIC & perbaikan edit tol', () => {
+    expect(RILIS[0]!.id).toBe('2026-11-06-master-pic');
     expect(RILIS[0]!.poin.length).toBeGreaterThan(0);
   });
 });

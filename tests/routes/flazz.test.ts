@@ -82,31 +82,30 @@ describe('GET/POST /api/flazz/card', () => {
     expect(audits[0]).toMatchObject({ action: 'CREATE', modul: 'flazz' });
   });
 
-  it('PIC buat di cabang sendiri -> 200', async () => {
-    const { app, kv } = setup();
+  it('PIC tidak dapat menambah, mengubah, atau menonaktifkan kartu (data master): 403 + arahan ke SnD Staff', async () => {
+    const { app, kv, flz } = setup({ cards: [card()] });
     const tok = await loginAs(kv, PIC);
-    const res = await post(app, '/api/flazz/card', tok, { card_number: '556', card_name: 'Kartu PIC' });
-    expect(res.status).toBe(200);
-  });
-
-  it('PIC buat di cabang lain -> 403', async () => {
-    const { app, kv } = setup();
-    const tok = await loginAs(kv, PIC);
-    const res = await post(app, '/api/flazz/card', tok, { branch_id: 'CBG-B', card_number: '557', card_name: 'Kartu X' });
-    expect(res.status).toBe(403);
+    const buat = await post(app, '/api/flazz/card', tok, { card_number: '556', card_name: 'Kartu PIC' });
+    expect(buat.status).toBe(403);
+    expect((await buat.json() as any).message).toMatch(/SnD Staff/);
+    expect((await post(app, '/api/flazz/card', tok, { branch_id: 'CBG-B', card_number: '557', card_name: 'Kartu X' })).status).toBe(403);
+    expect((await put(app, '/api/flazz/card/FLZ-1', tok, { card_name: 'Ganti' })).status).toBe(403);
+    expect((await del(app, '/api/flazz/card/FLZ-1', tok)).status).toBe(403);
+    expect(flz.state.cards).toHaveLength(1);
+    expect(flz.state.cards[0]).toMatchObject({ card_name: 'Kartu A', status: 'TERSEDIA' });
   });
 
   it('nomor kartu duplikat dalam cabang -> 409', async () => {
     const { app, kv } = setup({ cards: [card()] });
-    const tok = await loginAs(kv, PIC);
-    const res = await post(app, '/api/flazz/card', tok, { card_number: '123', card_name: 'Duplikat' });
+    const tok = await loginAs(kv, SUPER);
+    const res = await post(app, '/api/flazz/card', tok, { branch_id: 'CBG-A', card_number: '123', card_name: 'Duplikat' });
     expect(res.status).toBe(409);
     expect((await res.json() as any).message).toContain('sudah terdaftar');
   });
 
   it('update last_balance atau branch_id -> 400', async () => {
     const { app, kv } = setup({ cards: [card()] });
-    const tok = await loginAs(kv, PIC);
+    const tok = await loginAs(kv, SUPER);
     expect((await put(app, '/api/flazz/card/FLZ-1', tok, { last_balance: 9_000_000 })).status).toBe(400);
     expect((await put(app, '/api/flazz/card/FLZ-1', tok, { branch_id: 'CBG-B' })).status).toBe(400);
   });
@@ -114,13 +113,13 @@ describe('GET/POST /api/flazz/card', () => {
   it('delete kartu dengan usage aktif -> 409', async () => {
     const { app, kv, flz } = setup({ cards: [card()] });
     await flz.repo.createUsage({ cardId: 'FLZ-1', driverName: 'Supir A', vehicleId: 'V-1', refType: 'TRX', refId: 'TRX-1', usedAt: '2026-09-01T00:00:00.000Z' });
-    const tok = await loginAs(kv, PIC);
+    const tok = await loginAs(kv, SUPER);
     expect((await del(app, '/api/flazz/card/FLZ-1', tok)).status).toBe(409);
   });
 
   it('delete kartu nonaktif dua kali -> keduanya 200', async () => {
     const { app, kv, flz } = setup({ cards: [card()] });
-    const tok = await loginAs(kv, PIC);
+    const tok = await loginAs(kv, SUPER);
     expect((await del(app, '/api/flazz/card/FLZ-1', tok)).status).toBe(200);
     expect((await del(app, '/api/flazz/card/FLZ-1', tok)).status).toBe(200);
     expect(flz.state.cards[0]!.status).toBe('NONAKTIF');

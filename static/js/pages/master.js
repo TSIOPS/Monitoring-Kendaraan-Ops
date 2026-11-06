@@ -14,6 +14,8 @@ export const ROLE = [['PIC CABANG', 'PIC CABANG'], ['MANAGEMENT', 'MANAGEMENT'],
 
 const isSuper = () => superRole(getUser()?.role);
 const lihatSemua = () => lihatSemuaCabang(getUser()?.role);
+// PIC CABANG: hanya boleh mengubah tanggal pajak tahunan, pajak 5 tahunan, KIR, dan interval ganti oli kendaraan warehouse-nya.
+const picCabang = () => !isSuper() && !lihatSemua();
 const tulis = () => bolehTulis(getUser()?.role);
 const opsi = (pairs) => pairs.map(([value, label]) => ({ value, label }));
 
@@ -73,7 +75,7 @@ function entitas(m) {
 
   return {
     kendaraan: {
-      label: 'Kendaraan', boleh: true, list: () => m.vehicles, cabangOf: (v) => v.cabang, key: (v) => v.vehicle_id,
+      label: 'Kendaraan', boleh: true, picEdit: true, list: () => m.vehicles, cabangOf: (v) => v.cabang, key: (v) => v.vehicle_id,
       kolom: [
         ['Plat', (v) => v.plat_nomor], ['Nama', (v) => v.nama], ['Jenis', (v) => v.jenis],
         ['Indikator', (v) => INDIKATOR.find(([k]) => k === v.jenis_indikator)?.[1] || v.jenis_indikator],
@@ -90,17 +92,21 @@ function entitas(m) {
         { key: 'jumlah_bar', label: 'Jumlah bar', type: 'number', dari: (v) => v.jumlah_bar },
         { key: 'standar_km_l', label: 'Standar KM/L', type: 'number', dari: (v) => v.standar_km_l },
         { key: 'jenis_indikator', label: 'Jenis indikator BBM', type: 'select', opsi: () => opsi(INDIKATOR), awal: 'DIGITAL_BAR', dari: (v) => v.jenis_indikator },
-        { key: 'tanggal_pajak', label: 'Jatuh tempo pajak tahunan', type: 'date', dari: (v) => String(v.tanggal_pajak || '').slice(0, 10) },
-        { key: 'tanggal_pajak_5_tahunan', label: 'Jatuh tempo pajak 5 tahunan', type: 'date', dari: (v) => String(v.tanggal_pajak_5_tahunan || '').slice(0, 10) },
-        { key: 'tanggal_kir', label: 'Jatuh tempo KIR', type: 'date', dari: (v) => String(v.tanggal_kir || '').slice(0, 10) },
-        { key: 'interval_ganti_oli_km', label: 'Interval ganti oli (KM)', type: 'number', awal: '5000', dari: (v) => v.interval_ganti_oli_km },
+        { key: 'tanggal_pajak', picField: true, label: 'Jatuh tempo pajak tahunan', type: 'date', dari: (v) => String(v.tanggal_pajak || '').slice(0, 10) },
+        { key: 'tanggal_pajak_5_tahunan', picField: true, label: 'Jatuh tempo pajak 5 tahunan', type: 'date', dari: (v) => String(v.tanggal_pajak_5_tahunan || '').slice(0, 10) },
+        { key: 'tanggal_kir', picField: true, label: 'Jatuh tempo KIR', type: 'date', dari: (v) => String(v.tanggal_kir || '').slice(0, 10) },
+        { key: 'interval_ganti_oli_km', picField: true, label: 'Interval ganti oli (KM)', type: 'number', awal: '5000', dari: (v) => v.interval_ganti_oli_km },
         { key: 'km_terakhir_ganti_oli', label: 'KM terakhir ganti oli (odometer)', type: 'number', dari: (v) => v.km_terakhir_ganti_oli },
         { key: 'cabang', label: 'Warehouse', type: 'select', wajib: true, opsi: cabangOpsi, dari: (v) => v.cabang },
         ...(isSuper() ? [{ key: 'cabang_bersama', label: 'Dipakai juga oleh (kendaraan bersama)', type: 'multi', ikut: 'cabang',
           opsi: (v) => cabangOpsi().filter((o) => o.value !== v.cabang), dari: (v) => (v.cabang_bersama || []).join(','),
           catatan: () => 'Centang warehouse lain yang ikut memakai kendaraan ini. Riwayat KM, ganti oli, dan efisiensi tetap satu.' }] : []),
       ],
-      simpan: (v, row) => (row ? put('/api/master/kendaraan', { ...bodyKendaraan(v), edit_id: row.vehicle_id }) : post('/api/master/kendaraan', bodyKendaraan(v))),
+      simpan: (v, row) => {
+        // PIC hanya mengirim 4 isian yang boleh diubah (server juga membatasi).
+        if (picCabang()) return put('/api/master/kendaraan', { tanggal_pajak: v.tanggal_pajak, tanggal_pajak_5_tahunan: v.tanggal_pajak_5_tahunan, tanggal_kir: v.tanggal_kir, interval_ganti_oli_km: Number(v.interval_ganti_oli_km) || 0, edit_id: row.vehicle_id });
+        return row ? put('/api/master/kendaraan', { ...bodyKendaraan(v), edit_id: row.vehicle_id }) : post('/api/master/kendaraan', bodyKendaraan(v));
+      },
       hapus: (row) => ({ tanya: `Hapus kendaraan ${row.plat_nomor}?`, jalan: () => del(`/api/master/kendaraan/${encodeURIComponent(row.vehicle_id)}`) }),
       ekstra: (row) => [{ label: 'Reset oli', ikon: 'oli', tanya: `Set baseline ganti oli ${row.plat_nomor} ke KM odometer terakhir?`, jalan: () => post(`/api/master/kendaraan/${encodeURIComponent(row.vehicle_id)}/reset-oli`, {}) }],
     },
@@ -255,6 +261,7 @@ export async function renderMaster(view) {
   function bukaForm(row) {
     const e = ent[tab];
     const isEdit = !!row;
+    const fields = picCabang() && e.picEdit ? e.fields.filter((f) => f.picField) : e.fields;
     const values = {};
     for (const f of e.fields) values[f.key] = isEdit ? (f.dari(row) ?? '') : (f.awal ?? (!isSuper() && ['cabang', 'branch_id'].includes(f.key) ? getUser()?.cabang || '' : ''));
     const ctl = {};
@@ -262,13 +269,13 @@ export async function renderMaster(view) {
     const grid = el('div', { class: 'row g-2' });
     const render = () => {
       for (const k of Object.keys(ctl)) delete ctl[k];
-      grid.replaceChildren(...e.fields.filter((f) => fieldTampil(f, values)).map((f) => {
+      grid.replaceChildren(...fields.filter((f) => fieldTampil(f, values)).map((f) => {
         ctl[f.key] = kontrol(f, values[f.key], isEdit, values);
         ctl[f.key].addEventListener('change', () => {
           values[f.key] = ctl[f.key].value;
           // Field yang pilihannya bergantung (mis. kendaraan default per warehouse) digambar ulang.
-          if (e.fields.some((x) => x.ikut === f.key)) {
-            for (const x of e.fields) if (x.ikut === f.key) values[x.key] = '';
+          if (fields.some((x) => x.ikut === f.key)) {
+            for (const x of fields) if (x.ikut === f.key) values[x.key] = '';
             render();
           }
         });
@@ -291,8 +298,8 @@ export async function renderMaster(view) {
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
       // Field yang disembunyikan (bukan PIC CABANG -> Warehouse) dikosongkan agar tidak ada nilai tertinggal.
-      for (const f of e.fields) values[f.key] = ctl[f.key] ? ctl[f.key].value : '';
-      const err = fieldKosong(e.fields, values, isEdit);
+      for (const f of fields) values[f.key] = ctl[f.key] ? ctl[f.key].value : '';
+      const err = fieldKosong(fields, values, isEdit);
       if (err.length) {
         tampilkanGalat(alertBox, err.join(' '));
         return;
@@ -329,7 +336,9 @@ export async function renderMaster(view) {
     const q = cari.value.trim().toLowerCase();
     const rows = e.list().filter((r) => (!wh.value || !e.cabangOf || e.cabangOf(r) === wh.value) &&
       (!q || e.kolom.some(([, fn]) => String(fn(r) ?? '').toLowerCase().includes(q))));
-    const bolehUbah = tulis();
+    // PIC: hanya kendaraan yang dapat diubah (4 isian); supir, kartu, dan lainnya hanya lihat; tanpa tambah/hapus.
+    const bolehUbah = tulis() && (!picCabang() || Boolean(e.picEdit));
+    const bolehTambahHapus = !picCabang();
     const body = rows.map((r) => {
       const h = e.hapus(r);
       // Kendaraan bersama milik warehouse lain: PIC hanya memakai, pengelolaan oleh pemilik.
@@ -341,14 +350,14 @@ export async function renderMaster(view) {
         bukanMilik ? el('td', { class: 'small text-muted', text: 'Kendaraan bersama (dikelola pemilik)' }) : el('td', { class: 'text-nowrap' }, [grupAksi([
           tombolIkon('edit', 'Edit', () => bukaForm(r)),
           ...(e.ekstra ? e.ekstra(r).map((x) => tombolIkonSekali(x.ikon || 'lainnya', x.label, () => aksi(x))) : []),
-          tombolIkonSekali(h.label === 'Nonaktifkan' ? 'nonaktif' : h.label === 'Aktifkan' ? 'aktif' : 'hapus', h.label || 'Hapus', () => aksi(h)),
+          bolehTambahHapus ? tombolIkonSekali(h.label === 'Nonaktifkan' ? 'nonaktif' : h.label === 'Aktifkan' ? 'aktif' : 'hapus', h.label || 'Hapus', () => aksi(h)) : null,
         ])]),
       ]);
     });
     isi.replaceChildren(
       el('div', { class: 'd-flex justify-content-between align-items-center mb-2' }, [
         el('div', { class: 'small text-muted', text: `${rows.length} data` }),
-        bolehUbah ? el('button', { class: 'btn btn-sm btn-success', type: 'button', text: `Tambah ${e.label}`, onclick: () => bukaForm(null) }) : null,
+        bolehUbah && bolehTambahHapus ? el('button', { class: 'btn btn-sm btn-success', type: 'button', text: `Tambah ${e.label}`, onclick: () => bukaForm(null) }) : null,
       ]),
       rows.length
         ? el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm align-middle' }, [
@@ -367,6 +376,7 @@ export async function renderMaster(view) {
   cari.addEventListener('input', gambar);
   view.replaceChildren(el('div', { class: 'panel' }, [
     el('h2', { 'data-judul-halaman': '', class: 'h6 mb-3', text: 'Data Master' }),
+    picCabang() ? el('div', { class: 'alert alert-info small py-2', role: 'note', text: 'PIC cabang hanya dapat mengubah tanggal pajak tahunan, pajak 5 tahunan, KIR, dan interval ganti oli kendaraan warehouse sendiri. Hubungi SnD Staff untuk perubahan data master lainnya atau bila ada mutasi kendaraan sementara.' }) : null,
     barTab,
     el('div', { class: 'row g-2 mb-2' }, [
       lihatSemua() ? el('div', { class: 'col-md-3' }, [wh]) : null,

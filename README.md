@@ -55,7 +55,7 @@ Modul pengganti Excel kas kecil per warehouse: Kas Keluar & Penyelesaian (nomor 
 |---|---|---|---|
 | `SUPERADMIN` | semua warehouse (+ filter) | ya, semua | kelola pengguna, pengaturan, kosongkan data, Audit Log, hapus rekonsiliasi |
 | `MANAGEMENT` | semua warehouse (+ filter) | **tidak** (hanya lihat) | Perbandingan Pengeluaran; Data Master tanpa daftar pengguna |
-| `PIC CABANG` | warehouse sendiri | ya, warehouse sendiri | wajib punya warehouse |
+| `PIC CABANG` | warehouse sendiri | ya, warehouse sendiri (data master: HANYA tanggal pajak tahunan, pajak 5 tahunan, KIR, interval ganti oli kendaraan; tambah/ubah/hapus kendaraan, supir, kartu Flazz lewat SnD Staff/SUPERADMIN) | wajib punya warehouse |
 
 Akun `MANAGEMENT` dibuat SUPERADMIN lewat Data Master → Pengguna (warehouse otomatis kosong). Helper role ada di
 `src/auth/peran.ts` (server) dan `static/js/peran.js` (frontend).

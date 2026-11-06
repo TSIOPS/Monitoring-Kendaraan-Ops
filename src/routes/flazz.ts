@@ -162,8 +162,14 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     return c.json(okPayload({ card }));
   });
 
+  // Kartu Flazz sebagai data master (tambah/ubah/nonaktifkan) hanya SUPERADMIN; PIC memakai kartu lewat top up/rekonsiliasi.
+  const needSuperKartu = (u: SessionUser, aksi: string) => {
+    if (!isSuper(u)) throw new HttpError(403, 'Akses ditolak: PIC cabang tidak dapat ' + aksi + '. Hubungi SnD Staff untuk perubahan data master.', 'FORBIDDEN');
+  };
+
   app.post('/card', async (c: Ctx) => {
     const u = c.get('user');
+    needSuperKartu(u, 'menambah kartu Flazz');
     const b = await readJson(c);
     const cardNumber = str(b.card_number);
     const cardName = str(b.card_name);
@@ -195,6 +201,7 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
   app.put('/card/:id', async (c: Ctx) => {
     const u = c.get('user');
+    needSuperKartu(u, 'mengubah data kartu Flazz');
     const card = await requireCard(c.req.param('id') as string, u);
     const b = await readJson(c);
     for (const f of CARD_FORBIDDEN_FIELDS) {
@@ -224,6 +231,7 @@ export function flazzRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
   app.delete('/card/:id', async (c: Ctx) => {
     const u = c.get('user');
+    needSuperKartu(u, 'menonaktifkan kartu Flazz');
     const card = await requireCard(c.req.param('id') as string, u);
     if (card.status === 'NONAKTIF') return c.json(okPayload({ msg: 'Kartu Flazz sudah tidak aktif.' }));
     if (await deps.flazz.hasActiveUsage(card.id)) {

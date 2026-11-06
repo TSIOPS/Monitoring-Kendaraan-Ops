@@ -1,6 +1,14 @@
 // Catatan "Yang baru" (terbaru di atas). Tambahkan entri saat merilis perubahan yang terlihat pengguna.
 export const RILIS = [
   {
+    id: '2026-11-06-master-pic',
+    judul: 'Yang baru',
+    poin: [
+      'Data Master: PIC cabang kini hanya dapat mengubah tanggal pajak tahunan, pajak 5 tahunan, KIR, dan interval ganti oli kendaraan. Hubungi SnD Staff untuk perubahan data master lain atau mutasi kendaraan sementara.',
+      'Edit laporan: tol yang dibayar Flazz tidak lagi berubah menjadi Tunai saat laporan diedit.',
+    ],
+  },
+  {
     id: '2026-10-30-excel-pajak-kir',
     judul: 'Yang baru',
     poin: [

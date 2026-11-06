@@ -2,6 +2,9 @@
 
 Semua perubahan penting dicatat di sini (terbaru di atas). Format: tanggal — kategori — ringkasan — file utama.
 
+## 2026-11-06
+- **Keamanan** — Data master untuk PIC CABANG dibatasi: PUT /api/master/kendaraan oleh PIC hanya mengubah tanggal pajak tahunan, pajak 5 tahunan, KIR (YYYY-MM-DD valid atau kosong) dan interval ganti oli (bilangan bulat 500–100000); isian lain pada body diabaikan (plat, nama, cabang, kendaraan bersama, KM oli). POST/DELETE kendaraan, POST/PUT/DELETE supir, dan POST/PUT/DELETE kartu Flazz (/api/flazz/card) hanya SUPERADMIN; 403 mengarahkan ke SnD Staff (mutasi kendaraan sementara, dsb.). Reset oli tetap boleh untuk PIC. UI Data Master: catatan arahan, PIC hanya Edit (4 isian) + Reset oli pada kendaraan; supir & kartu hanya lihat. Review keamanan: /security-review tanpa temuan. static/js/pages/master.js, src/routes/master.ts, src/routes/flazz.ts, tes.
+
 ## 2026-11-01
 - **Perbaikan** — Edit laporan: metode tol Flazz tidak lagi berubah menjadi Tunai diam-diam. PUT /api/laporan/:id yang tidak mengirim field tol (form edit hanya mengirim rincian bila berubah) memakai metode BBM sebagai metode tol, sehingga laporan dengan tol Flazz tetapi BBM Tunai/kosong (termasuk laporan tol saja) berubah ke Tunai pada edit apa pun (KM, bar, liter, supir), saldo kartu dikembalikan, dan rincian nota tetap tertulis kartu. Akibatnya saldo kartu tidak berkurang saat rekonsiliasi. Kini metode tol lama dipertahankan (resolveEditTollMethod di src/logic/laporan.ts); laporan lama tanpa metode_toll tersimpan tetap mengikuti metode BBM. Audit: 4 laporan terdampak sejak 1 Okt (45c7, 0a1b — sudah dikembalikan manual; 2760-7b9b CBY — perlu dikoreksi; 1346-31ff — sudah terhapus). Tes baru di tests/routes/laporan.test.ts.
 

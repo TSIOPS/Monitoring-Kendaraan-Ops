@@ -23,6 +23,20 @@ type Ctx = Context<{ Bindings: Env; Variables: AuthVars }>;
 function needSuper(u: SessionUser, action: string): void {
   if (!isSuper(u)) throw new HttpError(403, 'Akses ditolak: hanya SUPERADMIN yang dapat ' + action + '.', 'FORBIDDEN');
 }
+// PIC CABANG hanya boleh mengubah tanggal pajak tahunan, pajak 5 tahunan, KIR, dan interval ganti oli kendaraan warehouse-nya.
+// Perubahan master lain (tambah/hapus kendaraan, supir, kartu, mutasi kendaraan sementara) lewat SnD Staff (SUPERADMIN).
+const PESAN_SND = ' Hubungi SnD Staff untuk perubahan data master atau mutasi kendaraan sementara.';
+function needSuperMaster(u: SessionUser, action: string): void {
+  if (!isSuper(u)) throw new HttpError(403, 'Akses ditolak: PIC cabang tidak dapat ' + action + '.' + PESAN_SND, 'FORBIDDEN');
+}
+const POLA_TANGGAL = /^\d{4}-\d{2}-\d{2}$/;
+function tanggalOpsional(v: unknown, nama: string): string {
+  const t = String(v ?? '').trim().slice(0, 10);
+  const d = new Date(t + 'T00:00:00Z');
+  if (t !== '' && (!POLA_TANGGAL.test(t) || Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== t)) throw new HttpError(400, nama + ' tidak valid (format YYYY-MM-DD).', 'BAD_REQUEST');
+  return t;
+}
+
 function needOwn(u: SessionUser, cabang: string | undefined | null): void {
   const cabangUser = String(u.cabang || '');
   if (!cabangUser || String(cabang ?? '') !== cabangUser) {
@@ -122,8 +136,8 @@ export function masterRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   // ── KENDARAAN ────────────────────────────────────────────────────────────
   app.post('/kendaraan', async (c: Ctx) => {
     const u = c.get('user');
+    needSuperMaster(u, 'menambah kendaraan');
     const body = await json(c);
-    if (!isSuper(u)) needOwn(u, (body as any)?.cabang);
     const id = newId('V-');
     const row = await denganCabangBersama(deps, buildVehicleInsert(body, id), body);
     await deps.master.insertKendaraan(row);
@@ -139,8 +153,25 @@ export function masterRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const target = await deps.master.findKendaraanById(editId);
     if (!target) throw new HttpError(404, 'Kendaraan tidak ditemukan', 'NOT_FOUND');
     if (!isSuper(u)) {
+      // PIC: hanya 4 isian (tanggal pajak, pajak 5 tahunan, KIR, interval ganti oli); isian lain pada body diabaikan, nilai server dipertahankan.
       needOwn(u, target.kode_cabang);
-      needOwn(u, (body as any)?.cabang);
+      const b = body as any;
+      const tanggal_pajak = b?.tanggal_pajak !== undefined ? tanggalOpsional(b.tanggal_pajak, 'Jatuh tempo pajak tahunan') : String(target.tanggal_pajak ?? '');
+      const tanggal_pajak_5_tahunan = b?.tanggal_pajak_5_tahunan !== undefined ? tanggalOpsional(b.tanggal_pajak_5_tahunan, 'Jatuh tempo pajak 5 tahunan') : String(target.tanggal_pajak_5_tahunan ?? '');
+      const tanggal_kir = b?.tanggal_kir !== undefined ? tanggalOpsional(b.tanggal_kir, 'Jatuh tempo KIR') : String(target.tanggal_kir ?? '');
+      let interval = Number(target.interval_ganti_oli_km) || 0;
+      if (b?.interval_ganti_oli_km !== undefined) {
+        interval = Number(b.interval_ganti_oli_km);
+        if (!Number.isInteger(interval) || interval < 500 || interval > 100000) throw new HttpError(400, 'Interval ganti oli harus bilangan bulat 500–100000 KM.', 'BAD_REQUEST');
+      }
+      await deps.master.updateKendaraan({ ...target, tanggal_pajak, tanggal_pajak_5_tahunan, tanggal_kir, interval_ganti_oli_km: interval });
+      await audit(c, {
+        action: 'EDIT', modul: 'master', keterangan: 'Kendaraan ' + editId + ' (PIC: pajak/KIR/oli)',
+        data_sebelum: jsonSnip({ tanggal_pajak: target.tanggal_pajak, tanggal_pajak_5_tahunan: target.tanggal_pajak_5_tahunan, tanggal_kir: target.tanggal_kir, interval_ganti_oli_km: target.interval_ganti_oli_km }),
+        data_sesudah: jsonSnip({ tanggal_pajak, tanggal_pajak_5_tahunan, tanggal_kir, interval_ganti_oli_km: interval }),
+      });
+      await bumpMasterRev(deps.kv);
+      return c.json(okPayload({ msg: 'Kendaraan Berhasil Diupdate' }));
     }
     const row = await denganCabangBersama(deps, buildVehicleInsert(body, editId), body);
     await deps.master.updateKendaraan({ ...row, status: target.status });
@@ -157,8 +188,8 @@ export function masterRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const u = c.get('user');
     const vehicleId = c.req.param('vehicleId') ?? '';
     const target = await deps.master.findKendaraanById(vehicleId);
+    needSuperMaster(u, 'menghapus kendaraan');
     if (!target) return c.json(okPayload({ msg: 'Kendaraan tidak ditemukan' }));
-    if (!isSuper(u)) needOwn(u, target.kode_cabang);
     await deps.master.setKendaraanStatus(vehicleId, 'Non-Aktif');
     await audit(c, {
       action: 'DELETE', modul: 'master', keterangan: 'Kendaraan ' + vehicleId,
@@ -191,8 +222,8 @@ export function masterRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   // ── SUPIR ────────────────────────────────────────────────────────────────
   app.post('/supir', async (c: Ctx) => {
     const u = c.get('user');
+    needSuperMaster(u, 'menambah supir');
     const body = await json(c);
-    if (!isSuper(u)) needOwn(u, (body as any)?.cabang);
     const id = newId('DRV-');
     await deps.master.insertSupir({ supir_id: id, nama_supir: String((body as any)?.nama ?? ''), kode_cabang: String((body as any)?.cabang ?? ''), default_vehicle_id: String((body as any)?.default_vehicle_id ?? ''), status: 'Aktif' });
     await audit(c, { action: 'CREATE', modul: 'master', keterangan: 'Supir ' + id, data_sesudah: jsonSnip({ id, nama: (body as any)?.nama, cabang: (body as any)?.cabang }) });
@@ -202,14 +233,11 @@ export function masterRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
   app.put('/supir', async (c: Ctx) => {
     const u = c.get('user');
+    needSuperMaster(u, 'mengubah data supir');
     const body = await json(c);
     const editId = String((body as any)?.edit_id ?? '');
     const target = await deps.master.findSupirById(editId);
     if (!target) throw new HttpError(404, 'Supir tidak ditemukan', 'NOT_FOUND');
-    if (!isSuper(u)) {
-      needOwn(u, target.kode_cabang);
-      needOwn(u, (body as any)?.cabang);
-    }
     await deps.master.updateSupir({ supir_id: editId, nama_supir: String((body as any)?.nama ?? ''), kode_cabang: String((body as any)?.cabang ?? ''), default_vehicle_id: String((body as any)?.default_vehicle_id ?? ''), status: target.status });
     await audit(c, {
       action: 'EDIT', modul: 'master', keterangan: 'Supir ' + editId,
@@ -222,10 +250,10 @@ export function masterRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
   app.delete('/supir/:id', async (c: Ctx) => {
     const u = c.get('user');
+    needSuperMaster(u, 'menghapus supir');
     const id = c.req.param('id') ?? '';
     const target = await deps.master.findSupirById(id);
     if (!target) throw new HttpError(404, 'Supir tidak ditemukan', 'NOT_FOUND');
-    if (!isSuper(u)) needOwn(u, target.kode_cabang);
     await deps.master.setSupirStatus(id, 'Non-Aktif');
     await audit(c, { action: 'DELETE', modul: 'master', keterangan: 'Supir ' + id, data_sebelum: jsonSnip({ nama: target.nama_supir, cabang: target.kode_cabang }) });
     await bumpMasterRev(deps.kv);
