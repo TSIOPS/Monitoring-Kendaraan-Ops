@@ -47,7 +47,7 @@ Banyak kode memakai pola "selain BBM berarti Tol" (`else`), sehingga jenis baru 
 
 ## Pertanyaan terbuka (perlu keputusan sebelum Fase 2)
 1. **Pembanding Kas Kecil.** Pembanding harian membandingkan BBM/Tol tunai aplikasi dengan Kas Kecil. Rencana ini **menyaring** Retribusi/Parkir dari pembanding (tidak mengubah angka yang kini dipakai). Kas Kecil sudah punya jenis pengeluaran "parkir"; bila ingin dibandingkan juga, itu tambahan ±1 file (Fase 4, opsional) dan perlu aturan pemetaan jenis.
-2. Biaya per km / efisiensi: tidak berubah (Retribusi/Parkir bukan biaya BBM). Bila "biaya per km" memang dihitung dari total pengeluaran, beri tahu — Fase 1 Task 6 memeriksa pemakaiannya.
+(Biaya per km tidak ada di aplikasi; efisiensi hanya dari liter BBM sehingga tidak terpengaruh. "Per kendaraan" di Perbandingan memakai total, yang otomatis memuat Retribusi/Parkir.)
 
 ## Risiko
 | Risiko | Mitigasi |
