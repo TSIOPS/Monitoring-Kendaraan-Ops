@@ -14,8 +14,8 @@ describe('versi & rilis', () => {
     expect(perluTampilRilis([{ id: 'r2' }], 'r2')).toBe(false);
     expect(perluTampilRilis([], null)).toBe(false);
   });
-  it('catatan rilis terbaru = aturan selisih ODO antar-hari', () => {
-    expect(RILIS[0]!.id).toBe('2026-11-07-selisih-odo');
+  it('catatan rilis terbaru = Retribusi & Parkir Delivery', () => {
+    expect(RILIS[0]!.id).toBe('2026-11-07-retribusi-parkir');
     expect(RILIS[0]!.poin.length).toBeGreaterThan(0);
   });
 });

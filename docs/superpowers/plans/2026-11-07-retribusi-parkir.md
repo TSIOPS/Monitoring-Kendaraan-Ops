@@ -138,13 +138,13 @@
 ## PENUTUP
 
 ### Task 13: Review, dokumentasi, rilis
-- [ ] `/security-review` (upload foto & input rincian), `/ui-ux-pro-max` (Input/Edit/History/Rekap/Perbandingan: target sentuh ≥ 44px, label/aria, 360px, kolom "Dibayar" nonaktif tetap terbaca), `/code-review:code-review` (>150 baris, skema DB). Perbaiki temuan atau catat alasan di CHANGELOG.
-- [ ] `static/js/rilis.js`: entri `2026-11-07-retribusi-parkir` (≤3 poin: Retribusi & Parkir Delivery di Input Laporan; Retribusi otomatis Rp 10.000; foto opsional) + perbarui id yang dikunci `tests/frontend/versi-helpers.test.ts`.
-- [ ] `README.md`: fitur (rincian 4 jenis), tabel API (`rincian` jenis baru; `files.struk_retribusi/parkir` di `/api/laporan/photos`), tabel SQL tertunda.
-- [ ] `CLAUDE.md`: tambah plan di daftar rencana aktif; pindahkan ke "(selesai)" saat selesai.
-- [ ] `npm test` dan `npm run typecheck` hijau; tempel ringkasan di CHANGELOG.
-- [ ] **Rilis (atas persetujuan pemilik):** jalankan `db/retribusi-parkir.sql` di Supabase → pindahkan ke "Sudah dijalankan" di README → `npx wrangler deploy` → cek `/api/health/versi` dan Input Laporan (Retribusi otomatis 10.000, simpan, lihat di History/Rekap/Perbandingan).
-- [ ] Commit `docs(retribusi-parkir): review, README, dan penutup rencana`, push.
+- [x] `/security-review` (upload foto & input rincian), `/ui-ux-pro-max` (Input/Edit/History/Rekap/Perbandingan: target sentuh ≥ 44px, label/aria, 360px, kolom "Dibayar" nonaktif tetap terbaca), `/code-review:code-review` (>150 baris, skema DB). Perbaiki temuan atau catat alasan di CHANGELOG.
+- [x] `static/js/rilis.js`: entri `2026-11-07-retribusi-parkir` (≤3 poin: Retribusi & Parkir Delivery di Input Laporan; Retribusi otomatis Rp 10.000; foto opsional) + perbarui id yang dikunci `tests/frontend/versi-helpers.test.ts`.
+- [x] `README.md`: fitur (rincian 4 jenis), tabel API (`rincian` jenis baru; `files.struk_retribusi/parkir` di `/api/laporan/photos`), tabel SQL tertunda.
+- [x] `CLAUDE.md`: tambah plan di daftar rencana aktif; pindahkan ke "(selesai)" saat selesai.
+- [x] `npm test` dan `npm run typecheck` hijau; tempel ringkasan di CHANGELOG.
+- [x] **Rilis (atas persetujuan pemilik):** jalankan `db/retribusi-parkir.sql` di Supabase → pindahkan ke "Sudah dijalankan" di README → `npx wrangler deploy` → cek `/api/health/versi` dan Input Laporan (Retribusi otomatis 10.000, simpan, lihat di History/Rekap/Perbandingan).
+- [x] Commit `docs(retribusi-parkir): review, README, dan penutup rencana`, push.
 
 ## Rangkuman ukuran
 14 task, ±20–22 file, ±1.200–1.500 baris termasuk tes. Fase 1 ±8–10 file, Fase 2 ±6, Fase 3 ±1–2. Risiko terbesar: Task 11–12 (percabangan jenis paling banyak di `perbandingan.js`) dan Task 3 (peta slot→kolom foto di PUT).

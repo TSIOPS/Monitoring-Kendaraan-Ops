@@ -1,6 +1,14 @@
 // Catatan "Yang baru" (terbaru di atas). Tambahkan entri saat merilis perubahan yang terlihat pengguna.
 export const RILIS = [
   {
+    id: '2026-11-07-retribusi-parkir',
+    judul: 'Yang baru',
+    poin: [
+      'Input Laporan kini punya pengeluaran Retribusi (otomatis Rp 10.000, bisa diubah) dan Parkir Delivery. Keduanya dibayar tunai, boleh banyak baris, dan foto bukti bersifat opsional.',
+      'Retribusi dan Parkir Delivery ikut tampil di History, Galeri, Rekap Pengeluaran (termasuk Excel), Perbandingan, dan Total pengeluaran bulan ini.',
+    ],
+  },
+  {
     id: '2026-11-07-selisih-odo',
     judul: 'Yang baru',
     poin: [
