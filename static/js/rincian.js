@@ -7,23 +7,40 @@ export const MAKS_NOMINAL = 100000000;
 export const MAKS_KARTU = 64;
 const kanonis = (id) => String(id ?? '').trim().replace(/-/g, '');
 
+// Jenis pengeluaran (spec 2026-11-07): Retribusi & Parkir Delivery selalu tunai dan tidak memakai kartu.
+export const JENIS = [
+  { value: 'BBM', label: 'BBM' },
+  { value: 'TOL', label: 'Tol' },
+  { value: 'RETRIBUSI', label: 'Retribusi' },
+  { value: 'PARKIR', label: 'Parkir Delivery' },
+];
+export const NOMINAL_RETRIBUSI = 10000;
+export const MSG_JENIS = 'jenis harus BBM, Tol, Retribusi, atau Parkir Delivery.';
+export const labelJenis = (j) => JENIS.find((x) => x.value === j)?.label || String(j || '');
+export const jenisTunaiSaja = (j) => j === 'RETRIBUSI' || j === 'PARKIR';
+// Nominal awal baris baru: Retribusi otomatis Rp 10.000 (bisa diubah), jenis lain kosong.
+export const nominalBawaan = (j) => (j === 'RETRIBUSI' ? String(NOMINAL_RETRIBUSI) : '');
+
 // Baris yang nominal & keterangannya kosong dianggap belum diisi dan dibuang.
 export function bersihkanRincian(rows) {
   return (rows || [])
     .filter((r) => String(r.nominal ?? '').trim() !== '' || String(r.keterangan ?? '').trim() !== '')
-    .map((r) => ({ jenis: String(r.jenis || 'BBM').toUpperCase(), nominal: Math.round(Number(r.nominal) || 0), kartu: String(r.kartu || '').trim(), keterangan: String(r.keterangan || '').trim() }));
+    .map((r) => {
+      const jenis = String(r.jenis || 'BBM').toUpperCase();
+      return { jenis, nominal: Math.round(Number(r.nominal) || 0), kartu: jenisTunaiSaja(jenis) ? '' : String(r.kartu || '').trim(), keterangan: String(r.keterangan || '').trim() };
+    });
 }
 
 export function ringkasRincian(items) {
   const perKartu = {};
-  let bbm = 0;
-  let tol = 0;
+  const total = { BBM: 0, TOL: 0, RETRIBUSI: 0, PARKIR: 0 };
   for (const it of items || []) {
     const n = Number(it.nominal) || 0;
-    if (it.jenis === 'BBM') bbm += n; else tol += n;
-    if (it.kartu) perKartu[it.kartu] = (perKartu[it.kartu] || 0) + n;
+    if (it.jenis in total) total[it.jenis] += n;
+    // Retribusi/Parkir tunai: tidak memotong kartu.
+    if (it.kartu && !jenisTunaiSaja(it.jenis)) perKartu[it.kartu] = (perKartu[it.kartu] || 0) + n;
   }
-  return { bbm, tol, perKartu, jumlah: (items || []).length };
+  return { bbm: total.BBM, tol: total.TOL, retribusi: total.RETRIBUSI, parkir: total.PARKIR, perKartu, jumlah: (items || []).length };
 }
 
 export function validasiRincian(items, labelKartu = (id) => id) {
@@ -31,7 +48,7 @@ export function validasiRincian(items, labelKartu = (id) => id) {
   if (list.length > MAKS_BARIS) return [`Rincian pengeluaran maksimal ${MAKS_BARIS} baris.`];
   const err = [];
   list.forEach((it, i) => {
-    if (it.jenis !== 'BBM' && it.jenis !== 'TOL') err.push(`Baris ${i + 1}: jenis harus BBM atau Tol.`);
+    if (!JENIS.some((j) => j.value === it.jenis)) err.push(`Baris ${i + 1}: ${MSG_JENIS}`);
     const nominal = Number(it.nominal);
     if (!Number.isFinite(nominal) || !(nominal > 0)) err.push(`Baris ${i + 1}: nominal harus lebih dari 0.`);
     else if (nominal > MAKS_NOMINAL) err.push(`Baris ${i + 1}: nominal maksimal Rp 100.000.000.`);
@@ -67,12 +84,12 @@ export function tabelRincian({ opsiKartu = [], awal = [], kartuDefault = '', lab
   };
 
   function baris(it = { jenis: 'BBM', nominal: '', kartu: bawaan, keterangan: '' }) {
-    const jenis = el('select', { class: 'form-select', 'aria-label': 'Jenis' }, [el('option', { value: 'BBM', text: 'BBM' }), el('option', { value: 'TOL', text: 'Tol' })]);
-    jenis.value = it.jenis === 'TOL' ? 'TOL' : 'BBM';
+    const jenis = el('select', { class: 'form-select', 'aria-label': 'Jenis' }, JENIS.map((j) => el('option', { value: j.value, text: j.label })));
+    jenis.value = JENIS.some((j) => j.value === it.jenis) ? it.jenis : 'BBM';
     const nominal = el('input', { class: 'form-control', type: 'number', inputmode: 'numeric', min: '1', placeholder: 'Nominal', 'aria-label': 'Nominal (Rp)', value: String(it.nominal ?? '') });
     const bayar = el('select', { class: 'form-select', 'aria-label': 'Dibayar' });
     isiBayar(bayar, it.kartu);
-    const ket = el('input', { class: 'form-control', maxlength: String(MAKS_KETERANGAN), placeholder: 'SPBU / gerbang tol (opsional)', 'aria-label': 'Keterangan', value: String(it.keterangan ?? '') });
+    const ket = el('input', { class: 'form-control', maxlength: String(MAKS_KETERANGAN), placeholder: 'SPBU / gerbang tol / lokasi (opsional)', 'aria-label': 'Keterangan', value: String(it.keterangan ?? '') });
     const hapus = el('button', { type: 'button', class: 'btn btn-outline-danger', title: 'Hapus baris', 'aria-label': 'Hapus baris' }, [el('i', { class: 'bi bi-trash', 'aria-hidden': 'true' })]);
     const r = el('div', { class: 'rincian-baris row g-2 mb-2 align-items-start' }, [
       el('div', { class: 'col-4 col-md-2' }, [jenis]),
@@ -81,8 +98,21 @@ export function tabelRincian({ opsiKartu = [], awal = [], kartuDefault = '', lab
       el('div', { class: 'col-6 col-md-3' }, [ket]),
       el('div', { class: 'col-12 col-md-1 text-end' }, [hapus]),
     ]);
-    r._ambil = () => ({ jenis: jenis.value, nominal: nominal.value, kartu: bayar.value, keterangan: ket.value });
+    // Retribusi/Parkir: selalu Tunai (kolom Dibayar dikunci); kembali ke BBM/Tol memulihkan bawaan kartu.
+    const sesuaikanJenis = (dariUbah) => {
+      const tunai = jenisTunaiSaja(jenis.value);
+      if (tunai) { bayar.value = ''; bayar.disabled = true; bayar.title = 'Retribusi dan parkir dibayar tunai'; } else {
+        const adaKunci = bayar.disabled;
+        bayar.disabled = false; bayar.removeAttribute('title');
+        if (adaKunci) bayar.value = kartu.some((k) => String(k.value) === bawaan) ? bawaan : '';
+      }
+      if (dariUbah && nominal.value.trim() === '') nominal.value = nominalBawaan(jenis.value);
+    };
+    jenis.addEventListener('change', () => sesuaikanJenis(true));
+    sesuaikanJenis(false);
+    r._ambil = () => ({ jenis: jenis.value, nominal: nominal.value, kartu: jenisTunaiSaja(jenis.value) ? '' : bayar.value, keterangan: ket.value });
     r._bayar = bayar;
+    r._tunai = () => jenisTunaiSaja(jenis.value);
     r._kosong = () => nominal.value.trim() === '' && ket.value.trim() === '';
     hapus.addEventListener('click', () => { r.remove(); perbarui(); badan.dispatchEvent(new Event('change', { bubbles: true })); });
     return r;
@@ -94,7 +124,7 @@ export function tabelRincian({ opsiKartu = [], awal = [], kartuDefault = '', lab
     const s = ringkasRincian(ambil());
     const labelKartu = (id) => kartu.find((k) => String(k.value) === id)?.label || id;
     ringkas.replaceChildren(
-      `Total BBM Rp ${fmtNum(s.bbm)} · Total tol Rp ${fmtNum(s.tol)}`,
+      `Total BBM Rp ${fmtNum(s.bbm)} · Total tol Rp ${fmtNum(s.tol)}${s.retribusi ? ` · Retribusi Rp ${fmtNum(s.retribusi)}` : ''}${s.parkir ? ` · Parkir Delivery Rp ${fmtNum(s.parkir)}` : ''}`,
       ...Object.entries(s.perKartu).map(([id, n]) => el('div', { text: `${labelKartu(id)}: terpakai Rp ${fmtNum(n)}` })),
     );
     tambah.disabled = semuaBaris().length >= MAKS_BARIS;
@@ -116,7 +146,10 @@ export function tabelRincian({ opsiKartu = [], awal = [], kartuDefault = '', lab
     setKartu(list, kartuDefault) {
       kartu = list;
       if (kartuDefault !== undefined) bawaan = String(kartuDefault || '');
-      for (const r of semuaBaris()) isiBayar(r._bayar, kartuDefault !== undefined && r._kosong() ? bawaan : r._bayar.value);
+      for (const r of semuaBaris()) {
+        if (r._tunai()) continue; // Retribusi/Parkir tetap Tunai
+        isiBayar(r._bayar, kartuDefault !== undefined && r._kosong() ? bawaan : r._bayar.value);
+      }
       perbarui();
     },
   };

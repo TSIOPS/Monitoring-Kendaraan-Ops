@@ -72,13 +72,13 @@
 - [x] `npm test && npm run typecheck`, CHANGELOG, commit `feat(laporan): total retribusi/parkir di history dan ringkasan bulanan`.
 
 ### Task 5: Helper tabel rincian di frontend (`static/js/rincian.js`)
-- [ ] **Tes gagal** (`tests/frontend/rincian-helpers.test.ts`):
+- [x] **Tes gagal** (`tests/frontend/rincian-helpers.test.ts`):
   - `bersihkanRincian` mempertahankan jenis baru dan memaksa `kartu: ''` untuk Retribusi/Parkir.
   - `validasiRincian` menerima 4 jenis; pesan jenis tidak valid sama dengan server; batas "2 cara bayar" hanya untuk BBM/Tol.
   - `ringkasRincian` mengembalikan `{ bbm, tol, retribusi, parkir, perKartu, jumlah }` dan Retribusi/Parkir **tidak** masuk `perKartu`.
   - `nominalBawaan('RETRIBUSI') === 10000`, lainnya `''`.
-- [ ] **Implementasi:** konstanta `JENIS` (`value`, `label`: BBM, Tol, Retribusi, Parkir Delivery), `NOMINAL_RETRIBUSI = 10000`; `baris()` memakai 4 opsi; saat jenis diubah ke Retribusi dan nominal kosong → isi 10.000; saat jenis Retribusi/Parkir kolom Dibayar di-set "Tunai" + `disabled` (nilai tetap `''`); ringkasan menampilkan Retribusi/Parkir hanya bila > 0. Baris default tetap BBM.
-- [ ] `npm test && npm run typecheck`, CHANGELOG (UX), commit `feat(ui): tabel rincian mendukung retribusi dan parkir delivery`.
+- [x] **Implementasi:** konstanta `JENIS` (`value`, `label`: BBM, Tol, Retribusi, Parkir Delivery), `NOMINAL_RETRIBUSI = 10000`; `baris()` memakai 4 opsi; saat jenis diubah ke Retribusi dan nominal kosong → isi 10.000; saat jenis Retribusi/Parkir kolom Dibayar di-set "Tunai" + `disabled` (nilai tetap `''`); ringkasan menampilkan Retribusi/Parkir hanya bila > 0. Baris default tetap BBM.
+- [x] `npm test && npm run typecheck`, CHANGELOG (UX), commit `feat(ui): tabel rincian mendukung retribusi dan parkir delivery`.
 
 ### Task 6: Input Laporan (`static/js/pages/input.js`)
 - [ ] **Tes gagal** (`tests/frontend/input-helpers.test.ts`): payload `rincian` memuat jenis baru; validasi **tidak** meminta foto untuk Retribusi/Parkir; laporan hanya-Retribusi lolos validasi (tanpa struk BBM/tol).
