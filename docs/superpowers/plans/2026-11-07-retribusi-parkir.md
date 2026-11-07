@@ -32,15 +32,15 @@
 ## FASE 1 — Data, Input/Edit, History
 
 ### Task 1: Kolom foto di database
-- [ ] **Tes gagal** (`tests/schema.test.ts`): `db/schema.sql` dan `db/retribusi-parkir.sql` memuat `foto_struk_retribusi` dan `foto_struk_parkir` (`text not null default ''`); file migrasi idempoten (`add column if not exists`).
-- [ ] **Implementasi:** `db/retribusi-parkir.sql`:
+- [x] **Tes gagal** (`tests/schema.test.ts`): `db/schema.sql` dan `db/retribusi-parkir.sql` memuat `foto_struk_retribusi` dan `foto_struk_parkir` (`text not null default ''`); file migrasi idempoten (`add column if not exists`).
+- [x] **Implementasi:** `db/retribusi-parkir.sql`:
   ```sql
   alter table penggunaan_bbm add column if not exists foto_struk_retribusi text not null default '';
   alter table penggunaan_bbm add column if not exists foto_struk_parkir text not null default '';
   ```
   Tambahkan kolom yang sama di blok `penggunaan_bbm` pada `db/schema.sql` (setelah `foto_struk_toll`); perbarui komentar `rincian` (`BBM|TOL|RETRIBUSI|PARKIR`).
-- [ ] Tambahkan file ke tabel "SQL migrasi tertunda" di `README.md` (aturan CLAUDE.md §2.4).
-- [ ] `npm test && npm run typecheck`, CHANGELOG (Fitur), commit `feat(db): kolom foto bukti retribusi dan parkir`.
+- [x] Tambahkan file ke tabel "SQL migrasi tertunda" di `README.md` (aturan CLAUDE.md §2.4).
+- [x] `npm test && npm run typecheck`, CHANGELOG (Fitur), commit `feat(db): kolom foto bukti retribusi dan parkir`.
 
 ### Task 2: Logika murni rincian (`src/logic/rincian.ts`)
 - [ ] **Tes gagal** (`tests/logic/rincian.test.ts`):

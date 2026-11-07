@@ -29,7 +29,7 @@ Supabase, session & rate-limit di Cloudflare KV, foto di Supabase Storage.
 ### SQL migrasi tertunda
 | File | Untuk fitur | Status |
 |---|---|---|
-| _(tidak ada)_ | | |
+| `db/retribusi-parkir.sql` (kolom `penggunaan_bbm.foto_struk_retribusi`, `foto_struk_parkir`) | Retribusi & Parkir Delivery di Input Laporan — jalankan **sebelum** deploy | Belum dijalankan |
 
 ### Sudah dijalankan di production
 | File | Tanggal |

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import schemaSql from '../db/schema.sql?raw';
 import kasKecilSql from '../db/kas-kecil.sql?raw';
+import retribusiParkirSql from '../db/retribusi-parkir.sql?raw';
 
 const sql = schemaSql;
 
@@ -32,6 +33,13 @@ const REQUIRED_TABLES = [
 describe('db/schema.sql', () => {
   it('penggunaan_bbm punya kolom rincian jsonb', () => {
     expect(sql).toMatch(/alter table penggunaan_bbm add column if not exists rincian jsonb not null default '\[\]'::jsonb;/i);
+  });
+  it('penggunaan_bbm punya kolom foto bukti retribusi & parkir (schema + migrasi idempoten)', () => {
+    for (const kolom of ['foto_struk_retribusi', 'foto_struk_parkir']) {
+      const pola = new RegExp(`alter table penggunaan_bbm add column if not exists ${kolom} text not null default '';`, 'i');
+      expect(sql, `schema.sql ${kolom}`).toMatch(pola);
+      expect(retribusiParkirSql, `migrasi ${kolom}`).toMatch(pola);
+    }
   });
   it('mendefinisikan semua tabel yang dibutuhkan', () => {
     for (const t of REQUIRED_TABLES) {
