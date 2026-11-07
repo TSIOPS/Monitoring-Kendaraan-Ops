@@ -1242,4 +1242,6 @@ CSS (file yang berisi `.banner-tugas`):
 
 > Catatan: review gabungan (security + code + UI) oleh subagent; temuan B1/B2/B3/C1/A1/A2/C2/B7/C6/B4 diperbaiki, sisanya ditunda (lihat CHANGELOG). Step 4: README (fitur + kolom API `rincian`) dan bagian "Penyimpangan saat implementasi" di spec. Step 5: `npm test` 61 file / 672 tes lulus, `npm run typecheck` tanpa galat.
 
-- [ ] **Step 7 (rilis, di komputer kantor):** jalankan `db/rincian-pengeluaran.sql` di Supabase → pindahkan barisnya ke "Sudah dijalankan" di README → `npm run deploy`.
+- [x] **Step 7 (rilis, di komputer kantor):** jalankan `db/rincian-pengeluaran.sql` di Supabase → pindahkan barisnya ke "Sudah dijalankan" di README → `npm run deploy`.
+
+> Step 7 selesai: SQL dijalankan 2026-10-21 (tercatat di README "Sudah dijalankan"), fitur sudah dipakai di production (rincian per nota terbaca pada laporan 2026-11).
