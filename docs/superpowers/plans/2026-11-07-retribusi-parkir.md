@@ -109,10 +109,10 @@
 - [x] `npm test && npm run typecheck`, CHANGELOG, commit `feat(rekap): baris retribusi/parkir dan pembanding kas kecil`.
 
 ### Task 9b: Tampilan & Excel pembanding Kas Kecil (`static/js/pages/kaskecil.js`, `static/js/kaskecil-helpers.js`)
-- [ ] **Tes gagal** (`tests/frontend/kaskecil-helpers.test.ts`): Excel pembanding memuat kolom Retribusi dan Parkir (app, kas, selisih) dengan baris TOTAL yang menjumlahkannya; jumlah kolom header = jumlah sel tiap baris; angka nol tampil "-" (aturan proyek).
-- [ ] **Implementasi:** tabel pembanding (~700–708) + dua kelompok kolom (Retribusi, Parkir); `sel()` dipakai ulang; Excel (~109–110) ditambah kolom yang sama. Label status "Cocok/Selisih" mengikuti `cocok` baru.
-- [ ] Verifikasi manual (dev/demo-lokal): satu laporan dengan Retribusi 10.000 + kas keluar "Biaya Retribusi" 10.000 pada tanggal sama → Cocok; ubah salah satu → Selisih.
-- [ ] `npm test && npm run typecheck`, CHANGELOG, commit `feat(kas-kecil): retribusi dan parkir delivery di pembanding harian`. Catatan: Kas Kecil masih tahap uji (hanya SUPERADMIN) — tidak membuka ke PIC.
+- [x] **Tes gagal** (`tests/frontend/kaskecil-helpers.test.ts`): Excel pembanding memuat kolom Retribusi dan Parkir (app, kas, selisih) dengan baris TOTAL yang menjumlahkannya; jumlah kolom header = jumlah sel tiap baris; angka nol tampil "-" (aturan proyek).
+- [x] **Implementasi:** tabel pembanding (~700–708) + dua kelompok kolom (Retribusi, Parkir); `sel()` dipakai ulang; Excel (~109–110) ditambah kolom yang sama. Label status "Cocok/Selisih" mengikuti `cocok` baru.
+- [x] Verifikasi manual (dev/demo-lokal): satu laporan dengan Retribusi 10.000 + kas keluar "Biaya Retribusi" 10.000 pada tanggal sama → Cocok; ubah salah satu → Selisih.
+- [x] `npm test && npm run typecheck`, CHANGELOG, commit `feat(kas-kecil): retribusi dan parkir delivery di pembanding harian`. Catatan: Kas Kecil masih tahap uji (hanya SUPERADMIN) — tidak membuka ke PIC.
 
 ### Task 10: Rekap frontend + Excel (`static/js/pages/rekap.js`)
 - [ ] **Tes gagal** (`tests/frontend/rekap-helpers.test.ts`): `kosongTotal`/`tambahkan` memiliki `retribusi` dan `parkir`; `totalTunai` ikut bertambah; ringkasan & sheet Excel memuat dua baris/kolom baru; label baris detail "Retribusi"/"Parkir Delivery"; filter jenis menerima 4 nilai.

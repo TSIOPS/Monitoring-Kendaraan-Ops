@@ -96,8 +96,13 @@ export function sheetSummary(summary, { warehouse = '', bulan = '' } = {}) {
   }];
 }
 
+const NOL_BANDING = { app: 0, kas: 0, selisih: 0 };
+
 export function sheetPembanding(baris, { warehouse = '', bulan = '' } = {}) {
   const jumlah = (f) => baris.reduce((n, b) => n + f(b), 0);
+  // Respons lama tanpa pasangan retribusi/parkir dianggap nol.
+  const ret = (b) => b.retribusi || NOL_BANDING;
+  const par = (b) => b.parkir || NOL_BANDING;
   return [{
     nama: 'Pembanding',
     aoa: [
@@ -105,12 +110,12 @@ export function sheetPembanding(baris, { warehouse = '', bulan = '' } = {}) {
       ['Warehouse', warehouse],
       ['Bulan', namaBulan(bulan)],
       [],
-      ['Tanggal', 'BBM Tunai Aplikasi', 'Bensin Delivery Kas', 'Selisih BBM', 'Top Up Flazz Aplikasi', 'Pengisian ETOLL Kas', 'Selisih Top Up', 'Tol Tunai Aplikasi', 'Uang Muka Delivery Kas', 'Selisih Tol', 'Keterangan'],
-      ...baris.map((b) => [tglId(b.tanggal), b.bbm.app, b.bbm.kas, b.bbm.selisih, b.topup.app, b.topupFinance ? 'Via Finance' : b.topup.kas, b.topupFinance ? '-' : b.topup.selisih, b.tol.app, b.tol.kas, b.tol.selisih, b.cocok ? 'Cocok' : 'Selisih']),
-      ['TOTAL', jumlah((b) => b.bbm.app), jumlah((b) => b.bbm.kas), jumlah((b) => b.bbm.selisih), jumlah((b) => b.topup.app), jumlah((b) => (b.topupFinance ? 0 : b.topup.kas)), jumlah((b) => (b.topupFinance ? 0 : b.topup.selisih)), jumlah((b) => b.tol.app), jumlah((b) => b.tol.kas), jumlah((b) => b.tol.selisih), ''],
+      ['Tanggal', 'BBM Tunai Aplikasi', 'Bensin Delivery Kas', 'Selisih BBM', 'Top Up Flazz Aplikasi', 'Pengisian ETOLL Kas', 'Selisih Top Up', 'Tol Tunai Aplikasi', 'Uang Muka Delivery Kas', 'Selisih Tol', 'Retribusi Aplikasi', 'Retribusi Kas', 'Selisih Retribusi', 'Parkir Delivery Aplikasi', 'Parkir Delivery Kas', 'Selisih Parkir', 'Keterangan'],
+      ...baris.map((b) => [tglId(b.tanggal), b.bbm.app, b.bbm.kas, b.bbm.selisih, b.topup.app, b.topupFinance ? 'Via Finance' : b.topup.kas, b.topupFinance ? '-' : b.topup.selisih, b.tol.app, b.tol.kas, b.tol.selisih, ret(b).app, ret(b).kas, ret(b).selisih, par(b).app, par(b).kas, par(b).selisih, b.cocok ? 'Cocok' : 'Selisih']),
+      ['TOTAL', jumlah((b) => b.bbm.app), jumlah((b) => b.bbm.kas), jumlah((b) => b.bbm.selisih), jumlah((b) => b.topup.app), jumlah((b) => (b.topupFinance ? 0 : b.topup.kas)), jumlah((b) => (b.topupFinance ? 0 : b.topup.selisih)), jumlah((b) => b.tol.app), jumlah((b) => b.tol.kas), jumlah((b) => b.tol.selisih), jumlah((b) => ret(b).app), jumlah((b) => ret(b).kas), jumlah((b) => ret(b).selisih), jumlah((b) => par(b).app), jumlah((b) => par(b).kas), jumlah((b) => par(b).selisih), ''],
     ],
     stripNol: true,
-    angka: { baris: baris.map((_, i) => i + 5).concat([5 + baris.length]), kolom: [1, 2, 3, 4, 5, 6, 7, 8, 9] },
+    angka: { baris: baris.map((_, i) => i + 5).concat([5 + baris.length]), kolom: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
   }];
 }
 

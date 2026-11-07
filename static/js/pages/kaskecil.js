@@ -697,15 +697,16 @@ export function renderKasPembanding(view) {
     aktif: '#/kaskecil/pembanding', judul: 'Kas Kecil — Pembanding dengan Aplikasi', endpoint: '/api/kaskecil/pembanding', kunci: 'baris', sheet: sheetPembanding,
     gambar: (baris) => {
       if (!baris.length) return el('div', { class: 'text-center text-muted py-4', text: 'Belum ada data pada bulan ini.' });
-      const sel = (p) => [el('td', { class: 'text-end', text: angka(p.app) }), el('td', { class: 'text-end', text: angka(p.kas) }), el('td', { class: `text-end ${p.selisih ? 'kas-selisih' : 'kas-cocok'}`, text: p.selisih ? angka(p.selisih) : '0' })];
+      const NOL = { app: 0, kas: 0, selisih: 0 };
+      const sel = (p = NOL) => [el('td', { class: 'text-end', text: angka(p.app) }), el('td', { class: 'text-end', text: angka(p.kas) }), el('td', { class: `text-end ${p.selisih ? 'kas-selisih' : 'kas-cocok'}`, text: p.selisih ? angka(p.selisih) : '0' })];
       return el('div', {}, [
-        el('div', { class: 'small text-muted mb-2', text: 'Selisih = aplikasi − kas kecil. BBM tunai ↔ Bensin Delivery; Top Up Flazz ↔ Pengisian ETOLL (WHP Bandung, WHO Bandung, WHO Cibaduyut: top up dibayar langsung Finance, tidak dibandingkan); Tol tunai ↔ Uang Muka Delivery (indikatif).' }),
+        el('div', { class: 'small text-muted mb-2', text: 'Selisih = aplikasi − kas kecil. BBM tunai ↔ Bensin Delivery; Top Up Flazz ↔ Pengisian ETOLL (WHP Bandung, WHO Bandung, WHO Cibaduyut: top up dibayar langsung Finance, tidak dibandingkan); Tol tunai ↔ Uang Muka Delivery (indikatif); Retribusi ↔ Biaya Retribusi; Parkir Delivery ↔ Biaya Parkir Untuk Delivery (Biaya Parkir ke Bank tidak dihitung).' }),
         el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm table-hover align-middle' }, [
           el('thead', { class: 'thead-hijau' }, [
-            el('tr', {}, [el('th', { rowspan: '2', text: 'Tanggal' }), el('th', { colspan: '3', class: 'text-center', text: 'BBM Tunai' }), el('th', { colspan: '3', class: 'text-center', text: 'Top Up Flazz' }), el('th', { colspan: '3', class: 'text-center', text: 'Tol Tunai' }), el('th', { rowspan: '2', text: 'Status' })]),
-            el('tr', {}, ['Aplikasi', 'Kas', 'Selisih', 'Aplikasi', 'Kas', 'Selisih', 'Aplikasi', 'Kas', 'Selisih'].map((x) => el('th', { class: 'text-end', text: x }))),
+            el('tr', {}, [el('th', { rowspan: '2', text: 'Tanggal' }), el('th', { colspan: '3', class: 'text-center', text: 'BBM Tunai' }), el('th', { colspan: '3', class: 'text-center', text: 'Top Up Flazz' }), el('th', { colspan: '3', class: 'text-center', text: 'Tol Tunai' }), el('th', { colspan: '3', class: 'text-center', text: 'Retribusi' }), el('th', { colspan: '3', class: 'text-center', text: 'Parkir Delivery' }), el('th', { rowspan: '2', text: 'Status' })]),
+            el('tr', {}, ['Aplikasi', 'Kas', 'Selisih', 'Aplikasi', 'Kas', 'Selisih', 'Aplikasi', 'Kas', 'Selisih', 'Aplikasi', 'Kas', 'Selisih', 'Aplikasi', 'Kas', 'Selisih'].map((x) => el('th', { class: 'text-end', text: x }))),
           ]),
-          el('tbody', {}, baris.map((b) => el('tr', {}, [el('td', { class: 'text-nowrap', text: tglId(b.tanggal) }), ...sel(b.bbm), ...(b.topupFinance ? [el('td', { class: 'text-end', text: angka(b.topup.app) }), el('td', { class: 'text-end text-muted', colspan: '2', text: 'Via Finance' })] : sel(b.topup)), ...sel(b.tol), el('td', {}, [el('span', { class: b.cocok ? 'kas-cocok' : 'kas-selisih', text: b.cocok ? 'Cocok' : 'Selisih' })])]))),
+          el('tbody', {}, baris.map((b) => el('tr', {}, [el('td', { class: 'text-nowrap', text: tglId(b.tanggal) }), ...sel(b.bbm), ...(b.topupFinance ? [el('td', { class: 'text-end', text: angka(b.topup.app) }), el('td', { class: 'text-end text-muted', colspan: '2', text: 'Via Finance' })] : sel(b.topup)), ...sel(b.tol), ...sel(b.retribusi), ...sel(b.parkir), el('td', {}, [el('span', { class: b.cocok ? 'kas-cocok' : 'kas-selisih', text: b.cocok ? 'Cocok' : 'Selisih' })])]))),
         ])]),
       ]);
     },

@@ -45,6 +45,34 @@ describe('helper kas kecil (frontend)', () => {
   });
 });
 
+describe('Excel pembanding: Retribusi & Parkir Delivery', () => {
+  const P = (app: number, kas: number) => ({ app, kas, selisih: app - kas });
+  const baris = [
+    { tanggal: '2026-10-01', bbm: P(100, 100), topup: P(0, 0), tol: P(20, 20), retribusi: P(10000, 10000), parkir: P(5000, 8000), cocok: false, topupFinance: false },
+    { tanggal: '2026-10-02', bbm: P(0, 0), topup: P(0, 0), tol: P(0, 0), retribusi: P(0, 10000), parkir: P(0, 0), cocok: false, topupFinance: false },
+  ];
+  it('kolom Retribusi & Parkir (aplikasi, kas, selisih) ada, jumlah kolom konsisten, TOTAL menjumlahkan', () => {
+    const [s] = sheetPembanding(baris, { warehouse: 'WHO KARAWANG', bulan: '2026-10' });
+    const header = s!.aoa[4]!;
+    expect(header).toEqual(expect.arrayContaining(['Retribusi Aplikasi', 'Retribusi Kas', 'Selisih Retribusi', 'Parkir Delivery Aplikasi', 'Parkir Delivery Kas', 'Selisih Parkir']));
+    for (const b of s!.aoa.slice(5)) expect(b.length).toBe(header.length);
+    const kolom = (b: unknown[], n: string) => b[header.indexOf(n)];
+    expect(kolom(s!.aoa[5]!, 'Retribusi Aplikasi')).toBe(10000);
+    expect(kolom(s!.aoa[5]!, 'Selisih Parkir')).toBe(-3000);
+    const total = s!.aoa.at(-1)!;
+    expect(kolom(total, 'Retribusi Kas')).toBe(20000);
+    expect(kolom(total, 'Selisih Retribusi')).toBe(-10000);
+    expect(kolom(total, 'Parkir Delivery Kas')).toBe(8000);
+    // Semua kolom angka (selain tanggal & keterangan) terdaftar untuk format angka.
+    expect(s!.angka.kolom).toEqual(Array.from({ length: header.length - 2 }, (_, i) => i + 1));
+  });
+  it('respons lama tanpa pasangan retribusi/parkir dianggap nol (tidak error)', () => {
+    const lama = [{ tanggal: '2026-10-01', bbm: P(1, 1), topup: P(0, 0), tol: P(0, 0), cocok: true, topupFinance: false }];
+    const [s] = sheetPembanding(lama, { bulan: '2026-10' });
+    expect(s!.aoa.at(-1)![0]).toBe('TOTAL');
+  });
+});
+
 describe('Excel daftar kas keluar & kas masuk', () => {
   const kk = (o: Record<string, unknown>) => ({ id: 'KK-1', tanggal: '2026-10-02', jam: '10:00:00', no_referensi: 'BO-1', no_kas_masuk: '', penerima: 'Agus', admin: 'Gin', kode_akun: '6101-103', jenis: 'Uang Muka', pecahan: { '50000': 2 }, jumlah: 100000, keterangan: 'x', status: 'Open', ...o });
   const km = (o: Record<string, unknown>) => ({ id: 'KM-1', tanggal: '2026-10-02', jam: '16:00:00', no_kas_keluar: 'KK-2', no_referensi: 'BO-2', penerima: 'Budi', admin: 'Gin', kode_akun: '6101-103', jenis: 'Uang Muka', pecahan: {}, jumlah: 40000, keterangan: '', ...o });
