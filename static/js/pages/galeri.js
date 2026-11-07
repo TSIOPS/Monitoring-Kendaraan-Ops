@@ -9,19 +9,23 @@ const JENIS = [
   { value: 'odo_akhir', label: 'KM Akhir' },
   { value: 'struk_bbm', label: 'Struk BBM' },
   { value: 'struk_toll', label: 'Struk Tol' },
+  { value: 'struk_retribusi', label: 'Bukti Retribusi' },
+  { value: 'struk_parkir', label: 'Bukti Parkir Delivery' },
 ];
 const SLOT = [
   { jenis: 'odo_awal', label: 'KM Awal', rasio: '4/3' },
   { jenis: 'odo_akhir', label: 'KM Akhir', rasio: '4/3' },
   { jenis: 'struk_bbm', label: 'Struk BBM', rasio: '3/4' },
   { jenis: 'struk_toll', label: 'Struk Tol', rasio: '3/4' },
+  { jenis: 'struk_retribusi', label: 'Bukti Retribusi', rasio: '3/4' },
+  { jenis: 'struk_parkir', label: 'Bukti Parkir', rasio: '3/4' },
 ];
 
 // Transaksi yang punya foto sesuai jenis terpilih (renderGalleryPage GAS).
 export function saringGaleri(rows, jenis) {
   return (rows || []).filter((r) => (jenis && jenis !== 'all'
     ? Boolean(r[`foto_${jenis}`])
-    : Boolean(r.foto_odo_awal || r.foto_odo_akhir || r.foto_struk_bbm || r.foto_struk_toll)));
+    : Boolean(r.foto_odo_awal || r.foto_odo_akhir || r.foto_struk_bbm || r.foto_struk_toll || r.foto_struk_retribusi || r.foto_struk_parkir)));
 }
 
 export function halaman(list, nomor, per = GALERI_PER_HALAMAN) {

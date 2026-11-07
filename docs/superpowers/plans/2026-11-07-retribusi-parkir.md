@@ -91,9 +91,9 @@
 - [x] `npm test && npm run typecheck`, CHANGELOG, commit `feat(edit): edit retribusi dan parkir delivery`.
 
 ### Task 8: History frontend (`static/js/pages/transaksi.js`)
-- [ ] **Tes gagal** (`tests/frontend/transaksi-helpers.test.ts`): `teksBarisRincian` memberi label "Retribusi"/"Parkir Delivery" dan "Tunai"; ringkasan bulanan menjumlah `total_retribusi`, `total_parkir`, `total_pengeluaran` (nilai `undefined` dari cache lama dianggap 0).
-- [ ] **Implementasi:** label jenis (hapus ternary `TOL ? 'Tol' : 'BBM'`), foto bukti baru di galeri laporan, kartu ringkasan bulanan.
-- [ ] `npm test && npm run typecheck`, CHANGELOG, commit `feat(history): tampilkan retribusi dan parkir delivery`.
+- [x] **Tes gagal** (`tests/frontend/transaksi-helpers.test.ts`): `teksBarisRincian` memberi label "Retribusi"/"Parkir Delivery" dan "Tunai"; ringkasan bulanan menjumlah `total_retribusi`, `total_parkir`, `total_pengeluaran` (nilai `undefined` dari cache lama dianggap 0).
+- [x] **Implementasi:** label jenis (hapus ternary `TOL ? 'Tol' : 'BBM'`), foto bukti baru di galeri laporan, kartu ringkasan bulanan.
+- [x] `npm test && npm run typecheck`, CHANGELOG, commit `feat(history): tampilkan retribusi dan parkir delivery`.
 
 > **Titik rilis opsional setelah Fase 1:** jalankan SQL → deploy. Rekap/Perbandingan belum memuat jenis baru (lihat Fase 2–3); lebih baik rilis Fase 1+2 bersama.
 

@@ -2,6 +2,7 @@ import { get, del } from '../api.js';
 import { getUser } from '../store.js';
 import { bolehTulis, lihatSemuaCabang } from '../peran.js';
 import { el, fmtNum, fmtDateId, toast, spinner, confirmDialog, halaman, navHalaman, idUntukLabel } from '../ui.js';
+import { labelJenis } from '../rincian.js';
 
 const PER_HALAMAN = 10;
 let halamanAktif = 1;
@@ -61,22 +62,34 @@ function selKolom(nilai, kelas = '') {
   return el('td', { class: kelas, text: nilai });
 }
 
-function panelStatistik(monthly) {
-  const total = monthly.reduce(
+// Jumlah ringkasan bulanan semua cabang. Field baru (retribusi/parkir/pengeluaran) bisa belum ada pada
+// respons lama: dianggap 0, dan total pengeluaran dihitung dari komponen bila tidak dikirim.
+export function totalBulan(monthly) {
+  const t = (monthly || []).reduce(
     (acc, m) => ({
       transaksi: acc.transaksi + Number(m.total_transaksi || 0),
       liter: acc.liter + Number(m.total_liter || 0),
       bbm: acc.bbm + Number(m.total_biaya_bbm || 0),
       tol: acc.tol + Number(m.total_toll || 0),
+      retribusi: acc.retribusi + Number(m.total_retribusi || 0),
+      parkir: acc.parkir + Number(m.total_parkir || 0),
     }),
-    { transaksi: 0, liter: 0, bbm: 0, tol: 0 },
+    { transaksi: 0, liter: 0, bbm: 0, tol: 0, retribusi: 0, parkir: 0 },
   );
+  return { ...t, pengeluaran: t.bbm + t.tol + t.retribusi + t.parkir };
+}
+
+function panelStatistik(monthly) {
+  const total = totalBulan(monthly);
 
   const kartu = [
     { label: 'Transaksi bulan ini', value: fmtNum(total.transaksi) },
     { label: 'Total liter', value: fmtNum(total.liter) },
     { label: 'Biaya BBM', value: fmtNum(total.bbm) },
     { label: 'Biaya tol', value: fmtNum(total.tol) },
+    { label: 'Retribusi', value: fmtNum(total.retribusi) },
+    { label: 'Parkir Delivery', value: fmtNum(total.parkir) },
+    { label: 'Total pengeluaran', value: fmtNum(total.pengeluaran) },
   ];
 
   return el('div', { class: 'panel' }, [
@@ -143,7 +156,7 @@ export function selisihOdo(row) {
 }
 
 export function teksBarisRincian(it, labelKartu = (id) => id) {
-  return [it.jenis === 'TOL' ? 'Tol' : 'BBM', `Rp ${fmtNum(it.nominal)}`, it.kartu ? labelKartu(it.kartu) : 'Tunai', it.keterangan].filter(Boolean).join(' · ');
+  return [labelJenis(it.jenis), `Rp ${fmtNum(it.nominal)}`, it.kartu ? labelKartu(it.kartu) : 'Tunai', it.keterangan].filter(Boolean).join(' · ');
 }
 
 function rincianRingkas(r) {

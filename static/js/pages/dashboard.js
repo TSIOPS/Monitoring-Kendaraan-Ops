@@ -53,7 +53,7 @@ export function ringkasKartu(cards, topups) {
 }
 
 export function fotoPertama(r) {
-  const urutan = [['foto_odo_awal', 'foto_odo_awal_thumb'], ['foto_odo_akhir', 'foto_odo_akhir_thumb'], ['foto_struk_bbm', 'foto_struk_bbm_thumb'], ['foto_struk_toll', 'foto_struk_toll_thumb']];
+  const urutan = [['foto_odo_awal', 'foto_odo_awal_thumb'], ['foto_odo_akhir', 'foto_odo_akhir_thumb'], ['foto_struk_bbm', 'foto_struk_bbm_thumb'], ['foto_struk_toll', 'foto_struk_toll_thumb'], ['foto_struk_retribusi', 'foto_struk_retribusi_thumb'], ['foto_struk_parkir', 'foto_struk_parkir_thumb']];
   for (const [url, thumb] of urutan) if (r[url]) return { url: r[url], thumb: r[thumb] || r[url] };
   return null;
 }
