@@ -27,7 +27,8 @@ export function performaCacheKey(rev: string, role: string, cabang: string): str
 }
 
 export function monthlyCacheKey(rev: string, role: string, cabang: string): string {
-  return `monthly:${rev}:${role || ''}:${cabang || ''}`;
+  // monthly2: ringkasan bulanan memuat total retribusi/parkir/pengeluaran (cache lama tidak terpakai).
+  return `monthly2:${rev}:${role || ''}:${cabang || ''}`;
 }
 
 export function warningsCacheKey(rev: string, role: string, cabang: string): string {

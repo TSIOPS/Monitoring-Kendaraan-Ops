@@ -325,7 +325,10 @@ describe('GET /api/dashboard', () => {
     expect(body.monthly).toEqual([{
       cabang: 'CBG-A', periode: PERIODE, total_transaksi: 2,
       total_liter: 30, total_biaya_bbm: 300000, total_toll: 5000,
+      total_retribusi: 0, total_parkir: 0, total_pengeluaran: 305000,
     }]);
+    // Kunci cache bulanan versi baru (data lama tanpa total retribusi/parkir tidak terpakai).
+    expect(monthlyCacheKey('r1', 'PIC CABANG', 'CBG-A')).toMatch(/^monthly2:/);
   });
 
   it('PIC hanya melihat transaksi cabangnya', async () => {

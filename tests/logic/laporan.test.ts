@@ -252,6 +252,21 @@ describe('buildRecentList', () => {
     expect(a!.rincian_lama).toBe(true);
   });
 
+  it('menyertakan total Retribusi/Parkir dan foto bukti (+thumb); laporan lama = 0/kosong', () => {
+    const rincian = [
+      { jenis: 'BBM' as const, nominal: 50000, kartu: '', keterangan: '' },
+      { jenis: 'RETRIBUSI' as const, nominal: 10000, kartu: '', keterangan: '' },
+      { jenis: 'PARKIR' as const, nominal: 5000, kartu: '', keterangan: '' },
+      { jenis: 'PARKIR' as const, nominal: 3000, kartu: '', keterangan: '' },
+    ];
+    const foto = 'https://x.supabase.co/storage/v1/object/public/foto/CBG/Struk_Retribusi/r.jpg';
+    const [a] = buildRecentList([row({ biaya_bbm: 50000, rincian, foto_struk_retribusi: foto, foto_struk_parkir: '' })], new Map(), new Map(), new Map());
+    expect(a).toMatchObject({ total_retribusi: 10000, total_parkir: 8000, foto_struk_retribusi: foto, foto_struk_parkir: '' });
+    expect(a!.foto_struk_retribusi_thumb).toBe(supabaseThumb(foto));
+    const [lama] = buildRecentList([row({ biaya_bbm: 50000 })], new Map(), new Map(), new Map());
+    expect(lama).toMatchObject({ total_retribusi: 0, total_parkir: 0, foto_struk_retribusi: '', foto_struk_parkir: '', foto_struk_retribusi_thumb: '', foto_struk_parkir_thumb: '' });
+  });
+
   const kmap = new Map([['V-1', { kapasitas: 50, jumlah_bar: 8, standar: 10 }]]);
   const cmap = new Map([['CBG-A', 'Cabang A']]);
   const cards = new Map([['FLZ1', 'FLZ-1']]);
@@ -309,6 +324,18 @@ describe('groupMonthly', () => {
     expect(out.map((m) => m.cabang)).toEqual(['CBG-A', 'CBG-B']);
     expect(out[0]).toMatchObject({ total_transaksi: 2, total_liter: 10, total_biaya_bbm: 100, total_toll: 0 });
     expect(out[1]).toMatchObject({ total_transaksi: 1, total_liter: 10.56, total_biaya_bbm: 100, total_toll: 5 });
+  });
+});
+describe('groupMonthly retribusi & parkir', () => {
+  it('menjumlah total_retribusi, total_parkir, dan total_pengeluaran (BBM+Tol+Retribusi+Parkir); laporan lama = 0', () => {
+    const rows = [
+      row({ kode_cabang: 'CBG-A', tanggal: '2026-09-01', biaya_bbm: 100, biaya_toll: 5, rincian: [
+        { jenis: 'BBM', nominal: 100, kartu: '', keterangan: '' }, { jenis: 'TOL', nominal: 5, kartu: '', keterangan: '' },
+        { jenis: 'RETRIBUSI', nominal: 10000, kartu: '', keterangan: '' }, { jenis: 'PARKIR', nominal: 2000, kartu: '', keterangan: '' }] }),
+      row({ kode_cabang: 'CBG-A', tanggal: '2026-09-02', biaya_bbm: 50, biaya_toll: 0 }),
+    ];
+    const [m] = groupMonthly(rows, '2026-09');
+    expect(m).toMatchObject({ total_biaya_bbm: 150, total_toll: 5, total_retribusi: 10000, total_parkir: 2000, total_pengeluaran: 12155 });
   });
 });
 describe('indikator jarum = persen 0-100', () => {

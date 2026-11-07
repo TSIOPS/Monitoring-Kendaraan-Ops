@@ -67,9 +67,9 @@
 - [x] `npm test && npm run typecheck`, CHANGELOG, commit `feat(laporan): simpan rincian retribusi/parkir dan foto bukti opsional`. **Gerbang:** `/security-review` setelah Task 3 (upload & input DB).
 
 ### Task 4: History & ringkasan bulanan (server)
-- [ ] **Tes gagal** (`tests/logic/laporan.test.ts`, `laporan-grup2.test.ts`, route bulanan): `buildRecentList` memuat `total_retribusi`, `total_parkir`, `foto_struk_retribusi(+_thumb)`, `foto_struk_parkir(+_thumb)`; `groupMonthly` menambah `total_retribusi`, `total_parkir` dan `total_pengeluaran` (= BBM + Tol + Retribusi + Parkir); laporan lama → 0; cache bulanan memakai kunci `monthly2:`.
-- [ ] **Implementasi:** `RecentItem`, `MonthlyItem`, `groupMonthly` (`totalPerJenis(rincianDariRow(r).items)`), `monthlyCacheKey` → prefix `monthly2:` (perbarui tes yang mengunci kunci lama di `tests/logic/master-cache` / route).
-- [ ] `npm test && npm run typecheck`, CHANGELOG, commit `feat(laporan): total retribusi/parkir di history dan ringkasan bulanan`.
+- [x] **Tes gagal** (`tests/logic/laporan.test.ts`, `laporan-grup2.test.ts`, route bulanan): `buildRecentList` memuat `total_retribusi`, `total_parkir`, `foto_struk_retribusi(+_thumb)`, `foto_struk_parkir(+_thumb)`; `groupMonthly` menambah `total_retribusi`, `total_parkir` dan `total_pengeluaran` (= BBM + Tol + Retribusi + Parkir); laporan lama → 0; cache bulanan memakai kunci `monthly2:`.
+- [x] **Implementasi:** `RecentItem`, `MonthlyItem`, `groupMonthly` (`totalPerJenis(rincianDariRow(r).items)`), `monthlyCacheKey` → prefix `monthly2:` (perbarui tes yang mengunci kunci lama di `tests/logic/master-cache` / route).
+- [x] `npm test && npm run typecheck`, CHANGELOG, commit `feat(laporan): total retribusi/parkir di history dan ringkasan bulanan`.
 
 ### Task 5: Helper tabel rincian di frontend (`static/js/rincian.js`)
 - [ ] **Tes gagal** (`tests/frontend/rincian-helpers.test.ts`):

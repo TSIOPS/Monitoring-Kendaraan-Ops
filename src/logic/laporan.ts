@@ -1,7 +1,7 @@
 // Logika MURNI laporan/transaksi BBM. Port 1:1 PaymentLogic.js + SpreadsheetOps.js.
 // Tanpa I/O: tidak menyentuh env, Supabase, KV, atau Storage.
 import { thumbUrlOf } from './foto';
-import { rincianDariRow } from './rincian';
+import { rincianDariRow, totalPerJenis } from './rincian';
 
 export type JenisRincian = 'BBM' | 'TOL' | 'RETRIBUSI' | 'PARKIR';
 export interface RincianItem { jenis: JenisRincian; nominal: number; kartu: string; keterangan: string }
@@ -776,6 +776,9 @@ export interface RecentItem {
   biaya_toll_2: number;
   total_bbm: number;
   total_toll: number;
+  // Retribusi & Parkir Delivery (tunai) diturunkan dari rincian; laporan lama = 0.
+  total_retribusi: number;
+  total_parkir: number;
   km_awal: number;
   km_akhir: number;
   km_sumber: string;
@@ -783,10 +786,14 @@ export interface RecentItem {
   foto_odo_akhir: string;
   foto_struk_bbm: string;
   foto_struk_toll: string;
+  foto_struk_retribusi: string;
+  foto_struk_parkir: string;
   foto_odo_awal_thumb: string;
   foto_odo_akhir_thumb: string;
   foto_struk_bbm_thumb: string;
   foto_struk_toll_thumb: string;
+  foto_struk_retribusi_thumb: string;
+  foto_struk_parkir_thumb: string;
 }
 
 export function buildRecentList(rows: LaporanRow[], kendaraanMap: KendaraanMap, cabangNamaMap: CabangNamaMap, cardMap: CardMap, maxItems = 200): RecentItem[] {
@@ -832,6 +839,7 @@ export function buildRecentList(rows: LaporanRow[], kendaraanMap: KendaraanMap, 
 
     const metodeToll = resolveTollMethod(row.metode_toll, row.metode_pembayaran, row.flazz_card_id_toll);
     const rc = rincianDariRow(row);
+    const tj = totalPerJenis(rc.items);
     result.push({
       rincian: rc.items, rincian_lama: rc.lama,
       tanggal: formatDateId(row.tanggal),
@@ -866,6 +874,8 @@ export function buildRecentList(rows: LaporanRow[], kendaraanMap: KendaraanMap, 
       biaya_toll_2: num(row.biaya_toll_2),
       total_bbm: rowBbmTotal(row),
       total_toll: rowTolTotal(row),
+      total_retribusi: tj.RETRIBUSI,
+      total_parkir: tj.PARKIR,
       km_awal: num(row.km_awal_confirmed),
       km_akhir: num(row.km_akhir_confirmed),
       km_sumber: row.km_sumber ? String(row.km_sumber) : 'AKTUAL',
@@ -873,10 +883,14 @@ export function buildRecentList(rows: LaporanRow[], kendaraanMap: KendaraanMap, 
       foto_odo_akhir: row.foto_km_akhir,
       foto_struk_bbm: row.foto_struk_bbm,
       foto_struk_toll: row.foto_struk_toll,
+      foto_struk_retribusi: row.foto_struk_retribusi ?? '',
+      foto_struk_parkir: row.foto_struk_parkir ?? '',
       foto_odo_awal_thumb: supabaseThumb(row.foto_km_awal),
       foto_odo_akhir_thumb: supabaseThumb(row.foto_km_akhir),
       foto_struk_bbm_thumb: supabaseThumb(row.foto_struk_bbm),
       foto_struk_toll_thumb: supabaseThumb(row.foto_struk_toll),
+      foto_struk_retribusi_thumb: supabaseThumb(row.foto_struk_retribusi ?? ''),
+      foto_struk_parkir_thumb: supabaseThumb(row.foto_struk_parkir ?? ''),
     });
   }
 
@@ -894,6 +908,10 @@ export interface MonthlyItem {
   total_liter: number;
   total_biaya_bbm: number;
   total_toll: number;
+  total_retribusi: number;
+  total_parkir: number;
+  // BBM + Tol + Retribusi + Parkir Delivery.
+  total_pengeluaran: number;
 }
 
 export function groupMonthly(rows: LaporanRow[], periode: string): MonthlyItem[] {
@@ -902,19 +920,25 @@ export function groupMonthly(rows: LaporanRow[], periode: string): MonthlyItem[]
     if (periodKey(r.tanggal) !== periode) continue;
     let m = map.get(r.kode_cabang);
     if (!m) {
-      m = { cabang: r.kode_cabang, periode, total_transaksi: 0, total_liter: 0, total_biaya_bbm: 0, total_toll: 0 };
+      m = { cabang: r.kode_cabang, periode, total_transaksi: 0, total_liter: 0, total_biaya_bbm: 0, total_toll: 0, total_retribusi: 0, total_parkir: 0, total_pengeluaran: 0 };
       map.set(r.kode_cabang, m);
     }
     m.total_transaksi += 1;
     m.total_liter += num(r.liter_bbm);
     m.total_biaya_bbm += rowBbmTotal(r);
     m.total_toll += rowTolTotal(r);
+    const tj = totalPerJenis(rincianDariRow(r).items);
+    m.total_retribusi += tj.RETRIBUSI;
+    m.total_parkir += tj.PARKIR;
   }
   const out = [...map.values()].map((m) => ({
     ...m,
     total_liter: Math.round(m.total_liter * 100) / 100,
     total_biaya_bbm: Math.round(m.total_biaya_bbm * 100) / 100,
     total_toll: Math.round(m.total_toll * 100) / 100,
+    total_retribusi: Math.round(m.total_retribusi * 100) / 100,
+    total_parkir: Math.round(m.total_parkir * 100) / 100,
+    total_pengeluaran: Math.round((m.total_biaya_bbm + m.total_toll + m.total_retribusi + m.total_parkir) * 100) / 100,
   }));
   out.sort((a, b) => a.cabang.localeCompare(b.cabang));
   return out;
