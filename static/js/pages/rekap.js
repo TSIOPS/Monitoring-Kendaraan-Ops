@@ -3,6 +3,7 @@ import { getUser } from '../store.js';
 import { lihatSemuaCabang } from '../peran.js';
 import { confirmDialog, el, fmtDateId, fmtNum, halaman, navHalaman, toast, idUntukLabel } from '../ui.js';
 import { tanggalWib } from './input.js';
+import { JENIS, labelJenis } from '../rincian.js';
 
 // ── Helper murni (diuji) ────────────────────────────────────────────────────
 
@@ -10,13 +11,16 @@ export function awalBulan(tanggal) {
   return `${String(tanggal).substring(0, 7)}-01`;
 }
 
-const kosongTotal = () => ({ bbmEtoll: 0, tolEtoll: 0, bbmTunai: 0, tolTunai: 0, totalEtoll: 0, totalTunai: 0, total: 0, jumlah: 0 });
+// retribusi & parkir selalu tunai (spec 2026-11-07), jadi hanya satu kolom per jenis.
+const kosongTotal = () => ({ bbmEtoll: 0, tolEtoll: 0, bbmTunai: 0, tolTunai: 0, retribusi: 0, parkir: 0, totalEtoll: 0, totalTunai: 0, total: 0, jumlah: 0 });
 
 function tambahkan(t, l) {
   const n = Number(l.amount) || 0;
   const etoll = l.metode === 'ETOLL';
   if (l.jenis === 'BBM') t[etoll ? 'bbmEtoll' : 'bbmTunai'] += n;
-  else t[etoll ? 'tolEtoll' : 'tolTunai'] += n;
+  else if (l.jenis === 'TOL') t[etoll ? 'tolEtoll' : 'tolTunai'] += n;
+  else if (l.jenis === 'RETRIBUSI') t.retribusi += n;
+  else if (l.jenis === 'PARKIR') t.parkir += n;
   t[etoll ? 'totalEtoll' : 'totalTunai'] += n;
   t.total += n;
   t.jumlah += 1;
@@ -86,24 +90,26 @@ export function susunExcel(lines, { dari = '', sampai = '', warehouse = 'Semua W
   const ringkasan = {
     nama: 'Ringkasan',
     aoa: [
-      ['Rekap Pengeluaran BBM & Tol'],
+      ['Rekap Pengeluaran'],
       ['Periode', `${tglId(dari)} s.d. ${tglId(sampai)}`],
       ['Warehouse', warehouse],
       [],
       ['Jenis', 'Flazz (Rp)', 'Tunai (Rp)', 'Total (Rp)'],
       ['BBM', r.bbmEtoll, r.bbmTunai, r.bbmEtoll + r.bbmTunai],
       ['Tol', r.tolEtoll, r.tolTunai, r.tolEtoll + r.tolTunai],
+      ['Retribusi', 0, r.retribusi, r.retribusi],
+      ['Parkir Delivery', 0, r.parkir, r.parkir],
       ['Total', r.totalEtoll, r.totalTunai, r.total],
       [],
       ['Jumlah Pembayaran', r.jumlah],
     ],
-    angka: { baris: [5, 6, 7], kolom: [1, 2, 3] },
+    angka: { baris: [5, 6, 7, 8, 9], kolom: [1, 2, 3] },
   };
   const detail = {
     nama: 'Detail',
     aoa: [
       ['No', 'Tanggal', 'Warehouse', 'Kendaraan', 'Supir', 'Jenis', 'Metode', 'Kartu Flazz', 'Nominal (Rp)', 'Keterangan', 'Sumber', 'Referensi'],
-      ...urut.map((l, i) => [i + 1, tglId(l.tanggal), wh(l.kode_cabang), t(l.plat_nomor) || '-', t(l.supir) || '-', l.jenis === 'TOL' ? 'Tol' : 'BBM',
+      ...urut.map((l, i) => [i + 1, tglId(l.tanggal), wh(l.kode_cabang), t(l.plat_nomor) || '-', t(l.supir) || '-', labelJenis(l.jenis),
         l.metode === 'ETOLL' ? 'Flazz' : 'Tunai', t(l.kartu) || '-', Number(l.amount) || 0, t(l.keterangan) || '-', l.sumber === 'TOL_MANUAL' ? 'Tol manual Flazz' : 'Laporan harian', l.ref]),
       ['', '', '', '', '', '', '', 'TOTAL', r.total, '', '', ''],
     ],
@@ -125,11 +131,11 @@ export function susunExcel(lines, { dari = '', sampai = '', warehouse = 'Semua W
   const perKendaraan = {
     nama: 'Per Kendaraan',
     aoa: [
-      ['No', 'Kendaraan', 'Warehouse', 'BBM Flazz (Rp)', 'Tol Flazz (Rp)', 'BBM Tunai (Rp)', 'Tol Tunai (Rp)', 'Total (Rp)', 'Jumlah Pembayaran'],
-      ...kendaraan.map((g, i) => [i + 1, t(g.label), g.cabang.split(', ').map(wh).join(', '), g.bbmEtoll, g.tolEtoll, g.bbmTunai, g.tolTunai, g.total, g.jumlah]),
-      ['', 'TOTAL', '', r.bbmEtoll, r.tolEtoll, r.bbmTunai, r.tolTunai, r.total, r.jumlah],
+      ['No', 'Kendaraan', 'Warehouse', 'BBM Flazz (Rp)', 'Tol Flazz (Rp)', 'BBM Tunai (Rp)', 'Tol Tunai (Rp)', 'Retribusi (Rp)', 'Parkir Delivery (Rp)', 'Total (Rp)', 'Jumlah Pembayaran'],
+      ...kendaraan.map((g, i) => [i + 1, t(g.label), g.cabang.split(', ').map(wh).join(', '), g.bbmEtoll, g.tolEtoll, g.bbmTunai, g.tolTunai, g.retribusi, g.parkir, g.total, g.jumlah]),
+      ['', 'TOTAL', '', r.bbmEtoll, r.tolEtoll, r.bbmTunai, r.tolTunai, r.retribusi, r.parkir, r.total, r.jumlah],
     ],
-    angka: { kolom: [3, 4, 5, 6, 7] },
+    angka: { kolom: [3, 4, 5, 6, 7, 8, 9] },
     filter: true,
   };
   const sheets = [ringkasan, detail, perKartu, perKendaraan];
@@ -225,7 +231,7 @@ export async function renderRekap(view) {
   let filterDimuat = { dari: '', sampai: '', wh: '' };
   let nomor = 1;
   const filterJenis = el('select', { class: 'form-select form-select-sm', style: 'width:auto', 'aria-label': 'Filter jenis' }, [
-    el('option', { value: '', text: 'Semua jenis' }), el('option', { value: 'BBM', text: 'BBM' }), el('option', { value: 'TOL', text: 'Tol' }),
+    el('option', { value: '', text: 'Semua jenis' }), ...JENIS.map((j) => el('option', { value: j.value, text: j.label })),
   ]);
   const filterMetode = el('select', { class: 'form-select form-select-sm', style: 'width:auto', 'aria-label': 'Filter metode' }, [
     el('option', { value: '', text: 'Semua metode' }), el('option', { value: 'ETOLL', text: 'Flazz' }), el('option', { value: 'TUNAI', text: 'Tunai' }),
@@ -246,6 +252,8 @@ export async function renderRekap(view) {
       kotak('bg-primary text-white', 'Bayar Tol By Flazz', rp(r.tolEtoll)),
       kotak('bg-warning-subtle', 'BBM Tunai', rp(r.bbmTunai)),
       kotak('bg-warning-subtle', 'Bayar Tol Tunai', rp(r.tolTunai)),
+      kotak('bg-warning-subtle', 'Retribusi (Tunai)', rp(r.retribusi)),
+      kotak('bg-warning-subtle', 'Parkir Delivery (Tunai)', rp(r.parkir)),
       kotak('border bg-white', 'Total Pembayaran By Flazz', rp(r.totalEtoll)),
       kotak('border bg-white', 'Total Pembayaran Tunai', rp(r.totalTunai)),
       kotak('bg-success text-white', 'Total Pengeluaran', rp(r.total), `${fmtNum(r.jumlah)} pembayaran`),
@@ -298,10 +306,10 @@ export async function renderRekap(view) {
     if (tab.aktif === 'kendaraan') {
       const grup = kelompokRekap(lines, 'kendaraan');
       isi.replaceChildren(el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-hover align-middle' }, [
-        th(['Kendaraan', 'Warehouse', 'BBM Flazz', 'Tol Flazz', 'BBM Tunai', 'Tol Tunai', 'Total']),
+        th(['Kendaraan', 'Warehouse', 'BBM Flazz', 'Tol Flazz', 'BBM Tunai', 'Tol Tunai', 'Retribusi', 'Parkir Delivery', 'Total']),
         el('tbody', {}, grup.map((g) => el('tr', {}, [
           el('td', { class: 'fw-bold', text: g.label }), el('td', { text: g.cabang || '-' }),
-          angka(g.bbmEtoll), angka(g.tolEtoll), angka(g.bbmTunai), angka(g.tolTunai), el('td', { class: 'text-end fw-bold', text: rp(g.total) }),
+          angka(g.bbmEtoll), angka(g.tolEtoll), angka(g.bbmTunai), angka(g.tolTunai), angka(g.retribusi), angka(g.parkir), el('td', { class: 'text-end fw-bold', text: rp(g.total) }),
         ]))),
       ])]));
       return;
@@ -316,7 +324,7 @@ export async function renderRekap(view) {
         el('tbody', {}, h.isi.map((l) => el('tr', {}, [
           el('td', { text: fmtDateId(l.tanggal) }), el('td', { text: l.kode_cabang || '-' }), el('td', { text: l.plat_nomor || '-' }),
           el('td', { text: l.supir || '-' }),
-          el('td', {}, [l.jenis, l.sumber === 'TOL_MANUAL' ? el('span', { class: 'badge text-bg-light border ms-1', title: 'Dicatat di modul Flazz', text: 'manual' }) : null]),
+          el('td', {}, [labelJenis(l.jenis), l.sumber === 'TOL_MANUAL' ? el('span', { class: 'badge text-bg-light border ms-1', title: 'Dicatat di modul Flazz', text: 'manual' }) : null]),
           el('td', {}, [el('span', { class: `badge ${l.metode === 'ETOLL' ? 'text-bg-primary' : 'text-bg-warning'}`, text: l.metode === 'ETOLL' ? 'Flazz' : 'Tunai' })]),
           el('td', { text: l.kartu || '-' }),
           el('td', { class: 'text-end', text: rp(l.amount) }),
@@ -376,7 +384,7 @@ export async function renderRekap(view) {
   const kolom = (lebar, label, kontrol) => el('div', { class: lebar }, [el('label', { class: 'form-label small fw-bold text-muted text-uppercase', for: idUntukLabel(kontrol), text: label }), kontrol]);
   view.replaceChildren(
     el('div', { class: 'panel' }, [
-      el('h2', { 'data-judul-halaman': '', class: 'h5 mb-3 pb-2 border-bottom', text: 'Rekap Pengeluaran BBM & Tol' }),
+      el('h2', { 'data-judul-halaman': '', class: 'h5 mb-3 pb-2 border-bottom', text: 'Rekap Pengeluaran' }),
       el('div', { class: 'row g-2 align-items-end' }, [
         semua ? kolom('col-md-3', 'Warehouse', wh) : null,
         kolom('col-md-3', 'Dari tanggal', dari),

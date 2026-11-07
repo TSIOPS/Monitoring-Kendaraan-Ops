@@ -15,7 +15,7 @@ describe('rekap pengeluaran', () => {
     expect(awalBulan('2026-10-06')).toBe('2026-10-01');
   });
   it('ringkasan per jenis & metode', () => {
-    expect(ringkasRekap(lines)).toEqual({ bbmEtoll: 200000, tolEtoll: 15000, bbmTunai: 100000, tolTunai: 7000, totalEtoll: 215000, totalTunai: 107000, total: 322000, jumlah: 4 });
+    expect(ringkasRekap(lines)).toEqual({ bbmEtoll: 200000, tolEtoll: 15000, bbmTunai: 100000, tolTunai: 7000, retribusi: 0, parkir: 0, totalEtoll: 215000, totalTunai: 107000, total: 322000, jumlah: 4 });
   });
   it('per kartu hanya etoll; per kendaraan semua metode, urut total', () => {
     expect(kelompokRekap(lines, 'kartu').map((g) => [g.label, g.bbmEtoll, g.tolEtoll, g.total, g.cabang])).toEqual([['E toll 1', 200000, 15000, 215000, 'BDG']]);
@@ -32,7 +32,9 @@ describe('rekap pengeluaran', () => {
     expect(det['!autofilter']!.ref).toBe('A1:L5');
     const rk = XLSX.utils.sheet_to_json(wb.Sheets.Ringkasan!, { header: 1 }) as unknown[][];
     expect(rk[1]).toEqual(['Periode', '01/10/2026 s.d. 06/10/2026']);
-    expect(rk[7]).toEqual(['Total', 215000, 107000, 322000]);
+    expect(rk[0]).toEqual(['Rekap Pengeluaran']);
+    expect(rk[7]).toEqual(['Retribusi', 0, 0, 0]);
+    expect(rk[9]).toEqual(['Total', 215000, 107000, 322000]);
   });
   it('nama file rekap: rentang + kode warehouse', () => {
     expect(namaFileRekap('2026-10-01', '2026-10-21', 'CKR')).toBe('rekap-pengeluaran-2026-10-01_2026-10-21-CKR.xlsx');
@@ -40,6 +42,43 @@ describe('rekap pengeluaran', () => {
   });
   it('lebar kolom mengikuti isi terpanjang', () => {
     expect(lebarKolom([['No', 'Kendaraan'], [1, 'D 1234 ABC']])).toEqual([{ wch: 6 }, { wch: 12 }]);
+  });
+});
+
+describe('rekap: Retribusi & Parkir Delivery', () => {
+  const lain = [
+    ...lines,
+    L({ jenis: 'RETRIBUSI', metode: 'TUNAI', amount: 10000, keterangan: 'Gerbang' }),
+    L({ jenis: 'PARKIR', metode: 'TUNAI', amount: 5000, plat_nomor: 'D 2 B', keterangan: 'Mall' }),
+    L({ jenis: 'PARKIR', metode: 'TUNAI', amount: 3000 }),
+  ];
+  it('ringkasan: Retribusi & Parkir terpisah, tidak masuk tol; total tunai & total ikut bertambah', () => {
+    expect(ringkasRekap(lain)).toEqual({ bbmEtoll: 200000, tolEtoll: 15000, bbmTunai: 100000, tolTunai: 7000, retribusi: 10000, parkir: 8000, totalEtoll: 215000, totalTunai: 125000, total: 340000, jumlah: 7 });
+  });
+  it('per kendaraan memuat retribusi/parkir; per kartu tidak berubah (hanya Flazz)', () => {
+    const g = kelompokRekap(lain, 'kendaraan');
+    expect(g.map((x) => [x.label, x.retribusi, x.parkir, x.total])).toEqual([['D 1 A', 10000, 3000, 235000], ['D 2 B', 0, 5000, 105000]]);
+    expect(kelompokRekap(lain, 'kartu').map((x) => [x.label, x.total])).toEqual([['E toll 1', 215000]]);
+  });
+  it('Excel: Ringkasan punya baris Retribusi & Parkir Delivery; Detail memberi label jenis; Per Kendaraan punya kolom baru', () => {
+    const sheets = susunExcel(lain, { dari: '2026-10-01', sampai: '2026-10-06', warehouse: 'WHO BANDUNG', namaCabang: { BDG: 'WHO BANDUNG' } });
+    const wb = XLSX.read(XLSX.write(bukuExcel(XLSX, sheets), { type: 'array', bookType: 'xlsx' }), { type: 'array', cellNF: true });
+    const rows = (n: string) => XLSX.utils.sheet_to_json(wb.Sheets[n]!, { header: 1 }) as unknown[][];
+    const rk = rows('Ringkasan');
+    expect(rk[4]).toEqual(['Jenis', 'Flazz (Rp)', 'Tunai (Rp)', 'Total (Rp)']);
+    expect(rk[7]).toEqual(['Retribusi', 0, 10000, 10000]);
+    expect(rk[8]).toEqual(['Parkir Delivery', 0, 8000, 8000]);
+    expect(rk[9]).toEqual(['Total', 215000, 125000, 340000]);
+    expect(rk[11]).toEqual(['Jumlah Pembayaran', 7]);
+    const jenis = rows('Detail').slice(1, -1).map((b) => b[5]);
+    expect(jenis).toEqual(expect.arrayContaining(['BBM', 'Tol', 'Retribusi', 'Parkir Delivery']));
+    const pk = rows('Per Kendaraan');
+    expect(pk[0]).toEqual(['No', 'Kendaraan', 'Warehouse', 'BBM Flazz (Rp)', 'Tol Flazz (Rp)', 'BBM Tunai (Rp)', 'Tol Tunai (Rp)', 'Retribusi (Rp)', 'Parkir Delivery (Rp)', 'Total (Rp)', 'Jumlah Pembayaran']);
+    expect(pk.at(-1)).toEqual(['', 'TOTAL', '', 200000 - 200000 + 200000, 15000, 100000, 7000, 10000, 8000, 340000, 7].map((v, i) => (i === 3 ? 200000 : v)));
+    for (const b of pk.slice(1)) expect(b.length).toBe(pk[0]!.length);
+    // Kolom angka berformat ribuan hingga Total.
+    expect(wb.Sheets['Per Kendaraan']!.H2!.z).toBe('#,##0');
+    expect(wb.Sheets['Per Kendaraan']!.J2!.z).toBe('#,##0');
   });
 });
 

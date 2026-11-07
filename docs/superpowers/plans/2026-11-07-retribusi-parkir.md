@@ -115,10 +115,10 @@
 - [x] `npm test && npm run typecheck`, CHANGELOG, commit `feat(kas-kecil): retribusi dan parkir delivery di pembanding harian`. Catatan: Kas Kecil masih tahap uji (hanya SUPERADMIN) — tidak membuka ke PIC.
 
 ### Task 10: Rekap frontend + Excel (`static/js/pages/rekap.js`)
-- [ ] **Tes gagal** (`tests/frontend/rekap-helpers.test.ts`): `kosongTotal`/`tambahkan` memiliki `retribusi` dan `parkir`; `totalTunai` ikut bertambah; ringkasan & sheet Excel memuat dua baris/kolom baru; label baris detail "Retribusi"/"Parkir Delivery"; filter jenis menerima 4 nilai.
-- [ ] **Implementasi:** ganti `else` (baris ~18) dengan peta jenis→kolom; filter jenis 4 opsi; label (~106, ~319); ringkasan (~94) menambah dua baris; Excel (sheet ringkasan + detail) memakai peta yang sama; `stripNol` tetap berlaku.
-- [ ] Verifikasi manual di dev: total Rekap = total History pada rentang uji.
-- [ ] `npm test && npm run typecheck`, CHANGELOG (UX), commit `feat(rekap): retribusi dan parkir delivery di rekap dan Excel`. **Gerbang:** `/ui-ux-pro-max` untuk Fase 1–2.
+- [x] **Tes gagal** (`tests/frontend/rekap-helpers.test.ts`): `kosongTotal`/`tambahkan` memiliki `retribusi` dan `parkir`; `totalTunai` ikut bertambah; ringkasan & sheet Excel memuat dua baris/kolom baru; label baris detail "Retribusi"/"Parkir Delivery"; filter jenis menerima 4 nilai.
+- [x] **Implementasi:** ganti `else` (baris ~18) dengan peta jenis→kolom; filter jenis 4 opsi; label (~106, ~319); ringkasan (~94) menambah dua baris; Excel (sheet ringkasan + detail) memakai peta yang sama; `stripNol` tetap berlaku.
+- [x] Verifikasi manual di dev: total Rekap = total History pada rentang uji.
+- [x] `npm test && npm run typecheck`, CHANGELOG (UX), commit `feat(rekap): retribusi dan parkir delivery di rekap dan Excel`. **Gerbang:** `/ui-ux-pro-max` untuk Fase 1–2.
 
 ---
 ## FASE 3 — Perbandingan
