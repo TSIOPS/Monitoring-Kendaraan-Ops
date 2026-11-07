@@ -253,7 +253,7 @@ export async function renderInput(view) {
   const infoJalur = el('div', { class: 'form-text' });
   const infoBar = el('div', { class: 'form-text mb-3' });
 
-  const serverData = { files: { odo_awal: '', odo_akhir: '', struk_bbm: '', struk_toll: '' }, km_awal: '', km_akhir: '' };
+  const serverData = { files: { odo_awal: '', odo_akhir: '', struk_bbm: '', struk_toll: '', struk_retribusi: '', struk_parkir: '' }, km_awal: '', km_akhir: '' };
   const alertBox = el('div', { class: 'alert alert-danger d-none' });
   const fotoAwal = el('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'form-control' });
   const fotoAkhir = el('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'form-control' });
@@ -261,6 +261,9 @@ export async function renderInput(view) {
   // dari galeri (sering difoto lebih dulu di SPBU); odometer tetap kamera langsung (anti-kecurangan).
   const fotoStrukBbm = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
   const fotoStrukTol = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
+  // Bukti Retribusi & Parkir Delivery: opsional (tidak pernah diwajibkan), satu foto per jenis.
+  const fotoRetribusi = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
+  const fotoParkir = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
   const submit = el('button', { class: 'btn btn-primary', type: 'submit', text: 'Simpan Laporan' });
   const batal = el('button', { class: 'btn btn-outline-secondary', type: 'button', text: 'Batal' });
   let formDiubah = false;
@@ -319,8 +322,8 @@ export async function renderInput(view) {
         ]),
       ]),
     ]),
-    seksi('Pengeluaran BBM & Tol', [
-      el('div', { class: 'form-text mb-2', text: 'Isi satu baris per nota. Dibayar: kartu etoll yang dibawa di jalur, atau Tunai. Maks. 2 cara bayar per jenis.' }),
+    seksi('Pengeluaran BBM, Tol, Retribusi & Parkir', [
+      el('div', { class: 'form-text mb-2', text: 'Isi satu baris per nota. BBM/Tol dibayar dengan kartu etoll yang dibawa di jalur atau Tunai (maks. 2 cara bayar per jenis). Retribusi (otomatis Rp 10.000, bisa diubah) dan Parkir Delivery selalu Tunai.' }),
       tabel.elemen,
       el('div', { class: 'row' }, [
         el('div', { class: 'col-md-6' }, [baris('Jenis BBM', f.jenis_bbm)]),
@@ -329,6 +332,10 @@ export async function renderInput(view) {
       el('div', { class: 'row' }, [
         el('div', { class: 'col-md-6' }, [baris('Foto struk BBM (gabungan semua struk)', el('div', {}, [fotoStrukBbm, pratinjauFoto(fotoStrukBbm)]), 'Wajib bila ada baris BBM. Susun semua struk lalu foto sekaligus.')]),
         el('div', { class: 'col-md-6' }, [baris('Foto bukti tol (gabungan semua bukti)', el('div', {}, [fotoStrukTol, pratinjauFoto(fotoStrukTol)]), 'Wajib bila ada baris tol. E-toll tanpa struk: foto cetak cek pengeluaran kartu.')]),
+      ]),
+      el('div', { class: 'row' }, [
+        el('div', { class: 'col-md-6' }, [baris('Foto bukti retribusi', el('div', {}, [fotoRetribusi, pratinjauFoto(fotoRetribusi)]), 'Opsional.')]),
+        el('div', { class: 'col-md-6' }, [baris('Foto bukti parkir delivery', el('div', {}, [fotoParkir, pratinjauFoto(fotoParkir)]), 'Opsional.')]),
       ]),
     ]),
     el('div', { class: 'd-flex justify-content-end gap-2 border-top pt-3 mt-2' }, [batal, submit]),
@@ -579,7 +586,7 @@ export async function renderInput(view) {
 
     try {
       if (!fotoSudahTerunggah) {
-        if ([fotoAwal, fotoAkhir, fotoStrukBbm, fotoStrukTol].some((x) => x.files && x.files[0])) submit.textContent = 'Mengunggah foto…';
+        if ([fotoAwal, fotoAkhir, fotoStrukBbm, fotoStrukTol, fotoRetribusi, fotoParkir].some((x) => x.files && x.files[0])) submit.textContent = 'Mengunggah foto…';
         const fotoBody = {};
         if (fotoAwal.files && fotoAwal.files[0]) {
           fotoBody.foto_odo_awal = await kompresGambar(fotoAwal.files[0]);
@@ -591,7 +598,7 @@ export async function renderInput(view) {
           fotoBody.foto_odo_akhir_thumb = await kompresGambar(fotoAkhir.files[0], THUMB_LEBAR, THUMB_KUALITAS);
           fotoBody.foto_odo_akhir_name = namaAman(fotoAkhir.files[0].name);
         }
-        for (const [slot, input] of [['struk_bbm', fotoStrukBbm], ['struk_toll', fotoStrukTol]]) {
+        for (const [slot, input] of [['struk_bbm', fotoStrukBbm], ['struk_toll', fotoStrukTol], ['struk_retribusi', fotoRetribusi], ['struk_parkir', fotoParkir]]) {
           if (!(input.files && input.files[0])) continue;
           fotoBody['foto_' + slot] = await kompresGambar(input.files[0], STRUK_LEBAR, STRUK_KUALITAS);
           fotoBody['foto_' + slot + '_thumb'] = await kompresGambar(input.files[0], THUMB_LEBAR, THUMB_KUALITAS);
@@ -606,10 +613,12 @@ export async function renderInput(view) {
           serverData.files.odo_akhir = up.files?.odo_akhir || '';
           serverData.files.struk_bbm = up.files?.struk_bbm || '';
           serverData.files.struk_toll = up.files?.struk_toll || '';
+          serverData.files.struk_retribusi = up.files?.struk_retribusi || '';
+          serverData.files.struk_parkir = up.files?.struk_parkir || '';
           serverData.km_awal = String(up.km_awal ?? '');
           serverData.km_akhir = String(up.km_akhir ?? '');
           fotoSudahTerunggah = true;
-          for (const x of [fotoAwal, fotoAkhir, fotoStrukBbm, fotoStrukTol]) x.disabled = true;
+          for (const x of [fotoAwal, fotoAkhir, fotoStrukBbm, fotoStrukTol, fotoRetribusi, fotoParkir]) x.disabled = true;
           fotoAwal.closest('.mb-3').classList.add('text-muted');
           fotoAkhir.closest('.mb-3').classList.add('text-muted');
         }

@@ -122,6 +122,22 @@ describe('validateForm + rincian', () => {
     expect(validateForm({ ...DASAR, rincian: [{ jenis: 'TOL', nominal: 5000, kartu: '', keterangan: '' }], ada_struk_tol: false, ada_struk_bbm: false }))
       .toEqual(['Foto struk / bukti tol wajib diupload karena ada biaya tol.']);
   });
+  it('Retribusi & Parkir Delivery: foto bukti opsional (tidak wajib), laporan hanya-Retribusi lolos', () => {
+    const lain = [{ jenis: 'RETRIBUSI', nominal: 10000, kartu: '', keterangan: '' }, { jenis: 'PARKIR', nominal: 5000, kartu: '', keterangan: 'Mall' }];
+    expect(validateForm({ ...DASAR, rincian: lain, ada_struk_bbm: false, ada_struk_tol: false, harga_bbm: 0 })).toEqual([]);
+    // BBM tetap mewajibkan struk BBM walau ada Retribusi/Parkir.
+    expect(validateForm({ ...DASAR, rincian: [{ jenis: 'BBM', nominal: 100000, kartu: '', keterangan: '' }, ...lain], ada_struk_bbm: false }))
+      .toEqual(['Foto struk BBM wajib diupload karena ada biaya BBM.']);
+    // Galat nominal pada baris Retribusi ikut dilaporkan.
+    expect(validateForm({ ...DASAR, rincian: [{ jenis: 'RETRIBUSI', nominal: 0, kartu: '', keterangan: '' }], ada_struk_bbm: false, harga_bbm: 0 })).toContain('Baris 1: nominal harus lebih dari 0.');
+  });
+  it('buildPayload membawa rincian 4 jenis dan file bukti retribusi/parkir', () => {
+    const rincian = [{ jenis: 'RETRIBUSI', nominal: 10000, kartu: '', keterangan: '' }, { jenis: 'PARKIR', nominal: 5000, kartu: '', keterangan: '' }];
+    const sd = { files: { odo_awal: '', odo_akhir: '', struk_bbm: '', struk_toll: '', struk_retribusi: 'u-r', struk_parkir: 'u-p' }, km_awal: '', km_akhir: '' };
+    const p = buildPayload({ ...DASAR, rincian }, sd);
+    expect(p.rincian).toEqual(rincian);
+    expect(p.serverData.files).toMatchObject({ struk_retribusi: 'u-r', struk_parkir: 'u-p' });
+  });
   it('BBM tanpa jenis BBM ditolak', () => {
     expect(validateForm({ ...DASAR, harga_bbm: 0 })).toContain('Pilih jenis BBM agar liter terhitung.');
     expect(validateForm({ ...DASAR, harga_bbm: 10000 })).not.toContain('Pilih jenis BBM agar liter terhitung.');

@@ -81,9 +81,9 @@
 - [x] `npm test && npm run typecheck`, CHANGELOG (UX), commit `feat(ui): tabel rincian mendukung retribusi dan parkir delivery`.
 
 ### Task 6: Input Laporan (`static/js/pages/input.js`)
-- [ ] **Tes gagal** (`tests/frontend/input-helpers.test.ts`): payload `rincian` memuat jenis baru; validasi **tidak** meminta foto untuk Retribusi/Parkir; laporan hanya-Retribusi lolos validasi (tanpa struk BBM/tol).
-- [ ] **Implementasi:** dua input foto opsional (`fotoRetribusi`, `fotoParkir`) di bawah foto struk tol, dengan teks bantu "Opsional"; ikut kompres + `unggah` ke `/api/laporan/photos` dan simpan di `serverData.files`; kirim ke POST.
-- [ ] `npm test && npm run typecheck`, CHANGELOG (UX), commit `feat(input): retribusi dan parkir delivery di input laporan`.
+- [x] **Tes gagal** (`tests/frontend/input-helpers.test.ts`): payload `rincian` memuat jenis baru; validasi **tidak** meminta foto untuk Retribusi/Parkir; laporan hanya-Retribusi lolos validasi (tanpa struk BBM/tol).
+- [x] **Implementasi:** dua input foto opsional (`fotoRetribusi`, `fotoParkir`) di bawah foto struk tol, dengan teks bantu "Opsional"; ikut kompres + `unggah` ke `/api/laporan/photos` dan simpan di `serverData.files`; kirim ke POST.
+- [x] `npm test && npm run typecheck`, CHANGELOG (UX), commit `feat(input): retribusi dan parkir delivery di input laporan`.
 
 ### Task 7: Edit Laporan (`static/js/pages/edit.js`)
 - [ ] **Tes gagal** (`tests/frontend/edit-helpers.test.ts`): `rincianBerubah` mendeteksi perubahan baris Retribusi/Parkir; body edit mengirim `rincian` hanya bila berubah; foto baru dikirim hanya bila dipilih.
