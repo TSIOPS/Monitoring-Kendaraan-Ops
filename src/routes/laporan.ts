@@ -163,8 +163,10 @@ export function driverKedua(nama2: unknown, nama1: unknown): string {
 
 // Foto struk BBM / tol (opsional): body.foto_<slot> (base64), _name, _thumb -> URL Storage.
 const SLOT_STRUK = [
-  { slot: 'struk_bbm', folder: 'Struk_BBM', label: 'struk BBM' },
-  { slot: 'struk_toll', folder: 'Struk_Tol', label: 'struk tol' },
+  { slot: 'struk_bbm', folder: 'Struk_BBM', label: 'struk BBM', kolom: 'foto_struk_bbm' },
+  { slot: 'struk_toll', folder: 'Struk_Tol', label: 'struk tol', kolom: 'foto_struk_toll' },
+  { slot: 'struk_retribusi', folder: 'Struk_Retribusi', label: 'bukti retribusi', kolom: 'foto_struk_retribusi' },
+  { slot: 'struk_parkir', folder: 'Struk_Parkir', label: 'bukti parkir delivery', kolom: 'foto_struk_parkir' },
 ] as const;
 async function unggahStruk(deps: AppDeps, env: Env, cabang: string, body: Record<string, any>, s: typeof SLOT_STRUK[number]): Promise<string> {
   const data = body['foto_' + s.slot];
@@ -186,7 +188,7 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
   app.post('/photos', requireUser(deps), async (c) => {
     const u = c.get('user');
     const body = await readJson(c);
-    const files: Record<string, string> = { odo_awal: '', odo_akhir: '', struk_bbm: '', struk_toll: '' };
+    const files: Record<string, string> = { odo_awal: '', odo_akhir: '', struk_bbm: '', struk_toll: '', struk_retribusi: '', struk_parkir: '' };
     if (body.foto_odo_awal) {
       try {
         const bytes = decodeBase64(body.foto_odo_awal);
@@ -359,6 +361,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       foto_struk_bbm: String(sfiles.struk_bbm ?? ''),
       biaya_toll: biayaTol,
       foto_struk_toll: String(sfiles.struk_toll ?? ''),
+      foto_struk_retribusi: String(sfiles.struk_retribusi ?? ''),
+      foto_struk_parkir: String(sfiles.struk_parkir ?? ''),
       km_per_liter: L.num(efisiensi),
       status: 'COMPLETED',
       warning,
@@ -676,11 +680,11 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
       }
     }
 
-    // Struk BBM / tol: tambah atau ganti (file lama dihapus setelah upload baru berhasil).
+    // Struk BBM / tol / bukti retribusi / bukti parkir: tambah atau ganti (file lama dihapus setelah upload baru berhasil).
     for (const s of SLOT_STRUK) {
       const url = await unggahStruk(deps, c.env as Env, u.cabang, p, s);
       if (!url) continue;
-      const kolom = s.slot === 'struk_bbm' ? 'foto_struk_bbm' : 'foto_struk_toll';
+      const kolom = s.kolom;
       const oldKey = extractStorageKey(String(old[kolom] ?? ''));
       if (oldKey) await hapusFotoDanThumb(deps, c.env as Env, oldKey);
       patch[kolom] = url;

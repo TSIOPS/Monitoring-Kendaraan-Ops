@@ -203,6 +203,22 @@ describe('POST /api/laporan/photos', () => {
     expect(((await kosong.json()) as any).files).toMatchObject({ struk_bbm: '', struk_toll: '' });
   });
 
+  it('bukti retribusi & parkir delivery opsional: folder Struk_Retribusi/Struk_Parkir + thumbnail', async () => {
+    const { app, kv, storage } = setup();
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan/photos', tok, {
+      foto_struk_retribusi: 'data:image/jpeg;base64,AAAA', foto_struk_retribusi_name: 'r.jpg', foto_struk_retribusi_thumb: 'data:image/jpeg;base64,AA==',
+      foto_struk_parkir: 'data:image/jpeg;base64,BBBB', foto_struk_parkir_name: 'p.jpg',
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.files.struk_retribusi).toContain('/Struk_Retribusi/');
+    expect(body.files.struk_parkir).toContain('/Struk_Parkir/');
+    expect([...storage.files.keys()].some((k) => k.startsWith('thumb/') && k.includes('Struk_Retribusi'))).toBe(true);
+    const kosong = await post(app, '/api/laporan/photos', tok, {});
+    expect(((await kosong.json()) as any).files).toMatchObject({ struk_retribusi: '', struk_parkir: '' });
+  });
+
   it('mengunggah 2 foto dan mengembalikan URL + echo km', async () => {
     const { app, kv, storage } = setup();
     const tok = await loginAs(kv, PIC);
@@ -1034,6 +1050,44 @@ describe('rincian pengeluaran', () => {
     expect(flz.state.cards[0]!.last_balance).toBe(500000 - 120000);
   });
 
+  it('POST: Retribusi & Parkir tunai tersimpan di rincian; slot lama & saldo Flazz tidak berubah; foto opsional tersimpan', async () => {
+    const { app, kv, lap, flz } = setup({ flazzCard: [flazzCard()] });
+    const tok = await loginAs(kv, PIC);
+    const body = rinci([
+      { jenis: 'BBM', nominal: 100000, kartu: 'FLZ-1', keterangan: 'SPBU A' },
+      { jenis: 'RETRIBUSI', nominal: 10000, kartu: 'FLZ-1', keterangan: 'Gerbang' },
+      { jenis: 'PARKIR', nominal: 5000, kartu: '', keterangan: 'Mall' },
+      { jenis: 'PARKIR', nominal: 3000, kartu: '', keterangan: '' },
+    ]);
+    (body.serverData.files as Record<string, string>).struk_retribusi = '/foto/X/Struk_Retribusi/r.jpg';
+    (body.serverData.files as Record<string, string>).struk_parkir = '/foto/X/Struk_Parkir/p.jpg';
+    const res = await post(app, '/api/laporan', tok, body);
+    expect(res.status).toBe(200);
+    const row = lap.state.rows[0]!;
+    expect(row).toMatchObject({ metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1', biaya_bbm: 100000, biaya_bbm_2: 0, biaya_toll: 0, metode_toll: 'TUNAI' });
+    expect(row.rincian).toEqual([
+      { jenis: 'BBM', nominal: 100000, kartu: 'FLZ-1', keterangan: 'SPBU A' },
+      { jenis: 'RETRIBUSI', nominal: 10000, kartu: '', keterangan: 'Gerbang' },
+      { jenis: 'PARKIR', nominal: 5000, kartu: '', keterangan: 'Mall' },
+      { jenis: 'PARKIR', nominal: 3000, kartu: '', keterangan: '' },
+    ]);
+    expect(row.foto_struk_retribusi).toBe('/foto/X/Struk_Retribusi/r.jpg');
+    expect(row.foto_struk_parkir).toBe('/foto/X/Struk_Parkir/p.jpg');
+    expect(flz.state.cards[0]!.last_balance).toBe(500000 - 100000);
+  });
+
+  it('POST: laporan hanya Retribusi (tanpa BBM/Tol dan tanpa foto) sukses', async () => {
+    const { app, kv, lap, flz } = setup({ flazzCard: [flazzCard()] });
+    const tok = await loginAs(kv, PIC);
+    const body = rinci([{ jenis: 'RETRIBUSI', nominal: 10000 }]);
+    body.serverData.files = { odo_awal: 'https://x/storage/v1/object/public/foto/a.jpg', odo_akhir: '', struk_bbm: '', struk_toll: '' } as never;
+    const res = await post(app, '/api/laporan', tok, body);
+    expect(res.status).toBe(200);
+    expect(lap.state.rows[0]).toMatchObject({ biaya_bbm: 0, biaya_toll: 0, liter_bbm: 0, foto_struk_retribusi: '', foto_struk_parkir: '' });
+    expect(lap.state.rows[0]!.rincian).toEqual([{ jenis: 'RETRIBUSI', nominal: 10000, kartu: '', keterangan: '' }]);
+    expect(flz.state.cards[0]!.last_balance).toBe(500000);
+  });
+
   it('POST: 3 cara bayar BBM -> 400, galat baris -> 400', async () => {
     const { app, kv, lap } = setup({ flazzCard: [flazzCard(), flazzCard({ id: 'FLZ-2', card_name: 'Kartu B' })] });
     const tok = await loginAs(kv, PIC);
@@ -1071,6 +1125,31 @@ describe('rincian pengeluaran', () => {
     const tolak = await put(app, '/api/laporan/TRX-1', tok, { rincian: [{ jenis: 'BBM', nominal: 90000, kartu: 'FLZ-1' }] });
     expect(tolak.status).toBe(409);
     expect(lap.state.rows[0]!.biaya_bbm).toBe(100000);
+  });
+
+  it('PUT: tambah/hapus baris Retribusi/Parkir memperbarui rincian tanpa mengubah saldo kartu; foto baru mengganti kolom foto yang tepat', async () => {
+    const awal = [{ jenis: 'BBM' as const, nominal: 100000, kartu: 'FLZ-1', keterangan: 'A' }];
+    const { app, kv, lap, flz } = setup({
+      rows: [{ transaction_id: 'TRX-1', metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1', biaya_bbm: 100000, rincian: awal, foto_struk_toll: '/foto/X/Struk_Tol/lama.jpg' }],
+      flazzCard: [flazzCard()],
+    });
+    const tok = await loginAs(kv, PIC);
+    const ok = await put(app, '/api/laporan/TRX-1', tok, {
+      rincian: [...awal, { jenis: 'RETRIBUSI', nominal: 10000, kartu: 'FLZ-1', keterangan: '' }, { jenis: 'PARKIR', nominal: 4000, kartu: '', keterangan: 'Mall' }],
+      foto_struk_retribusi: 'data:image/jpeg;base64,AAAA', foto_struk_retribusi_name: 'r.jpg',
+    });
+    expect(ok.status).toBe(200);
+    const row = lap.state.rows[0]!;
+    expect(row.rincian).toHaveLength(3);
+    expect(row.rincian![1]).toMatchObject({ jenis: 'RETRIBUSI', kartu: '' });
+    expect(row).toMatchObject({ biaya_bbm: 100000, biaya_toll: 0 });
+    expect(row.foto_struk_retribusi).toContain('/Struk_Retribusi/');
+    expect(row.foto_struk_toll).toBe('/foto/X/Struk_Tol/lama.jpg');
+    expect(row.foto_struk_parkir ?? '').toBe('');
+    expect(flz.state.cards[0]!.last_balance).toBe(500000);
+    const hapus = await put(app, '/api/laporan/TRX-1', tok, { rincian: awal });
+    expect(hapus.status).toBe(200);
+    expect(lap.state.rows[0]!.rincian).toEqual(awal);
   });
 
   it('PUT klien lama (tanpa rincian) yang mengubah biaya mengosongkan rincian', async () => {

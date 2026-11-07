@@ -53,18 +53,18 @@
 - [x] `npm test && npm run typecheck`, CHANGELOG, commit `feat(laporan): jenis retribusi dan parkir di logika rincian`.
 
 ### Task 3: Server simpan foto & rincian (`src/routes/laporan.ts`, `src/db/storage.ts`)
-- [ ] **Tes gagal** (`tests/routes/laporan.test.ts`):
+- [x] **Tes gagal** (`tests/routes/laporan.test.ts`):
   - POST `/api/laporan/photos` dengan `foto_struk_retribusi`/`foto_struk_parkir` mengembalikan `files.struk_retribusi`/`files.struk_parkir`; tanpa foto → `''` dan **tidak** diwajibkan.
   - POST `/api/laporan` dengan rincian BBM + Retribusi + Parkir: slot lama (`biaya_bbm`, `biaya_toll`, `metode_*`) tidak terpengaruh, `rincian` tersimpan lengkap, kartu Retribusi/Parkir `''`, saldo Flazz tidak berubah; `foto_struk_retribusi`/`foto_struk_parkir` tersimpan.
   - Laporan hanya berisi Retribusi (tanpa BBM/Tol) sukses dan tidak meminta struk BBM/tol.
   - PUT: tambah/hapus baris Retribusi memperbarui `rincian` tanpa mengubah saldo kartu; ganti foto lewat `files`.
-- [ ] **Implementasi:**
+- [x] **Implementasi:**
   - `src/db/storage.ts`: union `folder` + `'Struk_Retribusi' | 'Struk_Parkir'`.
   - `SLOT_STRUK` (laporan.ts ~165) + `{ slot:'struk_retribusi', folder:'Struk_Retribusi', label:'bukti retribusi' }`, `{ slot:'struk_parkir', folder:'Struk_Parkir', label:'bukti parkir' }`; `files` default di `/photos` ditambah dua slot.
   - Insert POST: `foto_struk_retribusi`, `foto_struk_parkir` dari `sfiles`.
   - Loop foto di PUT (~680): ganti ternary dua-cabang `s.slot === 'struk_bbm' ? … : …` dengan peta `slot → kolom` (4 slot) agar slot baru tidak menimpa `foto_struk_toll`.
   - `LaporanRow` + `LaporanInsert` ditambah dua kolom foto.
-- [ ] `npm test && npm run typecheck`, CHANGELOG, commit `feat(laporan): simpan rincian retribusi/parkir dan foto bukti opsional`. **Gerbang:** `/security-review` setelah Task 3 (upload & input DB).
+- [x] `npm test && npm run typecheck`, CHANGELOG, commit `feat(laporan): simpan rincian retribusi/parkir dan foto bukti opsional`. **Gerbang:** `/security-review` setelah Task 3 (upload & input DB).
 
 ### Task 4: History & ringkasan bulanan (server)
 - [ ] **Tes gagal** (`tests/logic/laporan.test.ts`, `laporan-grup2.test.ts`, route bulanan): `buildRecentList` memuat `total_retribusi`, `total_parkir`, `foto_struk_retribusi(+_thumb)`, `foto_struk_parkir(+_thumb)`; `groupMonthly` menambah `total_retribusi`, `total_parkir` dan `total_pengeluaran` (= BBM + Tol + Retribusi + Parkir); laporan lama → 0; cache bulanan memakai kunci `monthly2:`.

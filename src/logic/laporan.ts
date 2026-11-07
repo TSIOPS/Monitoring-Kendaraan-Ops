@@ -31,6 +31,9 @@ export interface LaporanRow {
   foto_struk_bbm: string;
   biaya_toll: number;
   foto_struk_toll: string;
+  // Bukti opsional Retribusi & Parkir Delivery (satu foto per jenis per laporan).
+  foto_struk_retribusi?: string;
+  foto_struk_parkir?: string;
   km_per_liter: number;
   status: string;
   warning: string;

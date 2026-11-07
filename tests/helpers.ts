@@ -217,7 +217,7 @@ export function laporanRow(over: Partial<LaporanRow> = {}): LaporanRow {
     foto_km_awal: '', ocr_km_awal: '', km_awal_confirmed: '100', bar_awal: '8',
     foto_km_akhir: '', ocr_km_akhir: '', km_akhir_confirmed: '200', bar_akhir: '4',
     km_tempuh: 100, perubahan_bar: 4, liter_bbm: 10, biaya_bbm: 100000,
-    foto_struk_bbm: '', biaya_toll: 0, foto_struk_toll: '', km_per_liter: 10,
+    foto_struk_bbm: '', biaya_toll: 0, foto_struk_toll: '', foto_struk_retribusi: '', foto_struk_parkir: '', km_per_liter: 10,
     status: 'COMPLETED', warning: '', nama_supir: 'Supir A', metode_pembayaran: 'TUNAI',
     flazz_card_id: '', km_sumber: 'AKTUAL', metode_toll: 'TUNAI', flazz_card_id_toll: '',
     flazz_card_id_2: '', biaya_bbm_2: 0, flazz_card_id_toll_2: '', biaya_toll_2: 0,
