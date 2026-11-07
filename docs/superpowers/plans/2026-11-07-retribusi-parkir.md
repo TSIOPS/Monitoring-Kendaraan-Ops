@@ -98,14 +98,21 @@
 > **Titik rilis opsional setelah Fase 1:** jalankan SQL → deploy. Rekap/Perbandingan belum memuat jenis baru (lihat Fase 2–3); lebih baik rilis Fase 1+2 bersama.
 
 ---
-## FASE 2 — Rekap, Excel, Kas Kecil
+## FASE 2 — Rekap, Excel, pembanding Kas Kecil
 
-### Task 9: Rekap server (`src/logic/rekap.ts`, `src/routes/kaskecil.ts`)
+### Task 9: Rekap server (`src/logic/rekap.ts`) dan pembanding Kas Kecil (`src/logic/kaskecil.ts`, `src/routes/kaskecil.ts`)
 - [ ] **Tes gagal:**
   - `tests/logic/rekap.test.ts`: `rekapPengeluaran` mengeluarkan baris `jenis: 'RETRIBUSI'|'PARKIR'` dengan `metode: 'TUNAI'`, `card_id: ''`, keterangan dari rincian.
-  - `tests/routes/kaskecil.test.ts`: pembanding harian **tidak** menghitung Retribusi/Parkir sebagai `tolTunai` maupun `bbmTunai` (angka BBM/Tol tunai tetap).
-- [ ] **Implementasi:** `JenisPengeluaran` diperluas; `kaskecil.ts` (~486): `if (l.jenis === 'BBM') … else if (l.jenis === 'TOL') …` (jenis lain dilewati).
-- [ ] `npm test && npm run typecheck`, CHANGELOG, commit `feat(rekap): baris retribusi/parkir; pembanding kas kecil tidak berubah`.
+  - `tests/logic/kaskecil.test.ts`: `pembandingHarian` menambah pasangan `retribusi` dan `parkir` (`app`/`kas`/`selisih`); Retribusi ↔ jenis "Biaya Retribusi", Parkir ↔ "Biaya Parkir Untuk Delivery"; **"Biaya Parkir ke Bank" tidak terhitung** di Parkir; `cocok` hanya true bila keempat pasangan (BBM, Top up, Tol, Retribusi, Parkir) selisih 0; uang kembali (KM tertaut) mengurangi sisi kas seperti jenis lain.
+  - `tests/routes/kaskecil.test.ts`: endpoint pembanding mengisi `app.retribusiTunai`/`parkirTunai` dari laporan tunai, dan Retribusi/Parkir **tidak** masuk `tolTunai`/`bbmTunai`.
+- [ ] **Implementasi:** `JenisPengeluaran` diperluas; `AppHarian` + `retribusiTunai`, `parkirTunai`; `POLA_RETRIBUSI = /retribusi/i`, `POLA_PARKIR = /parkir untuk delivery/i`; `BarisBanding` + `retribusi`, `parkir`; `kaskecil.ts` (~486): peta jenis→kolom (`BBM`→bbmTunai, `TOL`→tolTunai, `RETRIBUSI`→retribusiTunai, `PARKIR`→parkirTunai).
+- [ ] `npm test && npm run typecheck`, CHANGELOG, commit `feat(rekap): baris retribusi/parkir dan pembanding kas kecil`.
+
+### Task 9b: Tampilan & Excel pembanding Kas Kecil (`static/js/pages/kaskecil.js`, `static/js/kaskecil-helpers.js`)
+- [ ] **Tes gagal** (`tests/frontend/kaskecil-helpers.test.ts`): Excel pembanding memuat kolom Retribusi dan Parkir (app, kas, selisih) dengan baris TOTAL yang menjumlahkannya; jumlah kolom header = jumlah sel tiap baris; angka nol tampil "-" (aturan proyek).
+- [ ] **Implementasi:** tabel pembanding (~700–708) + dua kelompok kolom (Retribusi, Parkir); `sel()` dipakai ulang; Excel (~109–110) ditambah kolom yang sama. Label status "Cocok/Selisih" mengikuti `cocok` baru.
+- [ ] Verifikasi manual (dev/demo-lokal): satu laporan dengan Retribusi 10.000 + kas keluar "Biaya Retribusi" 10.000 pada tanggal sama → Cocok; ubah salah satu → Selisih.
+- [ ] `npm test && npm run typecheck`, CHANGELOG, commit `feat(kas-kecil): retribusi dan parkir delivery di pembanding harian`. Catatan: Kas Kecil masih tahap uji (hanya SUPERADMIN) — tidak membuka ke PIC.
 
 ### Task 10: Rekap frontend + Excel (`static/js/pages/rekap.js`)
 - [ ] **Tes gagal** (`tests/frontend/rekap-helpers.test.ts`): `kosongTotal`/`tambahkan` memiliki `retribusi` dan `parkir`; `totalTunai` ikut bertambah; ringkasan & sheet Excel memuat dua baris/kolom baru; label baris detail "Retribusi"/"Parkir Delivery"; filter jenis menerima 4 nilai.
@@ -140,4 +147,4 @@
 - [ ] Commit `docs(retribusi-parkir): review, README, dan penutup rencana`, push.
 
 ## Rangkuman ukuran
-13 task, ±18–20 file, ±1.000–1.300 baris termasuk tes. Fase 1 ±8 task-file, Fase 2 ±4, Fase 3 ±2. Risiko terbesar: Task 11–12 (percabangan jenis paling banyak di `perbandingan.js`) dan Task 3 (peta slot→kolom foto di PUT).
+14 task, ±20–22 file, ±1.200–1.500 baris termasuk tes. Fase 1 ±8–10 file, Fase 2 ±6, Fase 3 ±1–2. Risiko terbesar: Task 11–12 (percabangan jenis paling banyak di `perbandingan.js`) dan Task 3 (peta slot→kolom foto di PUT).

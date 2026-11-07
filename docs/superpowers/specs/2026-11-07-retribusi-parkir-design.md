@@ -19,6 +19,7 @@ Keduanya ikut tampil dan terhitung di History, Rekap Pengeluaran + Excel, Perban
 | 5 | Foto bukti **opsional**, satu foto per jenis per laporan (bukan wajib seperti struk BBM/tol). |
 | 6 | Muncul di semua laporan (semua cabang/peran yang bisa input). |
 | 7 | Masuk Total Pengeluaran di Rekap, Excel, Perbandingan, dan ringkasan bulanan. |
+| 9 | **Retribusi dan Parkir Delivery ikut dibandingkan dengan Kas Kecil** (pembanding harian). Pemetaan: Retribusi ↔ kas keluar jenis "Biaya Retribusi"; Parkir Delivery ↔ "Biaya Parkir Untuk Delivery". **"Biaya Parkir ke Bank" bukan parkir delivery dan tidak ikut.** Pola nama jenis memakai regex seperti BBM/Tol (`/retribusi/i`, `/parkir untuk delivery/i`). |
 | 8 | Pendekatan data **A**: kolom `rincian` (JSONB) tetap sumber data; total dihitung dari rincian. Tidak ada kolom slot `biaya_retribusi`/`biaya_parkir`. Pendekatan B (kolom slot baru) ditolak. |
 
 ## Alur data
@@ -40,13 +41,14 @@ Keduanya ikut tampil dan terhitung di History, Rekap Pengeluaran + Excel, Perban
 Banyak kode memakai pola "selain BBM berarti Tol" (`else`), sehingga jenis baru akan salah masuk Tol bila tidak diubah:
 - `static/js/pages/rekap.js` `tambahkan()` (baris ~15–19), filter jenis (~228), label jenis (~106).
 - `static/js/pages/perbandingan.js` `tambah()` (~17–25) dan tiga percabangan `l.jenis === 'TOL' ? … : …` (~168, ~245, plus agregasi rentang).
-- `src/routes/kaskecil.ts` (~486–488): `else` menghitung semua selain BBM sebagai `tolTunai` → harus disaring hanya BBM/TOL.
+- `src/routes/kaskecil.ts` (~486–488): `else` menghitung semua selain BBM sebagai `tolTunai` → harus memisahkan 4 jenis. `src/logic/kaskecil.ts` `AppHarian`, `BarisBanding`, `pembandingHarian` ditambah pasangan `retribusi` dan `parkir`; `static/js/pages/kaskecil.js` (~700–708, tabel pembanding) dan `static/js/kaskecil-helpers.js` (~109–110, Excel) ditambah dua kelompok kolom.
 - `static/js/pages/transaksi.js` `teksBarisRincian` (~146) dan ringkasan bulanan (~64–80).
 - `src/logic/rekap.ts` `JenisPengeluaran`, `src/logic/laporan.ts` `RincianItem`, `groupMonthly`, `RecentItem`, `src/db/storage.ts` union `folder`.
 - Cache ringkasan bulanan (`monthlyCacheKey`) harus berganti versi agar data lama di KV tidak menampilkan `undefined`.
 
 ## Pertanyaan terbuka (perlu keputusan sebelum Fase 2)
-1. **Pembanding Kas Kecil.** Pembanding harian membandingkan BBM/Tol tunai aplikasi dengan Kas Kecil. Rencana ini **menyaring** Retribusi/Parkir dari pembanding (tidak mengubah angka yang kini dipakai). Kas Kecil sudah punya jenis pengeluaran "parkir"; bila ingin dibandingkan juga, itu tambahan ±1 file (Fase 4, opsional) dan perlu aturan pemetaan jenis.
+_(Tidak ada — pertanyaan sudah dijawab, lihat keputusan 9.)_
+
 (Biaya per km tidak ada di aplikasi; efisiensi hanya dari liter BBM sehingga tidak terpengaruh. "Per kendaraan" di Perbandingan memakai total, yang otomatis memuat Retribusi/Parkir.)
 
 ## Risiko
@@ -59,12 +61,12 @@ Banyak kode memakai pola "selain BBM berarti Tol" (`else`), sehingga jenis baru 
 | Cache bulanan lama | Ganti prefix kunci `monthly:` → `monthly2:`. |
 
 ## Fase dan ukuran
-Perkiraan total ±18–20 file dan ±1.000–1.300 baris termasuk tes. Sedang–besar, tetapi bisa dicicil dan tiap fase bisa dirilis sendiri.
+Perkiraan total ±20–22 file dan ±1.200–1.500 baris termasuk tes. Sedang–besar, tetapi bisa dicicil dan tiap fase bisa dirilis sendiri.
 
 | Fase | Isi | File utama | Ukuran |
 |---|---|---|---|
 | 1 | Data, validasi, Input/Edit, foto opsional, History, ringkasan bulanan | `src/logic/rincian.ts`, `src/logic/laporan.ts`, `src/routes/laporan.ts`, `src/db/storage.ts`, `static/js/rincian.js`, `input.js`, `edit.js`, `transaksi.js`, `db/retribusi-parkir.sql`, `db/schema.sql` | sedang (±8–10 file) |
-| 2 | Rekap + Excel + penyaring Kas Kecil | `src/logic/rekap.ts`, `src/routes/kaskecil.ts`, `static/js/pages/rekap.js` | kecil–sedang (±4 file) |
+| 2 | Rekap + Excel + pembanding Kas Kecil (2 pasangan kolom baru) | `src/logic/rekap.ts`, `src/logic/kaskecil.ts`, `src/routes/kaskecil.ts`, `static/js/pages/rekap.js`, `static/js/pages/kaskecil.js`, `static/js/kaskecil-helpers.js` | sedang (±6 file) |
 | 3 | Perbandingan (harian, rentang, bulanan, Excel) | `static/js/pages/perbandingan.js` | sedang (paling banyak percabangan) |
 
 Fase 1 sudah bisa dipakai PIC (input + History); Rekap/Perbandingan sebelum Fase 2–3 hanya belum menampilkan jenis baru, tanpa merusak angka lama. **Namun** Fase 2 sebaiknya dirilis bersama atau tepat setelah Fase 1 agar total Rekap tidak berbeda dari yang diinput.
