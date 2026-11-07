@@ -2,9 +2,13 @@
 // Rincian dijumlahkan ke kolom slot lama (grup-1 + grup-2) sehingga rekon, saldo kartu, dan
 // rekap tetap memakai logika yang sudah ada. Maks 2 cara bayar per jenis (batas slot).
 import { canonicalCardId, cardGroups, num } from './laporan';
-import type { LaporanRow, RincianItem } from './laporan';
+import type { JenisRincian, LaporanRow, RincianItem } from './laporan';
 
-export type { RincianItem };
+export type { JenisRincian, RincianItem };
+// Retribusi & Parkir Delivery selalu tunai dan tidak menyentuh slot pembayaran/kartu (spec 2026-11-07).
+export const JENIS_RINCIAN: readonly JenisRincian[] = ['BBM', 'TOL', 'RETRIBUSI', 'PARKIR'];
+export const JENIS_TUNAI_SAJA: readonly JenisRincian[] = ['RETRIBUSI', 'PARKIR'];
+export const MSG_JENIS_RINCIAN = 'jenis harus BBM, Tol, Retribusi, atau Parkir Delivery.';
 export const MAKS_BARIS = 30;
 export const MAKS_KETERANGAN = 100;
 export const MAKS_NOMINAL = 100_000_000;
@@ -28,9 +32,11 @@ export function normalRincian(raw: unknown): { items: RincianItem[]; galat: stri
     const jenis = String(o.jenis ?? '').trim().toUpperCase();
     const nominal = Math.round(num(o.nominal));
     const keterangan = String(o.keterangan ?? '').trim();
-    const kartu = String(o.kartu ?? '').trim();
+    const jenisValid = (JENIS_RINCIAN as readonly string[]).includes(jenis);
+    const tunaiSaja = (JENIS_TUNAI_SAJA as readonly string[]).includes(jenis);
+    const kartu = tunaiSaja ? '' : String(o.kartu ?? '').trim();
     const n = i + 1;
-    if (jenis !== 'BBM' && jenis !== 'TOL') galat.push(`Baris ${n}: jenis harus BBM atau Tol.`);
+    if (!jenisValid) galat.push(`Baris ${n}: ${MSG_JENIS_RINCIAN}`);
     if (!Number.isFinite(nominal) || !(nominal > 0)) galat.push(`Baris ${n}: nominal harus lebih dari 0.`);
     else if (nominal > MAKS_NOMINAL) galat.push(`Baris ${n}: nominal maksimal Rp 100.000.000.`);
     if (kartu.length > MAKS_KARTU) galat.push(`Baris ${n}: kartu tidak valid.`);
@@ -74,6 +80,13 @@ export function rincianKeSlot(items: RincianItem[], labelKartu: (id: string) => 
       flazz_card_id_toll_2: t2?.kartu ?? '', biaya_toll_2: t2?.total ?? 0,
     },
   };
+}
+
+// Total per jenis dari rincian (dipakai History, ringkasan bulanan, rekap).
+export function totalPerJenis(items: RincianItem[]): Record<JenisRincian, number> {
+  const t: Record<JenisRincian, number> = { BBM: 0, TOL: 0, RETRIBUSI: 0, PARKIR: 0 };
+  for (const it of items) if (it.jenis in t) t[it.jenis] += num(it.nominal);
+  return t;
 }
 
 // Laporan lama (tanpa rincian): satu baris per slot bernominal, keterangan kosong.

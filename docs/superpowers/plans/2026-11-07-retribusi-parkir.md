@@ -43,14 +43,14 @@
 - [x] `npm test && npm run typecheck`, CHANGELOG (Fitur), commit `feat(db): kolom foto bukti retribusi dan parkir`.
 
 ### Task 2: Logika murni rincian (`src/logic/rincian.ts`)
-- [ ] **Tes gagal** (`tests/logic/rincian.test.ts`):
+- [x] **Tes gagal** (`tests/logic/rincian.test.ts`):
   - `normalRincian` menerima `RETRIBUSI`/`PARKIR` (huruf kecil juga) dan memaksa `kartu: ''` walau dikirim kartu.
   - Jenis lain (mis. `LAIN`) → galat `Baris n: jenis harus BBM, Tol, Retribusi, atau Parkir Delivery.`
   - `rincianKeSlot` mengabaikan Retribusi/Parkir (slot identik dengan input tanpa baris itu; tidak memicu galat "maksimal 2 cara").
   - `totalPerJenis(items)` → `{ BBM, TOL, RETRIBUSI, PARKIR }`.
   - 31 baris campuran tetap ditolak.
-- [ ] **Implementasi:** `RincianItem.jenis` (di `src/logic/laporan.ts`) menjadi `'BBM' | 'TOL' | 'RETRIBUSI' | 'PARKIR'`; konstanta `JENIS_RINCIAN`, `JENIS_TUNAI_SAJA = ['RETRIBUSI','PARKIR']`; `normalRincian` memakainya; `rincianKeSlot` hanya memakai `sumberPer` BBM/TOL (sudah begitu — tambah tes pengunci); export `totalPerJenis`.
-- [ ] `npm test && npm run typecheck`, CHANGELOG, commit `feat(laporan): jenis retribusi dan parkir di logika rincian`.
+- [x] **Implementasi:** `RincianItem.jenis` (di `src/logic/laporan.ts`) menjadi `'BBM' | 'TOL' | 'RETRIBUSI' | 'PARKIR'`; konstanta `JENIS_RINCIAN`, `JENIS_TUNAI_SAJA = ['RETRIBUSI','PARKIR']`; `normalRincian` memakainya; `rincianKeSlot` hanya memakai `sumberPer` BBM/TOL (sudah begitu — tambah tes pengunci); export `totalPerJenis`.
+- [x] `npm test && npm run typecheck`, CHANGELOG, commit `feat(laporan): jenis retribusi dan parkir di logika rincian`.
 
 ### Task 3: Server simpan foto & rincian (`src/routes/laporan.ts`, `src/db/storage.ts`)
 - [ ] **Tes gagal** (`tests/routes/laporan.test.ts`):

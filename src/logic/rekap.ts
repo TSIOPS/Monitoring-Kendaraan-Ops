@@ -2,11 +2,11 @@
 // Sumber: laporan harian (grup-1 + grup-2 kartu ke-2) dan tol manual modul Flazz.
 import { canonicalCardId, num } from './laporan';
 import { rincianDariRow } from './rincian';
-import type { LaporanRow } from './laporan';
+import type { JenisRincian, LaporanRow } from './laporan';
 
 export const KET_TANPA_RINCIAN = '(total, tanpa rincian)';
 
-export type JenisPengeluaran = 'BBM' | 'TOL';
+export type JenisPengeluaran = JenisRincian;
 export type MetodePengeluaran = 'ETOLL' | 'TUNAI';
 
 export interface RekapLine {

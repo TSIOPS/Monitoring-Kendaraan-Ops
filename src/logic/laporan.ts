@@ -3,7 +3,8 @@
 import { thumbUrlOf } from './foto';
 import { rincianDariRow } from './rincian';
 
-export interface RincianItem { jenis: 'BBM' | 'TOL'; nominal: number; kartu: string; keterangan: string }
+export type JenisRincian = 'BBM' | 'TOL' | 'RETRIBUSI' | 'PARKIR';
+export interface RincianItem { jenis: JenisRincian; nominal: number; kartu: string; keterangan: string }
 
 export interface LaporanRow {
   seq?: number;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalRincian, rincianKeSlot, slotKeRincian, rincianDariRow, MSG_RINCIAN_MAKS_BARIS } from '../../src/logic/rincian';
+import { normalRincian, rincianKeSlot, slotKeRincian, rincianDariRow, totalPerJenis, MSG_RINCIAN_MAKS_BARIS } from '../../src/logic/rincian';
 import type { LaporanRow } from '../../src/logic/laporan';
 
 const B = (jenis: string, nominal: unknown, kartu = '', keterangan = '') => ({ jenis, nominal, kartu, keterangan });
@@ -20,7 +20,7 @@ describe('normalRincian', () => {
   it('galat per baris: jenis, nominal <= 0 / bukan angka, keterangan > 100', () => {
     const r = normalRincian([B('SOLAR', 1), B('BBM', 0), B('TOL', 'abc'), B('BBM', 1, '', 'x'.repeat(101))]);
     expect(r.galat).toEqual([
-      'Baris 1: jenis harus BBM atau Tol.',
+      'Baris 1: jenis harus BBM, Tol, Retribusi, atau Parkir Delivery.',
       'Baris 2: nominal harus lebih dari 0.',
       'Baris 3: nominal harus lebih dari 0.',
       'Baris 4: keterangan maksimal 100 karakter.',
@@ -33,6 +33,40 @@ describe('normalRincian', () => {
       'Baris 3: nominal harus lebih dari 0.',
       'Baris 4: kartu tidak valid.',
     ]);
+  });
+});
+
+describe('retribusi & parkir delivery', () => {
+  it('normalRincian menerima RETRIBUSI/PARKIR (huruf kecil) dan memaksa tunai walau kartu dikirim', () => {
+    const r = normalRincian([B('retribusi', 10000, 'FLZ-1', 'Gerbang'), B('Parkir', 5000, 'FLZ-2')]);
+    expect(r.galat).toEqual([]);
+    expect(r.items).toEqual([
+      { jenis: 'RETRIBUSI', nominal: 10000, kartu: '', keterangan: 'Gerbang' },
+      { jenis: 'PARKIR', nominal: 5000, kartu: '', keterangan: '' },
+    ]);
+  });
+  it('jenis lain tetap ditolak; 31 baris campuran tetap ditolak', () => {
+    expect(normalRincian([B('LAIN', 1)]).galat).toEqual(['Baris 1: jenis harus BBM, Tol, Retribusi, atau Parkir Delivery.']);
+    expect(normalRincian(Array.from({ length: 31 }, (_, i) => B(i % 2 ? 'PARKIR' : 'RETRIBUSI', 1))).galat).toEqual([MSG_RINCIAN_MAKS_BARIS]);
+  });
+  it('rincianKeSlot mengabaikan Retribusi/Parkir: slot sama dengan tanpa baris itu, tidak memicu galat 2 cara', () => {
+    const dasar = [B('BBM', 200000, 'K1'), B('TOL', 15000)] as never[];
+    const campur = [...dasar, B('RETRIBUSI', 10000), B('PARKIR', 3000), B('PARKIR', 2000)] as never[];
+    expect(rincianKeSlot(campur)).toEqual(rincianKeSlot(dasar));
+    // 2 cara bayar BBM + Retribusi + Parkir: Retribusi/Parkir tunai tidak dihitung sebagai cara bayar ketiga.
+    const r = rincianKeSlot([B('BBM', 1, 'K1'), B('BBM', 1, 'K2'), B('RETRIBUSI', 10000), B('PARKIR', 1000)] as never[]);
+    expect(r.galat).toEqual([]);
+  });
+  it('totalPerJenis menjumlah per jenis; kosong = nol', () => {
+    expect(totalPerJenis([])).toEqual({ BBM: 0, TOL: 0, RETRIBUSI: 0, PARKIR: 0 });
+    expect(totalPerJenis([B('BBM', 100), B('BBM', 50), B('TOL', 7), B('RETRIBUSI', 10000), B('PARKIR', 3000), B('PARKIR', 2000)] as never[]))
+      .toEqual({ BBM: 150, TOL: 7, RETRIBUSI: 10000, PARKIR: 5000 });
+  });
+  it('rincianDariRow: laporan hanya Retribusi (tanpa BBM/Tol) tetap memakai kolom rincian', () => {
+    const row = { rincian: [B('RETRIBUSI', 10000)], biaya_bbm: 0, biaya_toll: 0 } as unknown as LaporanRow;
+    const { items, lama } = rincianDariRow(row);
+    expect(lama).toBe(false);
+    expect(items).toHaveLength(1);
   });
 });
 
