@@ -262,13 +262,24 @@ describe('buildRecentList', () => {
     km_tempuh: 100, liter_bbm: 10, bar_awal: '8', bar_akhir: '4', ...over,
   });
 
-  it('Data Belum Cukup bila < 7 riwayat; warning dinamis dari prev', () => {
-    const rows = [mk(1), mk(2, { km_awal_confirmed: '250' }), mk(3)];
+  it('Data Belum Cukup bila < 7 riwayat; warning dinamis dari prev di tanggal sama', () => {
+    const rows = [
+      mk(1),
+      mk(2, { tanggal: '2026-09-01', timestamp: '2026-09-01T02:00:00.000Z', km_awal_confirmed: '250' }),
+      mk(3),
+    ];
     const out = buildRecentList(rows, kmap, cmap, cards);
     const t2 = out.find((x) => x.transaction_id === 'TRX-2')!;
     expect(t2.status_efisiensi).toBe('Data Belum Cukup');
     expect(t2.efisiensi).toBe('');
     expect(t2.warning).toBe('SELISIH ODO: KM akhir terakhir 200 (01/09/2026), KM awal 250, selisih 50 KM - indikasi pemakaian di luar jam kerja');
+  });
+
+  it('selisih antar tanggal tidak diberi warning', () => {
+    const rows = [mk(1), mk(2, { km_awal_confirmed: '250' }), mk(3)];
+    const out = buildRecentList(rows, kmap, cmap, cards);
+    const t2 = out.find((x) => x.transaction_id === 'TRX-2')!;
+    expect(t2.warning).toBe('');
   });
 
   it('sort timestamp desc lalu sub_timestamp desc; thumb diisi', () => {

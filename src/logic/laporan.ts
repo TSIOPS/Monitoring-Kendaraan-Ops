@@ -820,7 +820,8 @@ export function buildRecentList(rows: LaporanRow[], kendaraanMap: KendaraanMap, 
       const prev = trxs[currIdx - 1];
       const prevKmAkhir = prev ? numOrNull(prev.km_akhir_confirmed) : null;
       const currKmAwal = numOrNull(row.km_awal_confirmed);
-      if (prev && prevKmAkhir !== null && currKmAwal !== null && prevKmAkhir !== currKmAwal) {
+      const tanggalSama = String(prev?.tanggal || '').substring(0, 10) === String(row.tanggal || '').substring(0, 10);
+      if (prev && tanggalSama && prevKmAkhir !== null && currKmAwal !== null && prevKmAkhir !== currKmAwal) {
         dynamicWarning = buildOdoWarning(currKmAwal, prevKmAkhir, prev.tanggal);
       }
     }

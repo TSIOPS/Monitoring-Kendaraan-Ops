@@ -14,8 +14,8 @@ describe('versi & rilis', () => {
     expect(perluTampilRilis([{ id: 'r2' }], 'r2')).toBe(false);
     expect(perluTampilRilis([], null)).toBe(false);
   });
-  it('catatan rilis terbaru = master PIC & perbaikan edit tol', () => {
-    expect(RILIS[0]!.id).toBe('2026-11-06-info-perpanjang');
+  it('catatan rilis terbaru = aturan selisih ODO antar-hari', () => {
+    expect(RILIS[0]!.id).toBe('2026-11-07-selisih-odo');
     expect(RILIS[0]!.poin.length).toBeGreaterThan(0);
   });
 });

@@ -1,6 +1,13 @@
 // Catatan "Yang baru" (terbaru di atas). Tambahkan entri saat merilis perubahan yang terlihat pengguna.
 export const RILIS = [
   {
+    id: '2026-11-07-selisih-odo',
+    judul: 'Yang baru',
+    poin: [
+      'Peringatan SELISIH ODO kini hanya muncul bila selisih KM terjadi pada tanggal yang sama (pemakaian di luar jam kerja). Selisih antar-hari tidak lagi ditampilkan sebagai selisih.',
+    ],
+  },
+  {
     id: '2026-11-06-info-perpanjang',
     judul: 'Yang baru',
     poin: [

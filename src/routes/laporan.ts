@@ -279,7 +279,8 @@ export function laporanRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
 
     const efisiensi = L.computeEfisiensi(odo.kmTempuh, literKonsumsi);
     let warning = '';
-    if (prevTrx && prevTrx.km_akhir !== null && odo.kmAwal !== prevTrx.km_akhir) {
+    const tanggalSama = String(p.tanggal ?? '').substring(0, 10) === String(prevTrx?.tanggal ?? '').substring(0, 10);
+    if (prevTrx && tanggalSama && prevTrx.km_akhir !== null && odo.kmAwal !== prevTrx.km_akhir) {
       warning = L.buildOdoWarning(odo.kmAwal, prevTrx.km_akhir, prevTrx.tanggal);
     }
 

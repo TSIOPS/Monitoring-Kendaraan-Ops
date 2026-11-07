@@ -87,6 +87,22 @@ describe('POST /api/laporan (save)', () => {
     expect(audits[0]).toMatchObject({ action: 'CREATE', modul: 'transaksi', keterangan: 'TRX ' + body.transaction_id });
   });
 
+  it('warning ODO tidak disimpan bila laporan sebelumnya beda tanggal', async () => {
+    const { app, kv, lap } = setup({ rows: [{ transaction_id: 'TRX-0', tanggal: '2026-09-20', km_awal_confirmed: '900', km_akhir_confirmed: '1000' }] });
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan', tok, saveBody({ km_awal_confirmed: '1100', km_akhir_confirmed: '1200' }));
+    expect(res.status).toBe(200);
+    expect(lap.state.rows[1]!.warning).toBe('');
+  });
+
+  it('warning ODO disimpan bila laporan sebelumnya di tanggal yang sama', async () => {
+    const { app, kv, lap } = setup({ rows: [{ transaction_id: 'TRX-0', tanggal: '2026-09-21', timestamp: '2026-09-21T01:00:00.000Z', km_awal_confirmed: '900', km_akhir_confirmed: '1000' }] });
+    const tok = await loginAs(kv, PIC);
+    const res = await post(app, '/api/laporan', tok, saveBody({ km_awal_confirmed: '1100', km_akhir_confirmed: '1200' }));
+    expect(res.status).toBe(200);
+    expect(lap.state.rows[1]!.warning).toContain('SELISIH ODO');
+  });
+
   it('KM wajib 5-6 digit bila KM terakhir kendaraan sudah 5 digit; meter rusak dikecualikan', async () => {
     const { app, kv, lap } = setup({ rows: [{ transaction_id: 'TRX-0', km_awal_confirmed: '14000', km_akhir_confirmed: '14100' }] });
     const tok = await loginAs(kv, PIC);
