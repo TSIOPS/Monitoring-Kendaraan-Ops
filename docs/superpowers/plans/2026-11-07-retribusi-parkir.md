@@ -101,12 +101,12 @@
 ## FASE 2 — Rekap, Excel, pembanding Kas Kecil
 
 ### Task 9: Rekap server (`src/logic/rekap.ts`) dan pembanding Kas Kecil (`src/logic/kaskecil.ts`, `src/routes/kaskecil.ts`)
-- [ ] **Tes gagal:**
+- [x] **Tes gagal:**
   - `tests/logic/rekap.test.ts`: `rekapPengeluaran` mengeluarkan baris `jenis: 'RETRIBUSI'|'PARKIR'` dengan `metode: 'TUNAI'`, `card_id: ''`, keterangan dari rincian.
   - `tests/logic/kaskecil.test.ts`: `pembandingHarian` menambah pasangan `retribusi` dan `parkir` (`app`/`kas`/`selisih`); Retribusi ↔ jenis "Biaya Retribusi", Parkir ↔ "Biaya Parkir Untuk Delivery"; **"Biaya Parkir ke Bank" tidak terhitung** di Parkir; `cocok` hanya true bila keempat pasangan (BBM, Top up, Tol, Retribusi, Parkir) selisih 0; uang kembali (KM tertaut) mengurangi sisi kas seperti jenis lain.
   - `tests/routes/kaskecil.test.ts`: endpoint pembanding mengisi `app.retribusiTunai`/`parkirTunai` dari laporan tunai, dan Retribusi/Parkir **tidak** masuk `tolTunai`/`bbmTunai`.
-- [ ] **Implementasi:** `JenisPengeluaran` diperluas; `AppHarian` + `retribusiTunai`, `parkirTunai`; `POLA_RETRIBUSI = /retribusi/i`, `POLA_PARKIR = /parkir untuk delivery/i`; `BarisBanding` + `retribusi`, `parkir`; `kaskecil.ts` (~486): peta jenis→kolom (`BBM`→bbmTunai, `TOL`→tolTunai, `RETRIBUSI`→retribusiTunai, `PARKIR`→parkirTunai).
-- [ ] `npm test && npm run typecheck`, CHANGELOG, commit `feat(rekap): baris retribusi/parkir dan pembanding kas kecil`.
+- [x] **Implementasi:** `JenisPengeluaran` diperluas; `AppHarian` + `retribusiTunai`, `parkirTunai`; `POLA_RETRIBUSI = /retribusi/i`, `POLA_PARKIR = /parkir untuk delivery/i`; `BarisBanding` + `retribusi`, `parkir`; `kaskecil.ts` (~486): peta jenis→kolom (`BBM`→bbmTunai, `TOL`→tolTunai, `RETRIBUSI`→retribusiTunai, `PARKIR`→parkirTunai).
+- [x] `npm test && npm run typecheck`, CHANGELOG, commit `feat(rekap): baris retribusi/parkir dan pembanding kas kecil`.
 
 ### Task 9b: Tampilan & Excel pembanding Kas Kecil (`static/js/pages/kaskecil.js`, `static/js/kaskecil-helpers.js`)
 - [ ] **Tes gagal** (`tests/frontend/kaskecil-helpers.test.ts`): Excel pembanding memuat kolom Retribusi dan Parkir (app, kas, selisih) dengan baris TOTAL yang menjumlahkannya; jumlah kolom header = jumlah sel tiap baris; angka nol tampil "-" (aturan proyek).

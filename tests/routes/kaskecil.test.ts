@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildApp } from '../../src/app';
-import { authHeaders, fakeEnv, loginAs, makeDeps, memKasKecil, memMaster } from '../helpers';
+import { authHeaders, fakeEnv, laporanRow, loginAs, makeDeps, memKasKecil, memLaporan, memMaster } from '../helpers';
 import type { SessionUser } from '../../src/deps';
 import type { KasJenisRow } from '../../src/db/kaskecil';
 import { todayWib } from '../../src/logic/jalur';
@@ -27,6 +27,9 @@ const JENIS = [
   J('KJ-CLOSING', 'Closing Kas', { prefiks_ref: '', tanpa_penyelesaian: true }),
   J('KJ-TAMBAH', 'Tambah Saldo', { prefiks_ref: '', tipe: 'MASUK' }),
   J('KJ-OFF', 'Jenis Nonaktif', { aktif: false }),
+  J('KJ-RETRIBUSI', 'Biaya Retribusi'),
+  J('KJ-PARKIR', 'Biaya Parkir Untuk Delivery'),
+  J('KJ-PARKIRBANK', 'Biaya Parkir ke Bank'),
 ];
 
 function setup() {
@@ -293,6 +296,31 @@ describe('validasi tambahan', () => {
     const res = await call(app2, 'POST', '/api/kaskecil/keluar/KK-WHO-KWG-1/selesai', tok, { jumlah: 10000 });
     expect(res.status).toBe(500);
     expect(await deps.kaskecil.listMasuk({ cabang: 'KWG' })).toHaveLength(0);
+  });
+});
+
+describe('pembanding Retribusi & Parkir Delivery', () => {
+  it('laporan tunai (rincian RETRIBUSI/PARKIR) dibandingkan dengan kas keluar jenisnya; tidak masuk BBM/Tol; Parkir ke Bank tidak ikut', async () => {
+    const master = memMaster({ cabang: CABANG });
+    const kas = memKasKecil({ jenis: JENIS });
+    const lap = memLaporan({ rows: [laporanRow({ transaction_id: 'TRX-1', kode_cabang: 'KWG', tanggal: HARI, metode_pembayaran: 'TUNAI', biaya_bbm: 100000, rincian: [
+      { jenis: 'BBM', nominal: 100000, kartu: '', keterangan: '' }, { jenis: 'RETRIBUSI', nominal: 10000, kartu: '', keterangan: '' },
+      { jenis: 'PARKIR', nominal: 5000, kartu: '', keterangan: '' }, { jenis: 'PARKIR', nominal: 3000, kartu: '', keterangan: '' }] })] });
+    const { deps, kv } = makeDeps({ kasKecilPeran: SEMUA_PERAN, master: master.repo, kaskecil: kas.repo, laporan: lap.repo });
+    const app = buildApp(fakeEnv() as any, deps);
+    const tok = await loginAs(kv, PIC);
+    for (const [jenis, jumlah] of [['KJ-RETRIBUSI', 10000], ['KJ-PARKIR', 8000], ['KJ-PARKIRBANK', 2000]] as const) {
+      await call(app, 'POST', '/api/kaskecil/keluar', tok, { jenis_id: jenis, penerima: 'A', jumlah });
+    }
+    const p = await json(await call(app, 'GET', '/api/kaskecil/pembanding?bulan=' + HARI.slice(0, 7), tok));
+    expect(p.baris).toHaveLength(1);
+    expect(p.baris[0]).toMatchObject({
+      tanggal: HARI,
+      bbm: { app: 100000, kas: 0, selisih: 100000 },
+      tol: { app: 0, kas: 0, selisih: 0 },
+      retribusi: { app: 10000, kas: 10000, selisih: 0 },
+      parkir: { app: 8000, kas: 8000, selisih: 0 },
+    });
   });
 });
 

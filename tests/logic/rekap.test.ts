@@ -42,6 +42,19 @@ describe('rekapPengeluaran', () => {
     expect(ringkas(lines)).toEqual([['BBM', 'ETOLL', 'E toll 1', 50000], ['BBM', 'ETOLL', 'E toll 2', 30000], ['TOL', 'TUNAI', '', 7000]]);
   });
 
+  it('Retribusi & Parkir Delivery: satu baris per nota, selalu TUNAI tanpa kartu (walau kartu tercatat)', () => {
+    const rows = [row({ transaction_id: 'TRX-7', tanggal: '2026-10-05', metode_pembayaran: 'FLAZZ', flazz_card_id: 'FLZ-1', biaya_bbm: 100,
+      rincian: [{ jenis: 'BBM', nominal: 100, kartu: 'FLZ-1', keterangan: 'SPBU' }, { jenis: 'RETRIBUSI', nominal: 10000, kartu: '', keterangan: 'Gerbang' },
+        { jenis: 'PARKIR', nominal: 5000, kartu: 'FLZ-1', keterangan: 'Mall' }] })];
+    const lines = rekapPengeluaran({ ...dasar, rows });
+    expect(lines.map((l) => [l.jenis, l.metode, l.card_id, l.kartu, l.amount, l.keterangan])).toEqual(expect.arrayContaining([
+      ['BBM', 'ETOLL', 'FLZ-1', 'E toll 1', 100, 'SPBU'],
+      ['RETRIBUSI', 'TUNAI', '', '', 10000, 'Gerbang'],
+      ['PARKIR', 'TUNAI', '', '', 5000, 'Mall'],
+    ]));
+    expect(lines).toHaveLength(3);
+  });
+
   it('metode kosong dengan nominal = tunai; nominal 0 diabaikan', () => {
     expect(ringkas(rekapPengeluaran({ ...dasar, rows: [row({ biaya_bbm: 90000 }), row({ transaction_id: 'TRX-2' })] }))).toEqual([['BBM', 'TUNAI', '', 90000]]);
   });

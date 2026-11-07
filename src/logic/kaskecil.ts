@@ -205,9 +205,10 @@ export function summaryBulanan(i: { keluar: KasKeluarRow[]; masuk: KasMasukRow[]
 }
 
 // ── Pembanding aplikasi vs kas kecil ────────────────────────────────────────
-export interface AppHarian { bbmTunai: number; topup: number; tolTunai: number }
+// retribusiTunai/parkirTunai opsional: data/pemanggil lama tanpa field itu dianggap 0.
+export interface AppHarian { bbmTunai: number; topup: number; tolTunai: number; retribusiTunai?: number; parkirTunai?: number }
 export interface PasanganBanding { app: number; kas: number; selisih: number }
-export interface BarisBanding { tanggal: string; bbm: PasanganBanding; topup: PasanganBanding; tol: PasanganBanding; cocok: boolean; topupFinance: boolean }
+export interface BarisBanding { tanggal: string; bbm: PasanganBanding; topup: PasanganBanding; tol: PasanganBanding; retribusi: PasanganBanding; parkir: PasanganBanding; cocok: boolean; topupFinance: boolean }
 
 // Warehouse yang top up Flazz-nya dibayar langsung oleh divisi Finance (bukan dari kas kecil): WHP Bandung, WHO Bandung, WHO Cibaduyut.
 export const CABANG_TOPUP_VIA_FINANCE: readonly string[] = ['GDGBDG', 'BDG', 'CBY'];
@@ -215,6 +216,9 @@ export const CABANG_TOPUP_VIA_FINANCE: readonly string[] = ['GDGBDG', 'BDG', 'CB
 const POLA_BBM = /bensin delivery/i;
 const POLA_TOPUP = /pengisian etoll/i;
 const POLA_TOL = /uang muka delivery/i;
+const POLA_RETRIBUSI = /retribusi/i;
+// Hanya parkir untuk delivery; "Biaya Parkir ke Bank" bukan bagian laporan operasional.
+const POLA_PARKIR = /parkir untuk delivery/i;
 
 export function pembandingHarian(i: { summary: SummaryBulanan; app: Map<string, AppHarian>; topupFinance?: boolean }): BarisBanding[] {
   const finance = Boolean(i.topupFinance);
@@ -223,12 +227,14 @@ export function pembandingHarian(i: { summary: SummaryBulanan; app: Map<string, 
   const kasHari = new Map(i.summary.baris.map((b) => [b.tanggal, b.nilai]));
   const pasang = (app: number, kas: number): PasanganBanding => ({ app, kas, selisih: app - kas });
   return [...tanggal].sort().map((t) => {
-    const a = i.app.get(t) ?? { bbmTunai: 0, topup: 0, tolTunai: 0 };
+    const a = i.app.get(t) ?? { bbmTunai: 0, topup: 0, tolTunai: 0, retribusiTunai: 0, parkirTunai: 0 };
     const nilai = kasHari.get(t) ?? {};
     const bbm = pasang(a.bbmTunai, kasPer(nilai, POLA_BBM));
     const topup = pasang(a.topup, finance ? a.topup : kasPer(nilai, POLA_TOPUP)); // via Finance: tidak ada padanan di kas kecil, selisih 0
     const tol = pasang(a.tolTunai, kasPer(nilai, POLA_TOL));
-    return { tanggal: t, bbm, topup, tol, cocok: bbm.selisih === 0 && topup.selisih === 0 && tol.selisih === 0, topupFinance: finance };
+    const retribusi = pasang(a.retribusiTunai ?? 0, kasPer(nilai, POLA_RETRIBUSI));
+    const parkir = pasang(a.parkirTunai ?? 0, kasPer(nilai, POLA_PARKIR));
+    return { tanggal: t, bbm, topup, tol, retribusi, parkir, cocok: [bbm, topup, tol, retribusi, parkir].every((p) => p.selisih === 0), topupFinance: finance };
   });
 }
 

@@ -482,10 +482,14 @@ export function kasKecilRoutes(deps: AppDeps): Hono<{ Bindings: Env }> {
     const lines = rekapPengeluaran({ rows, tols, cards, platByVehicle: new Map(), dari, sampai, cabang });
     const topups = rekapTopup({ topups: topupRows, cards, namaPengguna: new Map(), dari, sampai, cabang });
     const appHarian = new Map<string, AppHarian>();
-    const hari = (t: string) => appHarian.get(t) ?? appHarian.set(t, { bbmTunai: 0, topup: 0, tolTunai: 0 }).get(t)!;
+    const hari = (t: string) => appHarian.get(t) ?? appHarian.set(t, { bbmTunai: 0, topup: 0, tolTunai: 0, retribusiTunai: 0, parkirTunai: 0 }).get(t)!;
     for (const l of lines) {
       if (l.metode !== 'TUNAI') continue;
-      if (l.jenis === 'BBM') hari(l.tanggal).bbmTunai += l.amount; else hari(l.tanggal).tolTunai += l.amount;
+      const h = hari(l.tanggal);
+      if (l.jenis === 'BBM') h.bbmTunai += l.amount;
+      else if (l.jenis === 'TOL') h.tolTunai += l.amount;
+      else if (l.jenis === 'RETRIBUSI') h.retribusiTunai = (h.retribusiTunai ?? 0) + l.amount;
+      else if (l.jenis === 'PARKIR') h.parkirTunai = (h.parkirTunai ?? 0) + l.amount;
     }
     for (const t of topups) hari(t.tanggal).topup += t.nominal;
     const summary = summaryBulanan({ keluar, masuk, bulan });

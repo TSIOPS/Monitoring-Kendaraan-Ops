@@ -1,7 +1,7 @@
 // Rekap pengeluaran: BBM & tol per metode bayar (ETOLL = kartu Flazz/etoll, TUNAI).
 // Sumber: laporan harian (grup-1 + grup-2 kartu ke-2) dan tol manual modul Flazz.
 import { canonicalCardId, num } from './laporan';
-import { rincianDariRow } from './rincian';
+import { JENIS_TUNAI_SAJA, rincianDariRow } from './rincian';
 import type { JenisRincian, LaporanRow } from './laporan';
 
 export const KET_TANPA_RINCIAN = '(total, tanpa rincian)';
@@ -60,7 +60,8 @@ export function rekapPengeluaran(input: RekapInput): RekapLine[] {
     const { items, lama } = rincianDariRow(r);
     for (const it of items) {
       if (!(num(it.nominal) > 0)) continue;
-      const cid = String(it.kartu || '');
+      // Retribusi/Parkir Delivery selalu tunai (tanpa kartu), apa pun isi kolom kartu.
+      const cid = (JENIS_TUNAI_SAJA as readonly string[]).includes(it.jenis) ? '' : String(it.kartu || '');
       out.push({
         ...base, jenis: it.jenis, metode: cid ? 'ETOLL' : 'TUNAI',
         card_id: cid ? (kartuById.get(canonicalCardId(cid))?.id ?? cid) : '', kartu: cid ? labelKartu(cid) : '',

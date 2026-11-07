@@ -123,6 +123,32 @@ describe('pembandingHarian', () => {
   });
 });
 
+describe('pembandingHarian — Retribusi & Parkir Delivery', () => {
+  const summary = {
+    jenis: ['Biaya Retribusi', 'Biaya Parkir Untuk Delivery', 'Biaya Parkir ke Bank', 'Biaya Uang Muka Delivery'],
+    baris: [
+      { tanggal: '2026-10-01', nilai: { 'Biaya Retribusi': 10000, 'Biaya Parkir Untuk Delivery': 8000, 'Biaya Parkir ke Bank': 3000, 'Biaya Uang Muka Delivery': 20000 }, total: 41000 },
+      { tanggal: '2026-10-02', nilai: { 'Biaya Retribusi': 10000 }, total: 10000 },
+    ],
+    total: {},
+  } as any;
+  it('Retribusi ↔ "Biaya Retribusi", Parkir ↔ "Biaya Parkir Untuk Delivery"; "Parkir ke Bank" dan Uang Muka tidak ikut', () => {
+    const app = new Map([['2026-10-01', { bbmTunai: 0, topup: 0, tolTunai: 20000, retribusiTunai: 10000, parkirTunai: 8000 }]]);
+    const r = pembandingHarian({ summary, app });
+    expect(r[0]).toMatchObject({ tanggal: '2026-10-01', retribusi: { app: 10000, kas: 10000, selisih: 0 }, parkir: { app: 8000, kas: 8000, selisih: 0 }, tol: { app: 20000, kas: 20000, selisih: 0 }, cocok: true });
+  });
+  it('selisih Retribusi atau Parkir membuat status tidak cocok; hari tanpa laporan aplikasi → selisih negatif', () => {
+    const app = new Map([['2026-10-01', { bbmTunai: 0, topup: 0, tolTunai: 20000, retribusiTunai: 10000, parkirTunai: 5000 }]]);
+    const r = pembandingHarian({ summary, app });
+    expect(r[0]).toMatchObject({ parkir: { app: 5000, kas: 8000, selisih: -3000 }, cocok: false });
+    expect(r[1]).toMatchObject({ tanggal: '2026-10-02', retribusi: { app: 0, kas: 10000, selisih: -10000 }, parkir: { app: 0, kas: 0, selisih: 0 }, cocok: false });
+  });
+  it('AppHarian tanpa field baru (data lama) dianggap nol', () => {
+    const app = new Map([['2026-10-02', { bbmTunai: 0, topup: 0, tolTunai: 0 }]]);
+    expect(pembandingHarian({ summary, app })[1]).toMatchObject({ retribusi: { app: 0, kas: 10000 } });
+  });
+});
+
 describe('pembandingHarian — top up via Finance', () => {
   it('cabang via Finance: top up tidak dibandingkan dengan kas kecil dan tidak membuat status Selisih', () => {
     const summary = { jenis: [], baris: [{ tanggal: '2026-10-01', nilai: {}, total: 0 }], total: {} } as any;
