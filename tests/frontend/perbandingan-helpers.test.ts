@@ -88,11 +88,11 @@ describe('perbandingan bulan vs bulan', () => {
     const rk = XLSX.utils.sheet_to_json(wb.Sheets.Ringkasan!, { header: 1 }) as any[][];
     expect(rk[1]).toEqual(['Periode', '01/10/2026 s.d. 07/10/2026']);
     expect(rk[5]![0]).toBe('Cabang (Who)');
-    expect(rk[7]!.slice(0, 8)).toEqual(['Total', 3, 4, 1000000, 0, 0, 1000000, 1000000]);
-    expect(wb.Sheets.Ringkasan!.I6!.z).toBe('0.0"%"');
+    expect(rk[7]!.slice(0, 10)).toEqual(['Total', 3, 4, 1000000, 0, 0, 0, 0, 1000000, 1000000]);
+    expect(wb.Sheets.Ringkasan!.K6!.z).toBe('0.0"%"');
     const d = XLSX.utils.sheet_to_json(wb.Sheets['Per Warehouse']!, { header: 1 }) as any[][];
     expect(d[d.length - 1]![2]).toBe('TOTAL');
-    expect(d[d.length - 1]![12]).toBe(1000000);
+    expect(d[d.length - 1]![14]).toBe(1000000);
   });
 });
 
@@ -194,5 +194,73 @@ describe('bulan vs bulan: total sebulan', () => {
     expect(m[0]).toEqual(['No', 'Jenis', 'Warehouse', 'Sep 2026 (1–30) (Rp)', 'Okt 2026 (1–19, berjalan) (Rp)', 'Selisih (Rp)', 'Selisih (%)', 'Proyeksi Akhir Bulan (Rp)']);
     expect(m[1]!.slice(0, 7)).toEqual([1, 'Cabang (Who)', 'Who Bandung', 500000, 450000, -50000, -10]);
     expect(wb.Sheets['Per Warehouse']!.G2!.z).toBe('0.0"%"');
+  });
+});
+
+describe('Retribusi & Parkir Delivery di perbandingan', () => {
+  // Satu baris tiap jenis; Retribusi/Parkir selalu tunai.
+  const campur = (o: Record<string, unknown> = {}) => [
+    L({ jenis: 'BBM', metode: 'ETOLL', amount: 600000, ...o }),
+    L({ jenis: 'TOL', metode: 'ETOLL', amount: 100000, ...o }),
+    L({ jenis: 'BBM', metode: 'TUNAI', amount: 50000, ...o }),
+    L({ jenis: 'TOL', metode: 'TUNAI', amount: 7000, ...o }),
+    L({ jenis: 'RETRIBUSI', metode: 'TUNAI', amount: 10000, ...o }),
+    L({ jenis: 'PARKIR', metode: 'TUNAI', amount: 5000, ...o }),
+  ];
+  const rows = (wb: XLSX.WorkBook, n: string) => XLSX.utils.sheet_to_json(wb.Sheets[n]!, { header: 1 }) as any[][];
+  const buku = (sheets: any) => XLSX.read(XLSX.write(bukuExcel(XLSX, sheets), { type: 'array', bookType: 'xlsx' }), { type: 'array', cellNF: true });
+
+  it('mode cabang vs pusat: Retribusi & Parkir terpisah, masuk tunai & total; bbm/tol/etoll tidak berubah', () => {
+    const h = bandingkan(campur(), cabangList, vehicles);
+    expect(h.cabang.baris[0]).toMatchObject({ bbmEtoll: 600000, bbmTunai: 50000, tolEtoll: 100000, tolTunai: 7000, bbm: 650000, tol: 107000, retribusi: 10000, parkir: 5000, etoll: 700000, tunai: 72000, total: 772000 });
+    expect(h.total).toMatchObject({ retribusi: 10000, parkir: 5000, tunai: 72000, total: 772000 });
+    expect(h.cabang.sub).toMatchObject({ retribusi: 10000, parkir: 5000 });
+  });
+  it('Retribusi/Parkir dengan metode ETOLL (data janggal) tetap dihitung tunai', () => {
+    const h = bandingkan([L({ jenis: 'RETRIBUSI', metode: 'ETOLL', amount: 1 }), L({ jenis: 'PARKIR', metode: 'ETOLL', amount: 2 })], cabangList, vehicles);
+    expect(h.cabang.baris[0]).toMatchObject({ retribusi: 1, parkir: 2, tunai: 3, etoll: 0, total: 3 });
+  });
+  it('mode rentang: total ini/lalu mencakup Retribusi & Parkir; rinci per periode memuat kolom baru', () => {
+    const lines = [...campur({ tanggal: '2026-10-05' }), ...campur({ tanggal: '2026-09-05' }).slice(4)];
+    const h = bandingRentang(lines, cabangList, '2026-10-01', '2026-10-19', '2026-10-19');
+    const bdg = h.cabang.baris.find((w: any) => w.kode === 'BDG');
+    expect(bdg).toMatchObject({ ini: 772000, lalu: 15000, delta: 757000 });
+    expect(bdg.rinciIni).toMatchObject({ bbmEtoll: 600000, tolTunai: 7000, retribusi: 10000, parkir: 5000, total: 772000 });
+    expect(bdg.rinciLalu).toMatchObject({ retribusi: 10000, parkir: 5000, bbmEtoll: 0, total: 15000 });
+    expect(h.total.rinciIni).toMatchObject({ retribusi: 10000, parkir: 5000 });
+  });
+  it('mode bulan: total a/b mencakup Retribusi & Parkir', () => {
+    const lines = [...campur({ tanggal: '2026-10-05' }), ...campur({ tanggal: '2026-09-05' }).slice(4)];
+    const h = bandingDuaBulan(lines, cabangList, '2026-09', '2026-10', '2026-10-19');
+    const bdg = h.cabang.baris.find((w: any) => w.kode === 'BDG');
+    expect(bdg).toMatchObject({ a: 15000, b: 772000 });
+    expect(bdg.rinciB).toMatchObject({ retribusi: 10000, parkir: 5000 });
+  });
+  it('Excel mode 1: kolom Retribusi & Parkir Delivery di Ringkasan dan Per Warehouse; jumlah kolom konsisten', () => {
+    const h = bandingkan(campur(), cabangList, vehicles);
+    const wb = buku(susunExcelBanding(h, { dari: '2026-10-01', sampai: '2026-10-07' }));
+    const rk = rows(wb, 'Ringkasan');
+    expect(rk[4]).toEqual(['Kelompok', 'Jumlah Warehouse', 'Kendaraan', 'BBM (Rp)', 'Tol (Rp)', 'Retribusi (Rp)', 'Parkir Delivery (Rp)', 'Flazz (Rp)', 'Tunai (Rp)', 'Total (Rp)', '% Total', 'Per Kendaraan (Rp)']);
+    expect(rk[7]!.slice(0, 10)).toEqual(['Total', 3, 4, 650000, 107000, 10000, 5000, 700000, 72000, 772000]);
+    for (const b of rk.slice(5, 8)) expect(b.length).toBe(rk[4]!.length);
+    const d = rows(wb, 'Per Warehouse');
+    expect(d[0]).toEqual(['No', 'Jenis', 'Warehouse', 'Kendaraan', 'BBM Flazz (Rp)', 'BBM Tunai (Rp)', 'Tol Flazz (Rp)', 'Tol Tunai (Rp)', 'BBM (Rp)', 'Tol (Rp)', 'Retribusi (Rp)', 'Parkir Delivery (Rp)', 'Flazz (Rp)', 'Tunai (Rp)', 'Total (Rp)', '% Total', 'Per Kendaraan (Rp)']);
+    expect(d[1]!.slice(8, 15)).toEqual([650000, 107000, 10000, 5000, 700000, 72000, 772000]);
+    for (const b of d.slice(1)) expect(b.length).toBe(d[0]!.length);
+    expect(wb.Sheets['Per Warehouse']!.K2!.z).toBe('#,##0'); // Retribusi berformat angka
+    expect(wb.Sheets['Per Warehouse']!.P2!.z).toBe('0.0"%"'); // persen di kolom baru
+  });
+  it('Excel rentang & bulan: sheet Rinci memuat kolom Retribusi & Parkir Delivery sebelum Total', () => {
+    const lines = campur({ tanggal: '2026-10-05' });
+    for (const [sheets, awal] of [
+      [susunExcelRentang(bandingRentang(lines, cabangList, '2026-10-01', '2026-10-19', '2026-10-19')), 'Periode'],
+      [susunExcelBulan(bandingDuaBulan(lines, cabangList, '2026-09', '2026-10', '2026-10-19')), 'Bulan'],
+    ] as const) {
+      const rinci = rows(buku(sheets), 'Rinci');
+      expect(rinci[0]).toEqual([awal, 'Jenis', 'Warehouse', 'BBM Flazz (Rp)', 'BBM Tunai (Rp)', 'Tol Flazz (Rp)', 'Tol Tunai (Rp)', 'Retribusi (Rp)', 'Parkir Delivery (Rp)', 'Total (Rp)']);
+      expect(rinci[1]!.slice(3)).toEqual([600000, 50000, 100000, 7000, 10000, 5000, 772000]);
+      expect(rinci.at(-1)!.slice(3)).toEqual([600000, 50000, 100000, 7000, 10000, 5000, 772000]);
+      for (const b of rinci.slice(1)) expect(b.length).toBe(rinci[0]!.length);
+    }
   });
 });

@@ -124,15 +124,15 @@
 ## FASE 3 — Perbandingan
 
 ### Task 11: Agregasi Perbandingan (`static/js/pages/perbandingan.js`)
-- [ ] **Tes gagal** (`tests/frontend/perbandingan-helpers.test.ts`): untuk tiga mode (harian `tambah`, rentang `hitungRentang`, bulanan `hitungBulan`) satu baris tiap jenis (BBM/TOL/RETRIBUSI/PARKIR, tunai) menghasilkan: `retribusi`, `parkir` terpisah; `tunai` dan `total` mencakup keduanya; `etoll` tidak berubah; `%` dan `perKendaraan` dihitung dari total baru; rincian per hari memuat kolom baru.
-- [ ] **Implementasi:** satu helper `kolomJenis(l)` (jenis+metode → nama kolom) menggantikan tiga ternary (`l.jenis === 'TOL' ? … : …`) dan `tambah()` (~17–25); `kosong()`/`rinciKosong()` mendapat `retribusi`, `parkir`; turunan (`lengkapi`, `hitungTurunan`, `turunanBulan`) menjumlah ke `total`/`tunai`.
-- [ ] `npm test && npm run typecheck`, commit `feat(perbandingan): retribusi dan parkir delivery masuk total`.
+- [x] **Tes gagal** (`tests/frontend/perbandingan-helpers.test.ts`): untuk tiga mode (harian `tambah`, rentang `hitungRentang`, bulanan `hitungBulan`) satu baris tiap jenis (BBM/TOL/RETRIBUSI/PARKIR, tunai) menghasilkan: `retribusi`, `parkir` terpisah; `tunai` dan `total` mencakup keduanya; `etoll` tidak berubah; `%` dan `perKendaraan` dihitung dari total baru; rincian per hari memuat kolom baru.
+- [x] **Implementasi:** satu helper `kolomJenis(l)` (jenis+metode → nama kolom) menggantikan tiga ternary (`l.jenis === 'TOL' ? … : …`) dan `tambah()` (~17–25); `kosong()`/`rinciKosong()` mendapat `retribusi`, `parkir`; turunan (`lengkapi`, `hitungTurunan`, `turunanBulan`) menjumlah ke `total`/`tunai`.
+- [x] `npm test && npm run typecheck`, commit `feat(perbandingan): retribusi dan parkir delivery masuk total`.
 
 ### Task 12: Tampilan & Excel Perbandingan
-- [ ] **Tes gagal:** `susunExcel*` (harian, rentang, bulanan) memuat kolom Retribusi & Parkir dan baris rinci per hari; header & jumlah kolom konsisten dengan tampilan; angka nol tampil "-" sesuai aturan proyek.
-- [ ] **Implementasi:** header tabel kelompok (~452, ~605, ~737) + kolom Retribusi/Parkir; baris Excel (~272, ~293, ~330, ~346, ~389, ~401) memakai daftar kolom yang sama (satu sumber kebenaran agar tidak melenceng).
-- [ ] Verifikasi manual: unduh Excel, bandingkan total dengan Rekap untuk rentang yang sama.
-- [ ] `npm test && npm run typecheck`, CHANGELOG, commit `feat(perbandingan): kolom retribusi dan parkir di tampilan dan Excel`.
+- [x] **Tes gagal:** `susunExcel*` (harian, rentang, bulanan) memuat kolom Retribusi & Parkir dan baris rinci per hari; header & jumlah kolom konsisten dengan tampilan; angka nol tampil "-" sesuai aturan proyek.
+- [x] **Implementasi:** header tabel kelompok (~452, ~605, ~737) + kolom Retribusi/Parkir; baris Excel (~272, ~293, ~330, ~346, ~389, ~401) memakai daftar kolom yang sama (satu sumber kebenaran agar tidak melenceng).
+- [x] Verifikasi manual: unduh Excel, bandingkan total dengan Rekap untuk rentang yang sama.
+- [x] `npm test && npm run typecheck`, CHANGELOG, commit `feat(perbandingan): kolom retribusi dan parkir di tampilan dan Excel`.
 
 ---
 ## PENUTUP

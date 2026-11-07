@@ -4,6 +4,7 @@ import { lihatSemuaCabang } from '../peran.js';
 import { el, fmtNum, toast, idUntukLabel } from '../ui.js';
 import { tanggalWib } from './input.js';
 import { awalBulan, bukuExcel, muatSheetJS } from './rekap.js';
+import { jenisTunaiSaja } from '../rincian.js';
 
 // ── Helper murni (diuji) ────────────────────────────────────────────────────
 
@@ -12,14 +13,23 @@ export function jenisWarehouse(kode, nama) {
   return /^GDG/i.test(String(kode || '')) || /^whp\b/i.test(String(nama || '').trim()) ? 'PUSAT' : 'CABANG';
 }
 
-const kosong = () => ({ bbmEtoll: 0, bbmTunai: 0, tolEtoll: 0, tolTunai: 0, bbm: 0, tol: 0, etoll: 0, tunai: 0, total: 0, kendaraan: 0 });
+const kosong = () => ({ bbmEtoll: 0, bbmTunai: 0, tolEtoll: 0, tolTunai: 0, retribusi: 0, parkir: 0, bbm: 0, tol: 0, etoll: 0, tunai: 0, total: 0, kendaraan: 0 });
+
+// Kolom rinci sebuah baris rekap (satu sumber kebenaran untuk ketiga mode). BBM/Tol dipecah per metode;
+// Retribusi & Parkir Delivery selalu tunai sehingga satu kolom saja (spec 2026-11-07).
+export function kolomRinci(l) {
+  if (l.jenis === 'RETRIBUSI') return 'retribusi';
+  if (l.jenis === 'PARKIR') return 'parkir';
+  const etoll = l.metode === 'ETOLL';
+  return l.jenis === 'TOL' ? (etoll ? 'tolEtoll' : 'tolTunai') : (etoll ? 'bbmEtoll' : 'bbmTunai');
+}
 
 function tambah(t, l) {
   const n = Number(l.amount) || 0;
-  const etoll = l.metode === 'ETOLL';
-  if (l.jenis === 'TOL') t[etoll ? 'tolEtoll' : 'tolTunai'] += n;
-  else t[etoll ? 'bbmEtoll' : 'bbmTunai'] += n;
-  t[l.jenis === 'TOL' ? 'tol' : 'bbm'] += n;
+  const etoll = l.metode === 'ETOLL' && !jenisTunaiSaja(l.jenis);
+  t[kolomRinci(l)] += n;
+  if (l.jenis === 'TOL') t.tol += n;
+  else if (!jenisTunaiSaja(l.jenis)) t.bbm += n;
   t[etoll ? 'etoll' : 'tunai'] += n;
   t.total += n;
 }
@@ -123,7 +133,7 @@ export function labelRentang(dari, sampai) {
   return y1 === y2 ? `${d1} ${NAMA_BULAN[m1 - 1]} – ${d2} ${bln(y2, m2)}` : `${d1} ${bln(y1, m1)} – ${d2} ${bln(y2, m2)}`;
 }
 
-const rinciKosong = () => ({ bbmEtoll: 0, bbmTunai: 0, tolEtoll: 0, tolTunai: 0, total: 0 });
+const rinciKosong = () => ({ bbmEtoll: 0, bbmTunai: 0, tolEtoll: 0, tolTunai: 0, retribusi: 0, parkir: 0, total: 0 });
 const rekamRentang = (kode, nama, jenis) => ({ kode, nama, jenis, ini: 0, lalu: 0, penuhLalu: 0, rinciIni: rinciKosong(), rinciLalu: rinciKosong() });
 
 function hitungTurunan(r, proyeksiHari, hariBulan) {
@@ -164,8 +174,7 @@ export function bandingRentang(lines, cabangList, dari, sampai, hariIni) {
     const w = peta.get(String(l.kode_cabang));
     if (!w) { diabaikan++; continue; }
     const n = Number(l.amount) || 0;
-    const etoll = l.metode === 'ETOLL';
-    const kolom = l.jenis === 'TOL' ? (etoll ? 'tolEtoll' : 'tolTunai') : (etoll ? 'bbmEtoll' : 'bbmTunai');
+    const kolom = kolomRinci(l);
     if (diIni) { w.ini += n; w.rinciIni[kolom] += n; w.rinciIni.total += n; }
     if (diLalu) { w.lalu += n; w.rinciLalu[kolom] += n; w.rinciLalu.total += n; }
     if (diPenuh) w.penuhLalu += n;
@@ -241,8 +250,7 @@ export function bandingDuaBulan(lines, cabangList, bulanA, bulanB, hariIni) {
     const w = peta.get(String(l.kode_cabang));
     if (!w) { diabaikan++; continue; }
     const n = Number(l.amount) || 0;
-    const etoll = l.metode === 'ETOLL';
-    const kolom = l.jenis === 'TOL' ? (etoll ? 'tolEtoll' : 'tolTunai') : (etoll ? 'bbmEtoll' : 'bbmTunai');
+    const kolom = kolomRinci(l);
     if (diA) { w.a += n; w.rinciA[kolom] += n; w.rinciA.total += n; }
     if (diB) { w.b += n; w.rinciB[kolom] += n; w.rinciB.total += n; }
   }
@@ -269,32 +277,32 @@ const NAMA_JENIS = { CABANG: 'Cabang (Who)', PUSAT: 'Gudang Pusat (Whp)' };
 const angkaAtauKosong = (v) => (v === null || v === undefined ? '' : v);
 
 export function susunExcelBanding(h, { dari = '', sampai = '' } = {}) {
-  const ringkas = (k) => [NAMA_JENIS[k.jenis], k.baris.length, k.sub.kendaraan, k.sub.bbm, k.sub.tol, k.sub.etoll, k.sub.tunai, k.sub.total, k.sub.persen, k.sub.perKendaraan];
+  const ringkas = (k) => [NAMA_JENIS[k.jenis], k.baris.length, k.sub.kendaraan, k.sub.bbm, k.sub.tol, k.sub.retribusi, k.sub.parkir, k.sub.etoll, k.sub.tunai, k.sub.total, k.sub.persen, k.sub.perKendaraan];
   const ringkasan = {
     nama: 'Ringkasan',
     aoa: [
       ['Perbandingan Pengeluaran: Cabang & Gudang Pusat'],
       ['Periode', `${tglId(dari)} s.d. ${tglId(sampai)}`],
-      ['Keterangan', 'BBM + tol, via etoll dan tunai (termasuk kartu ke-2 dan tol manual Flazz). Warehouse nonaktif tidak dihitung.'],
+      ['Keterangan', 'BBM + tol + retribusi + parkir delivery, via etoll dan tunai (termasuk kartu ke-2 dan tol manual Flazz; retribusi & parkir selalu tunai). Warehouse nonaktif tidak dihitung.'],
       [],
-      ['Kelompok', 'Jumlah Warehouse', 'Kendaraan', 'BBM (Rp)', 'Tol (Rp)', 'Flazz (Rp)', 'Tunai (Rp)', 'Total (Rp)', '% Total', 'Per Kendaraan (Rp)'],
+      ['Kelompok', 'Jumlah Warehouse', 'Kendaraan', 'BBM (Rp)', 'Tol (Rp)', 'Retribusi (Rp)', 'Parkir Delivery (Rp)', 'Flazz (Rp)', 'Tunai (Rp)', 'Total (Rp)', '% Total', 'Per Kendaraan (Rp)'],
       ringkas(h.cabang),
       ringkas(h.pusat),
-      ['Total', h.cabang.baris.length + h.pusat.baris.length, h.total.kendaraan, h.total.bbm, h.total.tol, h.total.etoll, h.total.tunai, h.total.total, h.total.persen, h.total.perKendaraan],
+      ['Total', h.cabang.baris.length + h.pusat.baris.length, h.total.kendaraan, h.total.bbm, h.total.tol, h.total.retribusi, h.total.parkir, h.total.etoll, h.total.tunai, h.total.total, h.total.persen, h.total.perKendaraan],
     ],
-    angka: { baris: [5, 6, 7], kolom: [3, 4, 5, 6, 7, 9] },
-    persen: { baris: [5, 6, 7], kolom: [8] },
+    angka: { baris: [5, 6, 7], kolom: [3, 4, 5, 6, 7, 8, 9, 11] },
+    persen: { baris: [5, 6, 7], kolom: [10] },
   };
   const urut = [...h.cabang.baris, ...h.pusat.baris];
   const detail = {
     nama: 'Per Warehouse',
     aoa: [
-      ['No', 'Jenis', 'Warehouse', 'Kendaraan', 'BBM Flazz (Rp)', 'BBM Tunai (Rp)', 'Tol Flazz (Rp)', 'Tol Tunai (Rp)', 'BBM (Rp)', 'Tol (Rp)', 'Flazz (Rp)', 'Tunai (Rp)', 'Total (Rp)', '% Total', 'Per Kendaraan (Rp)'],
-      ...urut.map((w, i) => [i + 1, NAMA_JENIS[w.jenis], w.nama, w.kendaraan, w.bbmEtoll, w.bbmTunai, w.tolEtoll, w.tolTunai, w.bbm, w.tol, w.etoll, w.tunai, w.total, w.persen, w.perKendaraan]),
-      ['', '', 'TOTAL', h.total.kendaraan, h.total.bbmEtoll, h.total.bbmTunai, h.total.tolEtoll, h.total.tolTunai, h.total.bbm, h.total.tol, h.total.etoll, h.total.tunai, h.total.total, h.total.persen, h.total.perKendaraan],
+      ['No', 'Jenis', 'Warehouse', 'Kendaraan', 'BBM Flazz (Rp)', 'BBM Tunai (Rp)', 'Tol Flazz (Rp)', 'Tol Tunai (Rp)', 'BBM (Rp)', 'Tol (Rp)', 'Retribusi (Rp)', 'Parkir Delivery (Rp)', 'Flazz (Rp)', 'Tunai (Rp)', 'Total (Rp)', '% Total', 'Per Kendaraan (Rp)'],
+      ...urut.map((w, i) => [i + 1, NAMA_JENIS[w.jenis], w.nama, w.kendaraan, w.bbmEtoll, w.bbmTunai, w.tolEtoll, w.tolTunai, w.bbm, w.tol, w.retribusi, w.parkir, w.etoll, w.tunai, w.total, w.persen, w.perKendaraan]),
+      ['', '', 'TOTAL', h.total.kendaraan, h.total.bbmEtoll, h.total.bbmTunai, h.total.tolEtoll, h.total.tolTunai, h.total.bbm, h.total.tol, h.total.retribusi, h.total.parkir, h.total.etoll, h.total.tunai, h.total.total, h.total.persen, h.total.perKendaraan],
     ],
-    angka: { kolom: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14] },
-    persen: { kolom: [13] },
+    angka: { kolom: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16] },
+    persen: { kolom: [15] },
     filter: true,
   };
   return [ringkasan, detail];
@@ -315,7 +323,7 @@ export function susunExcelRentang(h) {
       ['Perbandingan Pengeluaran Bulan vs Bulan'],
       ['Periode', ini],
       ['Pembanding', `${lalu} (rentang yang sama bulan sebelumnya)`],
-      ['Keterangan', 'BBM + tol, via etoll dan tunai. Selisih positif = pengeluaran naik. Warehouse nonaktif tidak dihitung.'],
+      ['Keterangan', 'BBM + tol + retribusi + parkir delivery, via etoll dan tunai. Selisih positif = pengeluaran naik. Warehouse nonaktif tidak dihitung.'],
       [],
       ['Kelompok', `${lalu} (Rp)`, `${ini} (Rp)`, 'Selisih (Rp)', 'Selisih (%)'],
       ...ringkasBaris,
@@ -343,18 +351,18 @@ export function susunExcelRentang(h) {
   for (const [label, kunci] of [[lalu, 'rinciLalu'], [ini, 'rinciIni']]) {
     for (const w of [...h.cabang.baris, ...h.pusat.baris]) {
       const r = w[kunci];
-      if (r.total > 0) rinci.push([label, NAMA_JENIS[w.jenis], w.nama, r.bbmEtoll, r.bbmTunai, r.tolEtoll, r.tolTunai, r.total]);
+      if (r.total > 0) rinci.push([label, NAMA_JENIS[w.jenis], w.nama, r.bbmEtoll, r.bbmTunai, r.tolEtoll, r.tolTunai, r.retribusi, r.parkir, r.total]);
     }
   }
   const jumlah = (i) => rinci.reduce((n, x) => n + x[i], 0);
   const detail = {
     nama: 'Rinci',
     aoa: [
-      ['Periode', 'Jenis', 'Warehouse', 'BBM Flazz (Rp)', 'BBM Tunai (Rp)', 'Tol Flazz (Rp)', 'Tol Tunai (Rp)', 'Total (Rp)'],
+      ['Periode', 'Jenis', 'Warehouse', 'BBM Flazz (Rp)', 'BBM Tunai (Rp)', 'Tol Flazz (Rp)', 'Tol Tunai (Rp)', 'Retribusi (Rp)', 'Parkir Delivery (Rp)', 'Total (Rp)'],
       ...rinci,
-      ['TOTAL', '', '', jumlah(3), jumlah(4), jumlah(5), jumlah(6), jumlah(7)],
+      ['TOTAL', '', '', jumlah(3), jumlah(4), jumlah(5), jumlah(6), jumlah(7), jumlah(8), jumlah(9)],
     ],
-    angka: { kolom: [3, 4, 5, 6, 7] },
+    angka: { kolom: [3, 4, 5, 6, 7, 8, 9] },
     filter: true,
   };
   return [ringkasan, matriks, detail];
@@ -375,7 +383,7 @@ export function susunExcelBulan(h) {
       ['Bulan pembanding', A],
       ['Bulan', B],
       ['Data sampai', tglId(h.hariIni)],
-      ['Keterangan', `Total BBM + tol (etoll & tunai) sebulan. Selisih = ${labelBulan(h.b.bulan)} − ${labelBulan(h.a.bulan)}; positif = pengeluaran naik.${h.b.berjalan ? ' Bulan berjalan dihitung s.d. tanggal data; lihat proyeksi akhir bulan.' : ''} Warehouse nonaktif tidak dihitung.`],
+      ['Keterangan', `Total BBM + tol + retribusi + parkir delivery (etoll & tunai) sebulan. Selisih = ${labelBulan(h.b.bulan)} − ${labelBulan(h.a.bulan)}; positif = pengeluaran naik.${h.b.berjalan ? ' Bulan berjalan dihitung s.d. tanggal data; lihat proyeksi akhir bulan.' : ''} Warehouse nonaktif tidak dihitung.`],
       [],
       ['Kelompok', `${A} (Rp)`, `${B} (Rp)`, 'Selisih (Rp)', 'Selisih (%)'],
       ...baris3,
@@ -398,18 +406,18 @@ export function susunExcelBulan(h) {
   for (const [label, kunci] of [[A, 'rinciA'], [B, 'rinciB']]) {
     for (const w of [...h.cabang.baris, ...h.pusat.baris]) {
       const r = w[kunci];
-      if (r.total > 0) rinci.push([label, NAMA_JENIS[w.jenis], w.nama, r.bbmEtoll, r.bbmTunai, r.tolEtoll, r.tolTunai, r.total]);
+      if (r.total > 0) rinci.push([label, NAMA_JENIS[w.jenis], w.nama, r.bbmEtoll, r.bbmTunai, r.tolEtoll, r.tolTunai, r.retribusi, r.parkir, r.total]);
     }
   }
   const jumlah = (i) => rinci.reduce((n, x) => n + x[i], 0);
   const detail = {
     nama: 'Rinci',
     aoa: [
-      ['Bulan', 'Jenis', 'Warehouse', 'BBM Flazz (Rp)', 'BBM Tunai (Rp)', 'Tol Flazz (Rp)', 'Tol Tunai (Rp)', 'Total (Rp)'],
+      ['Bulan', 'Jenis', 'Warehouse', 'BBM Flazz (Rp)', 'BBM Tunai (Rp)', 'Tol Flazz (Rp)', 'Tol Tunai (Rp)', 'Retribusi (Rp)', 'Parkir Delivery (Rp)', 'Total (Rp)'],
       ...rinci,
-      ['TOTAL', '', '', jumlah(3), jumlah(4), jumlah(5), jumlah(6), jumlah(7)],
+      ['TOTAL', '', '', jumlah(3), jumlah(4), jumlah(5), jumlah(6), jumlah(7), jumlah(8), jumlah(9)],
     ],
-    angka: { kolom: [3, 4, 5, 6, 7] },
+    angka: { kolom: [3, 4, 5, 6, 7, 8, 9] },
     filter: true,
   };
   return [ringkasan, matriks, detail];
@@ -449,18 +457,18 @@ function tabelKelompok(k) {
   return el('div', { class: 'mb-4' }, [
     el('h3', { class: 'h6 fw-bold mb-2', text: `${LABEL[k.jenis]} — ${k.baris.length} warehouse` }),
     el('div', { class: 'table-wrap' }, [el('table', { class: 'table table-sm table-hover align-middle' }, [
-      el('thead', { class: 'table-light' }, [el('tr', {}, ['Warehouse', 'Kendaraan', 'BBM', 'Tol', 'Flazz', 'Tunai', 'Total', '% Total', 'Per kendaraan'].map((h, i) => el('th', { class: i ? 'text-end' : '', text: h })))]),
+      el('thead', { class: 'table-light' }, [el('tr', {}, ['Warehouse', 'Kendaraan', 'BBM', 'Tol', 'Retribusi', 'Parkir Delivery', 'Flazz', 'Tunai', 'Total', '% Total', 'Per kendaraan'].map((h, i) => el('th', { class: i ? 'text-end' : '', text: h })))]),
       el('tbody', {}, [
         ...k.baris.map((w) => el('tr', {}, [
           el('td', { class: 'fw-semibold', text: w.nama }),
           el('td', { class: 'text-end', text: fmtNum(w.kendaraan) }),
-          sel(w.bbm), sel(w.tol), sel(w.etoll), sel(w.tunai), sel(w.total, true),
+          sel(w.bbm), sel(w.tol), sel(w.retribusi), sel(w.parkir), sel(w.etoll), sel(w.tunai), sel(w.total, true),
           el('td', { class: 'text-end', text: pct(w.persen) }),
           sel(w.perKendaraan),
         ])),
         el('tr', { class: 'table-light fw-bold' }, [
           el('td', { text: 'Subtotal' }), el('td', { class: 'text-end', text: fmtNum(k.sub.kendaraan) }),
-          sel(k.sub.bbm, true), sel(k.sub.tol, true), sel(k.sub.etoll, true), sel(k.sub.tunai, true), sel(k.sub.total, true),
+          sel(k.sub.bbm, true), sel(k.sub.tol, true), sel(k.sub.retribusi, true), sel(k.sub.parkir, true), sel(k.sub.etoll, true), sel(k.sub.tunai, true), sel(k.sub.total, true),
           el('td', { class: 'text-end', text: pct(k.sub.persen) }), sel(k.sub.perKendaraan, true),
         ]),
       ]),
@@ -558,7 +566,7 @@ function panelBanding(ambilMaster) {
         kolom('col-md-4', 'Dari tanggal', dari), kolom('col-md-4', 'Sampai tanggal', sampai),
         el('div', { class: 'col-md-4 d-flex gap-2' }, [tombol, unduh]),
       ]),
-      el('div', { class: 'form-text mt-2', text: 'Pengeluaran = BBM + tol, via etoll dan tunai (termasuk kartu ke-2 dan tol manual Flazz), sama dengan Rekap Pengeluaran.' }),
+      el('div', { class: 'form-text mt-2', text: 'Pengeluaran = BBM + tol + retribusi + parkir delivery, via etoll dan tunai (termasuk kartu ke-2 dan tol manual Flazz; retribusi & parkir selalu tunai), sama dengan Rekap Pengeluaran.' }),
     ]),
     el('div', { class: 'panel' }, [isi]),
   ]);
