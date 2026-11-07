@@ -13,6 +13,7 @@ untuk setiap perubahan kode di repo ini.
 - Rencana perbaikan aktif: [docs/superpowers/plans/2026-10-19-perbaikan-keamanan-ux.md](docs/superpowers/plans/2026-10-19-perbaikan-keamanan-ux.md),
   [docs/superpowers/plans/2026-10-19-role-management.md](docs/superpowers/plans/2026-10-19-role-management.md) (selesai).
   [docs/superpowers/plans/2026-10-21-rincian-pengeluaran.md](docs/superpowers/plans/2026-10-21-rincian-pengeluaran.md) (selesai).
+  [docs/superpowers/plans/2026-11-07-retribusi-parkir.md](docs/superpowers/plans/2026-11-07-retribusi-parkir.md) (menunggu persetujuan, belum ada kode).
 
 ## 2. Setiap perubahan WAJIB memperbarui dokumentasi Markdown
 Setelah perubahan apa pun (kode, skema DB, konfigurasi):
