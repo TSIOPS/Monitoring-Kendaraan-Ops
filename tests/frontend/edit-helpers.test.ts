@@ -45,6 +45,23 @@ describe('bodyEdit', () => {
   });
 });
 
+describe('rincianBerubah + Retribusi/Parkir', () => {
+  const R = (jenis: string, nominal: unknown, kartu = '', keterangan = '') => ({ jenis, nominal, kartu, keterangan });
+  const awal = [R('BBM', 100000, 'FLZ-1', 'SPBU')];
+  it('menambah/menghapus/mengubah baris Retribusi atau Parkir -> berubah; kartu terkirim pada tunai-saja diabaikan', () => {
+    expect(rincianBerubah(awal, [...awal, R('RETRIBUSI', 10000)])).toBe(true);
+    expect(rincianBerubah([...awal, R('PARKIR', 5000)], awal)).toBe(true);
+    expect(rincianBerubah([...awal, R('PARKIR', 5000)], [...awal, R('PARKIR', 6000)])).toBe(true);
+    expect(rincianBerubah([...awal, R('RETRIBUSI', 10000, '', 'Gerbang')], [...awal, R('RETRIBUSI', '10000', 'FLZ-1', ' Gerbang ')])).toBe(false);
+  });
+  it('bodyEdit mengirim rincian hanya bila berubah; menambah Retribusi ikut terkirim', () => {
+    const trx = { ...TRX, rincian: awal };
+    expect(bodyEdit(trx, { ...NILAI, rincian: awal })).not.toHaveProperty('rincian');
+    const rincian = [...awal, R('RETRIBUSI', 10000)];
+    expect((bodyEdit(trx, { ...NILAI, rincian }) as { rincian?: unknown }).rincian).toEqual(rincian);
+  });
+});
+
 describe('rincianBerubah', () => {
   const R = (jenis: string, nominal: unknown, kartu = '', keterangan = '') => ({ jenis, nominal, kartu, keterangan });
   it('sama setelah dinormalkan (spasi, angka string, baris kosong) -> false', () => {

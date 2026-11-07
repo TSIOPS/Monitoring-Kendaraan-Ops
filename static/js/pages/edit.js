@@ -155,6 +155,9 @@ export async function renderEdit(view) {
   const fotoAkhir = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
   const fotoStrukBbm = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
   const fotoStrukTol = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
+  // Bukti Retribusi & Parkir Delivery: opsional.
+  const fotoRetribusi = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
+  const fotoParkir = el('input', { type: 'file', accept: 'image/*', class: 'form-control' });
 
   // Jenis BBM ditebak dari total BBM (grup-1 + grup-2) dan liter tersimpan.
   jenisBbm.value = tebakJenisBbm(bbmOpsi, Number(trx.total_bbm || 0), trx.isi_bbm)
@@ -208,8 +211,12 @@ export async function renderEdit(view) {
       kol(6, baris('Foto struk BBM (gabungan semua struk)', el('div', {}, [fotoStrukBbm, pratinjauFoto(fotoStrukBbm, trx.foto_struk_bbm || trx.foto_struk_bbm_thumb)]), trx.foto_struk_bbm ? 'Kosongkan bila tidak diganti.' : 'Belum ada struk; tambahkan bila ada.')),
       kol(6, baris('Foto bukti tol (gabungan semua bukti)', el('div', {}, [fotoStrukTol, pratinjauFoto(fotoStrukTol, trx.foto_struk_toll || trx.foto_struk_toll_thumb)]), trx.foto_struk_toll ? 'Kosongkan bila tidak diganti.' : 'Belum ada bukti. Beberapa struk difoto sekaligus dalam 1 foto; e-toll tanpa struk: foto cetak cek pengeluaran kartu.')),
     ]),
-    el('h3', { class: 'h6 mt-2', text: 'Pengeluaran BBM & Tol' }),
-    el('div', { class: 'form-text mb-2', text: 'Isi satu baris per nota. Dibayar: kartu etoll atau Tunai. Maks. 2 cara bayar per jenis.' }),
+    el('div', { class: 'row' }, [
+      kol(6, baris('Foto bukti retribusi', el('div', {}, [fotoRetribusi, pratinjauFoto(fotoRetribusi, trx.foto_struk_retribusi || trx.foto_struk_retribusi_thumb)]), trx.foto_struk_retribusi ? 'Kosongkan bila tidak diganti.' : 'Opsional.')),
+      kol(6, baris('Foto bukti parkir delivery', el('div', {}, [fotoParkir, pratinjauFoto(fotoParkir, trx.foto_struk_parkir || trx.foto_struk_parkir_thumb)]), trx.foto_struk_parkir ? 'Kosongkan bila tidak diganti.' : 'Opsional.')),
+    ]),
+    el('h3', { class: 'h6 mt-2', text: 'Pengeluaran BBM, Tol, Retribusi & Parkir' }),
+    el('div', { class: 'form-text mb-2', text: 'Isi satu baris per nota. BBM/Tol dibayar kartu etoll atau Tunai (maks. 2 cara bayar per jenis). Retribusi dan Parkir Delivery selalu Tunai.' }),
     trx.rincian_lama ? el('div', { class: 'form-text mb-2', text: 'Laporan lama: total dipecah otomatis menjadi baris. Boleh dirinci per nota.' }) : null,
     tabel.elemen,
     el('div', { class: 'row' }, [kol(6, baris('Jenis BBM', jenisBbm))]),
@@ -254,7 +261,7 @@ export async function renderEdit(view) {
         body.foto_odo_akhir_thumb = await kompresGambar(fotoAkhir.files[0], THUMB_LEBAR, THUMB_KUALITAS);
         body.foto_odo_akhir_name = namaAman(fotoAkhir.files[0].name);
       }
-      for (const [slot, input] of [['struk_bbm', fotoStrukBbm], ['struk_toll', fotoStrukTol]]) {
+      for (const [slot, input] of [['struk_bbm', fotoStrukBbm], ['struk_toll', fotoStrukTol], ['struk_retribusi', fotoRetribusi], ['struk_parkir', fotoParkir]]) {
         if (!(input.files && input.files[0])) continue;
         body['foto_' + slot] = await kompresGambar(input.files[0], STRUK_LEBAR, STRUK_KUALITAS);
         body['foto_' + slot + '_thumb'] = await kompresGambar(input.files[0], THUMB_LEBAR, THUMB_KUALITAS);

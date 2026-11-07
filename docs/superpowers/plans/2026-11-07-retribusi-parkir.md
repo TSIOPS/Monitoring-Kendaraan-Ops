@@ -86,9 +86,9 @@
 - [x] `npm test && npm run typecheck`, CHANGELOG (UX), commit `feat(input): retribusi dan parkir delivery di input laporan`.
 
 ### Task 7: Edit Laporan (`static/js/pages/edit.js`)
-- [ ] **Tes gagal** (`tests/frontend/edit-helpers.test.ts`): `rincianBerubah` mendeteksi perubahan baris Retribusi/Parkir; body edit mengirim `rincian` hanya bila berubah; foto baru dikirim hanya bila dipilih.
-- [ ] **Implementasi:** input foto opsional + pratinjau (pola `pratinjauFoto`) untuk dua slot; loop upload (~257) ditambah dua slot.
-- [ ] `npm test && npm run typecheck`, CHANGELOG, commit `feat(edit): edit retribusi dan parkir delivery`.
+- [x] **Tes gagal** (`tests/frontend/edit-helpers.test.ts`): `rincianBerubah` mendeteksi perubahan baris Retribusi/Parkir; body edit mengirim `rincian` hanya bila berubah; foto baru dikirim hanya bila dipilih.
+- [x] **Implementasi:** input foto opsional + pratinjau (pola `pratinjauFoto`) untuk dua slot; loop upload (~257) ditambah dua slot.
+- [x] `npm test && npm run typecheck`, CHANGELOG, commit `feat(edit): edit retribusi dan parkir delivery`.
 
 ### Task 8: History frontend (`static/js/pages/transaksi.js`)
 - [ ] **Tes gagal** (`tests/frontend/transaksi-helpers.test.ts`): `teksBarisRincian` memberi label "Retribusi"/"Parkir Delivery" dan "Tunai"; ringkasan bulanan menjumlah `total_retribusi`, `total_parkir`, `total_pengeluaran` (nilai `undefined` dari cache lama dianggap 0).
